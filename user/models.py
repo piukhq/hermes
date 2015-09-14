@@ -52,7 +52,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 
 class UserDetail(models.Model):
-    user = models.ForeignKey(CustomUser, related_name='profile')
+    user = models.OneToOneField(CustomUser, related_name='profile')
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
