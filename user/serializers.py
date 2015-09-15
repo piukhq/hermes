@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from django.contrib.auth import authenticate, login
 from rest_framework import serializers
 from user.models import CustomUser, UserDetail
 
@@ -17,6 +18,11 @@ class RegisterSerializer(serializers.Serializer):
         ret['email'] = instance.email
         ret['uid'] = instance.uid
         return ret
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
