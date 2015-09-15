@@ -1,5 +1,23 @@
+from collections import OrderedDict
 from rest_framework import serializers
 from user.models import CustomUser, UserDetail
+
+
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
+    def create(self, validated_data):
+        email = validated_data['email']
+        password = validated_data['password']
+        return CustomUser.objects.create_user(email, password)
+
+    def to_representation(self, instance):
+        ret = OrderedDict()
+        ret['email'] = instance.email
+        ret['uid'] = instance.uid
+        return ret
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
