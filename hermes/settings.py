@@ -114,3 +114,6 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'user.CustomUser'
+
+
+AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'

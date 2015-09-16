@@ -1,23 +1,40 @@
 from django.db import models
-from user.models import CustomUser
+from django.conf import settings
+
+from scheme.encyption import AESCipher
 
 
 class Scheme(models.Model):
+    TIERS = (
+        (1, 'Tier 1'),
+        (2, 'Tier 2'),
+    )
     name = models.CharField(max_length=200)
+    slug = models.SlugField(unique=True)
     url = models.URLField()
     company = models.CharField(max_length=200)
     company_url = models.URLField()
     forgotten_password_url = models.URLField
-    tier = models.IntegerField()
+    tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField()
     scan_message = models.CharField(max_length=100)
     point_name = models.CharField(max_length=50, default='points')
-    point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=10)
+    point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
     is_active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return self.name
+
 
 class SchemeImage(models.Model):
+    DRAFT = 0
+    PUBLISHED = 1
+
+    STATUSES = (
+        (DRAFT, 'draft'),
+        (PUBLISHED, 'published'),
+    )
     scheme_id = models.ForeignKey('scheme.Scheme')
     image_type_code = models.IntegerField()
     is_barcode = models.BooleanField()
@@ -29,26 +46,61 @@ class SchemeImage(models.Model):
     url = models.URLField()
     call_to_action = models.CharField(max_length=50)
     order = models.IntegerField()
-    #TODO: Sort the overlapping nature of these
-    is_published = models.BooleanField()
+    status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    is_deleted = models.BooleanField()
     created = models.DateTimeField()
 
 
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+            return super(ActiveManager, self).get_queryset().exclude(status=SchemeAccount.DELETED)
+
+
 class SchemeAccount(models.Model):
+    PENDING = 0
+    ACTIVE = 1
+    INVALID_CREDENTIALS = 2
+    END_SITE_DOWN = 3
+    DELETED = 4
+
+    STATUSES = (
+        (PENDING, 'pending'),
+        (ACTIVE, 'active'),
+        (INVALID_CREDENTIALS, 'invalid credentials'),
+        (END_SITE_DOWN, 'end site down'),
+        (DELETED, 'deleted'),
+    )
+    _original_password = None
+
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
     username = models.CharField(max_length=150)
     card_number = models.CharField(max_length=50)
-    membership_number = models.CharField(max_length=50)
-    password = models.CharField(max_length=30)
-    status = models.IntegerField()
-    order = models.IntegerField()
-    is_valid = models.BooleanField()
-    created = models.DateTimeField()
-    updated = models.DateTimeField()
+    membership_number = models.CharField(max_length=50, blank=True, null=True)
+    password = models.TextField()
+    status = models.IntegerField(default=PENDING, choices=STATUSES)
+    order = models.IntegerField(default=0)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    objects = models.Manager()
+    active_objects = ActiveManager()
+
+    def __init__(self, *args, **kwargs):
+        super(SchemeAccount, self).__init__(*args, **kwargs)
+        self._original_password = self.password
+
+    def save(self, *args, **kwargs):
+        """Ensure our password is always encrypted"""
+        if self.password != self._original_password or not self.pk:
+            aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
+            self.password = aes_cipher.encrypt(self.password)
+        super(SchemeAccount, self).save(*args, **kwargs)
+        self._original_password = self.password
+
+    def __str__(self):
+        return "{0} - {1}".format(self.user.email, self.scheme.name)
 
 
 class SchemeAccountSecurityQuestion(models.Model):
