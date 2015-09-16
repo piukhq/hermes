@@ -2,7 +2,7 @@ import json
 from django.test import Client, TestCase
 
 
-class RegisterNewUser(TestCase):
+class TestRegisterNewUser(TestCase):
 
     def test_register(self):
         client = Client()
@@ -77,7 +77,6 @@ class RegisterNewUser(TestCase):
     def test_existing_email(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
-        content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
 
         response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
@@ -85,6 +84,7 @@ class RegisterNewUser(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', content.keys())
         self.assertEqual(content['email'], ['This field must be unique.'])
+
 
 
 
