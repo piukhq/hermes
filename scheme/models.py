@@ -21,7 +21,7 @@ class Scheme(models.Model):
     url = models.URLField()
     company = models.CharField(max_length=200)
     company_url = models.URLField()
-    forgotten_password_url = models.URLField
+    forgotten_password_url = models.URLField()
     tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField()
     scan_message = models.CharField(max_length=100)
