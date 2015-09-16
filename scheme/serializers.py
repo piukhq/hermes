@@ -14,7 +14,6 @@ class SchemeAccountSerializer(serializers.ModelSerializer):
 
 
 
-class SchemeAccountSecurityQuestionSerializer(serializers.ModelSerializer):
+class SchemeAccountQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccountSecurityQuestion
-        exclude = ('user', )

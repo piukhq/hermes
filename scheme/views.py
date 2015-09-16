@@ -1,17 +1,22 @@
 from rest_framework import generics
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
-from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import SchemeSerializer, SchemeAccountSerializer
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, RetrieveUpdateDestroyAPIView
+from scheme.models import Scheme, SchemeAccount, SchemeAccountSecurityQuestion
+from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountQuestionSerializer
 from rest_framework import status
 from rest_framework.response import Response
 
 
-class Schemes(generics.ListAPIView):
+class SchemesList(generics.ListAPIView):
     queryset = Scheme.objects.filter(is_active=True)
     serializer_class = SchemeSerializer
 
 
-class EditAccount(RetrieveUpdateAPIView):
+class RetrieveScheme(RetrieveAPIView):
+    queryset = Scheme.objects
+    serializer_class = SchemeSerializer
+
+
+class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
     serializer_class = SchemeAccountSerializer
     queryset = SchemeAccount.active_objects
 
@@ -24,3 +29,12 @@ class EditAccount(RetrieveUpdateAPIView):
 
 class CreateAccount(CreateAPIView):
     serializer_class = SchemeAccountSerializer
+
+
+class CreateQuestion(CreateAPIView):
+    serializer_class = SchemeAccountQuestionSerializer
+
+
+class RetrieveUpdateDestroyQuestion(RetrieveUpdateDestroyAPIView):
+    serializer_class = SchemeAccountQuestionSerializer
+    queryset = SchemeAccountSecurityQuestion.objects

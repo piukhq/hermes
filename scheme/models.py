@@ -4,6 +4,13 @@ from django.conf import settings
 from scheme.encyption import AESCipher
 
 
+class Category(models.Model):
+    name = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.name
+
+
 class Scheme(models.Model):
     TIERS = (
         (1, 'Tier 1'),
@@ -22,6 +29,7 @@ class Scheme(models.Model):
     point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
     is_active = models.BooleanField(default=True)
+    category = models.ForeignKey(Category)
 
     def __str__(self):
         return self.name
@@ -35,7 +43,7 @@ class SchemeImage(models.Model):
         (DRAFT, 'draft'),
         (PUBLISHED, 'published'),
     )
-    scheme_id = models.ForeignKey('scheme.Scheme')
+    scheme = models.ForeignKey('scheme.Scheme')
     image_type_code = models.IntegerField()
     is_barcode = models.BooleanField()
     identifier = models.CharField(max_length=30)
@@ -49,7 +57,7 @@ class SchemeImage(models.Model):
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    created = models.DateTimeField()
+    created = models.DateTimeField(auto_now_add=True)
 
 
 class ActiveManager(models.Manager):
@@ -57,7 +65,30 @@ class ActiveManager(models.Manager):
             return super(ActiveManager, self).get_queryset().exclude(status=SchemeAccount.DELETED)
 
 
-class SchemeAccount(models.Model):
+class AESModel(object):
+    """
+    Mixin to aes encrypt the specified 'aes field'
+    """
+    __aes_field__ = None
+    _original_password = None
+
+    def __init__(self, *args, **kwargs):
+        super(AESModel, self).__init__(*args, **kwargs)
+        self._original_password = getattr(self, self.__aes_field__)
+
+    def save(self, *args, **kwargs):
+        """Ensure our password is always encrypted"""
+        new_password = getattr(self, self.__aes_field__)
+        if new_password != self._original_password or not self.pk:
+            aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
+            setattr(self, self.__aes_field__, aes_cipher.encrypt(new_password).decode('utf-8'))
+        super(AESModel, self).save(*args, **kwargs)
+        self._original_password = new_password
+
+
+class SchemeAccount(AESModel, models.Model):
+    __aes_field__ = "password"
+
     PENDING = 0
     ACTIVE = 1
     INVALID_CREDENTIALS = 2
@@ -71,7 +102,6 @@ class SchemeAccount(models.Model):
         (END_SITE_DOWN, 'end site down'),
         (DELETED, 'deleted'),
     )
-    _original_password = None
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -87,24 +117,14 @@ class SchemeAccount(models.Model):
     objects = models.Manager()
     active_objects = ActiveManager()
 
-    def __init__(self, *args, **kwargs):
-        super(SchemeAccount, self).__init__(*args, **kwargs)
-        self._original_password = self.password
-
-    def save(self, *args, **kwargs):
-        """Ensure our password is always encrypted"""
-        if self.password != self._original_password or not self.pk:
-            aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
-            self.password = aes_cipher.encrypt(self.password)
-        super(SchemeAccount, self).save(*args, **kwargs)
-        self._original_password = self.password
-
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
 
-class SchemeAccountSecurityQuestion(models.Model):
-    scheme_account_id = models.ForeignKey(SchemeAccount)
+class SchemeAccountSecurityQuestion(AESModel, models.Model):
+    __aes_field__ = "answer"
+
+    scheme_account = models.ForeignKey(SchemeAccount)
     question = models.CharField(max_length=250)
     answer = models.CharField(max_length=250)
 

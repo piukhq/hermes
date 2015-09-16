@@ -1,8 +1,13 @@
 from django.conf.urls import patterns, url
-from scheme.views import CreateAccount, Schemes, EditAccount
+from scheme.views import (CreateAccount, SchemesList, RetrieveUpdateDeleteAccount, RetrieveScheme,
+                          RetrieveUpdateDestroyQuestion, CreateQuestion)
 
-urlpatterns = patterns('scheme',
-                       url(r'account/$', CreateAccount.as_view(), name='create_scheme_account'),
-                       url(r'account/(?P<pk>[0-9]+)$', EditAccount.as_view(), name='create_scheme_account'),
-                       url(r'list/$', Schemes.as_view(), name='list_schemes'),
+urlpatterns = patterns('schemes',
+                       url(r'accounts/$', CreateAccount.as_view(), name='create_scheme_account'),
+                       url(r'accounts/(?P<pk>[0-9]+)$', RetrieveUpdateDeleteAccount.as_view(), name='retrieve_account'),
+                       url(r'^$', SchemesList.as_view(), name='list_schemes'),
+                       url(r'^(?P<pk>[0-9]+)$', RetrieveScheme.as_view(), name='retrieve_scheme'),
+                       url(r'^accounts/questions/(?P<pk>[0-9]+)$',
+                           RetrieveUpdateDestroyQuestion.as_view(), name='retrieve_question'),
+                       url(r'^accounts/questions', CreateQuestion.as_view(), name='create_question'),
 )
