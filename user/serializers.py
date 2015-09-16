@@ -1,11 +1,12 @@
 from collections import OrderedDict
 from django.contrib.auth import authenticate, login
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from user.models import CustomUser, UserDetail
 
 
 class RegisterSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
     password = serializers.CharField()
 
     def create(self, validated_data):
