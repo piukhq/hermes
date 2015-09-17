@@ -66,6 +66,9 @@ class TestScheme(APITestCase):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(deleted_scheme_account.status, SchemeAccount.DELETED)
 
+        response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id))
+        self.assertEqual(response.status_code, 404)
+
     def test_post_schemes_account_question(self):
         data = {
             "scheme_account": self.scheme_account.id,
