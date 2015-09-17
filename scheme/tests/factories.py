@@ -51,4 +51,3 @@ class SchemeAccountSecurityQuestionFactory(factory.DjangoModelFactory):
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     question = fake.sentence()
     answer = fake.password()
-
