@@ -1,8 +1,10 @@
 from collections import OrderedDict
 from django.contrib.auth import authenticate, login
 from rest_framework import serializers
+from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
-from user.models import CustomUser, UserDetail
+from hermes.currencies import CURRENCIES
+from user.models import CustomUser, UserDetail, NOTIFICATIONS_SETTING
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -35,20 +37,27 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
+        raise_errors_on_nested_writes('update', self, validated_data)
         user_detail_instance = UserDetail.objects.get(user=instance)
         email = validated_data.pop('email', None)
+        if 'profile' in validated_data:
+            if 'currency' in validated_data['profile']:
+                currency_code = CURRENCIES.index(validated_data['profile']['currency'])
+                validated_data['profile']['currency'] = currency_code
+            user_detail_serializer = UserProfileSerializer(user_detail_instance,
+                                                           data=validated_data['profile'],
+                                                           partial=True)
+            user_detail_serializer.is_valid()
+            user_detail_serializer.save()
+
         if email:
             instance.email = email
             instance.save()
-        user_detail_serializer = UserProfileSerializer(user_detail_instance,
-                                                       data=validated_data['profile'],
-                                                       partial=True)
-        user_detail_serializer.is_valid()
-        user_detail_serializer.save()
         return instance
 
 
     uid = serializers.CharField(read_only=True, required=False)
+    email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())], required=False)
     first_name = serializers.CharField(source='profile.first_name', required=False)
     last_name = serializers.CharField(source='profile.last_name', required=False)
     date_of_birth = serializers.CharField(source='profile.date_of_birth', required=False)
@@ -59,9 +68,9 @@ class UserSerializer(serializers.ModelSerializer):
     region = serializers.CharField(source='profile.region', required=False)
     postcode = serializers.CharField(source='profile.postcode', required=False)
     country = serializers.CharField(source='profile.country', required=False)
-    notifications = serializers.CharField(source='profile.notifications', required=False)
+    notifications = serializers.IntegerField(source='profile.notifications', required=False, max_value=2)
     pass_code = serializers.CharField(source='profile.pass_code', required=False)
-    currency = serializers.CharField(source='profile.currency', required=False)
+    currency = serializers.CharField(source='profile.currency', required=False, max_length=3)
 
     class Meta:
         model = CustomUser
