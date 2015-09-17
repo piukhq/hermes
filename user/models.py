@@ -1,6 +1,8 @@
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
@@ -50,6 +52,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # def is_superuser(self):
     #     return self.is_superuser
 
+NOTIFICATIONS_SETTING = (
+    (0, False),
+    (1, True),
+)
 
 class UserDetail(models.Model):
     user = models.OneToOneField(CustomUser, related_name='profile')
@@ -64,7 +70,13 @@ class UserDetail(models.Model):
     postcode = models.CharField(max_length=20, null=True, blank=True)
     # TODO: Country should not be a varchar
     country = models.CharField(max_length=100, null=True, blank=True)
-    notifications = models.IntegerField(null=True, blank=True)
+    notifications = models.IntegerField(null=True, blank=True, choices=NOTIFICATIONS_SETTING)
     pass_code = models.IntegerField(null=True, blank=True)
     currency = models.IntegerField(null=True, blank=True)
     # avatar
+
+
+@receiver(post_save, sender=CustomUser)
+def create_user_detail(sender, instance, created, **kwargs):
+    if created:
+        UserDetail.objects.create(user=instance)
