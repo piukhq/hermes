@@ -127,6 +127,3 @@ class SchemeAccountSecurityQuestion(AESModel, models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
     question = models.CharField(max_length=250)
     answer = models.CharField(max_length=250)
-
-
-
