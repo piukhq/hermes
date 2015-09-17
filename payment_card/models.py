@@ -5,26 +5,38 @@ class Issuer(models.Model):
     name = models.CharField(max_length=200)
     image = models.ImageField()
 
+    def __str__(self):
+        return self.name
+
+
 
 class PaymentCard(models.Model):
+    VISA = 'visa'
+    MATERCARD = 'mastercard'
+    AMEX = 'amex'
     SYSTEMS = (
-        ('visa', 'Visa'),
-        ('mastercard', 'Master Card'),
-        ('amex', 'American Express‎'),
+        (VISA, 'Visa'),
+        (MATERCARD, 'Master Card'),
+        (AMEX, 'American Express‎'),
     )
+    DEBIT = 'debit'
+    CREDIT = 'credit'
     TYPES = (
-        ('debit', 'Debit Card'),
-        ('credit', 'Credit Card'),
+        (DEBIT, 'Debit Card'),
+        (CREDIT, 'Credit Card'),
     )
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     url = models.URLField()
-    image = models.ImageField(null=True)
+    image = models.ImageField()
     scan_message = models.CharField(max_length=100)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
     is_active = models.BooleanField(default=True)
     system = models.CharField(max_length=40, choices=SYSTEMS)
     type = models.CharField(max_length=40, choices=TYPES)
+
+    def __str__(self):
+        return self.name
 
 
 class PaymentCardAccount(models.Model):
@@ -57,3 +69,6 @@ class PaymentCardAccount(models.Model):
     postcode = models.CharField(max_length=20, blank=True, null=True)
     security_code = models.CharField(max_length=6)
     issuer = models.ForeignKey(Issuer)
+
+    def __str__(self):
+        return self.pan

@@ -23,7 +23,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = []
 
@@ -40,7 +40,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'user',
     'scheme',
-    'paymentcard',
+    'payment_card',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -115,5 +115,9 @@ STATIC_URL = '/static/'
 
 AUTH_USER_MODEL = 'user.CustomUser'
 
-
 AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
+
+try:
+    from hermes.local_settings import *
+except ImportError:
+    pass

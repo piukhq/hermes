@@ -13,7 +13,6 @@ class SchemeAccountSerializer(serializers.ModelSerializer):
         exclude = ('updated', 'status')
 
 
-
 class SchemeAccountQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccountSecurityQuestion
