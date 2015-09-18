@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from django.contrib.auth import authenticate, login
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
-from user.models import CustomUser, UserDetail, NOTIFICATIONS_SETTING
+from scheme.models import SchemeAccount
+from user.models import CustomUser, UserDetail
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -77,4 +77,17 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ('uid', 'email', 'first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1',
                   'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code',
                   'currency')
+
+
+class SchemeAccountsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeAccount
+        fields = ('scheme', 'pk')
+
+    def to_representation(self, instance):
+        ret = OrderedDict()
+        ret['scheme_id'] = instance.scheme.pk
+        ret['scheme_account_id'] = instance.pk
+        return ret
+
 
