@@ -1,4 +1,5 @@
 import factory
+from factory.fuzzy import FuzzyAttribute
 from scheme import models
 from faker import Factory
 from user.tests.factories import UserFactory
@@ -18,7 +19,7 @@ class SchemeFactory(factory.DjangoModelFactory):
         model = models.Scheme
 
     name = fake.company()
-    slug = fake.slug()
+    slug = FuzzyAttribute(fake.slug)
     url = fake.url()
     company = fake.company()
     company_url = fake.url()
