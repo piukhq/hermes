@@ -39,6 +39,11 @@ class PaymentCard(models.Model):
         return self.name
 
 
+class ActiveManager(models.Manager):
+    def get_queryset(self):
+            return super(ActiveManager, self).get_queryset().exclude(status=PaymentCardAccount.DELETED)
+
+
 class PaymentCardAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
@@ -69,6 +74,9 @@ class PaymentCardAccount(models.Model):
     postcode = models.CharField(max_length=20, blank=True, null=True)
     security_code = models.CharField(max_length=6)
     issuer = models.ForeignKey(Issuer)
+
+    objects = models.Manager()
+    active_objects = ActiveManager()
 
     def __str__(self):
         return self.pan
