@@ -1,5 +1,6 @@
 import json
 from django.test import Client, TestCase
+from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 
 
@@ -90,14 +91,18 @@ class TestRegisterNewUser(TestCase):
 class TestUserProfile(TestCase):
 
     def test_empty_profile(self):
+
         client = Client()
         email = 'empty_profile@example.com'
         response = client.post('/users/register/', {'email': email, 'password': 'password1'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid = content['uid']
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
 
-        response = client.get('/users/{}/'.format(uid), content_type='application/json')
+        response = client.get('/users/{}/'.format(uid), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(content['email'], email)
@@ -124,6 +129,9 @@ class TestUserProfile(TestCase):
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid = content['uid']
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
         data = {
             'email': 'user_profile2@example.com',
             'first_name': 'Andrew',
@@ -140,7 +148,7 @@ class TestUserProfile(TestCase):
             'pass_code': '1234',
             'currency': 'GBP'
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         data['uid'] = uid
@@ -163,8 +171,11 @@ class TestUserProfile(TestCase):
             'postcode': user_profile.postcode,
             'country': user_profile.country,
         }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['uid'], str(uid))
@@ -186,7 +197,10 @@ class TestUserProfile(TestCase):
         data = {
             'phone': user_profile.phone,
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['uid'], str(uid))
@@ -208,7 +222,10 @@ class TestUserProfile(TestCase):
         data = {
             'address_line_1': new_address_1,
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['uid'], str(uid))
@@ -233,8 +250,11 @@ class TestUserProfile(TestCase):
         data = {
             'email': new_email,
         }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['uid'], str(uid))
@@ -247,8 +267,11 @@ class TestUserProfile(TestCase):
         data = {
             'email': user_profile2.user.email,
         }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json')
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertEqual(content['email'], ['This field must be unique.'])
@@ -269,7 +292,48 @@ class TestUserProfile(TestCase):
         pass
 
 
+class TestAuthentication(TestCase):
+    #TODO: ADD Validation error tests
+    def test_local_login_valid(self):
+        pass
 
+    def test_local_login_invalid(self):
+        pass
 
+    def test_local_login_disable(self):
+        pass
 
+    def test_remote_authentication_valid(self):
+        client = Client()
+        user = UserFactory()
+        uid = str(user.uid)
+        response = client.post('/users/authenticate/{}/'.format(uid), json.dumps({
+            'uid': str(user.uid)
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
 
+    def test_remote_authentication_invalid(self):
+        client = Client()
+        user = UserFactory()
+        uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
+        response = client.post('/users/authenticate/{}/'.format(uid), json.dumps({
+            'uid': str(user.uid)
+        }), content_type='application/json')
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(content['uid'], 'Invalid token.')
+
+class TestSchemeAccountsList(TestCase):
+    def test_get_scheme_accounts(self):
+        scheme_accounts = []
+        user = UserFactory()
+        uid = str(user.uid)
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        for i in range(10):
+            scheme_accounts.append(SchemeAccountFactory(user=user))
+        client = Client()
+        response = client.get('/users/scheme_accounts/', content_type='application/json', **auth_headers)
+        content = json.loads(response.content.decode())
+        self.assertEqual(True, True)
