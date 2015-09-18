@@ -1,5 +1,6 @@
 decorator==4.0.2
 Django==1.8.4
+django-rest-swagger==0.3.4
 djangorestframework==3.2.3
 factory-boy==2.5.2
 fake-factory==0.5.2
@@ -12,6 +13,7 @@ pickleshare==0.5
 Pillow==2.9.0
 psycopg2==2.6.1
 pycrypto==2.6.1
+PyYAML==3.11
 simplegeneric==0.8.1
 traitlets==4.0.0
 wheel==0.24.0
