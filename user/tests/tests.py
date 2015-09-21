@@ -277,7 +277,19 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['email'], ['This field must be unique.'])
 
     def test_cannot_edit_uid(self):
-        pass
+        # You cannot edit uid, but if you try you still get a 200.
+        user_profile = UserProfileFactory()
+        uid = user_profile.user.uid
+        data = {
+            'uid': '172b7aaf-8233-4be3-a50e-67b9c03a5a91',
+        }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        client = Client()
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        content = json.loads(response.content.decode())
+        self.assertEqual(content['uid'], str(uid))
 
     def test_remove_all(self):
         pass
