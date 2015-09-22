@@ -31,6 +31,7 @@ class LoginSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDetail
+        date_of_birth = serializers.DateField(required=False, allow_null=True)
         fields = ('first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1', 'address_line_2', 'city',
                   'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency')
 
@@ -58,19 +59,19 @@ class UserSerializer(serializers.ModelSerializer):
 
     uid = serializers.CharField(read_only=True, required=False)
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())], required=False)
-    first_name = serializers.CharField(source='profile.first_name', required=False)
-    last_name = serializers.CharField(source='profile.last_name', required=False)
-    date_of_birth = serializers.CharField(source='profile.date_of_birth', required=False)
-    phone = serializers.CharField(source='profile.phone', required=False)
-    address_line_1 = serializers.CharField(source='profile.address_line_1', required=False)
-    address_line_2 = serializers.CharField(source='profile.address_line_2', required=False)
-    city = serializers.CharField(source='profile.city', required=False)
-    region = serializers.CharField(source='profile.region', required=False)
-    postcode = serializers.CharField(source='profile.postcode', required=False)
-    country = serializers.CharField(source='profile.country', required=False)
-    notifications = serializers.IntegerField(source='profile.notifications', required=False, max_value=2)
-    pass_code = serializers.CharField(source='profile.pass_code', required=False)
-    currency = serializers.CharField(source='profile.currency', required=False, max_length=3)
+    first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)
+    last_name = serializers.CharField(source='profile.last_name', required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(source='profile.date_of_birth', required=False, allow_null=True)
+    phone = serializers.CharField(source='profile.phone', required=False, allow_blank=True)
+    address_line_1 = serializers.CharField(source='profile.address_line_1', required=False, allow_blank=True)
+    address_line_2 = serializers.CharField(source='profile.address_line_2', required=False, allow_blank=True)
+    city = serializers.CharField(source='profile.city', required=False, allow_blank=True)
+    region = serializers.CharField(source='profile.region', required=False, allow_blank=True)
+    postcode = serializers.CharField(source='profile.postcode', required=False, allow_blank=True)
+    country = serializers.CharField(source='profile.country', required=False, allow_blank=True)
+    notifications = serializers.IntegerField(source='profile.notifications', required=False, allow_null=True)
+    pass_code = serializers.CharField(source='profile.pass_code', required=False, allow_blank=True)
+    currency = serializers.CharField(source='profile.currency', required=False, allow_blank=True)
 
     class Meta:
         model = CustomUser

@@ -277,12 +277,100 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['email'], ['This field must be unique.'])
 
     def test_cannot_edit_uid(self):
-        pass
+        # You cannot edit uid, but if you try you still get a 200.
+        user_profile = UserProfileFactory()
+        uid = user_profile.user.uid
+        data = {
+            'uid': '172b7aaf-8233-4be3-a50e-67b9c03a5a91',
+        }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        client = Client()
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        content = json.loads(response.content.decode())
+        self.assertEqual(content['uid'], str(uid))
 
     def test_remove_all(self):
-        pass
+        user_profile = UserProfileFactory()
+        uid = user_profile.user.uid
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        client = Client()
+        data = {
+            'email': user_profile.user.email,
+            'first_name': user_profile.first_name,
+            'last_name': user_profile.last_name,
+            'date_of_birth': user_profile.date_of_birth,
+            'phone': user_profile.phone,
+            'address_line_1': user_profile.address_line_1,
+            'address_line_2': user_profile.address_line_2,
+            'city': user_profile.city,
+            'region': user_profile.region,
+            'postcode': user_profile.postcode,
+            'country': user_profile.country,
+            'notifications': user_profile.notifications,
+            'pass_code': user_profile.pass_code,
+            'currency': user_profile.currency
+        }
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['uid'], str(uid))
+        self.assertEqual(content['email'], user_profile.user.email)
+        self.assertEqual(content['first_name'], user_profile.first_name)
+        self.assertEqual(content['last_name'], user_profile.last_name)
+        self.assertEqual(content['date_of_birth'], user_profile.date_of_birth)
+        self.assertEqual(content['phone'], user_profile.phone)
+        self.assertEqual(content['address_line_1'], user_profile.address_line_1)
+        self.assertEqual(content['address_line_2'], user_profile.address_line_2)
+        self.assertEqual(content['city'], user_profile.city)
+        self.assertEqual(content['region'],  user_profile.region)
+        self.assertEqual(content['postcode'], user_profile.postcode)
+        self.assertEqual(content['country'], user_profile.country)
+        self.assertEqual(content['notifications'], 0)
+        self.assertEqual(content['pass_code'], user_profile.pass_code)
+
+        data = {
+            'email': user_profile.user.email,
+            'first_name': '',
+            'last_name': '',
+            'date_of_birth': None,
+            'phone': '',
+            'address_line_1': '',
+            'address_line_2': '',
+            'city': '',
+            'region': '',
+            'postcode': '',
+            'country': '',
+            'notifications': None,
+            'pass_code': '',
+        }
+        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['uid'], str(uid))
+        self.assertEqual(content['email'], user_profile.user.email)
+        self.assertEqual(content['first_name'], '')
+        self.assertEqual(content['last_name'], '')
+        self.assertEqual(content['date_of_birth'], None)
+        self.assertEqual(content['phone'], '')
+        self.assertEqual(content['address_line_1'], '')
+        self.assertEqual(content['address_line_2'], '')
+        self.assertEqual(content['city'], '')
+        self.assertEqual(content['region'],  '')
+        self.assertEqual(content['postcode'], '')
+        self.assertEqual(content['country'], '')
+        self.assertEqual(content['notifications'], None)
+        self.assertEqual(content['pass_code'], '')
+
 
     def test_remove_partial(self):
+        pass
+
+    def test_cannot_remove_email(self):
         pass
 
     def test_currency_valid(self):
@@ -307,21 +395,24 @@ class TestAuthentication(TestCase):
         client = Client()
         user = UserFactory()
         uid = str(user.uid)
-        response = client.post('/users/authenticate/{}/'.format(uid), json.dumps({
-            'uid': str(user.uid)
-        }), content_type='application/json')
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 200)
 
     def test_remote_authentication_invalid(self):
         client = Client()
         user = UserFactory()
         uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
-        response = client.post('/users/authenticate/{}/'.format(uid), json.dumps({
-            'uid': str(user.uid)
-        }), content_type='application/json')
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+        }
+        response = client.get('/users/authenticate/', **auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 401)
-        self.assertEqual(content['uid'], 'Invalid token.')
+        self.assertEqual(content['detail'], 'Invalid token.')
+
 
 class TestSchemeAccountsList(TestCase):
     def test_get_scheme_accounts(self):

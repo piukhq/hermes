@@ -25,6 +25,8 @@ class Scheme(models.Model):
     tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField()
     scan_message = models.CharField(max_length=100)
+    is_barcode = models.BooleanField()
+    identifier = models.CharField(max_length=30)
     point_name = models.CharField(max_length=50, default='points')
     point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
@@ -45,8 +47,6 @@ class SchemeImage(models.Model):
     )
     scheme = models.ForeignKey('scheme.Scheme')
     image_type_code = models.IntegerField()
-    is_barcode = models.BooleanField()
-    identifier = models.CharField(max_length=30)
     size_code = models.CharField(max_length=30)
     image_path = models.CharField(max_length=300)
     strap_line = models.CharField(max_length=50)
