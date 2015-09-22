@@ -4,3 +4,4 @@ aes
 *.ipynb
 .coverage
 static
+.env

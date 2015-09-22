@@ -12,17 +12,8 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+from enviroment import env_var
 import dj_database_url
-
-
-def env_var(key, default=None):
-    """Retrieves env vars and makes Python boolean replacements"""
-    val = os.environ.get(key, default)
-    if val == 'True':
-        val = True
-    elif val == 'False':
-        val = False
-    return val
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
