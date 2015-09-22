@@ -2,7 +2,7 @@
 import os
 import sys
 
-from enviroment import read_env
+from environment import read_env
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
