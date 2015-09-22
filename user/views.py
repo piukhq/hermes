@@ -8,6 +8,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from scheme.models import SchemeAccount
 from user.authenticators import UIDAuthentication
 from user.models import CustomUser
@@ -59,17 +60,12 @@ class Users(RetrieveUpdateAPIView):
     lookup_field = 'uid'
 
 
-class Authenticate(View):
+class Authenticate(APIView):
+    authentication_classes = (UIDAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     @method_decorator(csrf_exempt)
-    def post(self, request, uid):
-        authenticator = UIDAuthentication()
-        try:
-            authenticated = authenticator.authenticate_credentials(uid)
-        except AuthenticationFailed as e:
-            response_data = {
-                'uid': str(e)
-            }
-            return HttpResponse(json.dumps(response_data), content_type="application/json", status=401)
+    def get(self, request):
         return HttpResponse()
 
 
