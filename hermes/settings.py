@@ -12,9 +12,21 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import dj_database_url
+
+
+def env_var(key, default=None):
+    """Retrieves env vars and makes Python boolean replacements"""
+    val = os.environ.get(key, default)
+    if val == 'True':
+        val = True
+    elif val == 'False':
+        val = False
+    return val
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
@@ -23,9 +35,18 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = env_var("HERMES_DEBUG", False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "127.0.0.1",
+    ".chingrewards.com"
+]
+
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ORIGIN_WHITELIST = (
+    "127.0.0.1",
+    ".chingrewards.com",
+)
 
 
 # Application definition
@@ -39,6 +60,7 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'rest_framework',
     'rest_framework_swagger',
+    'corsheaders',
     'user',
     'scheme',
     'payment_card',
@@ -53,6 +75,8 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.common.CommonMiddleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -80,18 +104,10 @@ WSGI_APPLICATION = 'hermes.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'OPTIONS': {
-                'options': '-c search_path=hermes,public'
-        },
-        'HOST': 'localhost',
-        'USER': 'postgres',
-        'PASSWORD': '',
-        'NAME': 'postgres',
-        'PORT': 5432,
-    }
+    'default': dj_database_url.parse(
+        env_var("HERMES_DATABASE_URL", "postgres://postgres@localhost:5432/hermes"))
 }
 
 
@@ -118,7 +134,4 @@ AUTH_USER_MODEL = 'user.CustomUser'
 
 AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
 
-try:
-    from hermes.local_settings import *
-except ImportError:
-    pass
+
