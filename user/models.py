@@ -71,7 +71,7 @@ class UserDetail(models.Model):
     # TODO: Country should not be a varchar
     country = models.CharField(max_length=100, null=True, blank=True)
     notifications = models.IntegerField(null=True, blank=True, choices=NOTIFICATIONS_SETTING)
-    pass_code = models.IntegerField(null=True, blank=True)
+    pass_code = models.CharField(max_length=20, null=True, blank=True)
     currency = models.IntegerField(null=True, blank=True)
     # avatar
 
