@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
+from django.utils import timezone
 
 from scheme.encyption import AESCipher
 
@@ -63,12 +64,12 @@ class SchemeImage(models.Model):
     strap_line = models.CharField(max_length=50)
     description = models.CharField(max_length=300)
     url = models.URLField()
-    call_to_action = models.CharField(max_length=50)
+    call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(default=timezone.now)
 
 
 class ActiveManager(models.Manager):
