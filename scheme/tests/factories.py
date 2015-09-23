@@ -25,6 +25,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     company_url = fake.url()
     forgotten_password_url = fake.url()
     tier = 1
+    is_barcode = True
     barcode_type = 1
     scan_message = fake.sentence()
     point_conversion_rate = 1
