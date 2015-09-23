@@ -3,11 +3,10 @@ from django.db import models
 
 class Issuer(models.Model):
     name = models.CharField(max_length=200)
-    image = models.ImageField()
+    image = models.ImageField(upload_to="issuers")
 
     def __str__(self):
         return self.name
-
 
 
 class PaymentCard(models.Model):
@@ -28,7 +27,7 @@ class PaymentCard(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     url = models.URLField()
-    image = models.ImageField()
+    image = models.ImageField(upload_to="payment_cards")
     scan_message = models.CharField(max_length=100)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
     is_active = models.BooleanField(default=True)

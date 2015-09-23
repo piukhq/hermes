@@ -59,7 +59,7 @@ class SchemeImage(models.Model):
     scheme = models.ForeignKey('scheme.Scheme')
     image_type_code = models.IntegerField()
     size_code = models.CharField(max_length=30)
-    image_path = models.CharField(max_length=300)
+    image = models.ImageField(upload_to="schemes")
     strap_line = models.CharField(max_length=50)
     description = models.CharField(max_length=300)
     url = models.URLField()
