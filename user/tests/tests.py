@@ -99,7 +99,7 @@ class TestUserProfile(TestCase):
         content = json.loads(response.content.decode())
         uid = content['uid']
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
 
         response = client.get('/users/{}/'.format(uid), content_type='application/json', **auth_headers)
@@ -130,7 +130,7 @@ class TestUserProfile(TestCase):
         content = json.loads(response.content.decode())
         uid = content['uid']
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         data = {
             'email': 'user_profile2@example.com',
@@ -172,7 +172,7 @@ class TestUserProfile(TestCase):
             'country': user_profile.country,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -198,7 +198,7 @@ class TestUserProfile(TestCase):
             'phone': user_profile.phone,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
@@ -223,7 +223,7 @@ class TestUserProfile(TestCase):
             'address_line_1': new_address_1,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
@@ -251,7 +251,7 @@ class TestUserProfile(TestCase):
             'email': new_email,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -268,7 +268,7 @@ class TestUserProfile(TestCase):
             'email': user_profile2.user.email,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -284,7 +284,7 @@ class TestUserProfile(TestCase):
             'uid': '172b7aaf-8233-4be3-a50e-67b9c03a5a91',
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -295,7 +295,7 @@ class TestUserProfile(TestCase):
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         client = Client()
         data = {
@@ -420,7 +420,7 @@ class TestSchemeAccountsList(TestCase):
         user = UserFactory()
         uid = str(user.uid)
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         for i in range(10):
             scheme_accounts.append(SchemeAccountFactory(user=user))
