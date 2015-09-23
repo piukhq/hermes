@@ -1,0 +1,1 @@
+[{"pk": 1, "fields": {"name": "Uncategorised"}, "model": "scheme.category"}, {"pk": 2, "fields": {"name": "Travel"}, "model": "scheme.category"}, {"pk": 3, "fields": {"name": "Finance"}, "model": "scheme.category"}, {"pk": 4, "fields": {"name": "Household"}, "model": "scheme.category"}, {"pk": 5, "fields": {"name": "Social"}, "model": "scheme.category"}]
