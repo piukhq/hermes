@@ -396,7 +396,7 @@ class TestAuthentication(TestCase):
         user = UserFactory()
         uid = str(user.uid)
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 200)
@@ -406,7 +406,7 @@ class TestAuthentication(TestCase):
         user = UserFactory()
         uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
+            'HTTP_AUTHORIZATION': str(uid),
         }
         response = client.get('/users/authenticate/', **auth_headers)
         content = json.loads(response.content.decode())
