@@ -919,7 +919,7 @@
       "category": 1,
       "is_active": "1",
       "barcode_type": "-1",
-      "slug": "miles-more"
+      "slug": "miles-more-swiss"
     },
     "model": "scheme.scheme"
   },
@@ -985,7 +985,7 @@
       "category": 1,
       "is_active": "1",
       "barcode_type": "-1",
-      "slug": "miles-more"
+      "slug": "miles-more-sn-brussels"
     },
     "model": "scheme.scheme"
   },
