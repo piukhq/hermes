@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils.text import slugify
 
 from scheme.encyption import AESCipher
 
@@ -21,7 +22,7 @@ class Scheme(models.Model):
     url = models.URLField()
     company = models.CharField(max_length=200)
     company_url = models.URLField()
-    forgotten_password_url = models.URLField()
+    forgotten_password_url = models.URLField(max_length=500)
     tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField()
     scan_message = models.CharField(max_length=100)
@@ -45,6 +46,16 @@ class SchemeImage(models.Model):
         (DRAFT, 'draft'),
         (PUBLISHED, 'published'),
     )
+
+    IMAGE_TYPES = (
+        (0, 'hero'),
+        (1, 'banner'),
+        (2, 'offers'),
+        (3, 'icon'),
+        (4, 'asset'),
+        (5, 'reference'),
+    )
+
     scheme = models.ForeignKey('scheme.Scheme')
     image_type_code = models.IntegerField()
     size_code = models.CharField(max_length=30)
