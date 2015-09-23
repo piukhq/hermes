@@ -400,6 +400,9 @@ class TestAuthentication(TestCase):
         }
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertEqual(content['uid'], str(uid))
+        self.assertEqual(content['id'], str(user.id))
 
     def test_remote_authentication_invalid(self):
         client = Client()

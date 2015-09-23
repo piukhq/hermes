@@ -66,7 +66,10 @@ class Authenticate(APIView):
 
     @method_decorator(csrf_exempt)
     def get(self, request):
-        return HttpResponse()
+        return HttpResponse(json.dumps({
+            'uid': str(request.user.uid),
+            'id': str(request.user.id)
+        }))
 
 
 class SchemeAccounts(ListAPIView):
