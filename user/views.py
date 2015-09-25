@@ -1,14 +1,11 @@
 import json
-import pickle
 from types import SimpleNamespace
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.views.generic import View
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, ListAPIView, RetrieveAPIView, \
-    get_object_or_404
+from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
+    RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,32 +14,28 @@ from scheme.encyption import AESCipher
 from scheme.models import SchemeAccount, Scheme, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
 from user.authenticators import UIDAuthentication
 from user.models import CustomUser
-from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer
+from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer
 
 
 class ForgottenPassword():
     pass
 
 
-class Login(View):
-    @method_decorator(csrf_exempt)
-    def post(self, request):
-        email = request.POST['email']
-        password = request.POST['password']
-        user = authenticate(email=email, password=password)
-        if user is not None:
-            if user.is_active:
-                login(request, user)
-                return HttpResponse(json.dumps({'email': email, 'uid': user.uid}), content_type="application/json")
-            else:
-                return HttpResponse('The account associated with this email address is suspended.',
-                                    content_type="application/json",
-                                    status=403)
-        else:
-            return HttpResponse('Login credentials incorrect.',
-                    content_type="application/json",
-                    status=403)
+class Login(GenericAPIView):
+    serializer_class = LoginSerializer
 
+    def post(self, request):
+        email = request.data['email']
+        password = request.data['password']
+        user = authenticate(email=email, password=password)
+
+        if not user:
+            return Response({"error": 'Login credentials incorrect.'}, status=403)
+        if not user.is_active:
+            return Response({"error": "The account associated with this email address is suspended."}, status=403)
+
+        login(request, user)
+        return Response({'email': email, 'api_key': user.uid})
 
 
 # TODO: Could be merged with users
@@ -108,5 +101,3 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         instance = SimpleNamespace(scheme_slug=scheme.slug, credentials=encrypted_credentials)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
-
-

@@ -7,6 +7,11 @@ from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail
 
 
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField()
+
+
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
     password = serializers.CharField()

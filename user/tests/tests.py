@@ -5,10 +5,10 @@ from scheme.encyption import AESCipher
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
     SchemeCredentialQuestionFactory
 from user.tests.factories import UserFactory, UserProfileFactory, fake
+from rest_framework.test import APITestCase
 
 
 class TestRegisterNewUser(TestCase):
-
     def test_register(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password1'})
@@ -383,33 +383,58 @@ class TestUserProfile(TestCase):
         pass
 
 
-class TestAuthentication(TestCase):
-    #TODO: ADD Validation error tests
+class TestAuthentication(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.user = UserFactory()
+        super(TestAuthentication, cls).setUpClass()
+
     def test_local_login_valid(self):
-        pass
+        data = {
+            "email": self.user.email,
+            "password": 'defaultpassword'
+        }
+        response = self.client.post('/users/login/', data=data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("api_key", response.data)
 
     def test_local_login_invalid(self):
-        pass
+        data = {
+            "email": self.user.email,
+            "password": 'badpassword'
+        }
+        response = self.client.post('/users/login/', data=data)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["error"], 'Login credentials incorrect.')
 
     def test_local_login_disable(self):
-        pass
+        self.user.is_active = False
+        self.user.save()
+        data = {
+            "email": self.user.email,
+            "password": 'defaultpassword'
+        }
+        response = self.client.post('/users/login/', data=data)
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data["error"], "The account associated with this email address is suspended.")
 
     def test_remote_authentication_valid(self):
         client = Client()
-        user = UserFactory()
-        uid = str(user.uid)
+        uid = str(self.user.uid)
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': uid
         }
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['id'], str(user.id))
+        self.assertEqual(content['uid'], uid)
+        self.assertEqual(content['id'], str(self.user.id))
 
     def test_remote_authentication_invalid(self):
         client = Client()
-        user = UserFactory()
         uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
         auth_headers = {
             'HTTP_AUTHORIZATION': str(uid),
