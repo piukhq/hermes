@@ -1,8 +1,9 @@
 from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.permissions import IsAuthenticated
-from scheme.models import Scheme, SchemeAccount, SchemeAccountSecurityQuestion
-from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountQuestionSerializer
+from scheme.models import Scheme, SchemeAccount
+from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
+    SchemeAccountAnswerSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import UIDAuthentication
@@ -39,16 +40,16 @@ class CreateAccount(CreateAPIView):
     serializer_class = SchemeAccountSerializer
 
 
-class CreateQuestion(CreateAPIView):
+class CreateAnswer(CreateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-    serializer_class = SchemeAccountQuestionSerializer
+    serializer_class = SchemeAccountAnswerSerializer
 
 
-class RetrieveUpdateDestroyQuestion(RetrieveUpdateDestroyAPIView):
+class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-    serializer_class = SchemeAccountQuestionSerializer
-    queryset = SchemeAccountSecurityQuestion.objects
+    serializer_class = SchemeAccountAnswerSerializer
+    queryset = SchemeAccountCredentialAnswer.objects

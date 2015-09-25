@@ -81,7 +81,7 @@ class AESModel(object):
     """
     Mixin to aes encrypt the specified 'aes field'
     """
-    __aes_field__ = None
+    __aes_field__ = ""
     _original_password = None
 
     def __init__(self, *args, **kwargs):
@@ -96,6 +96,11 @@ class AESModel(object):
             setattr(self, self.__aes_field__, aes_cipher.encrypt(new_password).decode('utf-8'))
         super(AESModel, self).save(*args, **kwargs)
         self._original_password = new_password
+
+    def decrypt(self):
+        field = getattr(self, self.__aes_field__)
+        aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
+        return aes_cipher.decrypt(field)
 
 
 class SchemeAccount(AESModel, models.Model):
@@ -133,9 +138,15 @@ class SchemeAccount(AESModel, models.Model):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
 
-class SchemeAccountSecurityQuestion(AESModel, models.Model):
+class SchemeCredentialQuestion(models.Model):
+    scheme = models.ForeignKey(Scheme)
+    slug = models.CharField(max_length=250)
+    question = models.CharField(max_length=250)
+
+
+class SchemeAccountCredentialAnswer(AESModel, models.Model):
     __aes_field__ = "answer"
 
     scheme_account = models.ForeignKey(SchemeAccount)
-    question = models.CharField(max_length=250)
+    question = models.ForeignKey(SchemeCredentialQuestion)
     answer = models.CharField(max_length=250)

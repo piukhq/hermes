@@ -1,3 +1,4 @@
+from django.utils.text import slugify
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
@@ -46,10 +47,19 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     status = 0
 
 
-class SchemeAccountSecurityQuestionFactory(factory.DjangoModelFactory):
+class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     class Meta:
-        model = models.SchemeAccountSecurityQuestion
+        model = models.SchemeCredentialQuestion
+
+    scheme = factory.SubFactory(SchemeFactory)
+    question = fake.sentence()
+    slug = slugify(question)
+
+
+class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeAccountCredentialAnswer
 
     scheme_account = factory.SubFactory(SchemeAccountFactory)
-    question = fake.sentence()
-    answer = fake.password()
+    question = factory.SubFactory(SchemeCredentialQuestionFactory)
+    answer = fake.sentence()

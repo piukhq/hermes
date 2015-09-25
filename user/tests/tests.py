@@ -1,6 +1,9 @@
 import json
 from django.test import Client, TestCase
-from scheme.tests.factories import SchemeAccountFactory
+from hermes import settings
+from scheme.encyption import AESCipher
+from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
+    SchemeCredentialQuestionFactory
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 
 
@@ -417,17 +420,27 @@ class TestAuthentication(TestCase):
         self.assertEqual(content['detail'], 'Invalid token.')
 
 
-class TestSchemeAccountsList(TestCase):
+class TestSchemeAccounts(TestCase):
     def test_get_scheme_accounts(self):
-        scheme_accounts = []
-        user = UserFactory()
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        question = SchemeCredentialQuestionFactory(scheme=scheme)
+        answer = SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=question)
+        user = scheme_account.user
         uid = str(user.uid)
         auth_headers = {
             'HTTP_AUTHORIZATION': str(uid),
         }
-        for i in range(10):
-            scheme_accounts.append(SchemeAccountFactory(user=user))
         client = Client()
-        response = client.get('/users/scheme_accounts/', content_type='application/json', **auth_headers)
+        response = client.get('/users/scheme_accounts/{}/'.format(scheme.id), content_type='application/json', **auth_headers)
+        self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(True, True)
+        self.assertEqual(content['scheme_slug'], scheme.slug)
+        decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
+        credentials = json.loads(decrypted_credentials)
+        self.assertEqual(credentials['username'], scheme_account.username)
+        self.assertEqual(credentials['card_number'], scheme_account.card_number)
+        self.assertEqual(credentials['membership_number'], str(scheme_account.membership_number))
+        self.assertEqual(credentials['password'], scheme_account.decrypt())
+        self.assertEqual(credentials['extra'], {question.slug: answer.decrypt()})
+

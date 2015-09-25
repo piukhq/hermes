@@ -9,8 +9,8 @@ from scheme.models import SchemeAccount
 class TestScheme(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account_question = factories.SchemeAccountSecurityQuestionFactory()
-        cls.scheme_account = cls.scheme_account_question.scheme_account
+        cls.scheme_account_answer = factories.SchemeCredentialAnswerFactory()
+        cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.user = cls.scheme_account.user
         cls.auth_headers = {
             'HTTP_AUTHORIZATION': str(cls.user.uid),
@@ -75,7 +75,7 @@ class TestScheme(APITestCase):
     def test_post_schemes_account_question(self):
         data = {
             "scheme_account": self.scheme_account.id,
-            "question": "City of birth?",
+            "question": self.scheme_account_answer.question.id,
             "answer": "London"
         }
         response = self.client.post('/schemes/accounts/questions/', data=data, **self.auth_headers)
@@ -84,7 +84,7 @@ class TestScheme(APITestCase):
         self.assertIn("id", response.data)
 
     def test_get_schemes_account_question(self):
-        response = self.client.get('/schemes/accounts/questions/{0}'.format(self.scheme_account_question.id), **self.auth_headers)
+        response = self.client.get('/schemes/accounts/questions/{0}'.format(self.scheme_account_answer.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from scheme.models import Scheme, SchemeAccount, SchemeAccountSecurityQuestion, SchemeImage, Category
+from scheme.models import Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer
 
 
 class SchemeImageInline(admin.StackedInline):
@@ -13,12 +13,13 @@ class SchemeAdmin(admin.ModelAdmin):
 admin.site.register(Scheme, SchemeAdmin)
 
 
-class SchemeAccountSecurityQuestionInline(admin.TabularInline):
-    model = SchemeAccountSecurityQuestion
+class SchemeAccountCredentialAnswerInline(admin.TabularInline):
+    model = SchemeAccountCredentialAnswer
     extra = 0
 
+
 class SchemeAccountAdmin(admin.ModelAdmin):
-    inlines = (SchemeAccountSecurityQuestionInline, )
+    inlines = (SchemeAccountCredentialAnswerInline, )
     list_filter = ('status', )
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)

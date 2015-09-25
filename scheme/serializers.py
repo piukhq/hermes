@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from scheme.models import Scheme, SchemeAccount, SchemeAccountSecurityQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 
 
 class SchemeSerializer(serializers.ModelSerializer):
@@ -13,6 +13,6 @@ class SchemeAccountSerializer(serializers.ModelSerializer):
         exclude = ('updated', 'status')
 
 
-class SchemeAccountQuestionSerializer(serializers.ModelSerializer):
+class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SchemeAccountSecurityQuestion
+        model = SchemeAccountCredentialAnswer
