@@ -1,5 +1,6 @@
 from django.contrib import admin
-from scheme.models import Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer
+from scheme.models import Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer, \
+    SchemeCredentialQuestion
 
 
 class SchemeImageInline(admin.StackedInline):
@@ -26,3 +27,4 @@ admin.site.register(SchemeAccount, SchemeAccountAdmin)
 
 
 admin.site.register(Category)
+admin.site.register(SchemeCredentialQuestion)
