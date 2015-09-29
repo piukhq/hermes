@@ -15,21 +15,21 @@ class TestRegisterNewUser(TestCase):
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
-        self.assertIn('uid', content.keys())
+        self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
-        self.assertEqual(len(content['uid']), 36)
+        self.assertEqual(len(content['api_key']), 36)
 
     def test_uid_is_unique(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_2@example.com', 'password': 'password2'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid_1 = content['uid']
+        uid_1 = content['api_key']
 
         response = client.post('/users/register/', {'email': 'test_3@example.com', 'password': 'password3'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid_2 = content['uid']
+        uid_2 = content['api_key']
 
         self.assertNotEqual(uid_1, uid_2)
 
@@ -102,7 +102,7 @@ class TestUserProfile(TestCase):
         content = json.loads(response.content.decode())
         uid = content['uid']
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
 
         response = client.get('/users/{}/'.format(uid), content_type='application/json', **auth_headers)
@@ -133,7 +133,7 @@ class TestUserProfile(TestCase):
         content = json.loads(response.content.decode())
         uid = content['uid']
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         data = {
             'email': 'user_profile2@example.com',
@@ -175,7 +175,7 @@ class TestUserProfile(TestCase):
             'country': user_profile.country,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -201,7 +201,7 @@ class TestUserProfile(TestCase):
             'phone': user_profile.phone,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
@@ -226,7 +226,7 @@ class TestUserProfile(TestCase):
             'address_line_1': new_address_1,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         content = json.loads(response.content.decode())
@@ -254,7 +254,7 @@ class TestUserProfile(TestCase):
             'email': new_email,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -271,7 +271,7 @@ class TestUserProfile(TestCase):
             'email': user_profile2.user.email,
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -287,7 +287,7 @@ class TestUserProfile(TestCase):
             'uid': '172b7aaf-8233-4be3-a50e-67b9c03a5a91',
         }
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
         response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
@@ -298,7 +298,7 @@ class TestUserProfile(TestCase):
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(uid),
         }
         client = Client()
         data = {

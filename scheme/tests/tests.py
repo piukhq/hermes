@@ -16,7 +16,7 @@ class TestScheme(APITestCase):
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.user = cls.scheme_account.user
         cls.auth_headers = {
-            'HTTP_AUTHORIZATION': str(cls.user.uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
         }
         cls.scheme = cls.scheme_account.scheme
         super(TestScheme, cls).setUpClass()
@@ -85,7 +85,7 @@ class TestSchemeAccount(APITestCase):
     def setUpClass(cls):
         cls.user = UserFactory()
         cls.auth_headers = {
-            'HTTP_AUTHORIZATION': str(cls.user.uid),
+            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
         }
         super(TestSchemeAccount, cls).setUpClass()
 
@@ -97,9 +97,8 @@ class TestSchemeAccount(APITestCase):
                 }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
-        self.assertIn('created', response.data)
 
-    def test_post_scheme_accounts_with_answers(self):
+    def test_post_scheme_account_with_answers(self):
         scheme = SchemeFactory()
         username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='username')
         card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type='card_no')
@@ -113,8 +112,50 @@ class TestSchemeAccount(APITestCase):
         }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         content = json.loads(response.data)
-        self.assertEqual(content['scheme'], scheme.id)
+        self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['username'], 'andrew')
         self.assertEqual(content['password'], 'password')
         self.assertEqual(content['card_no'], '1234')
+
+    def test_update_scheme_account_with_answers(self):
+        scheme = SchemeFactory()
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='username')
+        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type='card_no')
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
+        data = {
+                'scheme': scheme.id,
+                'user': self.user.id,
+                username_question.type: 'andrew',
+                card_no_question.type: '1234',
+                password_question.type: 'password'
+        }
+        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers) #content_type='application/json'
+        self.assertEqual(response.status_code, 201)
+        content = json.loads(response.data)
+        self.assertEqual(content['scheme_id'], scheme.id)
+        self.assertEqual(content['order'], 0)
+        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['password'], 'password')
+        self.assertEqual(content['card_no'], '1234')
+        data = {
+                'scheme': scheme.id,
+                'user': self.user.id,
+                username_question.type: 'andrew',
+                card_no_question.type: '1234',
+                password_question.type: 'password2'
+        }
+        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        response = self.client.put('/schemes/accounts/{}'.format(scheme.id), data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.data)
+        self.assertEqual(content['scheme_id'], scheme.id)
+        self.assertEqual(content['order'], 0)
+        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['password'], 'password2')
+        self.assertEqual(content['card_no'], '1234')
+
+
+
+
