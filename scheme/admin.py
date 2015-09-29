@@ -7,9 +7,13 @@ class SchemeImageInline(admin.StackedInline):
     model = SchemeImage
     extra = 0
 
+class CredentialQuestionInline(admin.StackedInline):
+    model = SchemeCredentialQuestion
+    extra = 1
+
 
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeImageInline, )
+    inlines = (SchemeImageInline, CredentialQuestionInline)
 
 admin.site.register(Scheme, SchemeAdmin)
 
@@ -27,4 +31,4 @@ admin.site.register(SchemeAccount, SchemeAccountAdmin)
 
 
 admin.site.register(Category)
-admin.site.register(SchemeCredentialQuestion)
+

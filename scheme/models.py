@@ -139,12 +139,18 @@ class SchemeAccount(models.Model):
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
+    class Meta:
+        ordering = ['-order']
+
 
 class SchemeCredentialQuestion(models.Model):
     scheme = models.ForeignKey('Scheme', related_name='questions')
+    order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
 
+    class Meta:
+        ordering = ['-order']
 
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
