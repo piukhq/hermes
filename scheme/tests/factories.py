@@ -30,7 +30,6 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_type = 1
     scan_message = fake.sentence()
     point_conversion_rate = 1
-    input_label = fake.word()
     category = factory.SubFactory(CategoryFactory)
 
 
@@ -40,10 +39,6 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
-    username = fake.user_name()
-    card_number = fake.credit_card_number()
-    membership_number = fake.pyint()
-    password = fake.password()
     status = 0
 
 
@@ -52,8 +47,8 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
         model = models.SchemeCredentialQuestion
 
     scheme = factory.SubFactory(SchemeFactory)
-    question = fake.sentence()
-    slug = slugify(question)
+    type = 'username'
+    label = 'Please enter your username.'
 
 
 class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
@@ -61,5 +56,5 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
         model = models.SchemeAccountCredentialAnswer
 
     scheme_account = factory.SubFactory(SchemeAccountFactory)
-    question = factory.SubFactory(SchemeCredentialQuestionFactory)
-    answer = fake.sentence()
+    type = 'username'
+    answer = fake.first_name()

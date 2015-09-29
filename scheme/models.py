@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils import timezone
+from scheme.credentials import CREDENTIAL_TYPES
 
 from scheme.encyption import AESCipher
 
@@ -31,9 +32,14 @@ class Scheme(models.Model):
     identifier = models.CharField(max_length=30)
     point_name = models.CharField(max_length=50, default='points')
     point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
-    input_label = models.CharField(max_length=150)  # CARD PREFIX
+    primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
+                                         related_name='primary_question')
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
+
+    @property
+    def challenges(self):
+        return self.questions.all()
 
     def __str__(self):
         return self.name
@@ -103,14 +109,13 @@ class AESModel(object):
         return aes_cipher.decrypt(field)
 
 
-class SchemeAccount(AESModel, models.Model):
-    __aes_field__ = "password"
-
+class SchemeAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
     INVALID_CREDENTIALS = 2
     END_SITE_DOWN = 3
     DELETED = 4
+    INCOMPLETE = 5
 
     STATUSES = (
         (PENDING, 'pending'),
@@ -118,15 +123,12 @@ class SchemeAccount(AESModel, models.Model):
         (INVALID_CREDENTIALS, 'invalid credentials'),
         (END_SITE_DOWN, 'end site down'),
         (DELETED, 'deleted'),
+        (INCOMPLETE, 'incomplete'),
     )
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
-    username = models.CharField(max_length=150)
-    card_number = models.CharField(max_length=50)
-    membership_number = models.CharField(max_length=50, blank=True, null=True)
-    password = models.TextField()
-    status = models.IntegerField(default=PENDING, choices=STATUSES)
+    status = models.IntegerField(default=INCOMPLETE, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -139,14 +141,12 @@ class SchemeAccount(AESModel, models.Model):
 
 
 class SchemeCredentialQuestion(models.Model):
-    scheme = models.ForeignKey(Scheme)
-    slug = models.CharField(max_length=250)
-    question = models.CharField(max_length=250)
+    scheme = models.ForeignKey('Scheme', related_name='questions')
+    type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+    label = models.CharField(max_length=250)
 
 
-class SchemeAccountCredentialAnswer(AESModel, models.Model):
-    __aes_field__ = "answer"
-
+class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
-    question = models.ForeignKey(SchemeCredentialQuestion)
+    type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     answer = models.CharField(max_length=250)

@@ -78,26 +78,20 @@ class RetrieveSchemeAccount(RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         scheme = get_object_or_404(Scheme, pk=kwargs['scheme_id'])
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, scheme=kwargs['scheme_id'])
-        #     .values('username',
-        #             'card_number',
-        #             'membership',
-        #             'password')
-        credentials = {
-            'username': scheme_account.username,
-            'card_number': scheme_account.card_number,
-            'membership_number': scheme_account.membership_number,
-            'password': scheme_account.decrypt()
-        }
+        credentials = {}
         security_questions = SchemeCredentialQuestion.objects.filter(scheme=scheme)
         if security_questions:
-            credentials['extra'] = {}
             for security_question in security_questions:
-                answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account, question=security_question)
-                credentials['extra'][security_question.slug] = answer.decrypt()
+                answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
+                                                                   type=security_question.type)
+                credentials[security_question.type] = answer.answer
 
         serialized_credentials = json.dumps(credentials)
         encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-        instance = SimpleNamespace(scheme_slug=scheme.slug, credentials=encrypted_credentials)
+        instance = SimpleNamespace(scheme_slug=scheme.slug,
+                                   user_id=request.user.id,
+                                   scheme_account_id=scheme_account.id,
+                                   credentials=encrypted_credentials)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

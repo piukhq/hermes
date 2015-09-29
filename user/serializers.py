@@ -103,6 +103,8 @@ class SchemeAccountsSerializer(serializers.ModelSerializer):
 
 class SchemeAccountSerializer(serializers.Serializer):
     scheme_slug = serializers.CharField(max_length=50)
+    scheme_account_id = serializers.IntegerField()
+    user_id = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
 
 
