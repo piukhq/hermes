@@ -13,15 +13,22 @@ from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import SchemeAccount, Scheme, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
 from user.authenticators import UIDAuthentication
+from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer
-
 
 class ForgottenPassword():
     pass
 
 
+# TODO: don't override this and support csrf
+class CustomSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        return
+
+
 class Login(GenericAPIView):
+    authentication_classes = (CustomSessionAuthentication,)
     serializer_class = LoginSerializer
 
     def post(self, request):
