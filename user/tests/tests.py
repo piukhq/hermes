@@ -425,7 +425,7 @@ class TestAuthentication(APITestCase):
         client = Client()
         uid = str(self.user.uid)
         auth_headers = {
-            'HTTP_AUTHORIZATION': uid
+            'HTTP_AUTHORIZATION': "Token " + uid
         }
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 200)
@@ -437,7 +437,7 @@ class TestAuthentication(APITestCase):
         client = Client()
         uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': "Token " + str(uid),
         }
         response = client.get('/users/authenticate/', **auth_headers)
         content = json.loads(response.content.decode())
@@ -454,7 +454,7 @@ class TestSchemeAccounts(TestCase):
         user = scheme_account.user
         uid = str(user.uid)
         auth_headers = {
-            'HTTP_AUTHORIZATION': str(uid),
+            'HTTP_AUTHORIZATION': "Token " + str(uid),
         }
         client = Client()
         response = client.get('/users/scheme_accounts/{}/'.format(scheme.id), content_type='application/json', **auth_headers)
