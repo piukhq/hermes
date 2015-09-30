@@ -67,6 +67,7 @@ class CreateAccount(CreateAPIView):
             return Response(json.dumps({'Scheme Account': 'Scheme account exists'}),
                      status=status.HTTP_400_BAD_REQUEST,
                      content_type="application/json")
+        request.data['user'] = request.user.id
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)

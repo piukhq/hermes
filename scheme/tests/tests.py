@@ -93,7 +93,6 @@ class TestSchemeAccount(APITestCase):
         scheme = SchemeFactory()
         data = {
                 'scheme': scheme.id,
-                'user': self.user.id
                 }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
@@ -105,12 +104,12 @@ class TestSchemeAccount(APITestCase):
         password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
         data = {
                 'scheme': scheme.id,
-                'user': self.user.id,
                 username_question.type: 'andrew',
                 card_no_question.type: '1234',
                 password_question.type: 'password'
         }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
@@ -125,7 +124,6 @@ class TestSchemeAccount(APITestCase):
         password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
         data = {
                 'scheme': scheme.id,
-                'user': self.user.id,
                 username_question.type: 'andrew',
                 card_no_question.type: '1234',
                 password_question.type: 'password'
@@ -140,7 +138,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['card_no'], '1234')
         data = {
                 'scheme': scheme.id,
-                'user': self.user.id,
                 username_question.type: 'andrew',
                 card_no_question.type: '1234',
                 password_question.type: 'password2'
