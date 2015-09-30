@@ -83,32 +83,6 @@ class ActiveManager(models.Manager):
             return super(ActiveManager, self).get_queryset().exclude(status=SchemeAccount.DELETED)
 
 
-class AESModel(object):
-    """
-    Mixin to aes encrypt the specified 'aes field'
-    """
-    __aes_field__ = ""
-    _original_password = None
-
-    def __init__(self, *args, **kwargs):
-        super(AESModel, self).__init__(*args, **kwargs)
-        self._original_password = getattr(self, self.__aes_field__)
-
-    def save(self, *args, **kwargs):
-        """Ensure our password is always encrypted"""
-        new_password = getattr(self, self.__aes_field__)
-        if new_password != self._original_password or not self.pk:
-            aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
-            setattr(self, self.__aes_field__, aes_cipher.encrypt(new_password).decode('utf-8'))
-        super(AESModel, self).save(*args, **kwargs)
-        self._original_password = new_password
-
-    def decrypt(self):
-        field = getattr(self, self.__aes_field__)
-        aes_cipher = AESCipher(key=settings.AES_KEY.encode('utf-8'))
-        return aes_cipher.decrypt(field)
-
-
 class SchemeAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
