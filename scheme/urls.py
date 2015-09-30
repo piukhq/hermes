@@ -3,7 +3,7 @@ from scheme.views import (CreateAccount, SchemesList, RetrieveUpdateDeleteAccoun
                             CreateAnswer, RetrieveUpdateDestroyAnswer)
 
 urlpatterns = patterns('schemes',
-                       url(r'accounts/$', CreateAccount.as_view(), name='create_scheme_account'),
+                       url(r'accounts/?$', CreateAccount.as_view(), name='create_scheme_account'),
                        url(r'accounts/(?P<pk>[0-9]+)$', RetrieveUpdateDeleteAccount.as_view(), name='retrieve_account'),
                        url(r'^$', SchemesList.as_view(), name='list_schemes'),
                        url(r'^(?P<pk>[0-9]+)$', RetrieveScheme.as_view(), name='retrieve_scheme'),
