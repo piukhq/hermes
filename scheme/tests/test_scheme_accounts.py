@@ -3,7 +3,7 @@ from rest_framework.test import APITestCase
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
 from user.tests.factories import UserFactory
 from scheme.models import SchemeAccount
-from rest_framework.utils.serializer_helpers import ReturnDict
+from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
 
 class TestSchemeAccount(APITestCase):
@@ -12,7 +12,7 @@ class TestSchemeAccount(APITestCase):
         cls.user = UserFactory()
         cls.scheme_account_answer = SchemeCredentialAnswerFactory()
         cls.scheme_account = cls.scheme_account_answer.scheme_account
-
+        cls.scheme = cls.scheme_account.scheme
         cls.auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
         }
@@ -85,7 +85,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['password'], 'password2')
         self.assertEqual(content['card_no'], '1234')
 
-
     #TODO:REPURPOSE
     def test_get_scheme_accounts(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -100,7 +99,6 @@ class TestSchemeAccount(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
-
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -122,3 +120,8 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["answer"], data["answer"])
         self.assertIn("id", response.data)
+
+    def test_list_schemes_accounts(self):
+        response = self.client.get('/schemes/accounts', **self.auth_headers)
+        self.assertEqual(type(response.data), ReturnList)
+        self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
