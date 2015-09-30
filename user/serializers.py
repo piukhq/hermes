@@ -72,13 +72,11 @@ class UserSerializer(serializers.ModelSerializer):
     country = serializers.CharField(source='profile.country', required=False, allow_blank=True)
     notifications = serializers.IntegerField(source='profile.notifications', required=False, allow_null=True)
     pass_code = serializers.CharField(source='profile.pass_code', required=False, allow_blank=True)
-    currency = serializers.CharField(source='profile.currency', required=False, allow_blank=True)
 
     class Meta:
         model = CustomUser
         fields = ('uid', 'email', 'first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1',
-                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code',
-                  'currency')
+                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', )
 
 
 class SchemeAccountsSerializer(serializers.ModelSerializer):
