@@ -14,10 +14,20 @@ class SchemeSerializer(serializers.ModelSerializer):
         model = Scheme
 
 
+class SchemeSerializerNoQuestions(serializers.ModelSerializer):
+    class Meta:
+        model = Scheme
+
+
+
 class SchemeAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
         exclude = ('updated', 'status')
+
+
+class ListSchemeAccountSerializer(SchemeAccountSerializer):
+    scheme = SchemeSerializerNoQuestions()
 
 
 class SchemeAccountAnswerSerializer(serializers.ModelSerializer):

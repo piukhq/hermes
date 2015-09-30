@@ -1,11 +1,11 @@
 import json
 from rest_framework import generics
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, RetrieveUpdateDestroyAPIView, \
-    get_object_or_404
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView,\
+    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
-    SchemeAccountAnswerSerializer
+    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import UIDAuthentication
@@ -55,10 +55,12 @@ class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateAccount(CreateAPIView):
+class CreateAccount(ListCreateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
+
+    queryset = SchemeAccount.active_objects
 
     def post(self, request, *args, **kwargs):
         scheme = get_object_or_404(Scheme, pk=request.data['scheme'][0])
@@ -86,6 +88,20 @@ class CreateAccount(CreateAPIView):
                         status=status.HTTP_201_CREATED,
                         headers=headers,
                         content_type="application/json")
+
+    def list(self, request, *args, **kwargs):
+        """
+        Custom because we want a different serializer for reading
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = ListSchemeAccountSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = ListSchemeAccountSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class CreateAnswer(CreateAPIView):
