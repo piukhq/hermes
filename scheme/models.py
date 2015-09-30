@@ -152,6 +152,7 @@ class SchemeCredentialQuestion(models.Model):
     class Meta:
         ordering = ['-order']
 
+
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
