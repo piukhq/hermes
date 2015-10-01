@@ -11,9 +11,10 @@ class TestSchemeAccount(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.user = UserFactory()
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory()
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.scheme = cls.scheme_account.scheme
+
         cls.auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
         }
@@ -94,11 +95,14 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['id'], self.scheme_account.id)
 
     def test_patch_schemes_accounts(self):
-        data = {'card_number': 'new-card-number'}
-        response = self.client.patch('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data, **self.auth_headers)
+        data = {'order': 5,
+                'scheme': 200}
+        response = self.client.patch('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
+                                     **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(type(response.data), ReturnDict)
+        self.assertEqual(response.data['scheme'], self.scheme_account.scheme.id)  # this shouldn't change
+        self.assertEqual(response.data['order'], 5)
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -122,6 +126,10 @@ class TestSchemeAccount(APITestCase):
         self.assertIn("id", response.data)
 
     def test_list_schemes_accounts(self):
+        self.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=USER_NAME)
+        self.scheme.save()
+
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
+        self.assertEqual(response.data[0]['primary_answer'], self.scheme_account_answer.answer)

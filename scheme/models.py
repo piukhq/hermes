@@ -143,6 +143,10 @@ class SchemeAccount(models.Model):
     objects = models.Manager()
     active_objects = ActiveManager()
 
+    @property
+    def primary_answer(self):
+        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type)
+
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
@@ -167,3 +171,6 @@ class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     answer = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.answer

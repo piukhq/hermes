@@ -5,10 +5,19 @@ from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, Retrie
 from rest_framework.permissions import IsAuthenticated
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
-    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer
+    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer, UpdateSchemeAccountSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import UIDAuthentication
+
+
+class SwappableSerializerMixin(object):
+    def get_serializer_class(self):
+        try:
+            return self.override_serializer_classes[self.request.method]
+        except KeyError:
+            # required if you don't include all the methods (option, etc) in your serializer_class
+            return super(SwappableSerializerMixin, self).get_serializer_class()
 
 
 class SchemesList(generics.ListAPIView):
@@ -21,11 +30,15 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
 
-class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
+class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
-
     serializer_class = SchemeAccountSerializer
+    override_serializer_classes = {
+        'PUT': UpdateSchemeAccountSerializer,
+        'PATCH': UpdateSchemeAccountSerializer,
+    }
+
     queryset = SchemeAccount.active_objects
 
     def put(self, request, *args, **kwargs):
@@ -55,10 +68,13 @@ class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateAccount(ListCreateAPIView):
+class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
+    override_serializer_classes = {
+        'GET': ListSchemeAccountSerializer,
+    }
 
     queryset = SchemeAccount.active_objects
 
@@ -71,10 +87,9 @@ class CreateAccount(ListCreateAPIView):
 
         for scheme_account in scheme_accounts:
             try:
-                existing_primary_answer = scheme_account.schemeaccountcredentialanswer_set.get(
-                    type=primary_question.type)
+                existing_primary_answer = scheme_account.primary_answer
             except SchemeAccountCredentialAnswer.DoesNotExist:
-                # this shouldn't happen
+                # this shouldn't happen, but can if a scheme account is badly set up
                 continue
 
             if request.data[primary_question.type] == existing_primary_answer.answer:
@@ -101,19 +116,6 @@ class CreateAccount(ListCreateAPIView):
                         headers=headers,
                         content_type="application/json")
 
-    def list(self, request, *args, **kwargs):
-        """
-        Custom because we want a different serializer for reading
-        """
-        queryset = self.filter_queryset(self.get_queryset())
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = ListSchemeAccountSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = ListSchemeAccountSerializer(queryset, many=True)
-        return Response(serializer.data)
 
 
 class CreateAnswer(CreateAPIView):
