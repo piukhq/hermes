@@ -46,9 +46,24 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['password'], 'password')
         self.assertEqual(content['card_no'], '1234')
 
+    def test_post_scheme_account_midas_call_with_points(self):
+        scheme = SchemeFactory(name="Boots", slug="advantage-card")
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='user_name')
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
+        data = {
+                'scheme': scheme.id,
+                username_question.type: 'julie.gormley100@gmail.com',
+                password_question.type: 'RAHansbrics5'
+        }
+        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        content = json.loads(response.data)
+        self.assertEqual(content['scheme_id'], scheme.id)
+
+
     def test_update_scheme_account_with_answers(self):
         scheme = SchemeFactory()
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='username')
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='user_name')
         card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type='card_no')
         password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
         data = {
@@ -62,7 +77,7 @@ class TestSchemeAccount(APITestCase):
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['password'], 'password')
         self.assertEqual(content['card_no'], '1234')
         data = {
@@ -78,7 +93,7 @@ class TestSchemeAccount(APITestCase):
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['password'], 'password2')
         self.assertEqual(content['card_no'], '1234')
 

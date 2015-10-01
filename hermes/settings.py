@@ -131,4 +131,5 @@ LOCAL_AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
 
 AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 
+MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 

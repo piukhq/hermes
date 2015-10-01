@@ -18,7 +18,6 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', auto_created=True, serialize=False, primary_key=True)),
                 ('answer', models.CharField(max_length=250)),
             ],
-            bases=(scheme.models.AESModel, models.Model),
         ),
         migrations.CreateModel(
             name='SchemeCredentialQuestion',

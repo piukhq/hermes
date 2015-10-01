@@ -1,8 +1,11 @@
 import json
+import requests
 from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView,\
     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
+from hermes import settings
+from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
     SchemeAccountAnswerSerializer, ListSchemeAccountSerializer
@@ -78,12 +81,36 @@ class CreateAccount(ListCreateAPIView):
         response_data = {'id': scheme_account.id,
                          'scheme_id': scheme.id,
                          'order': scheme_account.order,
-                         'status': scheme_account.status}
+                         'status': scheme_account.status,
+                         'points': None}
         for challenge in scheme.challenges:
             response = request.data[challenge.type]
             obj, created = SchemeAccountCredentialAnswer.objects.update_or_create(
                 scheme_account=scheme_account, type=challenge.type, defaults={'answer': response})
             response_data[obj.type] = obj.answer
+
+        #Make call to Midas
+        serialized_credentials = json.dumps(scheme_account.credentials())
+        encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+        parameters = {'scheme_account_id': scheme_account.id, 'user_id': scheme_account.user.id, 'credentials': encrypted_credentials}
+        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
+        if response.status_code == 200:
+            scheme_account.status = 1
+            response_data['points'] = response.json()['points']
+        elif response.status_code == 403:
+            scheme_account.status = 2
+        elif response.status_code == 432:
+            scheme_account.status = 2
+        elif response.status_code == 429:
+            scheme_account.status_code = 7
+        elif response.status_code == 434:
+            scheme_account.status = 6
+        elif response.status_code == 530:
+            scheme_account.status = 3
+        else:
+            scheme_account.status = 8
+        scheme_account.save()
+
         return Response(json.dumps(response_data),
                         status=status.HTTP_201_CREATED,
                         headers=headers,

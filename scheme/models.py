@@ -90,6 +90,9 @@ class SchemeAccount(models.Model):
     END_SITE_DOWN = 3
     DELETED = 4
     INCOMPLETE = 5
+    LOCKED_BY_ENDSITE = 6
+    RETRY_LIMIT_REACHED = 7
+    UNKNOWN_ERROR = 8
 
     STATUSES = (
         (PENDING, 'pending'),
@@ -98,17 +101,30 @@ class SchemeAccount(models.Model):
         (END_SITE_DOWN, 'end site down'),
         (DELETED, 'deleted'),
         (INCOMPLETE, 'incomplete'),
+        (LOCKED_BY_ENDSITE, 'account locked on end site'),
+        (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
+        (UNKNOWN_ERROR, 'An unknown error has occurred'),
     )
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
-    status = models.IntegerField(default=INCOMPLETE, choices=STATUSES)
+    status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     objects = models.Manager()
     active_objects = ActiveManager()
+
+    def credentials(self):
+        challenges_with_responses = {}
+        security_questions = SchemeCredentialQuestion.objects.filter(scheme=self.scheme)
+        if security_questions:
+            for security_question in security_questions:
+                answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=self,
+                                                                   type=security_question.type)
+                challenges_with_responses[security_question.type] = answer.answer
+        return challenges_with_responses
 
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)

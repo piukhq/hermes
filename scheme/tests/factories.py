@@ -47,7 +47,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
         model = models.SchemeCredentialQuestion
 
     scheme = factory.SubFactory(SchemeFactory)
-    type = 'username'
+    type = 'user_name'
     label = 'Please enter your username.'
 
 
@@ -56,5 +56,5 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
         model = models.SchemeAccountCredentialAnswer
 
     scheme_account = factory.SubFactory(SchemeAccountFactory)
-    type = 'username'
+    type = 'user_name'
     answer = fake.first_name()
