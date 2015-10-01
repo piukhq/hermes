@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from django.utils.text import slugify
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES
 
@@ -12,6 +11,11 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ActiveSchemeManager(models.Manager):
+    def get_queryset(self):
+        return super(ActiveSchemeManager, self).get_queryset().exclude(primary_question__isnull=True)
 
 
 class Scheme(models.Model):
@@ -36,6 +40,9 @@ class Scheme(models.Model):
                                          related_name='primary_question')
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
+
+    all_objects = models.Manager()
+    objects = ActiveSchemeManager()
 
     @property
     def challenges(self):
@@ -126,6 +133,10 @@ class SchemeAccount(models.Model):
                 challenges_with_responses[security_question.type] = answer.answer
         return challenges_with_responses
 
+    @property
+    def primary_answer(self):
+        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type)
+
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
@@ -142,8 +153,14 @@ class SchemeCredentialQuestion(models.Model):
     class Meta:
         ordering = ['-order']
 
+    def __str__(self):
+        return self.type
+
 
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     answer = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.answer

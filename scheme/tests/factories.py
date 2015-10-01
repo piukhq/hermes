@@ -1,10 +1,9 @@
-from django.utils.text import slugify
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
 from faker import Factory
 from user.tests.factories import UserFactory
-
+from scheme.credentials import USER_NAME
 fake = Factory.create()
 
 
@@ -47,7 +46,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
         model = models.SchemeCredentialQuestion
 
     scheme = factory.SubFactory(SchemeFactory)
-    type = 'user_name'
+    type = USER_NAME
     label = 'Please enter your username.'
 
 
@@ -56,5 +55,5 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
         model = models.SchemeAccountCredentialAnswer
 
     scheme_account = factory.SubFactory(SchemeAccountFactory)
-    type = 'user_name'
+    type = USER_NAME
     answer = fake.first_name()

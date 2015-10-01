@@ -8,10 +8,19 @@ from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
-    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer
+    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer, UpdateSchemeAccountSerializer
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import UIDAuthentication
+
+
+class SwappableSerializerMixin(object):
+    def get_serializer_class(self):
+        try:
+            return self.override_serializer_classes[self.request.method]
+        except KeyError:
+            # required if you don't include all the methods (option, etc) in your serializer_class
+            return super(SwappableSerializerMixin, self).get_serializer_class()
 
 
 class SchemesList(generics.ListAPIView):
@@ -24,11 +33,15 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
 
-class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
+class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
-
     serializer_class = SchemeAccountSerializer
+    override_serializer_classes = {
+        'PUT': UpdateSchemeAccountSerializer,
+        'PATCH': UpdateSchemeAccountSerializer,
+    }
+
     queryset = SchemeAccount.active_objects
 
     def put(self, request, *args, **kwargs):
@@ -58,26 +71,40 @@ class RetrieveUpdateDeleteAccount(RetrieveUpdateAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateAccount(ListCreateAPIView):
+class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
+    override_serializer_classes = {
+        'GET': ListSchemeAccountSerializer,
+    }
 
     queryset = SchemeAccount.active_objects
 
     def post(self, request, *args, **kwargs):
         scheme = get_object_or_404(Scheme, pk=request.data['scheme'][0])
-        scheme_account = SchemeAccount.objects.filter(scheme=scheme, user=request.user)
-        if scheme_account:
-            return Response(json.dumps({'Scheme Account': 'Scheme account exists'}),
-                     status=status.HTTP_400_BAD_REQUEST,
-                     content_type="application/json")
+
+        # Check that the user dosnt have a scheme account with the primary question answer
+        scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
+        primary_question = scheme.primary_question
+
+        for scheme_account in scheme_accounts:
+            try:
+                existing_primary_answer = scheme_account.primary_answer
+            except SchemeAccountCredentialAnswer.DoesNotExist:
+                # this shouldn't happen, but can if a scheme account is badly set up
+                continue
+
+            if request.data[primary_question.type] == existing_primary_answer.answer:
+                return json_error_response("A scheme account already exists with this {0}".format(
+                    primary_question.label), status.HTTP_400_BAD_REQUEST)
+
         request.data['user'] = request.user.id
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        scheme_account = serializer.save()
+
         headers = self.get_success_headers(serializer.data)
-        scheme_account = get_object_or_404(SchemeAccount, scheme=scheme, user=request.user)
         response_data = {'id': scheme_account.id,
                          'scheme_id': scheme.id,
                          'order': scheme_account.order,
@@ -116,19 +143,6 @@ class CreateAccount(ListCreateAPIView):
                         headers=headers,
                         content_type="application/json")
 
-    def list(self, request, *args, **kwargs):
-        """
-        Custom because we want a different serializer for reading
-        """
-        queryset = self.filter_queryset(self.get_queryset())
-
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = ListSchemeAccountSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = ListSchemeAccountSerializer(queryset, many=True)
-        return Response(serializer.data)
 
 
 class CreateAnswer(CreateAPIView):
@@ -144,3 +158,7 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
     serializer_class = SchemeAccountAnswerSerializer
     queryset = SchemeAccountCredentialAnswer.objects
+
+
+def json_error_response(message, code):
+    return Response(json.dumps({"message": message, "code": code}), status=code, content_type="application/json")

@@ -1,6 +1,11 @@
+USER_NAME = 'user_name'
+CARD_NUMBER = 'card_number'
+PASSWORD = 'password'
+DATE_OF_BIRTH = 'date_of_birth'
+
 CREDENTIAL_TYPES = [
-    ('user_name', 'user_name'),
-    ('card_number', 'card_number'),
-    ('password', 'password'),
-    ('date_of_birth', 'date_of_birth'),
+    (USER_NAME, 'user_name'),
+    (CARD_NUMBER, 'card_number'),
+    (PASSWORD, 'password'),
+    (DATE_OF_BIRTH, 'date_of_birth'),
 ]

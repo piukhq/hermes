@@ -9,7 +9,7 @@ class SchemeImageInline(admin.StackedInline):
 
 class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
-    extra = 1
+    extra = 0
 
 
 class SchemeAdmin(admin.ModelAdmin):
@@ -26,6 +26,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
     list_filter = ('status', )
+    list_display = ('user', 'scheme', 'status')
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 

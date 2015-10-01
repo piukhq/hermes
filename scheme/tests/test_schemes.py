@@ -15,6 +15,9 @@ class TestScheme(APITestCase):
             'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
         }
         cls.scheme = cls.scheme_account.scheme
+        question = SchemeCredentialQuestionFactory(scheme=cls.scheme)
+        cls.scheme.primary_question = question
+        cls.scheme.save()
         super(TestScheme, cls).setUpClass()
 
     def test_scheme_list(self):
@@ -24,7 +27,7 @@ class TestScheme(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         content = json.loads(response.content.decode())
         self.assertTrue(response.data)
-        self.assertEqual(len(content[1]['questions']), 1)
+        self.assertEqual(len(content[0]['questions']), 1)
 
     def test_scheme_list_includes_questions(self):
         self.assertTrue(False)
