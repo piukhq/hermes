@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from django.utils.text import slugify
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES
 
@@ -12,6 +11,11 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ActiveSchemeManager(models.Manager):
+    def get_queryset(self):
+        return super(ActiveSchemeManager, self).get_queryset().exclude(primary_question__isnull=True)
 
 
 class Scheme(models.Model):
@@ -36,6 +40,9 @@ class Scheme(models.Model):
                                          related_name='primary_question')
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
+
+    all_objects = models.Manager()
+    objects = ActiveSchemeManager()
 
     @property
     def challenges(self):
@@ -151,6 +158,9 @@ class SchemeCredentialQuestion(models.Model):
 
     class Meta:
         ordering = ['-order']
+
+    def __str__(self):
+        return self.type
 
 
 class SchemeAccountCredentialAnswer(models.Model):

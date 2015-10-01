@@ -64,17 +64,29 @@ class CreateAccount(ListCreateAPIView):
 
     def post(self, request, *args, **kwargs):
         scheme = get_object_or_404(Scheme, pk=request.data['scheme'][0])
-        scheme_account = SchemeAccount.objects.filter(scheme=scheme, user=request.user)
-        if scheme_account:
-            return Response(json.dumps({'Scheme Account': 'Scheme account exists'}),
-                     status=status.HTTP_400_BAD_REQUEST,
-                     content_type="application/json")
+
+        # Check that the user dosnt have a scheme account with the primary question answer
+        scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
+        primary_question = scheme.primary_question
+
+        for scheme_account in scheme_accounts:
+            try:
+                existing_primary_answer = scheme_account.schemeaccountcredentialanswer_set.get(
+                    type=primary_question.type)
+            except SchemeAccountCredentialAnswer.DoesNotExist:
+                # this shouldn't happen
+                continue
+
+            if request.data[primary_question.type] == existing_primary_answer.answer:
+                return json_error_response("A scheme account already exists with this {0}".format(
+                    primary_question.label), status.HTTP_400_BAD_REQUEST)
+
         request.data['user'] = request.user.id
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
+        scheme_account = serializer.save()
+
         headers = self.get_success_headers(serializer.data)
-        scheme_account = get_object_or_404(SchemeAccount, scheme=scheme, user=request.user)
         response_data = {'id': scheme_account.id,
                          'scheme_id': scheme.id,
                          'order': scheme_account.order,
@@ -117,3 +129,7 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
     serializer_class = SchemeAccountAnswerSerializer
     queryset = SchemeAccountCredentialAnswer.objects
+
+
+def json_error_response(message, code):
+    return Response(json.dumps({"message": message, "code": code}), status=code, content_type="application/json")

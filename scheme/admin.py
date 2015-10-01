@@ -9,7 +9,7 @@ class SchemeImageInline(admin.StackedInline):
 
 class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
-    extra = 1
+    extra = 0
 
 
 class SchemeAdmin(admin.ModelAdmin):

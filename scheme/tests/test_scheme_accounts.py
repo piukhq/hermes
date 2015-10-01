@@ -4,6 +4,7 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
 from user.tests.factories import UserFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME
 
 
 class TestSchemeAccount(APITestCase):
@@ -28,9 +29,9 @@ class TestSchemeAccount(APITestCase):
 
     def test_post_scheme_account_with_answers(self):
         scheme = SchemeFactory()
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='username')
-        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type='card_no')
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
+        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
         data = {
                 'scheme': scheme.id,
                 username_question.type: 'andrew',
@@ -42,15 +43,17 @@ class TestSchemeAccount(APITestCase):
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['password'], 'password')
-        self.assertEqual(content['card_no'], '1234')
+        self.assertEqual(content['card_number'], '1234')
 
     def test_update_scheme_account_with_answers(self):
         scheme = SchemeFactory()
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='username')
-        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type='card_no')
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
+        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+        scheme.primary_question = username_question
+        scheme.save()
         data = {
                 'scheme': scheme.id,
                 username_question.type: 'andrew',
@@ -62,9 +65,9 @@ class TestSchemeAccount(APITestCase):
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['password'], 'password')
-        self.assertEqual(content['card_no'], '1234')
+        self.assertEqual(content['card_number'], '1234')
         data = {
                 'scheme': scheme.id,
                 username_question.type: 'andrew',
@@ -78,9 +81,9 @@ class TestSchemeAccount(APITestCase):
         content = json.loads(response.data)
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
+        self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['password'], 'password2')
-        self.assertEqual(content['card_no'], '1234')
+        self.assertEqual(content['card_number'], '1234')
 
     #TODO:REPURPOSE
     def test_get_scheme_accounts(self):
