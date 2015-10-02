@@ -1,8 +1,10 @@
 import json
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+from scheme.models import SchemeImage
 from scheme.tests import factories
-from scheme.tests.factories import SchemeCredentialQuestionFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
+from django.utils import timezone
 
 
 class TestScheme(APITestCase):
@@ -21,13 +23,23 @@ class TestScheme(APITestCase):
         super(TestScheme, cls).setUpClass()
 
     def test_scheme_list(self):
-        SchemeCredentialQuestionFactory()
+        scheme = SchemeFactory()
+        question = SchemeCredentialQuestionFactory(scheme=scheme)
+        scheme.primary_question = question
+        scheme.save()
+        image = SchemeImageFactory(scheme=scheme)
         response = self.client.get('/schemes/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
         content = json.loads(response.content.decode())
         self.assertTrue(response.data)
-        self.assertEqual(len(content[0]['questions']), 1)
+        for resp_scheme in content:
+            if resp_scheme['id'] == scheme.id:
+                # Question related assertions
+                self.assertEqual(len(resp_scheme['questions']), 1)
+                # Image related assertions
+                self.assertEqual(len(resp_scheme['images']), 1)
+
 
     def test_scheme_list_includes_questions(self):
         self.assertTrue(False)

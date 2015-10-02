@@ -1,6 +1,11 @@
 from rest_framework import serializers
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeImage
 
+
+class SchemeImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeImage
+        exclude = ('id', 'scheme')
 
 class SchemeQuestionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -9,7 +14,9 @@ class SchemeQuestionSerializer(serializers.ModelSerializer):
 
 
 class SchemeSerializer(serializers.ModelSerializer):
+    images = SchemeImageSerializer(many=True, read_only=True)
     questions = SchemeQuestionSerializer(many=True, read_only=True)
+
 
     class Meta:
         model = Scheme

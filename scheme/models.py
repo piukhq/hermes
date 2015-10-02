@@ -15,7 +15,7 @@ class Category(models.Model):
 
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
-        return super(ActiveSchemeManager, self).get_queryset().exclude(primary_question__isnull=True)
+        return super(ActiveSchemeManager, self).get_queryset().exclude(primary_question__isnull=True, is_active=True)
 
 
 class Scheme(models.Model):
@@ -52,6 +52,13 @@ class Scheme(models.Model):
         return self.name
 
 
+class ActiveSchemeImageManager(models.Manager):
+    def get_queryset(self):
+        return super(ActiveSchemeImageManager, self).get_queryset()\
+            .filter(start_date__lt=timezone.now, end_date__gte=timezone.now())\
+            .exclude(status=0)
+
+
 class SchemeImage(models.Model):
     DRAFT = 0
     PUBLISHED = 1
@@ -70,7 +77,7 @@ class SchemeImage(models.Model):
         (5, 'reference'),
     )
 
-    scheme = models.ForeignKey('scheme.Scheme')
+    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
     image_type_code = models.IntegerField()
     size_code = models.CharField(max_length=30)
     image = models.ImageField(upload_to="schemes")
@@ -83,6 +90,9 @@ class SchemeImage(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     created = models.DateTimeField(default=timezone.now)
+
+    all_objects = models.Manager()
+    objects = ActiveSchemeImageManager()
 
 
 class ActiveManager(models.Manager):

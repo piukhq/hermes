@@ -4,6 +4,7 @@ from scheme import models
 from faker import Factory
 from user.tests.factories import UserFactory
 from scheme.credentials import USER_NAME
+from django.utils import timezone
 fake = Factory.create()
 
 
@@ -18,7 +19,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.Scheme
 
-    name = fake.company()
+    name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
     url = fake.url()
     company = fake.company()
@@ -57,3 +58,20 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     type = USER_NAME
     answer = fake.first_name()
+
+class SchemeImageFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeImage
+
+    scheme = factory.SubFactory(SchemeFactory)
+    image_type_code = 1
+    size_code = fake.sentence(nb_words=3)
+    image = fake.url()
+    strap_line = fake.sentence(nb_words=3)
+    description = fake.sentence(nb_words=3)
+    url = fake.url()
+    call_to_action = fake.sentence(nb_words=3)
+    order = 0
+    status = 1
+    start_date = timezone.now()
+    end_date = "2200-1-1"
