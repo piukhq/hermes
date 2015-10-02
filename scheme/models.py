@@ -2,8 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES
-
 from scheme.encyption import AESCipher
+from bulk_update.manager import BulkUpdateManager
 
 
 class Category(models.Model):
@@ -130,7 +130,7 @@ class SchemeAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
-    objects = models.Manager()
+    objects = BulkUpdateManager()
     active_objects = ActiveManager()
 
     def credentials(self):

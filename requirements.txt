@@ -1,6 +1,7 @@
 decorator==4.0.2
 dj-database-url==0.3.0
 Django==1.8.4
+django-bulk-update==1.1.4
 django-cors-headers==1.1.0
 django-rest-swagger==0.3.4
 djangorestframework==3.2.3
