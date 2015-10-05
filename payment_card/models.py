@@ -1,4 +1,5 @@
 from django.db import models
+from bulk_update.manager import BulkUpdateManager
 
 
 class Issuer(models.Model):
@@ -74,7 +75,7 @@ class PaymentCardAccount(models.Model):
     security_code = models.CharField(max_length=6)
     issuer = models.ForeignKey(Issuer)
 
-    objects = models.Manager()
+    objects = BulkUpdateManager()
     active_objects = ActiveManager()
 
     def __str__(self):

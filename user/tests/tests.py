@@ -317,7 +317,8 @@ class TestUserProfile(TestCase):
             'pass_code': user_profile.pass_code,
             'currency': user_profile.currency
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put('/users/{}'.format(uid), json.dumps(data),
+                              content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)

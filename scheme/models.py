@@ -2,8 +2,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES
-
 from scheme.encyption import AESCipher
+from bulk_update.manager import BulkUpdateManager
 
 
 class Category(models.Model):
@@ -23,8 +23,19 @@ class Scheme(models.Model):
         (1, 'Tier 1'),
         (2, 'Tier 2'),
     )
+    # this is the same slugs found in the active.py file in the midas repo
+    SLUGS = (
+        ("tesco", 'Tesco'),
+        ("advantage-card", 'Boots'),
+        ('superdrug', 'Superdrug'),
+        ('shell', 'Shell'),
+        ('morrisons', 'Morrisons'),
+        ('kfc', 'Kfc'),
+        ('costa', 'Costa'),
+        ('cooperative', 'Cooperative'),
+    )
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, choices=SLUGS)
     url = models.URLField()
     company = models.CharField(max_length=200)
     company_url = models.URLField()
@@ -130,7 +141,7 @@ class SchemeAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
-    objects = models.Manager()
+    objects = BulkUpdateManager()
     active_objects = ActiveManager()
 
     def credentials(self):
@@ -151,7 +162,7 @@ class SchemeAccount(models.Model):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
     class Meta:
-        ordering = ['-order']
+        ordering = ['order']
 
 
 class SchemeCredentialQuestion(models.Model):
@@ -161,7 +172,7 @@ class SchemeCredentialQuestion(models.Model):
     label = models.CharField(max_length=250)
 
     class Meta:
-        ordering = ['-order']
+        ordering = ['order']
 
     def __str__(self):
         return self.type
