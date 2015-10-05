@@ -121,7 +121,6 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['country'], None)
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], None)
-        self.assertEqual(content['currency'], None)
 
     def test_full_update(self):
         # Create User
@@ -148,14 +147,12 @@ class TestUserProfile(TestCase):
             'country': 'United Kingdom',
             'notifications': '0',
             'pass_code': '1234',
-            'currency': 'GBP'
         }
-        response = client.put('/users/{}/'.format(api_key), json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put('/users/{}'.format(api_key), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         data['uid'] = api_key
         #TODO: SORT THESE
-        data['currency'] = '0'
         data['notifications'] = 0
         #TODO: Check all fields in response
         pass
@@ -202,9 +199,9 @@ class TestUserProfile(TestCase):
         auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], user_profile.user.email)
         self.assertEqual(content['first_name'], None)
@@ -227,9 +224,9 @@ class TestUserProfile(TestCase):
         auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], user_profile.user.email)
         self.assertEqual(content['first_name'], None)
@@ -352,9 +349,9 @@ class TestUserProfile(TestCase):
             'notifications': None,
             'pass_code': '',
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], user_profile.user.email)
         self.assertEqual(content['first_name'], '')
