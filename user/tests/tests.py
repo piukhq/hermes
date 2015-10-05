@@ -94,18 +94,17 @@ class TestRegisterNewUser(TestCase):
 class TestUserProfile(TestCase):
 
     def test_empty_profile(self):
-
         client = Client()
         email = 'empty_profile@example.com'
         response = client.post('/users/register/', {'email': email, 'password': 'password1'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid = content['uid']
+        uid = content['api_key']
         auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
 
-        response = client.get('/users/{}/'.format(uid), content_type='application/json', **auth_headers)
+        response = client.get('/users/{}'.format(uid), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(content['email'], email)
@@ -131,9 +130,9 @@ class TestUserProfile(TestCase):
         response = client.post('/users/register/', {'email': email, 'password': 'password1'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid = content['uid']
+        api_key = content['api_key']
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(uid)
+            'HTTP_AUTHORIZATION': 'Token ' + str(api_key)
         }
         data = {
             'email': 'user_profile2@example.com',
@@ -151,10 +150,10 @@ class TestUserProfile(TestCase):
             'pass_code': '1234',
             'currency': 'GBP'
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put('/users/{}/'.format(api_key), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        data['uid'] = uid
+        data['uid'] = api_key
         #TODO: SORT THESE
         data['currency'] = '0'
         data['notifications'] = 0
@@ -178,9 +177,9 @@ class TestUserProfile(TestCase):
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], user_profile.user.email)
         self.assertEqual(content['first_name'], None)
@@ -257,9 +256,9 @@ class TestUserProfile(TestCase):
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], new_email)
 
@@ -274,9 +273,9 @@ class TestUserProfile(TestCase):
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
-        content = json.loads(response.content.decode())
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 400)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['email'], ['This field must be unique.'])
 
     def test_cannot_edit_uid(self):
@@ -290,7 +289,8 @@ class TestUserProfile(TestCase):
             'HTTP_AUTHORIZATION': 'Token ' + str(uid)
         }
         client = Client()
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
 
@@ -317,10 +317,9 @@ class TestUserProfile(TestCase):
             'pass_code': user_profile.pass_code,
             'currency': user_profile.currency
         }
-        response = client.put('/users/{}/'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put('/users/{}'.format(uid), json.dumps(data), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 200)
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], user_profile.user.email)
         self.assertEqual(content['first_name'], user_profile.first_name)
@@ -440,8 +439,8 @@ class TestAuthentication(APITestCase):
             'HTTP_AUTHORIZATION': "Token " + str(uid),
         }
         response = client.get('/users/authenticate/', **auth_headers)
-        content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 401)
+        content = json.loads(response.content.decode())
         self.assertEqual(content['detail'], 'Invalid token.')
 
 
@@ -457,7 +456,7 @@ class TestSchemeAccounts(TestCase):
             'HTTP_AUTHORIZATION': "Token " + str(uid),
         }
         client = Client()
-        response = client.get('/users/scheme_accounts/{}/'.format(scheme.id), content_type='application/json', **auth_headers)
+        response = client.get('/users/scheme_accounts/{}/'.format(scheme_account.id), content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(content['scheme_slug'], scheme.slug)

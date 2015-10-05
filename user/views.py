@@ -64,6 +64,9 @@ class Users(RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     lookup_field = 'uid'
 
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
 
 class Authenticate(APIView):
     authentication_classes = (UIDAuthentication,)
@@ -83,8 +86,8 @@ class RetrieveSchemeAccount(RetrieveAPIView):
     serializer_class = SchemeAccountSerializer
 
     def get(self, request, *args, **kwargs):
-        scheme = get_object_or_404(Scheme, pk=kwargs['scheme_id'])
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, scheme=kwargs['scheme_id'])
+        scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
+        scheme = scheme_account.scheme
         credentials = {}
         security_questions = SchemeCredentialQuestion.objects.filter(scheme=scheme)
         if security_questions:
