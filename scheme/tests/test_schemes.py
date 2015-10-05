@@ -41,8 +41,6 @@ class TestScheme(APITestCase):
                 self.assertEqual(len(resp_scheme['images']), 1)
 
 
-    def test_scheme_list_includes_questions(self):
-        self.assertTrue(False)
 
     def test_scheme_item(self):
         response = self.client.get('/schemes/{0}'.format(self.scheme.id))
