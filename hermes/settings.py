@@ -55,6 +55,7 @@ INSTALLED_APPS = (
     'user',
     'scheme',
     'payment_card',
+    'order',
 )
 
 MIDDLEWARE_CLASSES = (
