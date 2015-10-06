@@ -120,22 +120,25 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         serialized_credentials = json.dumps(scheme_account.credentials())
         encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
         parameters = {'scheme_account_id': scheme_account.id, 'user_id': scheme_account.user.id, 'credentials': encrypted_credentials}
-        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
-        if response.status_code == 200:
-            scheme_account.status = 1
-            response_data['points'] = response.json()['points']
-        elif response.status_code == 403:
-            scheme_account.status = 2
-        elif response.status_code == 432:
-            scheme_account.status = 2
-        elif response.status_code == 429:
-            scheme_account.status_code = 7
-        elif response.status_code == 434:
-            scheme_account.status = 6
-        elif response.status_code == 530:
-            scheme_account.status = 3
-        else:
-            scheme_account.status = 8
+        try:
+            response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
+            if response.status_code == 200:
+                scheme_account.status = 1
+                response_data['points'] = response.json()['points']
+            elif response.status_code == 403:
+                scheme_account.status = 2
+            elif response.status_code == 432:
+                scheme_account.status = 2
+            elif response.status_code == 429:
+                scheme_account.status_code = 7
+            elif response.status_code == 434:
+                scheme_account.status = 6
+            elif response.status_code == 530:
+                scheme_account.status = 3
+            else:
+                scheme_account.status = 8
+        except ConnectionError:
+            scheme_account.status = 9
         scheme_account.save()
 
         return Response(json.dumps(response_data),

@@ -121,6 +121,7 @@ class SchemeAccount(models.Model):
     LOCKED_BY_ENDSITE = 6
     RETRY_LIMIT_REACHED = 7
     UNKNOWN_ERROR = 8
+    MIDAS_UNREACHEABLE = 9
 
     STATUSES = (
         (PENDING, 'pending'),
