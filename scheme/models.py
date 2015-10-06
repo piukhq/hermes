@@ -133,6 +133,7 @@ class SchemeAccount(models.Model):
         (LOCKED_BY_ENDSITE, 'account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
+        (MIDAS_UNREACHEABLE, 'Midas unavailable')
     )
 
     user = models.ForeignKey('user.CustomUser')
