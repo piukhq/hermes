@@ -24,21 +24,11 @@ class Scheme(models.Model):
         (2, 'Tier 2'),
     )
     # this is the same slugs found in the active.py file in the midas repo
-    SLUGS = (
-        ("tesco", 'Tesco'),
-        ("advantage-card", 'Boots'),
-        ('superdrug', 'Superdrug'),
-        ('shell', 'Shell'),
-        ('morrisons', 'Morrisons'),
-        ('kfc', 'Kfc'),
-        ('costa', 'Costa'),
-        ('cooperative', 'Cooperative'),
-    )
     name = models.CharField(max_length=200)
-    slug = models.SlugField(unique=True, choices=SLUGS)
+    slug = models.SlugField(unique=True)
     url = models.URLField()
     company = models.CharField(max_length=200)
-    company_url = models.URLField()
+    company_url = models.URLField(blank=True, null=True)
     forgotten_password_url = models.URLField(max_length=500)
     tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField()
