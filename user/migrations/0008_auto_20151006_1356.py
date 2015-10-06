@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='userdetail',
             name='currency',
-            field=models.CharField(default='GBP', max_length=3),
+            field=models.CharField(max_length=3, blank=True, null=True, default='GBP'),
         ),
     ]
