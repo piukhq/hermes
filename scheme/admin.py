@@ -12,7 +12,7 @@ class CredentialQuestionInline(admin.StackedInline):
     extra = 0
 
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline)
+    inlines = (CredentialQuestionInline, )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "primary_question":
