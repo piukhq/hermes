@@ -72,7 +72,7 @@ class UserDetail(models.Model):
     country = models.CharField(max_length=100, null=True, blank=True)
     notifications = models.IntegerField(null=True, blank=True, choices=NOTIFICATIONS_SETTING)
     pass_code = models.CharField(max_length=20, null=True, blank=True)
-    currency = models.CharField(max_length=3, default='GBP')
+    currency = models.CharField(max_length=3, default='GBP', null=True, blank=True)
     # avatar
 
 
