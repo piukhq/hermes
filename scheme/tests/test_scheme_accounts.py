@@ -10,10 +10,12 @@ from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME
 class TestSchemeAccount(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.user = UserFactory()
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.scheme = cls.scheme_account.scheme
+        cls.user = cls.scheme_account.user
+        cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
+        cls.scheme.save()
 
         cls.auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
@@ -142,9 +144,6 @@ class TestSchemeAccount(APITestCase):
         self.assertIn("id", response.data)
 
     def test_list_schemes_accounts(self):
-        self.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=USER_NAME)
-        self.scheme.save()
-
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
