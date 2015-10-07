@@ -36,7 +36,9 @@ CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
     "127.0.0.1",
     "0.0.0.0:8001",
-    ".chingrewards.com",
+    "staging.chingweb.chingrewards.com",
+    "local.chingweb.chingrewards.com",
+    "dev.chingweb.loyaltyangels.local",
 )
 
 
