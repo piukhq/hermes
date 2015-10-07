@@ -37,7 +37,8 @@ class SchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'status')
+        exclude = ('updated', )
+        read_only_fields = ('status')
 
 
 
@@ -53,6 +54,6 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'status')
+        exclude = ('updated', )
 
 
