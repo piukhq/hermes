@@ -76,7 +76,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
     override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer,
+        'GET': ListSchemeAccountSerializer
     }
 
     def get_queryset(self):

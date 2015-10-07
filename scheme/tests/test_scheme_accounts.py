@@ -104,13 +104,14 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['password'], 'password2')
         self.assertEqual(content['card_number'], '1234')
 
-    #TODO:REPURPOSE
-    def test_get_scheme_accounts(self):
+    def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
+        self.assertEqual(response.data['primary_answer']['id'], self.scheme_account_answer.id)
+        self.assertEqual(response.data['primary_answer']['answer'], self.scheme_account_answer.answer)
 
     def test_patch_schemes_accounts(self):
         data = {'order': 5,
@@ -147,4 +148,4 @@ class TestSchemeAccount(APITestCase):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
-        self.assertEqual(response.data[0]['primary_answer'], self.scheme_account_answer.answer)
+        self.assertNotIn('primary_answer', response.data[0])
