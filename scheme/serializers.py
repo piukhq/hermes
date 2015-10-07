@@ -17,7 +17,6 @@ class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     questions = SchemeQuestionSerializer(many=True, read_only=True)
 
-
     class Meta:
         model = Scheme
 
@@ -28,10 +27,18 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
 
 
 
+class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeAccountCredentialAnswer
+
+
 class SchemeAccountSerializer(serializers.ModelSerializer):
+    primary_answer = SchemeAccountAnswerSerializer(read_only=True)
+
     class Meta:
         model = SchemeAccount
         exclude = ('updated', 'status')
+
 
 
 class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
@@ -41,11 +48,11 @@ class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
         read_only_fields = ('user', 'scheme')
 
 
-class ListSchemeAccountSerializer(SchemeAccountSerializer):
+class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    primary_answer = serializers.CharField(read_only=True)
 
-
-class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SchemeAccountCredentialAnswer
+        model = SchemeAccount
+        exclude = ('updated', 'status')
+
+

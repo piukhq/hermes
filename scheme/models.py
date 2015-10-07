@@ -1,8 +1,6 @@
 from django.db import models
-from django.conf import settings
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES
-from scheme.encyption import AESCipher
 from bulk_update.manager import BulkUpdateManager
 
 

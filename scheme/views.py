@@ -62,7 +62,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
             obj, created = SchemeAccountCredentialAnswer.objects.update_or_create(
                 scheme_account=scheme_account, type=challenge.type, defaults={'answer': response})
             response_data[obj.type] = obj.answer
-        return Response(json.dumps(response_data), content_type="application/json")
+        return Response(response_data)
 
     def delete(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -76,7 +76,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
     override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer,
+        'GET': ListSchemeAccountSerializer
     }
 
     def get_queryset(self):
@@ -166,4 +166,4 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
 
 def json_error_response(message, code):
-    return Response(json.dumps({"message": message, "code": code}), status=code, content_type="application/json")
+    return Response({"message": message, "code": code}, status=code)
