@@ -79,7 +79,9 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         'GET': ListSchemeAccountSerializer,
     }
 
-    queryset = SchemeAccount.active_objects
+    def get_queryset(self):
+        user = self.request.user
+        return SchemeAccount.active_objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
         scheme = get_object_or_404(Scheme, pk=request.data['scheme'][0])
