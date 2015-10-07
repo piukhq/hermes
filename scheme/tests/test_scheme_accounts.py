@@ -43,7 +43,7 @@ class TestSchemeAccount(APITestCase):
         }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
-        content = json.loads(response.data)
+        content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['user_name'], 'andrew')
@@ -148,3 +148,4 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['primary_answer'], self.scheme_account_answer.answer)
+

@@ -84,7 +84,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         return SchemeAccount.active_objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
-        scheme = get_object_or_404(Scheme, pk=request.data['scheme'][0])
+        scheme = get_object_or_404(Scheme, pk=request.data['scheme'])
 
         # Check that the user dosnt have a scheme account with the primary question answer
         scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
@@ -142,8 +142,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         except ConnectionError:
             scheme_account.status = 9
         scheme_account.save()
-
-        return Response(json.dumps(response_data),
+        response_data['status'] = scheme_account.status
+        return Response(response_data,
                         status=status.HTTP_201_CREATED,
                         headers=headers,
                         content_type="application/json")
