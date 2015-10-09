@@ -22,19 +22,13 @@ class TestSchemeAccount(APITestCase):
         }
         super(TestSchemeAccount, cls).setUpClass()
 
-    def test_post_schemes_accounts(self):
-        scheme = SchemeFactory()
-        data = {
-                'scheme': scheme.id,
-                }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
-
     def test_post_scheme_account_with_answers(self):
         scheme = SchemeFactory()
         username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
         card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+        scheme.primary_question = username_question
+        scheme.save()
         data = {
                 'scheme': scheme.id,
                 username_question.type: 'andrew',
@@ -54,6 +48,8 @@ class TestSchemeAccount(APITestCase):
         scheme = SchemeFactory(name="Boots", slug="advantage-card")
         username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='user_name')
         password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
+        scheme.primary_question = username_question
+        scheme.save()
         data = {
                 'scheme': scheme.id,
                 username_question.type: 'julie.gormley100@gmail.com',
