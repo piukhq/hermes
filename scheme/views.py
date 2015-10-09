@@ -132,7 +132,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         try:
             serialized_credentials = json.dumps(scheme_account.credentials())
         except SchemeAccountCredentialAnswer.DoesNotExist:
-            scheme_account.status = 5
+            scheme_account.status = SchemeAccount.INCOMPLETE
             scheme_account.save()
 
         if serialized_credentials:
@@ -142,12 +142,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             try:
                 response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
                 if response.status_code == 200:
-                    scheme_account.status = 1
+                    scheme_account.status = SchemeAccount.ACTIVE
                     response_data['points'] = response.json()['points']
                 else:
                     scheme_account.status = response.status_code
             except ConnectionError:
-                scheme_account.status = 9
+                scheme_account.status = SchemeAccount.MIDAS_UNREACHEABLE
             scheme_account.save()
 
         response_data['status'] = scheme_account.status
