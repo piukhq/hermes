@@ -102,19 +102,21 @@ class ActiveManager(models.Manager):
 class SchemeAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
-    INVALID_CREDENTIALS = 2
-    END_SITE_DOWN = 3
+    INVALID_CREDENTIALS = 403
+    INVALID_MFA = 432
+    END_SITE_DOWN = 530
     DELETED = 4
     INCOMPLETE = 5
-    LOCKED_BY_ENDSITE = 6
-    RETRY_LIMIT_REACHED = 7
-    UNKNOWN_ERROR = 8
+    LOCKED_BY_ENDSITE = 434
+    RETRY_LIMIT_REACHED = 429
+    UNKNOWN_ERROR = 520
     MIDAS_UNREACHEABLE = 9
 
     STATUSES = (
         (PENDING, 'pending'),
         (ACTIVE, 'active'),
         (INVALID_CREDENTIALS, 'invalid credentials'),
+        (INVALID_MFA, 'invalid_mfa'),
         (END_SITE_DOWN, 'end site down'),
         (DELETED, 'deleted'),
         (INCOMPLETE, 'incomplete'),

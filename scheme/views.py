@@ -144,18 +144,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 if response.status_code == 200:
                     scheme_account.status = 1
                     response_data['points'] = response.json()['points']
-                elif response.status_code == 403:
-                    scheme_account.status = 2
-                elif response.status_code == 432:
-                    scheme_account.status = 2
-                elif response.status_code == 429:
-                    scheme_account.status_code = 7
-                elif response.status_code == 434:
-                    scheme_account.status = 6
-                elif response.status_code == 530:
-                    scheme_account.status = 3
                 else:
-                    scheme_account.status = 8
+                    scheme_account.status = response.status_code
             except ConnectionError:
                 scheme_account.status = 9
             scheme_account.save()
