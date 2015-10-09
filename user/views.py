@@ -49,6 +49,7 @@ class Login(GenericAPIView):
 # Will require research, multiple serializers
 # Password Handling
 class Register(CreateAPIView):
+    authentication_classes = (CustomSessionAuthentication,)
     serializer_class = RegisterSerializer
 
 
