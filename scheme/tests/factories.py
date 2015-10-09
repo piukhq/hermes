@@ -65,7 +65,7 @@ class SchemeImageFactory(factory.DjangoModelFactory):
 
     scheme = factory.SubFactory(SchemeFactory)
     image_type_code = 1
-    size_code = fake.sentence(nb_words=3)
+    size_code = fake.word()
     image = fake.url()
     strap_line = fake.sentence(nb_words=3)
     description = fake.sentence(nb_words=3)

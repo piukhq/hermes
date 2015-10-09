@@ -3,6 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 from user.models import CustomUser
 from rest_framework import HTTP_HEADER_ENCODING, exceptions
 
+
 class UIDAuthentication(BaseAuthentication):
     """
     Simple token based authentication.

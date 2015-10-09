@@ -79,7 +79,7 @@ class TestSchemeAccount(APITestCase):
                 card_no_question.type: '1234',
                 password_question.type: 'password'
         }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers) #content_type='application/json'
+        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)

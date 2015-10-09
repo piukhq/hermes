@@ -24,11 +24,17 @@ class SwappableSerializerMixin(object):
 
 
 class SchemesList(generics.ListAPIView):
+    authentication_classes = (UIDAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = Scheme.objects.filter(is_active=True)
     serializer_class = SchemeSerializer
 
 
 class RetrieveScheme(RetrieveAPIView):
+    authentication_classes = (UIDAuthentication,)
+    permission_classes = (IsAuthenticated,)
+
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
@@ -36,6 +42,7 @@ class RetrieveScheme(RetrieveAPIView):
 class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
+
     serializer_class = SchemeAccountSerializer
     override_serializer_classes = {
         'PUT': UpdateSchemeAccountSerializer,
@@ -147,7 +154,6 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                         status=status.HTTP_201_CREATED,
                         headers=headers,
                         content_type="application/json")
-
 
 
 class CreateAnswer(CreateAPIView):
