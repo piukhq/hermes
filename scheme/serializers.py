@@ -5,12 +5,12 @@ from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, 
 class SchemeImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeImage
-        exclude = ('id', 'scheme')
+        exclude = ('scheme',)
 
 class SchemeQuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('id', 'scheme')
+        exclude = ('scheme',)
 
 
 class SchemeSerializer(serializers.ModelSerializer):
