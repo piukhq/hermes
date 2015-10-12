@@ -55,7 +55,7 @@ class TestSchemeAccount(APITestCase):
                 username_question.type: 'julie.gormley100@gmail.com',
                 password_question.type: 'RAHansbrics5'
         }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
@@ -75,7 +75,7 @@ class TestSchemeAccount(APITestCase):
                 card_no_question.type: '1234',
                 password_question.type: 'password'
         }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
@@ -89,7 +89,7 @@ class TestSchemeAccount(APITestCase):
                 card_no_question.type: '1234',
                 password_question.type: 'password2'
         }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         response = self.client.put('/schemes/accounts/{}'.format(scheme.id), data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)

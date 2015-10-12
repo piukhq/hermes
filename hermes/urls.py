@@ -5,7 +5,7 @@ from django.contrib import admin
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
     url(r'^users/', include('user.urls')),
-    url(r'^schemes/', include('scheme.urls')),
+    url(r'^schemes', include('scheme.urls')),
     url(r'^payment_cards/', include('payment_card.urls')),
     url(r'^order', include('order.urls')),
     url(r'^docs/', include('rest_framework_swagger.urls')),
