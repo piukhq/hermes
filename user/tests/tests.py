@@ -469,3 +469,14 @@ class TestSchemeAccounts(TestCase):
         # self.assertEqual(credentials['password'], scheme_account.decrypt())
         # self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
 
+
+class TestSocialLogins(TestCase):
+    def test_register_facebook(self):
+        user = UserFactory()
+        data = {
+            "email": user.email,
+            "token": '1234',
+            "type": "facebook"
+        }
+        client = Client()
+        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password1'})

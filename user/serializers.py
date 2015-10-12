@@ -101,4 +101,12 @@ class SchemeAccountSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
 
+class SocialRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    type = serializers.CharField(max_length=20)
+    token = serializers.CharField(max_length=500)
+
+class SocialLoginSerializer(serializers.Serializer):
+    type = serializers.CharField(max_length=20)
+    token = serializers.CharField(max_length=500)
 

@@ -14,6 +14,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
+    facebook = models.CharField(max_length=120, blank=True, null=True)
+    twitter = models.CharField(max_length=120, blank=True, null=True)
 
     USERNAME_FIELD = 'email'
 

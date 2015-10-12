@@ -1,9 +1,11 @@
 import json
 from types import SimpleNamespace
+from urllib.parse import parse_qsl
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+import requests
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
     RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -106,3 +108,32 @@ class RetrieveSchemeAccount(RetrieveAPIView):
                                    credentials=encrypted_credentials)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class SocialLogin(APIView):
+    def post(self, request):
+        access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
+        graph_api_url = 'https://graph.facebook.com/v2.3/me?fields=email,name,id'
+
+        params = {
+            'client_id': request.json['clientId'],
+            'redirect_uri': request.json['redirectUri'],
+            'client_secret': 'bb1adac0eba3747f8846cf72d49f0574',
+            'code': request.json['code']
+        }
+
+        # Step 1. Exchange authorization code for access token.
+        r = requests.get(access_token_url, params=params)
+
+        # Step 2. Retrieve information about the current user.
+        r = requests.get(graph_api_url, params=r.json())
+        profile = json.loads(r.text)
+
+        # Step 4. Create a new account or return an existing one.
+        from django.utils.crypto import get_random_string
+        password = get_random_string(length=32)
+        user = CustomUser.objects.get(facebook=profile['id'])
+        if not user:
+            user = CustomUser(email=profile['email'], password=password, facebook=profile['id'])
+
+        return Response({'email': user.email, 'api_key': user.uid})
