@@ -111,15 +111,17 @@ class RetrieveSchemeAccount(RetrieveAPIView):
 
 
 class SocialLogin(APIView):
+
+
     def post(self, request):
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
         graph_api_url = 'https://graph.facebook.com/v2.3/me?fields=email,name,id'
 
         params = {
-            'client_id': request.json['clientId'],
-            'redirect_uri': request.json['redirectUri'],
+            'client_id': request.data['clientId'],
+            'redirect_uri': request.data['redirectUri'],
             'client_secret': 'bb1adac0eba3747f8846cf72d49f0574',
-            'code': request.json['code']
+            'code': request.data['code']
         }
 
         # Step 1. Exchange authorization code for access token.
