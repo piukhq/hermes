@@ -31,7 +31,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     ".chingrewards.com"
 ]
-
+CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
     "127.0.0.1",
@@ -39,6 +39,7 @@ CORS_ORIGIN_WHITELIST = (
     "staging.chingweb.chingrewards.com",
     "local.chingweb.chingrewards.com",
     "dev.chingweb.loyaltyangels.local",
+    "local.chingweb.chingrewards.com:8000",
 )
 
 
@@ -136,3 +137,4 @@ AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 
+FACEBOOK_CLIENT_SECRET = env_var('FACEBOOK_CLIENT_SECRET', '5da7b80e9e0e25d24097515eb7d506da')

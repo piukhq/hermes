@@ -1,8 +1,8 @@
 import json
 from types import SimpleNamespace
-from urllib.parse import parse_qsl
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
+from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import requests
@@ -13,11 +13,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from hermes import settings
 from scheme.encyption import AESCipher
-from scheme.models import SchemeAccount, Scheme, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
+from scheme.models import SchemeAccount, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
 from user.authenticators import UIDAuthentication
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
-from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer
+from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
+    SocialRegisterSerializer
 
 class ForgottenPassword():
     pass
@@ -110,32 +111,46 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         return Response(serializer.data)
 
 
-class SocialLogin(APIView):
+class FaceBookLogin(CreateAPIView):
+    authentication_classes = (CustomSessionAuthentication,)
+    serializer_class = SocialRegisterSerializer
 
-
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
         graph_api_url = 'https://graph.facebook.com/v2.3/me?fields=email,name,id'
 
         params = {
             'client_id': request.data['clientId'],
             'redirect_uri': request.data['redirectUri'],
-            'client_secret': 'bb1adac0eba3747f8846cf72d49f0574',
+            'client_secret': settings.FACEBOOK_CLIENT_SECRET,
             'code': request.data['code']
         }
 
         # Step 1. Exchange authorization code for access token.
         r = requests.get(access_token_url, params=params)
+        if not r.ok:
+            return Response({"error": 'Cannot get facebook user token. {0}'.format()}, status=403)
 
         # Step 2. Retrieve information about the current user.
         r = requests.get(graph_api_url, params=r.json())
-        profile = json.loads(r.text)
+        if not r.ok:
+            return Response({"error": 'Can not access facebook social graph.'}, status=403)
 
-        # Step 4. Create a new account or return an existing one.
-        from django.utils.crypto import get_random_string
-        password = get_random_string(length=32)
-        user = CustomUser.objects.get(facebook=profile['id'])
-        if not user:
-            user = CustomUser(email=profile['email'], password=password, facebook=profile['id'])
+        profile = r.json()
+        # Step 3. Create a new account or return an existing one.
+        try:
+            user = CustomUser.objects.get(facebook=profile['id'])
+        except CustomUser.DoesNotExist:
+            password = get_random_string(length=32)
+            try:
+                # See if they have an email in our system
+                user = CustomUser.objects.get(email=profile['email'])
+                user.facebook = profile['id']
+                user.save()
+            except CustomUser.DoesNotExist:
+                user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
+            except KeyError:
+                email = "{0}@facebook.com".format(profile['id'])
+                user = CustomUser.objects.create(email=email, password=password, user=profile['id'])
 
-        return Response({'email': user.email, 'api_key': user.uid})
+        return Response({'email': user.email, 'token': user.uid})
