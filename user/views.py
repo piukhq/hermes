@@ -133,7 +133,7 @@ class FaceBookLoginWeb(CreateAPIView):
         # Exchange authorization code for access token.
         r = requests.get(access_token_url, params=params)
         if not r.ok:
-            return Response({"error": 'Cannot get facebook user token. {0}'.format()}, status=403)
+            return Response({"error": 'Cannot get facebook user token.'}, status=403)
         return facebook_graph(r.json()['access_token'])
 
 
