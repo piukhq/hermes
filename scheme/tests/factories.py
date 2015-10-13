@@ -28,6 +28,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     tier = 1
     is_barcode = True
     has_transactions = True
+    has_points = True
     barcode_type = 1
     scan_message = fake.sentence()
     point_conversion_rate = 1

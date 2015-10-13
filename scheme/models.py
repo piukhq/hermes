@@ -33,6 +33,7 @@ class Scheme(models.Model):
     scan_message = models.CharField(max_length=100)
     is_barcode = models.BooleanField()
     has_transactions = models.BooleanField()
+    has_points = models.BooleanField()
     identifier = models.CharField(max_length=30)
     point_name = models.CharField(max_length=50, default='points')
     point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
