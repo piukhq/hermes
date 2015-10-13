@@ -157,7 +157,14 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.status = SchemeAccount.MIDAS_UNREACHEABLE
             scheme_account.save()
 
+        request.data.pop('scheme')
+        request.data.pop('user')
+        if list(request.data.keys()) == [scheme.primary_question.type]:
+            scheme_account.status = SchemeAccount.WALLET_ONLY
+            scheme_account.save()
+
         response_data['status'] = scheme_account.status
+
         return Response(response_data,
                         status=status.HTTP_201_CREATED,
                         headers=headers,

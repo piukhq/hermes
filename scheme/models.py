@@ -111,6 +111,7 @@ class SchemeAccount(models.Model):
     RETRY_LIMIT_REACHED = 429
     UNKNOWN_ERROR = 520
     MIDAS_UNREACHEABLE = 9
+    WALLET_ONLY = 10
 
     STATUSES = (
         (PENDING, 'pending'),
@@ -123,7 +124,8 @@ class SchemeAccount(models.Model):
         (LOCKED_BY_ENDSITE, 'account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
-        (MIDAS_UNREACHEABLE, 'Midas unavailable')
+        (MIDAS_UNREACHEABLE, 'Midas unavailable'),
+        (WALLET_ONLY, 'This is a wallet only card')
     )
 
     user = models.ForeignKey('user.CustomUser')
@@ -149,6 +151,19 @@ class SchemeAccount(models.Model):
     @property
     def primary_answer(self):
         return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type)
+
+    @property
+    def action_status(self):
+        if self.status in [403, 432, 5]:
+            return 'USER_ACTION_REQUIRED'
+        elif self.status in [530, 434, 429, 520, 9]:
+            return 'SYSTEM_ACTION_REQUIRED'
+        elif self.status == 2:
+            return 'ACTIVE'
+        elif self.status == 4:
+            return 'DELETED'
+        elif self.status == 10:
+            return 'WALLET_ONLY'
 
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)

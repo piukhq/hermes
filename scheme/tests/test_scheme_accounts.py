@@ -146,3 +146,21 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertNotIn('primary_answer', response.data[0])
 
+    def test_wallet_only(self):
+        scheme = SchemeFactory()
+        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
+        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+        scheme.primary_question = card_no_question
+        scheme.save()
+        data = {
+                'scheme': scheme.id,
+                card_no_question.type: '1234',
+        }
+        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        content = response.data
+        self.assertEqual(content['scheme_id'], scheme.id)
+        self.assertEqual(content['order'], 0)
+        self.assertEqual(content['card_number'], '1234')
+        self.assertEqual(content['status'], 10)
