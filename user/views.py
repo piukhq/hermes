@@ -1,14 +1,12 @@
 import json
 from types import SimpleNamespace
-from urllib.parse import parse_qsl, urlencode
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
-from django.shortcuts import redirect
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import requests
-from requests_oauthlib import OAuth1, OAuth1Session
+from requests_oauthlib import OAuth1Session
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
     RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -24,11 +22,12 @@ from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSe
     SocialRegisterSerializer
 
 
-class ForgottenPassword():
+class ForgottenPassword:
     pass
 
+
 class CustomSessionAuthentication(SessionAuthentication):
-    """We dont need csrf as we are using jwt tokens"""
+    """We don't need csrf as we are using jwt tokens"""
     def enforce_csrf(self, request):
         return
 
