@@ -23,6 +23,7 @@ from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
     SocialRegisterSerializer
 
+
 class ForgottenPassword():
     pass
 
@@ -31,24 +32,6 @@ class ForgottenPassword():
 class CustomSessionAuthentication(SessionAuthentication):
     def enforce_csrf(self, request):
         return
-
-
-class Login(GenericAPIView):
-    authentication_classes = (CustomSessionAuthentication,)
-    serializer_class = LoginSerializer
-
-    def post(self, request):
-        email = request.data['email']
-        password = request.data['password']
-        user = authenticate(email=email, password=password)
-
-        if not user:
-            return Response({"error": 'Login credentials incorrect.'}, status=403)
-        if not user.is_active:
-            return Response({"error": "The account associated with this email address is suspended."}, status=403)
-
-        login(request, user)
-        return Response({'email': email, 'api_key': user.uid})
 
 
 # TODO: Could be merged with users
@@ -114,50 +97,86 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         return Response(serializer.data)
 
 
-class FaceBookLogin(CreateAPIView):
+class Login(GenericAPIView):
+    authentication_classes = (CustomSessionAuthentication,)
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        email = request.data['email']
+        password = request.data['password']
+        user = authenticate(email=email, password=password)
+
+        if not user:
+            return Response({"error": 'Login credentials incorrect.'}, status=403)
+        if not user.is_active:
+            return Response({"error": "The account associated with this email address is suspended."}, status=403)
+
+        login(request, user)
+        return Response({'email': email, 'api_key': user.uid})
+
+
+class FaceBookLoginWeb(CreateAPIView):
+    """
+    This is just used by chingweb
+    """
     authentication_classes = (CustomSessionAuthentication,)
     serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
-        graph_api_url = 'https://graph.facebook.com/v2.3/me?fields=email,name,id'
-
         params = {
             'client_id': request.data['clientId'],
             'redirect_uri': request.data['redirectUri'],
             'client_secret': settings.FACEBOOK_CLIENT_SECRET,
             'code': request.data['code']
         }
-
-        # Step 1. Exchange authorization code for access token.
+        # Exchange authorization code for access token.
         r = requests.get(access_token_url, params=params)
         if not r.ok:
-            return Response({"error": 'Cannot get facebook user token. {0}'.format()}, status=403)
+            return Response({"error": 'Cannot get facebook user token.'}, status=403)
+        return facebook_graph(r.json()['access_token'])
 
-        # Step 2. Retrieve information about the current user.
-        r = requests.get(graph_api_url, params=r.json())
 
+class FaceBookLogin(CreateAPIView):
+    authentication_classes = (CustomSessionAuthentication,)
+    serializer_class = SocialRegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        access_token = request.data['access_token']
+        user_id = request.data['user_id']
+        r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
-            return Response({"error": 'Can not access facebook social graph.'}, status=403)
+            return Response({"error": "Cannot validate user_id & access_token."}, status=403)
+        if r.json()['id'] != user_id.strip():
+            return Response({"error": "user_id is invalid for given access token"}, status=403)
+        return facebook_graph(access_token)
 
-        profile = r.json()
-        # Step 3. Create a new account or return an existing one.
+
+def facebook_graph(access_token):
+    params = {"access_token": access_token,
+              "fields": "email,name,id"}
+    # Retrieve information about the current user.
+    r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
+    if not r.ok:
+        return Response({"error": 'Can not access facebook social graph.'}, status=403)
+    profile = r.json()
+    # Create a new account or return an existing one.
+    try:
+        user = CustomUser.objects.get(facebook=profile['id'])
+    except CustomUser.DoesNotExist:
+        password = get_random_string(length=32)
         try:
-            user = CustomUser.objects.get(facebook=profile['id'])
+            # See if they have an email in our system
+            user = CustomUser.objects.get(email=profile['email'])
+            user.facebook = profile['id']
+            user.save()
         except CustomUser.DoesNotExist:
-            password = get_random_string(length=32)
-            try:
-                # See if they have an email in our system
-                user = CustomUser.objects.get(email=profile['email'])
-                user.facebook = profile['id']
-                user.save()
-            except CustomUser.DoesNotExist:
-                user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
-            except KeyError:
-                email = "{0}@facebook.com".format(profile['id'])
-                user = CustomUser.objects.create(email=email, password=password, user=profile['id'])
+            user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
+        except KeyError:
+            email = "{0}@facebook.com".format(profile['id'])
+            user = CustomUser.objects.create(email=email, password=password, user=profile['id'])
 
-        return Response({'email': user.email, 'token': user.uid})
+    return Response({'email': user.email, 'api_key': user.uid})
 
 
 class TwitterLogin(APIView):
@@ -198,4 +217,3 @@ class TwitterLogin(APIView):
             oauth_token = dict(parse_qsl(r.text))
             qs = urlencode(dict(oauth_token=oauth_token['oauth_token']))
             return redirect(authenticate_url + '?' + qs)
-
