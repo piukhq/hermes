@@ -7,20 +7,20 @@ from rest_framework.permissions import IsAuthenticated
 from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import SchemeSerializer, SchemeAccountSerializer, SchemeAccountCredentialAnswer, \
-    SchemeAccountAnswerSerializer, ListSchemeAccountSerializer, UpdateSchemeAccountSerializer
+from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
+                                ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import UIDAuthentication
 
 
 class SwappableSerializerMixin(object):
+    serializer_class = None
+    override_serializer_classes = None
+
     def get_serializer_class(self):
-        try:
-            return self.override_serializer_classes[self.request.method]
-        except KeyError:
-            # required if you don't include all the methods (option, etc) in your serializer_class
-            return super(SwappableSerializerMixin, self).get_serializer_class()
+        return self.override_serializer_classes[self.request.method]
 
 
 class SchemesList(generics.ListAPIView):
@@ -43,10 +43,10 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
 
-    serializer_class = SchemeAccountSerializer
     override_serializer_classes = {
         'PUT': UpdateSchemeAccountSerializer,
         'PATCH': UpdateSchemeAccountSerializer,
+        'GET': GetSchemeAccountSerializer
     }
 
     queryset = SchemeAccount.active_objects
@@ -81,9 +81,10 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     authentication_classes = (UIDAuthentication,)
     permission_classes = (IsAuthenticated,)
-    serializer_class = SchemeAccountSerializer
+
     override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer
+        'GET': ListSchemeAccountSerializer,
+        'POST': CreateSchemeAccountSerializer
     }
 
     def get_queryset(self):

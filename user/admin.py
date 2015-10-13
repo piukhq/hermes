@@ -9,7 +9,7 @@ class UserDetailInline(admin.StackedInline):
 
 class CustomUserDetail(admin.ModelAdmin):
     inlines = (UserDetailInline, )
-    list_display = ('uid', 'email')
+    list_display = ('email', 'uid')
 
 
 admin.site.register(CustomUser, CustomUserDetail)
