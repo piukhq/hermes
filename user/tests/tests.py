@@ -405,7 +405,7 @@ class TestAuthentication(APITestCase):
         response = self.client.post('/users/login/', data=data)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["error"], 'Login credentials incorrect.')
+        self.assertEqual(response.data["message"], 'Login credentials incorrect.')
 
     def test_local_login_disable(self):
         self.user.is_active = False
@@ -417,7 +417,7 @@ class TestAuthentication(APITestCase):
         response = self.client.post('/users/login/', data=data)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["error"], "The account associated with this email address is suspended.")
+        self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
 
     def test_remote_authentication_valid(self):
         client = Client()
