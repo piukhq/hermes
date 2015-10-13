@@ -119,6 +119,9 @@ USE_L10N = True
 
 USE_TZ = True
 
+AUTHENTICATION_BACKENDS = (
+    'hermes.email_auth.EmailBackend',
+)
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
@@ -138,6 +141,7 @@ AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 
 FACEBOOK_CLIENT_SECRET = env_var('FACEBOOK_CLIENT_SECRET', '5da7b80e9e0e25d24097515eb7d506da')
-TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'KtC8UO3J0DXXs4eNlWrPqeFrL')
-TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'OZ15nfMyD3kf2kvStkMyqsIRzajwJHEWrlNWXZV7NVb3IlrFbd')
+
+TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyAR')
+TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
