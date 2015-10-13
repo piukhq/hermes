@@ -34,7 +34,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email or str(self.uid)
 
     def __str__(self):
-        return str(self.uid)
+        return self.email or str(self.uid)
 
     # Maybe required?
     def get_group_permissions(self, obj=None):
