@@ -46,7 +46,9 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
     override_serializer_classes = {
         'PUT': UpdateSchemeAccountSerializer,
         'PATCH': UpdateSchemeAccountSerializer,
-        'GET': GetSchemeAccountSerializer
+        'GET': GetSchemeAccountSerializer,
+        'DELETE': GetSchemeAccountSerializer,
+        'OPTIONS': GetSchemeAccountSerializer,
     }
 
     queryset = SchemeAccount.active_objects
@@ -84,7 +86,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
-        'POST': CreateSchemeAccountSerializer
+        'POST': CreateSchemeAccountSerializer,
+        'OPTIONS': ListSchemeAccountSerializer,
     }
 
     def get_queryset(self):

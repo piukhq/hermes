@@ -19,7 +19,7 @@ from user.authenticators import UIDAuthentication
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    SocialRegisterSerializer
+    FaceBookWebRegisterSerializer, SocialRegisterSerializer
 
 
 class ForgottenPassword:
@@ -118,7 +118,7 @@ class FaceBookLoginWeb(CreateAPIView):
     This is just used by chingweb
     """
     authentication_classes = (CustomSessionAuthentication,)
-    serializer_class = SocialRegisterSerializer
+    serializer_class = FaceBookWebRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'

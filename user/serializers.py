@@ -102,7 +102,13 @@ class SchemeAccountSerializer(serializers.Serializer):
     credentials = serializers.CharField(max_length=300)
 
 
-class SocialRegisterSerializer(serializers.Serializer):
+class FaceBookWebRegisterSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=600)
     clientId = serializers.CharField(max_length=120)
     redirectUri = serializers.CharField(max_length=120)
+
+
+class SocialRegisterSerializer(serializers.Serializer):
+    user_id = serializers.CharField(max_length=600)
+    access_token = serializers.CharField(max_length=120)
+
