@@ -1,14 +1,12 @@
 import json
 from types import SimpleNamespace
-from urllib.parse import parse_qsl, urlencode
 from django.contrib.auth import authenticate, login
 from django.http import HttpResponse
-from django.shortcuts import redirect
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 import requests
-from requests_oauthlib import OAuth1
+from requests_oauthlib import OAuth1Session
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
     RetrieveAPIView, get_object_or_404
 from rest_framework.permissions import IsAuthenticated
@@ -21,15 +19,15 @@ from user.authenticators import UIDAuthentication
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    SocialRegisterSerializer
+    FaceBookWebRegisterSerializer, SocialRegisterSerializer
 
 
-class ForgottenPassword():
+class ForgottenPassword:
     pass
 
 
-# TODO: don't override this and support csrf
 class CustomSessionAuthentication(SessionAuthentication):
+    """We don't need csrf as we are using jwt tokens"""
     def enforce_csrf(self, request):
         return
 
@@ -104,12 +102,12 @@ class Login(GenericAPIView):
     def post(self, request):
         email = request.data['email']
         password = request.data['password']
-        user = authenticate(email=email, password=password)
+        user = authenticate(username=email, password=password)
 
         if not user:
-            return Response({"error": 'Login credentials incorrect.'}, status=403)
+            return Response({"message": 'Login credentials incorrect.'}, status=403)
         if not user.is_active:
-            return Response({"error": "The account associated with this email address is suspended."}, status=403)
+            return Response({"message": "The account associated with this email address is suspended."}, status=403)
 
         login(request, user)
         return Response({'email': email, 'api_key': user.uid})
@@ -117,10 +115,10 @@ class Login(GenericAPIView):
 
 class FaceBookLoginWeb(CreateAPIView):
     """
-    This is just used by chingweb
+    This is just used by ching web
     """
     authentication_classes = (CustomSessionAuthentication,)
-    serializer_class = SocialRegisterSerializer
+    serializer_class = FaceBookWebRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
@@ -158,7 +156,7 @@ def facebook_graph(access_token):
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
-        return Response({"error": 'Can not access facebook social graph.'}, status=403)
+        return Response({"message": 'Can not access facebook social graph.'}, status=403)
     profile = r.json()
     # Create a new account or return an existing one.
     try:
@@ -173,47 +171,37 @@ def facebook_graph(access_token):
         except CustomUser.DoesNotExist:
             user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
         except KeyError:
-            email = "{0}@facebook.com".format(profile['id'])
-            user = CustomUser.objects.create(email=email, password=password, user=profile['id'])
+            user = CustomUser.objects.create(password=password, user=profile['id'])
 
     return Response({'email': user.email, 'api_key': user.uid})
 
 
 class TwitterLogin(APIView):
-    def twitter(self, request):
+    authentication_classes = (CustomSessionAuthentication,)
+    serializer_class = SocialRegisterSerializer
+
+    def post(self, request, *args, **kwargs):
         request_token_url = 'https://api.twitter.com/oauth/request_token'
         access_token_url = 'https://api.twitter.com/oauth/access_token'
-        authenticate_url = 'https://api.twitter.com/oauth/authenticate'
 
-        if request.args.get('oauth_token') and request.args.get('oauth_verifier'):
-            auth = OAuth1(settings.TWITTER_CONSUMER_KEY,
-                          client_secret=settings.TWITTER_CONSUMER_SECRET,
-                          resource_owner_key=request.args.get('oauth_token'),
-                          verifier=request.args.get('oauth_verifier'))
-            r = requests.post(access_token_url, auth=auth)
-            profile = r.json()
+        if request.data.get('oauth_token') and request.data.get('oauth_verifier'):
+            oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
+                                          client_secret=settings.TWITTER_CONSUMER_SECRET,
+                                          resource_owner_key=request.data['oauth_token'],
+                                          verifier=request.data['oauth_verifier'])
+            access_token = oauth_session.fetch_access_token(access_token_url)
 
             try:
-                user = CustomUser.objects.get(facebook=profile['id'])
+                user = CustomUser.objects.get(twitter=access_token['user_id'])
             except CustomUser.DoesNotExist:
                 password = get_random_string(length=32)
-                try:
-                    # See if they have an email in our system
-                    user = CustomUser.objects.get(email=profile['email'])
-                    user.facebook = profile['id']
-                    user.save()
-                except CustomUser.DoesNotExist:
-                    user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
-                except KeyError:
-                    email = "{0}@facebook.com".format(profile['id'])
-                    user = CustomUser.objects.create(email=email, password=password, user=profile['id'])
+                user = CustomUser.objects.create(password=password, twitter=access_token['user_id'])
 
-            return Response({'email': user.email, 'token': user.uid})
-        else:
-            oauth = OAuth1(settings.TWITTER_CONSUMER_KEY,
-                           client_secret=settings.TWITTER_CONSUMER_SECRET,
-                           callback_uri=settings.TWITTER_CALLBACK_URL)
-            r = requests.post(request_token_url, auth=oauth)
-            oauth_token = dict(parse_qsl(r.text))
-            qs = urlencode(dict(oauth_token=oauth_token['oauth_token']))
-            return redirect(authenticate_url + '?' + qs)
+            return Response({'email': user.email, 'api_key': user.uid})
+
+        oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
+                                      client_secret=settings.TWITTER_CONSUMER_SECRET,
+                                      callback_uri=settings.TWITTER_CALLBACK_URL)
+        request_token = oauth_session.fetch_request_token(request_token_url)
+        return Response(request_token)
+

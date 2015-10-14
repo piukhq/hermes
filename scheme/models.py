@@ -21,6 +21,16 @@ class Scheme(models.Model):
         (1, 'Tier 1'),
         (2, 'Tier 2'),
     )
+    BARCODE_TYPES = (
+        (0, 'CODE128 (B or C)'),
+        (1, 'QrCode'),
+        (2, 'AztecCode'),
+        (3, 'Pdf417'),
+        (4, 'EAN (13)'),
+        (5, 'DataMatrix'),
+        (6, "ITF (Interleaved 2 of 5)"),
+    )
+
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -29,12 +39,13 @@ class Scheme(models.Model):
     company_url = models.URLField(blank=True, null=True)
     forgotten_password_url = models.URLField(max_length=500)
     tier = models.IntegerField(choices=TIERS)
-    barcode_type = models.IntegerField()
+    barcode_type = models.IntegerField(choices=BARCODE_TYPES, blank=True, null=True)
     scan_message = models.CharField(max_length=100)
-    is_barcode = models.BooleanField()
-    identifier = models.CharField(max_length=30)
-    point_name = models.CharField(max_length=50, default='points')
-    point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6)
+    has_transactions = models.BooleanField(default=False)
+    has_points = models.BooleanField(default=False)
+    identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
+    point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
+    point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
     primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
                                          related_name='primary_question')
     is_active = models.BooleanField(default=True)
@@ -42,6 +53,12 @@ class Scheme(models.Model):
 
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    @property
+    def is_barcode(self):
+        if self.barcode_type is not None:
+            return True
+        return False
 
     @property
     def challenges(self):

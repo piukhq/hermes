@@ -108,6 +108,8 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['primary_answer']['id'], self.scheme_account_answer.id)
         self.assertEqual(response.data['primary_answer']['answer'], self.scheme_account_answer.answer)
+        self.assertEqual(response.data['scheme']['id'], self.scheme.id)
+        self.assertEqual(response.data['scheme']['is_barcode'], True)
 
     def test_patch_schemes_accounts(self):
         data = {'order': 5,

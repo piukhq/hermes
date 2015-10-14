@@ -9,7 +9,7 @@ from django.utils import timezone
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(verbose_name='email address', max_length=255, unique=True)
+    email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
@@ -17,7 +17,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
 
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = 'uid'
 
     objects = CustomUserManager()
 
@@ -25,13 +25,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         db_table = 'user'
 
     def get_full_name(self):
-        return self.email
+        return self.uid
 
     def get_short_name(self):
-        return self.email
+        return self.uid
 
     def __unicode__(self):
-        return self.email
+        return self.email or str(self.uid)
+
+    def __str__(self):
+        return self.email or str(self.uid)
 
     # Maybe required?
     def get_group_permissions(self, obj=None):
@@ -59,6 +62,7 @@ NOTIFICATIONS_SETTING = (
     (1, True),
 )
 
+
 class UserDetail(models.Model):
     user = models.OneToOneField(CustomUser, related_name='profile')
     first_name = models.CharField(max_length=255, null=True, blank=True)
@@ -76,6 +80,9 @@ class UserDetail(models.Model):
     pass_code = models.CharField(max_length=20, null=True, blank=True)
     currency = models.CharField(max_length=3, default='GBP', null=True, blank=True)
     # avatar
+
+    def __str__(self):
+        return str(self.user_id)
 
 
 @receiver(post_save, sender=CustomUser)
