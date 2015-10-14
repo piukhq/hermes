@@ -23,6 +23,8 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
+    is_barcode = serializers.ReadOnlyField()
+
     class Meta:
         model = Scheme
 

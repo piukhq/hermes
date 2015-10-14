@@ -21,7 +21,7 @@ class Scheme(models.Model):
         (1, 'Tier 1'),
         (2, 'Tier 2'),
     )
-    BARCODE_TYPES =(
+    BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
         (1, 'QrCode'),
         (2, 'AztecCode'),
@@ -41,7 +41,6 @@ class Scheme(models.Model):
     tier = models.IntegerField(choices=TIERS)
     barcode_type = models.IntegerField(choices=BARCODE_TYPES, blank=True, null=True)
     scan_message = models.CharField(max_length=100)
-    is_barcode = models.BooleanField()
     has_transactions = models.BooleanField(default=False)
     has_points = models.BooleanField(default=False)
     identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
@@ -54,6 +53,12 @@ class Scheme(models.Model):
 
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    @property
+    def is_barcode(self):
+        if self.barcode_type:
+            return True
+        return False
 
     @property
     def challenges(self):
