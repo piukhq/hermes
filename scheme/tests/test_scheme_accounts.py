@@ -167,3 +167,12 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['card_number'], '1234')
         self.assertEqual(content['status'], 10)
+
+    def test_scheme_account_update_status(self):
+        data = {
+            'status': 9
+        }
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id), data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.scheme_account.id)
+        self.assertEqual(response.data['status'], 9)

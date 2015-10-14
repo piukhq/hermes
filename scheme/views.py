@@ -4,6 +4,7 @@ from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
@@ -189,6 +190,36 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
     serializer_class = SchemeAccountAnswerSerializer
     queryset = SchemeAccountCredentialAnswer.objects
+
+
+class UpdateSchemeAccountStatus(APIView):
+    authentication_classes = (UIDAuthentication,)
+    permission_classes = (IsAuthenticated,)
+    serializer_class = SchemeAccountAnswerSerializer
+
+    def post(self, request, *args, **kwargs):
+        scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
+        new_status_code = int(request.data['status'])
+
+        if new_status_code in [SchemeAccount.ACTIVE,
+                               SchemeAccount.INVALID_CREDENTIALS,
+                               SchemeAccount.INVALID_MFA,
+                               SchemeAccount.END_SITE_DOWN,
+                               SchemeAccount.INCOMPLETE,
+                               SchemeAccount.LOCKED_BY_ENDSITE,
+                               SchemeAccount.RETRY_LIMIT_REACHED,
+                               SchemeAccount.UNKNOWN_ERROR,
+                               SchemeAccount.MIDAS_UNREACHEABLE,
+                               SchemeAccount.WALLET_ONLY]:
+            scheme_account.status = new_status_code
+            scheme_account.save()
+            response_data = {
+                'id': scheme_account.id,
+                'status': new_status_code
+            }
+            return Response(response_data)
+        else:
+            return json_error_response("Invalid status sent.", status.HTTP_400_BAD_REQUEST)
 
 
 def json_error_response(message, code):

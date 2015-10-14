@@ -29,7 +29,6 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         model = Scheme
 
 
-
 class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccountCredentialAnswer
