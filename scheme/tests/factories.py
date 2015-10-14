@@ -41,7 +41,7 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
-    status = 0
+    status = 1
 
 
 class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):

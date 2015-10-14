@@ -161,6 +161,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.status = SchemeAccount.MIDAS_UNREACHEABLE
             scheme_account.save()
 
+        # Pop scheme and user because these are the only two keys not related to questions
         request.data.pop('scheme')
         request.data.pop('user')
         if list(request.data.keys()) == [scheme.primary_question.type]:
