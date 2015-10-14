@@ -56,7 +56,7 @@ class Scheme(models.Model):
 
     @property
     def is_barcode(self):
-        if self.barcode_type:
+        if self.barcode_type is not None:
             return True
         return False
 
