@@ -115,7 +115,7 @@ class Login(GenericAPIView):
 
 class FaceBookLoginWeb(CreateAPIView):
     """
-    This is just used by chingweb
+    This is just used by ching web
     """
     authentication_classes = (CustomSessionAuthentication,)
     serializer_class = FaceBookWebRegisterSerializer

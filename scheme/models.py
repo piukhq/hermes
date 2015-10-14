@@ -21,6 +21,16 @@ class Scheme(models.Model):
         (1, 'Tier 1'),
         (2, 'Tier 2'),
     )
+    BARCODE_TYPES =(
+        ("CODE128", 'CODE128 (B or C)'),
+        ("EAN", 'EAN (13)'),
+        ("UPC", "UPC-A"),
+        ("CODE39", "CODE39"),
+        ("ITF", "ITF (Interleaved 2 of 5)"),
+        ("ITF14", "ITF14"),
+        ("PHARMADCODE", "Pharmacode"),
+    )
+
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -29,7 +39,7 @@ class Scheme(models.Model):
     company_url = models.URLField(blank=True, null=True)
     forgotten_password_url = models.URLField(max_length=500)
     tier = models.IntegerField(choices=TIERS)
-    barcode_type = models.IntegerField()
+    barcode_type = models.CharField(choices=BARCODE_TYPES, max_length=20, blank=True, null=True )
     scan_message = models.CharField(max_length=100)
     is_barcode = models.BooleanField()
     has_transactions = models.BooleanField()
