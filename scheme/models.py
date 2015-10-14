@@ -171,15 +171,21 @@ class SchemeAccount(models.Model):
 
     @property
     def action_status(self):
-        if self.status in [403, 432, 5]:
+        if self.status in [self.INVALID_CREDENTIALS,
+                           self.INVALID_MFA,
+                           self.INCOMPLETE]:
             return 'USER_ACTION_REQUIRED'
-        elif self.status in [530, 434, 429, 520, 9]:
+        elif self.status in [self.END_SITE_DOWN,
+                             self.LOCKED_BY_ENDSITE,
+                             self.RETRY_LIMIT_REACHED,
+                             self.UNKNOWN_ERROR,
+                             self.MIDAS_UNREACHEABLE]:
             return 'SYSTEM_ACTION_REQUIRED'
-        elif self.status == 2:
+        elif self.status == self.ACTIVE:
             return 'ACTIVE'
-        elif self.status == 4:
+        elif self.status == self.DELETED:
             return 'DELETED'
-        elif self.status == 10:
+        elif self.status == self.WALLET_ONLY:
             return 'WALLET_ONLY'
 
     def __str__(self):

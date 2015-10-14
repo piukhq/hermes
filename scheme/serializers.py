@@ -54,6 +54,7 @@ class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     primary_answer = SchemeAccountAnswerSerializer(read_only=True)
     scheme = SchemeSerializerNoQuestions(read_only=True)
+    action_status = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
