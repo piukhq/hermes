@@ -286,7 +286,7 @@
       "forgotten_password_url": "https://www.nectar.com/login/firstforgotPassword.nectar",
       "identifier": "(299|364|368)",
       "is_active": "1",
-      "slug": "nectar-card",
+      "slug": "nectar",
       "barcode_type": "0",
       "category": 4,
       "name": "Nectar Card"
