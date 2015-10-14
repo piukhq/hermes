@@ -44,7 +44,7 @@ class Scheme(models.Model):
     is_barcode = models.BooleanField()
     has_transactions = models.BooleanField(default=False)
     has_points = models.BooleanField(default=False)
-    identifier = models.CharField(max_length=30, null=True, blank=True)
+    identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
     point_conversion_rate = models.DecimalField(max_digits=20, decimal_places=6, null=True, blank=True)
     primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
