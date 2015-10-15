@@ -10,5 +10,5 @@ urlpatterns = patterns('user',
                        url(r'login/?$', Login.as_view(), name='login'),
                        url(r'scheme_accounts/(?P<scheme_account_id>[0-9]+)/?$', RetrieveSchemeAccount.as_view(),
                            name='user_detail'),
-                       url(r'(?P<pk>[0-9a-z]+)$', Users.as_view(), name='user_detail'),
+                       url(r'me$', Users.as_view(), name='user_detail'),
 )

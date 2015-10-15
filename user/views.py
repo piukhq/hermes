@@ -51,9 +51,6 @@ class Users(RetrieveUpdateAPIView):
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
-
-        if self.kwargs['pk'] != 'me':
-            raise Response({"error": 'You can only access your user'}, status=403)
         obj = get_object_or_404(queryset, id=self.request.user.id)
 
         self.check_object_permissions(self.request, obj)
@@ -136,6 +133,7 @@ class FaceBookLoginWeb(CreateAPIView):
         r = requests.get(access_token_url, params=params)
         if not r.ok:
             return Response({"error": 'Cannot get facebook user token.'}, status=403)
+
         return facebook_graph(r.json()['access_token'])
 
 
