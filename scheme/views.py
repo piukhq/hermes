@@ -193,12 +193,8 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
 
 class UpdateSchemeAccountStatus(APIView):
-    authentication_classes = (UIDAuthentication,)
-    permission_classes = (IsAuthenticated,)
-    serializer_class = SchemeAccountAnswerSerializer
-
     def post(self, request, *args, **kwargs):
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
+        scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
         new_status_code = int(request.data['status'])
 
         if new_status_code in [SchemeAccount.ACTIVE,
