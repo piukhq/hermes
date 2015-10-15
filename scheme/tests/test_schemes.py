@@ -12,9 +12,7 @@ class TestScheme(APITestCase):
         cls.scheme_account_answer = factories.SchemeCredentialAnswerFactory()
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.user = cls.scheme_account.user
-        cls.auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
-        }
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.scheme = cls.scheme_account.scheme
         question = SchemeCredentialQuestionFactory(scheme=cls.scheme)
         cls.scheme.primary_question = question

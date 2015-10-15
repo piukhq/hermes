@@ -5,11 +5,11 @@ from rest_framework.response import Response
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer
 from rest_framework import status
-from user.authenticators import UIDAuthentication
+from user.authenticators import JwtAuthentication
 
 
 class ListPaymentCard(generics.ListAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     queryset = PaymentCard.objects
@@ -17,7 +17,7 @@ class ListPaymentCard(generics.ListAPIView):
 
 
 class RetrievePaymentCardAccount(RetrieveUpdateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     queryset = PaymentCardAccount.active_objects
@@ -31,7 +31,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateAPIView):
 
 
 class CreatePaymentCardAccount(CreateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     serializer_class = PaymentCardAccountSerializer

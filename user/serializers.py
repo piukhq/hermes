@@ -7,7 +7,6 @@ from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail
 
 
-
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
     password = serializers.CharField()
@@ -20,7 +19,8 @@ class RegisterSerializer(serializers.Serializer):
     def to_representation(self, instance):
         ret = OrderedDict()
         ret['email'] = instance.email
-        ret['api_key'] = instance.uid
+        ret['api_key'] = instance.create_token()
+        ret['uid'] = instance.uid
         return ret
 
 

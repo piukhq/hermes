@@ -19,8 +19,8 @@ class TestOrder(APITestCase):
             "order": 20,
             "type": "payment_card"
         }]
-
-        response = self.client.post('/order/', data=data, format='json')
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account.user.create_token()}
+        response = self.client.post('/order', data=data, format='json', **auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(SchemeAccount.objects.get(id=scheme_account.id).order, 6)

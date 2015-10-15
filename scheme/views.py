@@ -13,7 +13,7 @@ from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer)
 from rest_framework import status
 from rest_framework.response import Response
-from user.authenticators import UIDAuthentication
+from user.authenticators import JwtAuthentication
 
 
 class SwappableSerializerMixin(object):
@@ -25,7 +25,7 @@ class SwappableSerializerMixin(object):
 
 
 class SchemesList(generics.ListAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     queryset = Scheme.objects.filter(is_active=True)
@@ -33,7 +33,7 @@ class SchemesList(generics.ListAPIView):
 
 
 class RetrieveScheme(RetrieveAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     queryset = Scheme.objects
@@ -41,7 +41,7 @@ class RetrieveScheme(RetrieveAPIView):
 
 
 class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     override_serializer_classes = {
@@ -82,7 +82,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     override_serializer_classes = {
@@ -178,14 +178,14 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
 
 class CreateAnswer(CreateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     serializer_class = SchemeAccountAnswerSerializer
 
 
 class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     serializer_class = SchemeAccountAnswerSerializer
