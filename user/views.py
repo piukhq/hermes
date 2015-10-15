@@ -1,7 +1,6 @@
 import json
 from types import SimpleNamespace
 from django.contrib.auth import authenticate, login
-from django.http import HttpResponse
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -47,13 +46,18 @@ class ResetPassword(UpdateAPIView):
 class Users(RetrieveUpdateAPIView):
     authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
-
-    queryset = CustomUser.objects.all().select_related()
+    queryset = CustomUser.objects
     serializer_class = UserSerializer
-    lookup_field = 'uid'
 
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        if self.kwargs['pk'] != 'me':
+            raise Response({"error": 'You can only access your user'}, status=403)
+        obj = get_object_or_404(queryset, id=self.request.user.id)
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class Authenticate(APIView):
@@ -62,10 +66,10 @@ class Authenticate(APIView):
 
     @method_decorator(csrf_exempt)
     def get(self, request):
-        return HttpResponse(json.dumps({
+        return Response({
             'uid': str(request.user.uid),
             'id': str(request.user.id)
-        }))
+        })
 
 
 class RetrieveSchemeAccount(RetrieveAPIView):
