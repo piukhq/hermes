@@ -8,23 +8,12 @@
       "company_url": "",
       "company": "Amazon Associates",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://affiliate-program.amazon.co.uk/gp/associates/login/help.html",
       "identifier": null,
       "is_active": "1",
       "slug": "affiliate-program",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://affiliate-program.amazon.co.uk/gp/associates/login/help.html",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "affiliate-program",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Affiliate Program"
     },
@@ -40,7 +29,6 @@
       "company": "Avios",
       "tier": "2",
       "point_conversion_rate": "0.0068",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.avios.com/gb/en_gb/my-account/forgotten-my-password",
       "identifier": "308147",
       "is_active": "1",
@@ -60,23 +48,12 @@
       "company_url": "",
       "company": "Barclaycard Freedom",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "",
       "identifier": null,
       "is_active": "1",
       "slug": "freedom-rewards",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "freedom-rewards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 3,
       "name": "Freedom Rewards"
     },
@@ -92,7 +69,6 @@
       "company": "Boots",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.boots.com/webapp/wcs/stores/servlet/LoginRequestDispatcher",
       "identifier": "633035",
       "is_active": "1",
@@ -112,23 +88,12 @@
       "company_url": "",
       "company": "B & Q",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.diy.com/customer/forgot_password/?prev_page=%2Fbandqclub%2F%3F&isAutoLoggedUser=false",
       "identifier": null,
       "is_active": "1",
       "slug": "bq-club",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.diy.com/customer/forgot_password/?prev_page=%2Fbandqclub%2F%3F&isAutoLoggedUser=false",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "bq-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "B&Q Club"
     },
@@ -144,7 +109,6 @@
       "company": "Costa",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.costa.co.uk/coffee-club/forgotten-password/",
       "identifier": "633780",
       "is_active": "1",
@@ -164,23 +128,12 @@
       "company_url": "",
       "company": "Giraffe",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://giraffe.net",
       "identifier": null,
       "is_active": "1",
       "slug": "giraffe",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://giraffe.net",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "giraffe",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 5,
       "name": "Giraffe"
     },
@@ -196,19 +149,11 @@
       "company": "Grosvenor Casinos",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "0",
       "forgotten_password_url": "https://forgot.grosvenorcasinos.com/ForgottenDetails",
-<<<<<<< Updated upstream
       "identifier": null,
       "is_active": "1",
       "slug": "play-points",
       "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "play-points",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 5,
       "name": "Play Points"
     },
@@ -223,21 +168,12 @@
       "company_url": "",
       "company": "IKEA Family",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://secure.ikea.com/webapp/wcs/stores/servlet/ResetPassword?storeId=7&langId=-20",
       "identifier": "",
       "is_active": "1",
       "slug": "ikea",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "Ikea"
     },
@@ -252,12 +188,7 @@
       "company_url": "",
       "company": "John Lewis Partnership",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
       "forgotten_password_url": "http://www.johnlewis.com/our-services/my-john-lewis#login-overlay_show",
       "identifier": "801850",
       "is_active": "1",
@@ -277,23 +208,12 @@
       "company_url": "",
       "company": "Monarch",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://bookflights.monarch.co.uk/FindPassword.aspx",
       "identifier": null,
       "is_active": "1",
       "slug": "vantage-club",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://bookflights.monarch.co.uk/FindPassword.aspx",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "vantage-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Vantage Club"
     },
@@ -309,7 +229,6 @@
       "company": "Morrisons",
       "tier": "2",
       "point_conversion_rate": "0.001",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.morrisons.com/matchandmore/forgotten-password.html",
       "identifier": "982613",
       "is_active": "1",
@@ -329,12 +248,7 @@
       "company_url": "",
       "company": "Waitrose",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.waitrose.com/webapp/wcs/stores/servlet/ResetPasswordForm?storeId=10317&krypto=IoXG3jmpb7Y6e4ANK%2Fwzwk1jzIBQP44m3LiR2uW16C6XE15OSaitg1DWvVTlPbCnB1aettPivMja%0Ag74SQb92tVOS3FXPxUOp6D1YyD38nbBLYzIyhRnLow%3D%3D&ddkey=http:ResetPasswordForm",
       "identifier": "921",
       "is_active": "1",
@@ -355,15 +269,10 @@
       "company": "Nectar",
       "tier": "1",
       "point_conversion_rate": "0.005",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.nectar.com/login/firstforgotPassword.nectar",
       "identifier": "(299|364|368)",
       "is_active": "1",
-<<<<<<< Updated upstream
       "slug": "nectar",
-=======
-      "slug": "nectar-card",
->>>>>>> Stashed changes
       "barcode_type": "0",
       "category": 4,
       "name": "Nectar Card"
@@ -380,7 +289,6 @@
       "company": "Starbucks",
       "tier": "1",
       "point_conversion_rate": "0.16",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.starbucks.co.uk/account/forgot-password?AllowGuest=False",
       "identifier": "",
       "is_active": "1",
@@ -401,7 +309,6 @@
       "company": "Superdrug",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.superdrug.com/login/pw/request",
       "identifier": "2661",
       "is_active": "1",
@@ -422,7 +329,6 @@
       "company": "Tesco",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://secure.tesco.com/login/en-gb/forgottenpassword/",
       "identifier": "979",
       "is_active": "1",
@@ -443,16 +349,11 @@
       "company": "Virgin Flyingclub",
       "tier": "2",
       "point_conversion_rate": "0.0098",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.virgin-atlantic.com/en/gb/frequentflyer/forgot_password_details.jsp",
       "identifier": "",
       "is_active": "1",
       "slug": "virgin-flyingclub",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Virgin Flyingclub"
     },
@@ -467,21 +368,12 @@
       "company_url": "",
       "company": "Best Western",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.bestwestern.co.uk",
       "identifier": "",
       "is_active": "1",
       "slug": "best-western-rewards",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 3,
       "name": "Best Western Rewards"
     },
@@ -497,7 +389,6 @@
       "company": "British Airways Executive Club",
       "tier": "2",
       "point_conversion_rate": "0.0068",
-      "is_barcode": "1",
       "forgotten_password_url": "http://www.britishairways.com/travel/forgottendetails/public/en_gb",
       "identifier": "499",
       "is_active": "1",
@@ -513,25 +404,13 @@
     "fields": {
       "scan_message": "Ching Scan Message",
       "url": "www.companyURL.com",
-<<<<<<< Updated upstream
       "point_name": null,
       "company_url": "",
       "company": "Hilton",
       "tier": "2",
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://secure3.hilton.com/en/hh/customer/login/forgotPassword.htm",
       "identifier": null,
-=======
-      "point_name": "NULL",
-      "company_url": "",
-      "company": "Hilton",
-      "tier": "2",
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://secure3.hilton.com/en/hh/customer/login/forgotPassword.htm",
-      "identifier": "NULL",
->>>>>>> Stashed changes
       "is_active": "1",
       "slug": "hilton-hhonors",
       "barcode_type": "0",
@@ -549,23 +428,12 @@
       "company_url": "",
       "company": "Hyatt Gold Passport",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.hyatt.com/gp/en/account/forgot_password.jsp?language=en",
       "identifier": null,
       "is_active": "1",
       "slug": "gold-passport",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.hyatt.com/gp/en/account/forgot_password.jsp?language=en",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "gold-passport",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Gold Passport"
     },
@@ -580,23 +448,12 @@
       "company_url": "",
       "company": "IHG Rewards Club",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.ihg.com/hotels/us/en/reservation#0",
       "identifier": null,
       "is_active": "1",
       "slug": "rewards-club",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.ihg.com/hotels/us/en/reservation#0",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "rewards-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Rewards Club"
     },
@@ -611,23 +468,12 @@
       "company_url": "",
       "company": "Sheraton Hotels And Resorts",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.starwoodhotels.com/preferredguest/account/forgot_username_password/index.html",
       "identifier": null,
       "is_active": "1",
       "slug": "starwood-preferred-guest",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.starwoodhotels.com/preferredguest/account/forgot_username_password/index.html",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "starwood-preferred-guest",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Starwood Preferred Guest"
     },
@@ -642,23 +488,12 @@
       "company_url": "",
       "company": "Skywards",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.emirates.com/account/uk/english/login/login.aspx#",
       "identifier": null,
       "is_active": "1",
       "slug": "emirates-skywards",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.emirates.com/account/uk/english/login/login.aspx#",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "emirates-skywards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Emirates Skywards"
     },
@@ -674,19 +509,11 @@
       "company": "Accor Hotels A-Club",
       "tier": "2",
       "point_conversion_rate": "0.01389",
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.accorhotels.com/gb/leclub/",
-<<<<<<< Updated upstream
       "identifier": null,
       "is_active": "1",
       "slug": "le-club",
       "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "le-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Le Club"
     },
@@ -701,23 +528,12 @@
       "company_url": "",
       "company": "Aer Lingus (Ireland)",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.aerlingus.com/cgi-bin/obel01im1/bookonline/newPinFirstStep.do",
       "identifier": null,
       "is_active": "1",
       "slug": "gold-circle",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aerlingus.com/cgi-bin/obel01im1/bookonline/newPinFirstStep.do",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "gold-circle",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Gold Circle"
     },
@@ -732,23 +548,12 @@
       "company_url": "",
       "company": "Air Canada Aeroplan",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.aircanada.com/secure/aco/loadLogonPage.do?signonSource=home",
       "identifier": null,
       "is_active": "1",
       "slug": "altitude",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aircanada.com/secure/aco/loadLogonPage.do?signonSource=home",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "altitude",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Altitude"
     },
@@ -763,23 +568,12 @@
       "company_url": "",
       "company": "Air France (Flying Blue)",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
       "identifier": null,
       "is_active": "1",
       "slug": "flying-blue",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "flying-blue",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Flying Blue"
     },
@@ -794,23 +588,12 @@
       "company_url": "",
       "company": "Alitalia MilleMiglia",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.alitalia.com/it_en/mm/lostPin.html",
       "identifier": null,
       "is_active": "1",
       "slug": "millemiglia",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.alitalia.com/it_en/mm/lostPin.html",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "millemiglia",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "MilleMiglia"
     },
@@ -826,16 +609,11 @@
       "company": "American Express Membership Rewards",
       "tier": "2",
       "point_conversion_rate": "0.0125",
-      "is_barcode": "0",
       "forgotten_password_url": "https://online.americanexpress.com/myca/fuidfyp/us/action/fuidfyp?request_type=un_fuid&Face=en_US&entry_point=lnk_fuid",
       "identifier": "",
       "is_active": "1",
       "slug": "american-express-membership-rewards",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "American Express Membership Rewards"
     },
@@ -851,7 +629,6 @@
       "company": "Heathrow Rewards",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://rewards.heathrow.com/web/lhr/forgotten-pin/password",
       "identifier": "633157",
       "is_active": "1",
@@ -872,19 +649,11 @@
       "company": "China Airlines",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "0",
       "forgotten_password_url": "https://calec.china-airlines.com/club/pwdqry.aspx?lang=e",
-<<<<<<< Updated upstream
       "identifier": null,
       "is_active": "1",
       "slug": "dynasty-flyer",
       "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "dynasty-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Dynasty Flyer"
     },
@@ -899,23 +668,12 @@
       "company_url": "",
       "company": "EL AL",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.elal.com/ELAL/Pages/CmsTemplates/ELALWidth/SignIn.aspx?NRMODE=Published&NRNODEGUID=%7bC9027889-9294-44FF-937B-C52F6EFB3FD0%7d&NRORIGINALURL=%2fELAL%2fEnglish%2fMatmidFrequentFlyer%2fMyAccount%2ehtml&NRCACHEHINT=Guest",
       "identifier": null,
       "is_active": "1",
       "slug": "matmid-frequent-flyer-club",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.elal.com/ELAL/Pages/CmsTemplates/ELALWidth/SignIn.aspx?NRMODE=Published&NRNODEGUID=%7bC9027889-9294-44FF-937B-C52F6EFB3FD0%7d&NRORIGINALURL=%2fELAL%2fEnglish%2fMatmidFrequentFlyer%2fMyAccount%2ehtml&NRCACHEHINT=Guest",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "matmid-frequent-flyer-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Matmid Frequent Flyer Club"
     },
@@ -930,23 +688,12 @@
       "company_url": "",
       "company": "Etihad Airlines",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.etihadguest.com/en/your-account/forgot-password/",
       "identifier": null,
       "is_active": "1",
       "slug": "etihad-guest",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.etihadguest.com/en/your-account/forgot-password/",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "etihad-guest",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Etihad Guest"
     },
@@ -961,23 +708,12 @@
       "company_url": "",
       "company": "Finnair",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.finnair.com/int/gb/plus",
       "identifier": null,
       "is_active": "1",
       "slug": "finnair-plus",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.finnair.com/int/gb/plus",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "finnair-plus",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Finnair Plus"
     },
@@ -992,23 +728,12 @@
       "company_url": "",
       "company": "Air India",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://ffai.loyaltyplus.aero/loyalty/forgotten.seam",
       "identifier": null,
       "is_active": "1",
       "slug": "flying-returns",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://ffai.loyaltyplus.aero/loyalty/forgotten.seam",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "flying-returns",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Flying Returns"
     },
@@ -1023,23 +748,12 @@
       "company_url": "",
       "company": "Japan Airlines",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.jal.co.jp/en/jmb/login/inquiry.html",
       "identifier": null,
       "is_active": "1",
       "slug": "jal-mileage-bank",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.jal.co.jp/en/jmb/login/inquiry.html",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "jal-mileage-bank",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "JAL Mileage Bank"
     },
@@ -1054,23 +768,12 @@
       "company_url": "",
       "company": "Jet Airways",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://https.jetairways.com/EN/HK/jetprivilege/forgot-password.aspx",
       "identifier": null,
       "is_active": "1",
       "slug": "jetprivilege",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://https.jetairways.com/EN/HK/jetprivilege/forgot-password.aspx",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "jetprivilege",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "JetPrivilege"
     },
@@ -1085,9 +788,7 @@
       "company_url": "",
       "company": "KLM Flying Dutchman",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
       "identifier": null,
       "is_active": "1",
@@ -1095,17 +796,6 @@
       "barcode_type": null,
       "category": 1,
       "name": "KLM Flying Blue"
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "flying-blue",
-      "barcode_type": "-1",
-      "category": 1,
-      "name": "Flying Blue"
->>>>>>> Stashed changes
     },
     "pk": 40
   },
@@ -1118,23 +808,12 @@
       "company_url": "",
       "company": "Singapore Airlines KrisFlyer",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.singaporeair.com/kfResetPIN-flow.form?execution=e1s1",
       "identifier": null,
       "is_active": "1",
       "slug": "krisflyer",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.singaporeair.com/kfResetPIN-flow.form?execution=e1s1",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "krisflyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "KrisFlyer"
     },
@@ -1149,23 +828,12 @@
       "company_url": "",
       "company": "Swiss Air",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.swiss.com/ch/en/Login/ForgotPassword",
       "identifier": null,
       "is_active": "1",
       "slug": "swiss-miles-more",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.swiss.com/ch/en/Login/ForgotPassword",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "miles-more",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Miles & More"
     },
@@ -1180,23 +848,12 @@
       "company_url": "",
       "company": "Qantas Frequent Flyer",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.qantas.com.au/fflyer/dyns/fpin",
       "identifier": null,
       "is_active": "1",
       "slug": "frequent-flyer",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.qantas.com.au/fflyer/dyns/fpin",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "frequent-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Frequent Flyer"
     },
@@ -1211,23 +868,12 @@
       "company_url": "",
       "company": "Air Portugal Navigator",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://wws.flytap.com/UnitedKingdom/en/Victoria/forms/recover-pin",
       "identifier": null,
       "is_active": "1",
       "slug": "victoria",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://wws.flytap.com/UnitedKingdom/en/Victoria/forms/recover-pin",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "victoria",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Victoria"
     },
@@ -1242,23 +888,12 @@
       "company_url": "",
       "company": "SN Brussels Airlines Privilege",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.brusselsairlines.com/en-be/my-profile/password-reset1.aspx?email=",
       "identifier": null,
       "is_active": "1",
       "slug": "miles-more",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.brusselsairlines.com/en-be/my-profile/password-reset1.aspx?email=",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "miles-more",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Miles & More"
     },
@@ -1273,23 +908,9 @@
       "company_url": "",
       "company": "Thai Airways (Royal Orchid Plus)",
       "tier": "2",
-<<<<<<< Updated upstream
-      "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.thaiairways.com/en/rop/rop_frequent_flyer.page?",
-      "identifier": null,
       "is_active": "1",
       "slug": "royal-orchid-plus-frequent-flyer",
-      "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.thaiairways.com/en/rop/rop_frequent_flyer.page?",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "royal-orchid-plus-frequent-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Royal Orchid Plus Frequent Flyer"
     },
@@ -1304,23 +925,12 @@
       "company_url": "",
       "company": "Marriott Rewards Card",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.marriott.com/forgotPassword.mi",
       "identifier": null,
       "is_active": "1",
       "slug": "marriott-rewards-card",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.marriott.com/forgotPassword.mi",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "marriott-rewards-card",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Marriott Rewards Card"
     },
@@ -1335,23 +945,12 @@
       "company_url": "",
       "company": "NatWest YourPoints",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.natwestyourpoints.com/en/Login/Login%20by%20Card%20Number.aspx?type=3",
       "identifier": null,
       "is_active": "1",
       "slug": "yourpoints",
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.natwestyourpoints.com/en/Login/Login%20by%20Card%20Number.aspx?type=3",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "yourpoints",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "YourPoints"
     },
@@ -1366,12 +965,7 @@
       "company_url": "",
       "company": "Co-operative",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.secure.membership.coop/#_ga=1.97759387.5453853.1436983294",
       "identifier": "633174",
       "is_active": "1",
@@ -1392,16 +986,11 @@
       "company": "Quidco",
       "tier": "2",
       "point_conversion_rate": "1",
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.quidco.com/remind/",
       "identifier": "",
       "is_active": "1",
       "slug": "quidco",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "Quidco"
     },
@@ -1417,7 +1006,6 @@
       "company": "Debenhams Beauty Club",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "http://www.debenhams.com/webapp/wcs/stores/servlet/LogonIdRequestView?state=forgetpassword&catalogId=10001&langId=-1&storeId=10701",
       "identifier": "976335",
       "is_active": "1",
@@ -1437,21 +1025,12 @@
       "company_url": "",
       "company": "Waterstones",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.waterstones.com/reset",
       "identifier": "",
       "is_active": "1",
       "slug": "the-waterstones-card",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "The Waterstones Card"
     },
@@ -1467,16 +1046,11 @@
       "company": "Maximiles",
       "tier": "2",
       "point_conversion_rate": "0.0009",
-      "is_barcode": "0",
       "forgotten_password_url": "http://www.maximiles.co.uk/registration#fe28a5965fb288c598c118b50480dba8",
       "identifier": "",
       "is_active": "1",
       "slug": "maximiles",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Maximiles"
     },
@@ -1492,7 +1066,6 @@
       "company": "Game",
       "tier": "2",
       "point_conversion_rate": "0.00248",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.game.co.uk/webapp/wcs/stores/servlet/ResetPasswordGuestErrorView?state=forgetpassword&catalogId=10201&langId=44&storeId=10151",
       "identifier": "",
       "is_active": "1",
@@ -1513,16 +1086,11 @@
       "company": "Harrods",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.harrods.com/User/RecoverPassword.aspx",
       "identifier": "",
       "is_active": "1",
       "slug": "harrods-rewards",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "Harrods Rewards"
     },
@@ -1538,7 +1106,6 @@
       "company": "Decathlon",
       "tier": "2",
       "point_conversion_rate": "0.02",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.mydecathlon.com/mydecathlon.html?ppays=GB&langue=EN#nomPage=mdpOublie",
       "identifier": "209",
       "is_active": "1",
@@ -1559,7 +1126,6 @@
       "company": "Esprit",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.esprit.co.uk/my-esprit/security/forgotpassword",
       "identifier": "688",
       "is_active": "1",
@@ -1580,16 +1146,11 @@
       "company": "Shell",
       "tier": "1",
       "point_conversion_rate": "0.005",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.shelldriversclub.co.uk/smart/forgot_password?site=en-en",
       "identifier": "",
       "is_active": "1",
       "slug": "shell-drivers-club",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Shell Drivers Club"
     },
@@ -1604,21 +1165,12 @@
       "company_url": "",
       "company": "Eurostar",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.eurostar.com/uk-en/account/forgot-password",
       "identifier": "",
       "is_active": "1",
       "slug": "eurostar-plus-points",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 2,
       "name": "Eurostar Plus Points"
     },
@@ -1634,7 +1186,6 @@
       "company": "House of Fraser",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.houseoffraser.co.uk/on/demandware.store/Sites-hof-Site/default/Customer-Account/C1032629462",
       "identifier": "633807",
       "is_active": "1",
@@ -1655,7 +1206,6 @@
       "company": "Brewers Fayre",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.brewersfayrebonusclub.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
       "identifier": "",
       "is_active": "1",
@@ -1676,7 +1226,6 @@
       "company": "Holland & Barret",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.hollandandbarrett.com/my-account/forgotPassword.jsp",
       "identifier": "2910",
       "is_active": "1",
@@ -1697,19 +1246,11 @@
       "company": "GBK",
       "tier": "2",
       "point_conversion_rate": "2.2233",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.gbkapp.co.uk/u/forgotPassword",
-<<<<<<< Updated upstream
       "identifier": null,
       "is_active": "1",
       "slug": "gbk-rewards",
       "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "gbk-rewards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "GBK Rewards"
     },
@@ -1725,19 +1266,11 @@
       "company": "Nandos",
       "tier": "2",
       "point_conversion_rate": "1.45",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.nandos.co.uk/card/reset-password?nocache=9889417495578528",
-<<<<<<< Updated upstream
       "identifier": null,
       "is_active": "1",
       "slug": "nandos-card",
       "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "nandos-card",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 1,
       "name": "Nandos Card"
     },
@@ -1753,7 +1286,6 @@
       "company": "Subway",
       "tier": "2",
       "point_conversion_rate": "0.004",
-      "is_barcode": "1",
       "forgotten_password_url": "https://subcard.subway.co.uk/cardholder/JSP/SPForgottenPassword.jsp",
       "identifier": "633845",
       "is_active": "1",
@@ -1774,7 +1306,6 @@
       "company": "KFC",
       "tier": "2",
       "point_conversion_rate": "0.45",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.kfc.co.uk/colonelsclub#/forgot",
       "identifier": "(L224|L125)",
       "is_active": "1",
@@ -1795,7 +1326,6 @@
       "company": "Greggs",
       "tier": "2",
       "point_conversion_rate": "1",
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.greggs.co.uk/greggs-rewards/",
       "identifier": "",
       "is_active": "1",
@@ -1816,7 +1346,6 @@
       "company": "Beefeater",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.beefeatergrillrewardclub.co.uk/web/guest/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
       "identifier": "219",
       "is_active": "1",
@@ -1836,21 +1365,12 @@
       "company_url": "",
       "company": "Matalan",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.matalan.co.uk/account/forgotpassword",
       "identifier": "",
       "is_active": "1",
       "slug": "matalan-reward-card",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "Matalan Reward Card"
     },
@@ -1865,21 +1385,12 @@
       "company_url": "",
       "company": "Mothercare",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
       "forgotten_password_url": "https://www.mothercare.com/on/demandware.store/Sites-MCENGB-Site/default/Account-Show",
       "identifier": "",
       "is_active": "1",
       "slug": "my-mothercare",
-<<<<<<< Updated upstream
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
       "category": 4,
       "name": "My Mothercare"
     },
@@ -1894,12 +1405,7 @@
       "company_url": "",
       "company": "M and Co",
       "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.mandco.com/sign-in",
       "identifier": "777",
       "is_active": "1",
@@ -1920,7 +1426,6 @@
       "company": "Table Table",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "https://www.tabletabletastyrewards.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
       "identifier": "7164",
       "is_active": "1",
@@ -1941,7 +1446,6 @@
       "company": "The Works",
       "tier": "2",
       "point_conversion_rate": "0.01",
-      "is_barcode": "1",
       "forgotten_password_url": "http://www.rewards.theworks.co.uk/log-in/forgotten.html",
       "identifier": "633884",
       "is_active": "1",
@@ -1951,5 +1455,24 @@
       "name": "Together Rewards Card"
     },
     "pk": 73
+  },{
+    "model": "scheme.scheme",
+    "fields": {
+      "scan_message": "Test",
+      "url": "http://www.ihg.com",
+      "point_name": "Points",
+      "company_url": "",
+      "company": "Crowne Plaza",
+      "tier": "2",
+      "point_conversion_rate": null,
+      "forgotten_password_url": "http://www.ihg.com/hotels/gb/en/reservation#0",
+      "identifier": null,
+      "is_active": "0",
+      "slug": "crowne-rewards-club",
+      "barcode_type": null,
+      "category": 3,
+      "name": "Crowne Plaza Priority Club"
+    },
+    "pk": 74
   }
 ]
