@@ -16,10 +16,7 @@ class TestSchemeAccount(APITestCase):
         cls.user = cls.scheme_account.user
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.save()
-
-        cls.auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
-        }
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super(TestSchemeAccount, cls).setUpClass()
 
     def test_post_scheme_account_with_answers(self):

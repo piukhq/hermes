@@ -11,9 +11,7 @@ class TestPaymentCard(APITestCase):
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
-        cls.auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
-        }
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_list(self):

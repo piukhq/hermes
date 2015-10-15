@@ -1,11 +1,15 @@
+import arrow
+import jwt
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
+
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -51,6 +55,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def has_module_perms(self, app_label):
         return True
+
+    def create_token(self):
+        payload = {
+            'sub': self.id,
+            'iat': arrow.utcnow().datetime,
+        }
+        token = jwt.encode(payload, settings.TOKEN_SECRET)
+        return token.decode('unicode_escape')
+
 
     # # Admin required fields
     # @property

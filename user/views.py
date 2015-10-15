@@ -1,7 +1,6 @@
 import json
 from types import SimpleNamespace
 from django.contrib.auth import authenticate, login
-from django.http import HttpResponse
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -12,14 +11,14 @@ from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, Update
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
-from user.authenticators import UIDAuthentication
+from user.authenticators import JwtAuthentication
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
     FaceBookWebRegisterSerializer, SocialRegisterSerializer
+from django.conf import settings
 
 
 class ForgottenPassword:
@@ -45,31 +44,33 @@ class ResetPassword(UpdateAPIView):
 
 
 class Users(RetrieveUpdateAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
-
-    queryset = CustomUser.objects.all().select_related()
+    queryset = CustomUser.objects
     serializer_class = UserSerializer
-    lookup_field = 'uid'
 
-    def put(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        obj = get_object_or_404(queryset, id=self.request.user.id)
+
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class Authenticate(APIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
 
     @method_decorator(csrf_exempt)
     def get(self, request):
-        return HttpResponse(json.dumps({
+        return Response({
             'uid': str(request.user.uid),
             'id': str(request.user.id)
-        }))
+        })
 
 
 class RetrieveSchemeAccount(RetrieveAPIView):
-    authentication_classes = (UIDAuthentication,)
+    authentication_classes = (JwtAuthentication,)
     permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
 
@@ -110,7 +111,7 @@ class Login(GenericAPIView):
             return Response({"message": "The account associated with this email address is suspended."}, status=403)
 
         login(request, user)
-        return Response({'email': email, 'api_key': user.uid})
+        return Response({'email': email, 'api_key': user.create_token()})
 
 
 class FaceBookLoginWeb(CreateAPIView):
@@ -132,6 +133,7 @@ class FaceBookLoginWeb(CreateAPIView):
         r = requests.get(access_token_url, params=params)
         if not r.ok:
             return Response({"error": 'Cannot get facebook user token.'}, status=403)
+
         return facebook_graph(r.json()['access_token'])
 
 
@@ -173,7 +175,7 @@ def facebook_graph(access_token):
         except KeyError:
             user = CustomUser.objects.create(password=password, user=profile['id'])
 
-    return Response({'email': user.email, 'api_key': user.uid})
+    return Response({'email': user.email, 'api_key': user.create_token()})
 
 
 class TwitterLogin(APIView):
@@ -197,11 +199,10 @@ class TwitterLogin(APIView):
                 password = get_random_string(length=32)
                 user = CustomUser.objects.create(password=password, twitter=access_token['user_id'])
 
-            return Response({'email': user.email, 'api_key': user.uid})
+            return Response({'email': user.email, 'api_key': user.create_token()})
 
         oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
                                       client_secret=settings.TWITTER_CONSUMER_SECRET,
                                       callback_uri=settings.TWITTER_CALLBACK_URL)
         request_token = oauth_session.fetch_request_token(request_token_url)
         return Response(request_token)
-
