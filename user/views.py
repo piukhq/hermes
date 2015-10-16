@@ -8,14 +8,13 @@ import requests
 from requests_oauthlib import OAuth1Session
 from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
     RetrieveAPIView, get_object_or_404
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from hermes import settings
 from scheme.credentials import ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
-from user.authenticators import JwtAuthentication
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
@@ -27,8 +26,11 @@ class ForgottenPassword:
     pass
 
 
-class CustomSessionAuthentication(SessionAuthentication):
-    """We don't need csrf as we are using jwt tokens"""
+class OpenAuthentication(SessionAuthentication):
+    """
+    We need to disable csrf as we are runing hermes on production through a proxy.
+    Also we don't need csrf as we are using jwt tokens.
+    """
     def enforce_csrf(self, request):
         return
 
@@ -37,7 +39,8 @@ class CustomSessionAuthentication(SessionAuthentication):
 # Will require research, multiple serializers
 # Password Handling
 class Register(CreateAPIView):
-    authentication_classes = (CustomSessionAuthentication,)
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
 
@@ -46,8 +49,6 @@ class ResetPassword(UpdateAPIView):
 
 
 class Users(RetrieveUpdateAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
     queryset = CustomUser.objects
     serializer_class = UserSerializer
 
@@ -60,9 +61,6 @@ class Users(RetrieveUpdateAPIView):
 
 
 class Authenticate(APIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     @method_decorator(csrf_exempt)
     def get(self, request):
         return Response({
@@ -72,8 +70,6 @@ class Authenticate(APIView):
 
 
 class RetrieveSchemeAccount(RetrieveAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
     serializer_class = SchemeAccountSerializer
 
     def get(self, request, *args, **kwargs):
@@ -102,7 +98,8 @@ class RetrieveSchemeAccount(RetrieveAPIView):
 
 
 class Login(GenericAPIView):
-    authentication_classes = (CustomSessionAuthentication,)
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = LoginSerializer
 
     def post(self, request):
@@ -123,7 +120,8 @@ class FaceBookLoginWeb(CreateAPIView):
     """
     This is just used by ching web
     """
-    authentication_classes = (CustomSessionAuthentication,)
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = FaceBookWebRegisterSerializer
 
     def post(self, request, *args, **kwargs):
@@ -143,7 +141,9 @@ class FaceBookLoginWeb(CreateAPIView):
 
 
 class FaceBookLogin(CreateAPIView):
-    authentication_classes = (CustomSessionAuthentication,)
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+
     serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
@@ -184,7 +184,8 @@ def facebook_graph(access_token):
 
 
 class TwitterLogin(APIView):
-    authentication_classes = (CustomSessionAuthentication,)
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
     serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
