@@ -2,7 +2,7 @@ import json
 import requests
 from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
-    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView
+    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from hermes import settings
@@ -10,10 +10,11 @@ from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
                                 ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer)
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import JwtAuthentication
+from rest_framework import serializers
 
 
 class SwappableSerializerMixin(object):
@@ -192,30 +193,23 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
     queryset = SchemeAccountCredentialAnswer.objects
 
 
-class UpdateSchemeAccountStatus(APIView):
-    def post(self, request, *args, **kwargs):
-        scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
-        new_status_code = int(request.data['status'])
+class UpdateSchemeAccountStatus(GenericAPIView):
+    serializer_class = StatusSerializer
 
-        if new_status_code in [SchemeAccount.ACTIVE,
-                               SchemeAccount.INVALID_CREDENTIALS,
-                               SchemeAccount.INVALID_MFA,
-                               SchemeAccount.END_SITE_DOWN,
-                               SchemeAccount.INCOMPLETE,
-                               SchemeAccount.LOCKED_BY_ENDSITE,
-                               SchemeAccount.RETRY_LIMIT_REACHED,
-                               SchemeAccount.UNKNOWN_ERROR,
-                               SchemeAccount.MIDAS_UNREACHEABLE,
-                               SchemeAccount.WALLET_ONLY]:
+    def post(self, request, *args, **kwargs):
+        new_status_code = int(request.data['status'])
+        if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
+            raise serializers.ValidationError('Invalid status code sent.')
+
+        scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+        if new_status_code != scheme_account.status:
             scheme_account.status = new_status_code
             scheme_account.save()
-            response_data = {
-                'id': scheme_account.id,
-                'status': new_status_code
-            }
-            return Response(response_data)
-        else:
-            return json_error_response("Invalid status sent.", status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'id': scheme_account.id,
+            'status': new_status_code
+        })
 
 
 def json_error_response(message, code):
