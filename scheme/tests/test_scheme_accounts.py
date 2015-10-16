@@ -1,7 +1,6 @@
-import json
 from rest_framework.test import APITestCase
-from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
-from user.tests.factories import UserFactory
+from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
+    SchemeAccountFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME
@@ -124,7 +123,7 @@ class TestSchemeAccount(APITestCase):
         deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)
 
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(deleted_scheme_account.status, SchemeAccount.DELETED)
+        self.assertTrue(deleted_scheme_account.is_deleted)
 
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
@@ -180,3 +179,11 @@ class TestSchemeAccount(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
+
+    def test_scheme_accounts_active(self):
+        scheme = SchemeAccountFactory()
+        response = self.client.get('/schemes/accounts/active')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['next'])
+        self.assertIn(scheme.id, [result['id'] for result in response.data['results']])

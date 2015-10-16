@@ -113,7 +113,7 @@ class SchemeImage(models.Model):
 
 class ActiveManager(models.Manager):
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(status=SchemeAccount.DELETED)
+            return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):
@@ -122,7 +122,6 @@ class SchemeAccount(models.Model):
     INVALID_CREDENTIALS = 403
     INVALID_MFA = 432
     END_SITE_DOWN = 530
-    DELETED = 4
     INCOMPLETE = 5
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
@@ -136,7 +135,6 @@ class SchemeAccount(models.Model):
         (INVALID_CREDENTIALS, 'invalid credentials'),
         (INVALID_MFA, 'invalid_mfa'),
         (END_SITE_DOWN, 'end site down'),
-        (DELETED, 'deleted'),
         (INCOMPLETE, 'incomplete'),
         (LOCKED_BY_ENDSITE, 'account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
@@ -144,6 +142,8 @@ class SchemeAccount(models.Model):
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
         (WALLET_ONLY, 'This is a wallet only card')
     )
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
+    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -151,6 +151,7 @@ class SchemeAccount(models.Model):
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
 
     objects = BulkUpdateManager()
     active_objects = ActiveManager()
@@ -171,20 +172,12 @@ class SchemeAccount(models.Model):
 
     @property
     def action_status(self):
-        if self.status in [self.INVALID_CREDENTIALS,
-                           self.INVALID_MFA,
-                           self.INCOMPLETE]:
+        if self.status in self.USER_ACTION_REQUIRED:
             return 'USER_ACTION_REQUIRED'
-        elif self.status in [self.END_SITE_DOWN,
-                             self.LOCKED_BY_ENDSITE,
-                             self.RETRY_LIMIT_REACHED,
-                             self.UNKNOWN_ERROR,
-                             self.MIDAS_UNREACHEABLE]:
+        elif self.status in self.SYSTEM_ACTION_REQUIRED:
             return 'SYSTEM_ACTION_REQUIRED'
         elif self.status == self.ACTIVE:
             return 'ACTIVE'
-        elif self.status == self.DELETED:
-            return 'DELETED'
         elif self.status == self.WALLET_ONLY:
             return 'WALLET_ONLY'
 

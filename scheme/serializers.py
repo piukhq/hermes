@@ -71,3 +71,9 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
 class StatusSerializer(serializers.Serializer):
     status = serializers.IntegerField()
+
+
+class ActiveSchemeAccountAccountsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeAccount
+        fields = ('id', )
