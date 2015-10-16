@@ -3,6 +3,7 @@ import requests
 from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from hermes import settings
@@ -10,7 +11,8 @@ from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
                                 ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer)
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer,
+                                ActiveSchemeAccountAccountsSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from user.authenticators import JwtAuthentication
@@ -210,6 +212,16 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'id': scheme_account.id,
             'status': new_status_code
         })
+
+
+class Pagination(PageNumberPagination):
+    page_size = 1000
+
+
+class ActiveSchemeAccountAccounts(generics.ListAPIView):
+    queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE).only("id")
+    serializer_class = ActiveSchemeAccountAccountsSerializer
+    pagination_class = Pagination
 
 
 def json_error_response(message, code):

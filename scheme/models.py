@@ -142,6 +142,8 @@ class SchemeAccount(models.Model):
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
         (WALLET_ONLY, 'This is a wallet only card')
     )
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
+    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -170,15 +172,9 @@ class SchemeAccount(models.Model):
 
     @property
     def action_status(self):
-        if self.status in [self.INVALID_CREDENTIALS,
-                           self.INVALID_MFA,
-                           self.INCOMPLETE]:
+        if self.status in self.USER_ACTION_REQUIRED:
             return 'USER_ACTION_REQUIRED'
-        elif self.status in [self.END_SITE_DOWN,
-                             self.LOCKED_BY_ENDSITE,
-                             self.RETRY_LIMIT_REACHED,
-                             self.UNKNOWN_ERROR,
-                             self.MIDAS_UNREACHEABLE]:
+        elif self.status in self.SYSTEM_ACTION_REQUIRED:
             return 'SYSTEM_ACTION_REQUIRED'
         elif self.status == self.ACTIVE:
             return 'ACTIVE'
