@@ -69,3 +69,5 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
         exclude = ('updated', )
 
 
+class StatusSerializer(serializers.Serializer):
+    status = serializers.IntegerField()

@@ -212,7 +212,7 @@
   {
     "model": "scheme.schemecredentialquestion",
     "fields": {
-      "label": "Card number",
+      "label": "Barcode Number",
       "type": "barcode",
       "scheme": 17,
       "order": 0
