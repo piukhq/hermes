@@ -224,5 +224,11 @@ class ActiveSchemeAccountAccounts(generics.ListAPIView):
     pagination_class = Pagination
 
 
+class SystemActionSchemeAccountAccounts(generics.ListAPIView):
+    queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED).only("id")
+    serializer_class = ActiveSchemeAccountAccountsSerializer
+    pagination_class = Pagination
+
+
 def json_error_response(message, code):
     return Response({"message": message, "code": code}, status=code)
