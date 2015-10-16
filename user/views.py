@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from hermes import settings
+from scheme.credentials import ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
 from user.authenticators import UIDAuthentication
@@ -82,7 +83,10 @@ class RetrieveSchemeAccount(RetrieveAPIView):
             for security_question in security_questions:
                 answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
                                                                    type=security_question.type)
-                credentials[security_question.type] = answer.answer
+                if answer.type in ENCRYPTED_CREDENTIALS:
+                    credentials[security_question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer).decode('utf-8')
+                else:
+                    credentials[security_question.type] = answer.answer
 
         serialized_credentials = json.dumps(credentials)
         encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')

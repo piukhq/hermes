@@ -13,3 +13,7 @@ CREDENTIAL_TYPES = [
     (PASSWORD, 'password'),
     (DATE_OF_BIRTH, 'date of birth'),
 ]
+
+ENCRYPTED_CREDENTIALS = [
+    PASSWORD
+]

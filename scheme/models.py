@@ -1,7 +1,11 @@
+from django.conf import settings
 from django.db import models
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 from django.utils import timezone
-from scheme.credentials import CREDENTIAL_TYPES
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from bulk_update.manager import BulkUpdateManager
+from scheme.encyption import AESCipher
 
 
 class Category(models.Model):
@@ -215,3 +219,10 @@ class SchemeAccountCredentialAnswer(models.Model):
 
     def __str__(self):
         return self.answer
+
+
+@receiver(pre_save, sender=SchemeAccountCredentialAnswer)
+def encryption_handler(sender, instance, **kwargs):
+    if instance.type in ENCRYPTED_CREDENTIALS:
+        encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        instance.answer = encrypted_answer
