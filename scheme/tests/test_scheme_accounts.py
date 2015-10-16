@@ -182,9 +182,23 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data, ['Invalid status code sent.'])
 
     def test_scheme_accounts_active(self):
-        scheme = SchemeAccountFactory()
+        scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        scheme_2 = SchemeAccountFactory(status=SchemeAccount.END_SITE_DOWN)
         response = self.client.get('/schemes/accounts/active')
+        scheme_ids = [result['id'] for result in response.data['results']]
 
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.data['next'])
-        self.assertIn(scheme.id, [result['id'] for result in response.data['results']])
+        self.assertIn(scheme.id, scheme_ids)
+        self.assertNotIn(scheme_2.id, scheme_ids)
+
+    def test_system_retry_scheme_accounts_active(self):
+        scheme = SchemeAccountFactory(status=SchemeAccount.LOCKED_BY_ENDSITE)
+        scheme_2 = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        response = self.client.get('/schemes/accounts/system_retry')
+        scheme_ids = [result['id'] for result in response.data['results']]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data['next'])
+        self.assertIn(scheme.id, scheme_ids)
+        self.assertNotIn(scheme_2.id, scheme_ids)
