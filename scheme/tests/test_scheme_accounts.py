@@ -1,5 +1,7 @@
 import json
+from django.conf import settings
 from rest_framework.test import APITestCase
+from scheme.encyption import AESCipher
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
 from user.tests.factories import UserFactory
 from scheme.models import SchemeAccount
@@ -33,7 +35,7 @@ class TestSchemeAccount(APITestCase):
                 'scheme': scheme.id,
                 username_question.type: 'andrew',
                 card_no_question.type: '1234',
-                password_question.type: 'password'
+                password_question.type: 'password1234'
         }
         response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
@@ -41,7 +43,8 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['user_name'], 'andrew')
-        self.assertEqual(content['password'], 'password')
+        password = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(content['password'])
+        self.assertEqual(password, 'password1234')
         self.assertEqual(content['card_number'], '1234')
 
     def test_post_scheme_account_midas_call_with_points(self):
@@ -81,7 +84,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['user_name'], 'andrew')
-        self.assertEqual(content['password'], 'password')
         self.assertEqual(content['card_number'], '1234')
         data = {
                 'scheme': scheme.id,
@@ -97,7 +99,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['user_name'], 'andrew')
-        self.assertEqual(content['password'], 'password2')
         self.assertEqual(content['card_number'], '1234')
 
     def test_get_scheme_account(self):
