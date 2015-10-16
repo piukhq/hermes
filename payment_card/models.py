@@ -1,5 +1,11 @@
 from django.db import models
 from bulk_update.manager import BulkUpdateManager
+from django.core.exceptions import ValidationError
+
+
+def validate_pan_length(value):
+    if len(str(value)) != 16:
+        raise ValidationError(u'%s is not the correct length' % value)
 
 
 class Issuer(models.Model):
@@ -66,7 +72,7 @@ class PaymentCardAccount(models.Model):
     start_year = models.IntegerField(null=True)
     expiry_month = models.IntegerField()
     expiry_year = models.IntegerField()
-    pan = models.CharField(max_length=50)
+    pan = models.CharField(max_length=50, validators=[validate_pan_length])
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
@@ -80,3 +86,8 @@ class PaymentCardAccount(models.Model):
 
     def __str__(self):
         return self.pan
+
+    def save(self, *args, **kwargs):
+        pan = self.pan.strip().replace(" ", "").replace("-", "")
+        self.pan = pan[:6] + "******" + pan[-4:]
+        super(PaymentCardAccount, self).save(*args, **kwargs)

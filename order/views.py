@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from scheme.models import SchemeAccount
 from payment_card.models import PaymentCardAccount
 from collections import defaultdict
+from user.authenticators import JwtAuthentication
 
 account_classes = {
     'scheme': SchemeAccount,
@@ -24,6 +25,7 @@ class OrderUpdate(generics.CreateAPIView):
               paramType: body
     """
     serializer_class = OrderSerializer
+    authentication_classes = (JwtAuthentication,)
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, many=True)

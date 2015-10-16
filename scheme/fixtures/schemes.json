@@ -1,1955 +1,1704 @@
 [
   {
+    "pk": 1,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Amazon Associates",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://affiliate-program.amazon.co.uk/gp/associates/login/help.html",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "affiliate-program",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://affiliate-program.amazon.co.uk/gp/associates/login/help.html",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "affiliate-program",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://affiliate-program.amazon.co.uk/gp/associates/login/help.html",
+      "scan_message": "Ching Scan Message",
+      "name": "Affiliate Program",
+      "tier": 2,
       "category": 1,
-      "name": "Affiliate Program"
-    },
-    "pk": 1
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 2,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Avios",
-      "company_url": "",
+      "is_active": true,
       "company": "Avios",
-      "tier": "2",
-      "point_conversion_rate": "0.0068",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.avios.com/gb/en_gb/my-account/forgotten-my-password",
+      "point_conversion_rate": "0.006800",
+      "primary_question": 26,
+      "barcode_type": 0,
       "identifier": "308147",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "avios",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.avios.com/gb/en_gb/my-account/forgotten-my-password",
+      "scan_message": "Ching Scan Message",
+      "name": "Avios",
+      "tier": 2,
       "category": 2,
-      "name": "Avios"
-    },
-    "pk": 2
+      "url": "http://www.companyURL.com",
+      "point_name": "Avios"
+    }
   },
   {
+    "pk": 3,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Barclaycard Freedom",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "freedom-rewards",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "freedom-rewards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "",
+      "scan_message": "Ching Scan Message",
+      "name": "Freedom Rewards",
+      "tier": 2,
       "category": 3,
-      "name": "Freedom Rewards"
-    },
-    "pk": 3
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 4,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Boots",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.boots.com/webapp/wcs/stores/servlet/LoginRequestDispatcher",
+      "point_conversion_rate": "0.010000",
+      "primary_question": 3,
+      "barcode_type": 0,
       "identifier": "633035",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "advantage-card",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.boots.com/webapp/wcs/stores/servlet/LoginRequestDispatcher",
+      "scan_message": "Ching Scan Message",
+      "name": "Advantage Card",
+      "tier": 2,
       "category": 4,
-      "name": "Advantage Card"
-    },
-    "pk": 4
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 5,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "B & Q",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.diy.com/customer/forgot_password/?prev_page=%2Fbandqclub%2F%3F&isAutoLoggedUser=false",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "bq-club",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.diy.com/customer/forgot_password/?prev_page=%2Fbandqclub%2F%3F&isAutoLoggedUser=false",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "bq-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.diy.com/customer/forgot_password/?prev_page=%2Fbandqclub%2F%3F&isAutoLoggedUser=false",
+      "scan_message": "Ching Scan Message",
+      "name": "B&Q Club",
+      "tier": 2,
       "category": 4,
-      "name": "B&Q Club"
-    },
-    "pk": 5
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 6,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Costa",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.costa.co.uk/coffee-club/forgotten-password/",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 1,
       "identifier": "633780",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "coffee-club",
-      "barcode_type": "1",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.costa.co.uk/coffee-club/forgotten-password/",
+      "scan_message": "Ching Scan Message",
+      "name": "Coffee Club",
+      "tier": 2,
       "category": 5,
-      "name": "Coffee Club"
-    },
-    "pk": 6
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 7,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "Giraffe",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://giraffe.net",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "giraffe",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://giraffe.net",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "giraffe",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://giraffe.net",
+      "scan_message": "Ching Scan Message",
+      "name": "Giraffe",
+      "tier": 2,
       "category": 5,
-      "name": "Giraffe"
-    },
-    "pk": 7
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 8,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "Grosvenor Casinos",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "0",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": null,
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
+      "slug": "play-points",
+      "has_transactions": false,
       "forgotten_password_url": "https://forgot.grosvenorcasinos.com/ForgottenDetails",
-<<<<<<< Updated upstream
-      "identifier": null,
-      "is_active": "1",
-      "slug": "play-points",
-      "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "play-points",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "scan_message": "Ching Scan Message",
+      "name": "Play Points",
+      "tier": 2,
       "category": 5,
-      "name": "Play Points"
-    },
-    "pk": 8
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 9,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "IKEA Family",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://secure.ikea.com/webapp/wcs/stores/servlet/ResetPassword?storeId=7&langId=-20",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "ikea",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://secure.ikea.com/webapp/wcs/stores/servlet/ResetPassword?storeId=7&langId=-20",
+      "scan_message": "Ching Scan Message",
+      "name": "Ikea",
+      "tier": 2,
       "category": 4,
-      "name": "Ikea"
-    },
-    "pk": 9
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 10,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "John Lewis Partnership",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
-      "forgotten_password_url": "http://www.johnlewis.com/our-services/my-john-lewis#login-overlay_show",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "801850",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "my-john-lewis",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.johnlewis.com/our-services/my-john-lewis#login-overlay_show",
+      "scan_message": "Ching Scan Message",
+      "name": "My John Lewis",
+      "tier": 2,
       "category": 4,
-      "name": "My John Lewis"
-    },
-    "pk": 10
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 11,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Flying Points ",
-      "company_url": "",
+      "is_active": true,
       "company": "Monarch",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://bookflights.monarch.co.uk/FindPassword.aspx",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "vantage-club",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://bookflights.monarch.co.uk/FindPassword.aspx",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "vantage-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://bookflights.monarch.co.uk/FindPassword.aspx",
+      "scan_message": "Ching Scan Message",
+      "name": "Vantage Club",
+      "tier": 2,
       "category": 2,
-      "name": "Vantage Club"
-    },
-    "pk": 11
+      "url": "www.companyURL.com",
+      "point_name": "Flying Points "
+    }
   },
   {
+    "pk": 12,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Morrisons",
-      "tier": "2",
-      "point_conversion_rate": "0.001",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.morrisons.com/matchandmore/forgotten-password.html",
+      "point_conversion_rate": "0.001000",
+      "primary_question": 29,
+      "barcode_type": 0,
       "identifier": "982613",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "match-more",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.morrisons.com/matchandmore/forgotten-password.html",
+      "scan_message": "Ching Scan Message",
+      "name": "Match & More",
+      "tier": 2,
       "category": 4,
-      "name": "Match & More"
-    },
-    "pk": 12
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 13,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "Waitrose",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.waitrose.com/webapp/wcs/stores/servlet/ResetPasswordForm?storeId=10317&krypto=IoXG3jmpb7Y6e4ANK%2Fwzwk1jzIBQP44m3LiR2uW16C6XE15OSaitg1DWvVTlPbCnB1aettPivMja%0Ag74SQb92tVOS3FXPxUOp6D1YyD38nbBLYzIyhRnLow%3D%3D&ddkey=http:ResetPasswordForm",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "921",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "my-waitrose",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.waitrose.com/webapp/wcs/stores/servlet/ResetPasswordForm?storeId=10317&krypto=IoXG3jmpb7Y6e4ANK%2Fwzwk1jzIBQP44m3LiR2uW16C6XE15OSaitg1DWvVTlPbCnB1aettPivMja%0Ag74SQb92tVOS3FXPxUOp6D1YyD38nbBLYzIyhRnLow%3D%3D&ddkey=http:ResetPasswordForm",
+      "scan_message": "Ching Scan Message",
+      "name": "My Waitrose",
+      "tier": 2,
       "category": 4,
-      "name": "My Waitrose"
-    },
-    "pk": 13
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 14,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Nectar",
-      "tier": "1",
-      "point_conversion_rate": "0.005",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.nectar.com/login/firstforgotPassword.nectar",
+      "point_conversion_rate": "0.005000",
+      "primary_question": 14,
+      "barcode_type": 0,
       "identifier": "(299|364|368)",
-      "is_active": "1",
-<<<<<<< Updated upstream
+      "has_points": false,
+      "company_url": "",
       "slug": "nectar",
-=======
-      "slug": "nectar-card",
->>>>>>> Stashed changes
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.nectar.com/login/firstforgotPassword.nectar",
+      "scan_message": "Ching Scan Message",
+      "name": "Nectar Card",
+      "tier": 1,
       "category": 4,
-      "name": "Nectar Card"
-    },
-    "pk": 14
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 15,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Stars",
-      "company_url": "",
+      "is_active": true,
       "company": "Starbucks",
-      "tier": "1",
-      "point_conversion_rate": "0.16",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.starbucks.co.uk/account/forgot-password?AllowGuest=False",
+      "point_conversion_rate": "0.160000",
+      "primary_question": null,
+      "barcode_type": 3,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "mystarbucks-rewards",
-      "barcode_type": "3",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.starbucks.co.uk/account/forgot-password?AllowGuest=False",
+      "scan_message": "Ching Scan Message",
+      "name": "MyStarbucks Rewards",
+      "tier": 1,
       "category": 5,
-      "name": "MyStarbucks Rewards"
-    },
-    "pk": 15
+      "url": "www.companyURL.com",
+      "point_name": "Stars"
+    }
   },
   {
+    "pk": 16,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Superdrug",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.superdrug.com/login/pw/request",
+      "point_conversion_rate": "0.010000",
+      "primary_question": 27,
+      "barcode_type": 4,
       "identifier": "2661",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "health-beautycard",
-      "barcode_type": "4",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.superdrug.com/login/pw/request",
+      "scan_message": "Ching Scan Message",
+      "name": "Health & Beautycard",
+      "tier": 2,
       "category": 4,
-      "name": "Health & Beautycard"
-    },
-    "pk": 16
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 17,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Tesco",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://secure.tesco.com/login/en-gb/forgottenpassword/",
+      "point_conversion_rate": "0.010000",
+      "primary_question": 22,
+      "barcode_type": 0,
       "identifier": "979",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "tesco-clubcard",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://secure.tesco.com/login/en-gb/forgottenpassword/",
+      "scan_message": "Ching Scan Message",
+      "name": "Tesco Clubcard",
+      "tier": 2,
       "category": 4,
-      "name": "Tesco Clubcard"
-    },
-    "pk": 17
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 18,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Virgin Flyingclub",
-      "tier": "2",
-      "point_conversion_rate": "0.0098",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.virgin-atlantic.com/en/gb/frequentflyer/forgot_password_details.jsp",
+      "point_conversion_rate": "0.009800",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "virgin-flyingclub",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.virgin-atlantic.com/en/gb/frequentflyer/forgot_password_details.jsp",
+      "scan_message": "Ching Scan Message",
+      "name": "Virgin Flyingclub",
+      "tier": 2,
       "category": 2,
-      "name": "Virgin Flyingclub"
-    },
-    "pk": 18
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 19,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Best Western",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.bestwestern.co.uk",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "best-western-rewards",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.bestwestern.co.uk",
+      "scan_message": "Ching Scan Message",
+      "name": "Best Western Rewards",
+      "tier": 2,
       "category": 3,
-      "name": "Best Western Rewards"
-    },
-    "pk": 19
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 20,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Avios",
-      "company_url": "",
+      "is_active": true,
       "company": "British Airways Executive Club",
-      "tier": "2",
-      "point_conversion_rate": "0.0068",
-      "is_barcode": "1",
-      "forgotten_password_url": "http://www.britishairways.com/travel/forgottendetails/public/en_gb",
+      "point_conversion_rate": "0.006800",
+      "primary_question": 6,
+      "barcode_type": null,
       "identifier": "499",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "executive-club",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.britishairways.com/travel/forgottendetails/public/en_gb",
+      "scan_message": "Ching Scan Message",
+      "name": "Executive Club",
+      "tier": 2,
       "category": 2,
-      "name": "Executive Club"
-    },
-    "pk": 20
+      "url": "http://www.companyURL.com",
+      "point_name": "Avios"
+    }
   },
   {
+    "pk": 21,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-<<<<<<< Updated upstream
-      "point_name": null,
-      "company_url": "",
+      "is_active": true,
       "company": "Hilton",
-      "tier": "2",
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://secure3.hilton.com/en/hh/customer/login/forgotPassword.htm",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": null,
-=======
-      "point_name": "NULL",
+      "has_points": false,
       "company_url": "",
-      "company": "Hilton",
-      "tier": "2",
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://secure3.hilton.com/en/hh/customer/login/forgotPassword.htm",
-      "identifier": "NULL",
->>>>>>> Stashed changes
-      "is_active": "1",
       "slug": "hilton-hhonors",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://secure3.hilton.com/en/hh/customer/login/forgotPassword.htm",
+      "scan_message": "Ching Scan Message",
+      "name": "Hilton HHonors",
+      "tier": 2,
       "category": 2,
-      "name": "Hilton HHonors"
-    },
-    "pk": 21
+      "url": "www.companyURL.com",
+      "point_name": null
+    }
   },
   {
+    "pk": 22,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Hyatt Gold Passport",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.hyatt.com/gp/en/account/forgot_password.jsp?language=en",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "gold-passport",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.hyatt.com/gp/en/account/forgot_password.jsp?language=en",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "gold-passport",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.hyatt.com/gp/en/account/forgot_password.jsp?language=en",
+      "scan_message": "Ching Scan Message",
+      "name": "Gold Passport",
+      "tier": 2,
       "category": 2,
-      "name": "Gold Passport"
-    },
-    "pk": 22
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 23,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "IHG Rewards Club",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.ihg.com/hotels/us/en/reservation#0",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "rewards-club",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.ihg.com/hotels/us/en/reservation#0",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "rewards-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.ihg.com/hotels/us/en/reservation#0",
+      "scan_message": "Ching Scan Message",
+      "name": "Rewards Club",
+      "tier": 2,
       "category": 2,
-      "name": "Rewards Club"
-    },
-    "pk": 23
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 24,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Starpoints",
-      "company_url": "",
+      "is_active": true,
       "company": "Sheraton Hotels And Resorts",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.starwoodhotels.com/preferredguest/account/forgot_username_password/index.html",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "starwood-preferred-guest",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.starwoodhotels.com/preferredguest/account/forgot_username_password/index.html",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "starwood-preferred-guest",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.starwoodhotels.com/preferredguest/account/forgot_username_password/index.html",
+      "scan_message": "Ching Scan Message",
+      "name": "Starwood Preferred Guest",
+      "tier": 2,
       "category": 2,
-      "name": "Starwood Preferred Guest"
-    },
-    "pk": 24
+      "url": "www.companyURL.com",
+      "point_name": "Starpoints"
+    }
   },
   {
+    "pk": 25,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Skywards",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.emirates.com/account/uk/english/login/login.aspx#",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "emirates-skywards",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.emirates.com/account/uk/english/login/login.aspx#",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "emirates-skywards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.emirates.com/account/uk/english/login/login.aspx#",
+      "scan_message": "Ching Scan Message",
+      "name": "Emirates Skywards",
+      "tier": 2,
       "category": 2,
-      "name": "Emirates Skywards"
-    },
-    "pk": 25
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 26,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Accor Hotels A-Club",
-      "tier": "2",
-      "point_conversion_rate": "0.01389",
-      "is_barcode": "0",
+      "point_conversion_rate": "0.013890",
+      "primary_question": null,
+      "barcode_type": null,
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
+      "slug": "le-club",
+      "has_transactions": false,
       "forgotten_password_url": "http://www.accorhotels.com/gb/leclub/",
-<<<<<<< Updated upstream
-      "identifier": null,
-      "is_active": "1",
-      "slug": "le-club",
-      "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "le-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "scan_message": "Ching Scan Message",
+      "name": "Le Club",
+      "tier": 2,
       "category": 1,
-      "name": "Le Club"
-    },
-    "pk": 26
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 27,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Aer Lingus (Ireland)",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aerlingus.com/cgi-bin/obel01im1/bookonline/newPinFirstStep.do",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "gold-circle",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aerlingus.com/cgi-bin/obel01im1/bookonline/newPinFirstStep.do",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "gold-circle",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.aerlingus.com/cgi-bin/obel01im1/bookonline/newPinFirstStep.do",
+      "scan_message": "Ching Scan Message",
+      "name": "Gold Circle",
+      "tier": 2,
       "category": 1,
-      "name": "Gold Circle"
-    },
-    "pk": 27
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 28,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Air Canada Aeroplan",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aircanada.com/secure/aco/loadLogonPage.do?signonSource=home",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "altitude",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.aircanada.com/secure/aco/loadLogonPage.do?signonSource=home",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "altitude",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.aircanada.com/secure/aco/loadLogonPage.do?signonSource=home",
+      "scan_message": "Ching Scan Message",
+      "name": "Altitude",
+      "tier": 2,
       "category": 1,
-      "name": "Altitude"
-    },
-    "pk": 28
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 29,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Air France (Flying Blue)",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "flying-blue",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "flying-blue",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
+      "scan_message": "Ching Scan Message",
+      "name": "Flying Blue",
+      "tier": 2,
       "category": 1,
-      "name": "Flying Blue"
-    },
-    "pk": 29
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 30,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Alitalia MilleMiglia",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.alitalia.com/it_en/mm/lostPin.html",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "millemiglia",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.alitalia.com/it_en/mm/lostPin.html",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "millemiglia",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.alitalia.com/it_en/mm/lostPin.html",
+      "scan_message": "Ching Scan Message",
+      "name": "MilleMiglia",
+      "tier": 2,
       "category": 1,
-      "name": "MilleMiglia"
-    },
-    "pk": 30
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 31,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "American Express Membership Rewards",
-      "tier": "2",
-      "point_conversion_rate": "0.0125",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://online.americanexpress.com/myca/fuidfyp/us/action/fuidfyp?request_type=un_fuid&Face=en_US&entry_point=lnk_fuid",
+      "point_conversion_rate": "0.012500",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "american-express-membership-rewards",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://online.americanexpress.com/myca/fuidfyp/us/action/fuidfyp?request_type=un_fuid&Face=en_US&entry_point=lnk_fuid",
+      "scan_message": "Ching Scan Message",
+      "name": "American Express Membership Rewards",
+      "tier": 2,
       "category": 1,
-      "name": "American Express Membership Rewards"
-    },
-    "pk": 31
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 32,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Heathrow Rewards",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://rewards.heathrow.com/web/lhr/forgotten-pin/password",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "633157",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "heathrow-rewards",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://rewards.heathrow.com/web/lhr/forgotten-pin/password",
+      "scan_message": "Ching Scan Message",
+      "name": "Heathrow Rewards",
+      "tier": 2,
       "category": 1,
-      "name": "Heathrow Rewards"
-    },
-    "pk": 32
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 33,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "China Airlines",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "0",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": null,
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
+      "slug": "dynasty-flyer",
+      "has_transactions": false,
       "forgotten_password_url": "https://calec.china-airlines.com/club/pwdqry.aspx?lang=e",
-<<<<<<< Updated upstream
-      "identifier": null,
-      "is_active": "1",
-      "slug": "dynasty-flyer",
-      "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "dynasty-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "scan_message": "Ching Scan Message",
+      "name": "Dynasty Flyer",
+      "tier": 2,
       "category": 1,
-      "name": "Dynasty Flyer"
-    },
-    "pk": 33
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 34,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "EL AL",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.elal.com/ELAL/Pages/CmsTemplates/ELALWidth/SignIn.aspx?NRMODE=Published&NRNODEGUID=%7bC9027889-9294-44FF-937B-C52F6EFB3FD0%7d&NRORIGINALURL=%2fELAL%2fEnglish%2fMatmidFrequentFlyer%2fMyAccount%2ehtml&NRCACHEHINT=Guest",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "matmid-frequent-flyer-club",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.elal.com/ELAL/Pages/CmsTemplates/ELALWidth/SignIn.aspx?NRMODE=Published&NRNODEGUID=%7bC9027889-9294-44FF-937B-C52F6EFB3FD0%7d&NRORIGINALURL=%2fELAL%2fEnglish%2fMatmidFrequentFlyer%2fMyAccount%2ehtml&NRCACHEHINT=Guest",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "matmid-frequent-flyer-club",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.elal.com/ELAL/Pages/CmsTemplates/ELALWidth/SignIn.aspx?NRMODE=Published&NRNODEGUID=%7bC9027889-9294-44FF-937B-C52F6EFB3FD0%7d&NRORIGINALURL=%2fELAL%2fEnglish%2fMatmidFrequentFlyer%2fMyAccount%2ehtml&NRCACHEHINT=Guest",
+      "scan_message": "Ching Scan Message",
+      "name": "Matmid Frequent Flyer Club",
+      "tier": 2,
       "category": 1,
-      "name": "Matmid Frequent Flyer Club"
-    },
-    "pk": 34
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 35,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Etihad Airlines",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.etihadguest.com/en/your-account/forgot-password/",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "etihad-guest",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.etihadguest.com/en/your-account/forgot-password/",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "etihad-guest",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.etihadguest.com/en/your-account/forgot-password/",
+      "scan_message": "Ching Scan Message",
+      "name": "Etihad Guest",
+      "tier": 2,
       "category": 1,
-      "name": "Etihad Guest"
-    },
-    "pk": 35
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 36,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Finnair",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.finnair.com/int/gb/plus",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "finnair-plus",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.finnair.com/int/gb/plus",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "finnair-plus",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.finnair.com/int/gb/plus",
+      "scan_message": "Ching Scan Message",
+      "name": "Finnair Plus",
+      "tier": 2,
       "category": 1,
-      "name": "Finnair Plus"
-    },
-    "pk": 36
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 37,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Air India",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://ffai.loyaltyplus.aero/loyalty/forgotten.seam",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "flying-returns",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://ffai.loyaltyplus.aero/loyalty/forgotten.seam",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "flying-returns",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://ffai.loyaltyplus.aero/loyalty/forgotten.seam",
+      "scan_message": "Ching Scan Message",
+      "name": "Flying Returns",
+      "tier": 2,
       "category": 1,
-      "name": "Flying Returns"
-    },
-    "pk": 37
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 38,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Japan Airlines",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.jal.co.jp/en/jmb/login/inquiry.html",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "jal-mileage-bank",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.jal.co.jp/en/jmb/login/inquiry.html",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "jal-mileage-bank",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.jal.co.jp/en/jmb/login/inquiry.html",
+      "scan_message": "Ching Scan Message",
+      "name": "JAL Mileage Bank",
+      "tier": 2,
       "category": 1,
-      "name": "JAL Mileage Bank"
-    },
-    "pk": 38
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 39,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "JPMiles",
-      "company_url": "",
+      "is_active": true,
       "company": "Jet Airways",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://https.jetairways.com/EN/HK/jetprivilege/forgot-password.aspx",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "jetprivilege",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://https.jetairways.com/EN/HK/jetprivilege/forgot-password.aspx",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "jetprivilege",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://https.jetairways.com/EN/HK/jetprivilege/forgot-password.aspx",
+      "scan_message": "Ching Scan Message",
+      "name": "JetPrivilege",
+      "tier": 2,
       "category": 1,
-      "name": "JetPrivilege"
-    },
-    "pk": 39
+      "url": "www.companyURL.com",
+      "point_name": "JPMiles"
+    }
   },
   {
+    "pk": 40,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "KLM Flying Dutchman",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": null,
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "klm-flying-blue",
-      "barcode_type": null,
-      "category": 1,
-      "name": "KLM Flying Blue"
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
+      "has_transactions": false,
       "forgotten_password_url": "https://www.klm.com/ams/account/secure/myProfileForm.htm",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "flying-blue",
-      "barcode_type": "-1",
+      "scan_message": "Ching Scan Message",
+      "name": "KLM Flying Blue",
+      "tier": 2,
       "category": 1,
-      "name": "Flying Blue"
->>>>>>> Stashed changes
-    },
-    "pk": 40
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 41,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Singapore Airlines KrisFlyer",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.singaporeair.com/kfResetPIN-flow.form?execution=e1s1",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "krisflyer",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.singaporeair.com/kfResetPIN-flow.form?execution=e1s1",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "krisflyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.singaporeair.com/kfResetPIN-flow.form?execution=e1s1",
+      "scan_message": "Ching Scan Message",
+      "name": "KrisFlyer",
+      "tier": 2,
       "category": 1,
-      "name": "KrisFlyer"
-    },
-    "pk": 41
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 42,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Swiss Air",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.swiss.com/ch/en/Login/ForgotPassword",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": null,
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "swiss-miles-more",
-      "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
+      "has_transactions": false,
       "forgotten_password_url": "https://www.swiss.com/ch/en/Login/ForgotPassword",
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "miles-more",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "scan_message": "Ching Scan Message",
+      "name": "Miles & More",
+      "tier": 2,
       "category": 1,
-      "name": "Miles & More"
-    },
-    "pk": 42
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 43,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Qantas Frequent Flyer",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.qantas.com.au/fflyer/dyns/fpin",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "frequent-flyer",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.qantas.com.au/fflyer/dyns/fpin",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "frequent-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.qantas.com.au/fflyer/dyns/fpin",
+      "scan_message": "Ching Scan Message",
+      "name": "Frequent Flyer",
+      "tier": 2,
       "category": 1,
-      "name": "Frequent Flyer"
-    },
-    "pk": 43
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 44,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "Air Portugal Navigator",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://wws.flytap.com/UnitedKingdom/en/Victoria/forms/recover-pin",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "victoria",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://wws.flytap.com/UnitedKingdom/en/Victoria/forms/recover-pin",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "victoria",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://wws.flytap.com/UnitedKingdom/en/Victoria/forms/recover-pin",
+      "scan_message": "Ching Scan Message",
+      "name": "Victoria",
+      "tier": 2,
       "category": 1,
-      "name": "Victoria"
-    },
-    "pk": 44
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 45,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Miles",
-      "company_url": "",
+      "is_active": true,
       "company": "SN Brussels Airlines Privilege",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.brusselsairlines.com/en-be/my-profile/password-reset1.aspx?email=",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "miles-more",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.brusselsairlines.com/en-be/my-profile/password-reset1.aspx?email=",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "miles-more",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.brusselsairlines.com/en-be/my-profile/password-reset1.aspx?email=",
+      "scan_message": "Ching Scan Message",
+      "name": "Miles & More",
+      "tier": 2,
       "category": 1,
-      "name": "Miles & More"
-    },
-    "pk": 45
+      "url": "www.companyURL.com",
+      "point_name": "Miles"
+    }
   },
   {
+    "pk": 46,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Thai Airways (Royal Orchid Plus)",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.thaiairways.com/en/rop/rop_frequent_flyer.page?",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "royal-orchid-plus-frequent-flyer",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.thaiairways.com/en/rop/rop_frequent_flyer.page?",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "royal-orchid-plus-frequent-flyer",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.thaiairways.com/en/rop/rop_frequent_flyer.page?",
+      "scan_message": "Ching Scan Message",
+      "name": "Royal Orchid Plus Frequent Flyer",
+      "tier": 2,
       "category": 1,
-      "name": "Royal Orchid Plus Frequent Flyer"
-    },
-    "pk": 46
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 47,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Marriott Rewards Card",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.marriott.com/forgotPassword.mi",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "marriott-rewards-card",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.marriott.com/forgotPassword.mi",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "marriott-rewards-card",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.marriott.com/forgotPassword.mi",
+      "scan_message": "Ching Scan Message",
+      "name": "Marriott Rewards Card",
+      "tier": 2,
       "category": 1,
-      "name": "Marriott Rewards Card"
-    },
-    "pk": 47
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 48,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "NatWest YourPoints",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.natwestyourpoints.com/en/Login/Login%20by%20Card%20Number.aspx?type=3",
-      "identifier": null,
-      "is_active": "1",
-      "slug": "yourpoints",
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "point_conversion_rate": "-1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.natwestyourpoints.com/en/Login/Login%20by%20Card%20Number.aspx?type=3",
-      "identifier": "NULL",
-      "is_active": "1",
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
       "slug": "yourpoints",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.natwestyourpoints.com/en/Login/Login%20by%20Card%20Number.aspx?type=3",
+      "scan_message": "Ching Scan Message",
+      "name": "YourPoints",
+      "tier": 2,
       "category": 1,
-      "name": "YourPoints"
-    },
-    "pk": 48
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 49,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Co-operative",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.secure.membership.coop/#_ga=1.97759387.5453853.1436983294",
+      "primary_question": 23,
+      "barcode_type": 0,
       "identifier": "633174",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "the-co-operative-membership",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.secure.membership.coop/#_ga=1.97759387.5453853.1436983294",
+      "scan_message": "Ching Scan Message",
+      "name": "The Co-operative Membership",
+      "tier": 2,
       "category": 1,
-      "name": "The Co-operative Membership"
-    },
-    "pk": 49
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 50,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "pounds",
-      "company_url": "",
+      "is_active": true,
       "company": "Quidco",
-      "tier": "2",
-      "point_conversion_rate": "1",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.quidco.com/remind/",
+      "point_conversion_rate": "1.000000",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "quidco",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.quidco.com/remind/",
+      "scan_message": "Ching Scan Message",
+      "name": "Quidco",
+      "tier": 2,
       "category": 4,
-      "name": "Quidco"
-    },
-    "pk": 50
+      "url": "www.companyURL.com",
+      "point_name": "pounds"
+    }
   },
   {
+    "pk": 51,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Debenhams Beauty Club",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "http://www.debenhams.com/webapp/wcs/stores/servlet/LogonIdRequestView?state=forgetpassword&catalogId=10001&langId=-1&storeId=10701",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "976335",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "debenhams-beauty-club",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.debenhams.com/webapp/wcs/stores/servlet/LogonIdRequestView?state=forgetpassword&catalogId=10001&langId=-1&storeId=10701",
+      "scan_message": "Ching Scan Message",
+      "name": "Debenhams Beauty Club",
+      "tier": 2,
       "category": 4,
-      "name": "Debenhams Beauty Club"
-    },
-    "pk": 51
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 52,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Waterstones",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.waterstones.com/reset",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "the-waterstones-card",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.waterstones.com/reset",
+      "scan_message": "Ching Scan Message",
+      "name": "The Waterstones Card",
+      "tier": 2,
       "category": 4,
-      "name": "The Waterstones Card"
-    },
-    "pk": 52
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 53,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Maximiles",
-      "tier": "2",
-      "point_conversion_rate": "0.0009",
-      "is_barcode": "0",
-      "forgotten_password_url": "http://www.maximiles.co.uk/registration#fe28a5965fb288c598c118b50480dba8",
+      "point_conversion_rate": "0.000900",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "maximiles",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.maximiles.co.uk/registration#fe28a5965fb288c598c118b50480dba8",
+      "scan_message": "Ching Scan Message",
+      "name": "Maximiles",
+      "tier": 2,
       "category": 2,
-      "name": "Maximiles"
-    },
-    "pk": 53
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 54,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Game",
-      "tier": "2",
-      "point_conversion_rate": "0.00248",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.game.co.uk/webapp/wcs/stores/servlet/ResetPasswordGuestErrorView?state=forgetpassword&catalogId=10201&langId=44&storeId=10151",
+      "point_conversion_rate": "0.002480",
+      "primary_question": null,
+      "barcode_type": 1,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "game-reward",
-      "barcode_type": "1",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.game.co.uk/webapp/wcs/stores/servlet/ResetPasswordGuestErrorView?state=forgetpassword&catalogId=10201&langId=44&storeId=10151",
+      "scan_message": "Ching Scan Message",
+      "name": "Game Reward",
+      "tier": 2,
       "category": 4,
-      "name": "Game Reward"
-    },
-    "pk": 54
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 55,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Harrods",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.harrods.com/User/RecoverPassword.aspx",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "harrods-rewards",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.harrods.com/User/RecoverPassword.aspx",
+      "scan_message": "Ching Scan Message",
+      "name": "Harrods Rewards",
+      "tier": 2,
       "category": 4,
-      "name": "Harrods Rewards"
-    },
-    "pk": 55
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 56,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Decathlon",
-      "tier": "2",
-      "point_conversion_rate": "0.02",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.mydecathlon.com/mydecathlon.html?ppays=GB&langue=EN#nomPage=mdpOublie",
+      "point_conversion_rate": "0.020000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "209",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "decathlon-card",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.mydecathlon.com/mydecathlon.html?ppays=GB&langue=EN#nomPage=mdpOublie",
+      "scan_message": "Ching Scan Message",
+      "name": "Decathlon Card",
+      "tier": 2,
       "category": 4,
-      "name": "Decathlon Card"
-    },
-    "pk": 56
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 57,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Esprit",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.esprit.co.uk/my-esprit/security/forgotpassword",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 6,
       "identifier": "688",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "my-esprit",
-      "barcode_type": "6",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.esprit.co.uk/my-esprit/security/forgotpassword",
+      "scan_message": "Ching Scan Message",
+      "name": "My Esprit",
+      "tier": 2,
       "category": 4,
-      "name": "My Esprit"
-    },
-    "pk": 57
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 58,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Shell",
-      "tier": "1",
-      "point_conversion_rate": "0.005",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.shelldriversclub.co.uk/smart/forgot_password?site=en-en",
+      "point_conversion_rate": "0.005000",
+      "primary_question": 28,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "shell-drivers-club",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.shelldriversclub.co.uk/smart/forgot_password?site=en-en",
+      "scan_message": "Ching Scan Message",
+      "name": "Shell Drivers Club",
+      "tier": 1,
       "category": 2,
-      "name": "Shell Drivers Club"
-    },
-    "pk": 58
+      "url": "http://www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 59,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Eurostar",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.eurostar.com/uk-en/account/forgot-password",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "eurostar-plus-points",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.eurostar.com/uk-en/account/forgot-password",
+      "scan_message": "Ching Scan Message",
+      "name": "Eurostar Plus Points",
+      "tier": 2,
       "category": 2,
-      "name": "Eurostar Plus Points"
-    },
-    "pk": 59
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 60,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "House of Fraser",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.houseoffraser.co.uk/on/demandware.store/Sites-hof-Site/default/Customer-Account/C1032629462",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "633807",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "recognition-reward-card",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.houseoffraser.co.uk/on/demandware.store/Sites-hof-Site/default/Customer-Account/C1032629462",
+      "scan_message": "Ching Scan Message",
+      "name": "Recognition Reward Card",
+      "tier": 2,
       "category": 4,
-      "name": "Recognition Reward Card"
-    },
-    "pk": 60
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 61,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Brewers Fayre",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.brewersfayrebonusclub.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "bonus-club",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.brewersfayrebonusclub.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "scan_message": "Ching Scan Message",
+      "name": "Bonus Club",
+      "tier": 2,
       "category": 1,
-      "name": "Bonus Club"
-    },
-    "pk": 61
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 62,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Holland & Barret",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.hollandandbarrett.com/my-account/forgotPassword.jsp",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "2910",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "rewards-for-life",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.hollandandbarrett.com/my-account/forgotPassword.jsp",
+      "scan_message": "Ching Scan Message",
+      "name": "Rewards for Life",
+      "tier": 2,
       "category": 1,
-      "name": "Rewards for Life"
-    },
-    "pk": 62
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 63,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Stamps",
-      "company_url": "",
+      "is_active": true,
       "company": "GBK",
-      "tier": "2",
-      "point_conversion_rate": "2.2233",
-      "is_barcode": "0",
+      "point_conversion_rate": "2.223300",
+      "primary_question": null,
+      "barcode_type": null,
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
+      "slug": "gbk-rewards",
+      "has_transactions": false,
       "forgotten_password_url": "https://www.gbkapp.co.uk/u/forgotPassword",
-<<<<<<< Updated upstream
-      "identifier": null,
-      "is_active": "1",
-      "slug": "gbk-rewards",
-      "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "gbk-rewards",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "scan_message": "Ching Scan Message",
+      "name": "GBK Rewards",
+      "tier": 2,
       "category": 1,
-      "name": "GBK Rewards"
-    },
-    "pk": 63
+      "url": "www.companyURL.com",
+      "point_name": "Stamps"
+    }
   },
   {
+    "pk": 64,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Chillies",
-      "company_url": "",
+      "is_active": true,
       "company": "Nandos",
-      "tier": "2",
-      "point_conversion_rate": "1.45",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.nandos.co.uk/card/reset-password?nocache=9889417495578528",
-<<<<<<< Updated upstream
+      "point_conversion_rate": "1.450000",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": null,
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "nandos-card",
-      "barcode_type": null,
-=======
-      "identifier": "NULL",
-      "is_active": "1",
-      "slug": "nandos-card",
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.nandos.co.uk/card/reset-password?nocache=9889417495578528",
+      "scan_message": "Ching Scan Message",
+      "name": "Nandos Card",
+      "tier": 2,
       "category": 1,
-      "name": "Nandos Card"
-    },
-    "pk": 64
+      "url": "www.companyURL.com",
+      "point_name": "Chillies"
+    }
   },
   {
+    "pk": 65,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Subway",
-      "tier": "2",
-      "point_conversion_rate": "0.004",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://subcard.subway.co.uk/cardholder/JSP/SPForgottenPassword.jsp",
+      "point_conversion_rate": "0.004000",
+      "primary_question": null,
+      "barcode_type": 2,
       "identifier": "633845",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "subcard",
-      "barcode_type": "2",
+      "has_transactions": false,
+      "forgotten_password_url": "https://subcard.subway.co.uk/cardholder/JSP/SPForgottenPassword.jsp",
+      "scan_message": "Ching Scan Message",
+      "name": "Subcard",
+      "tier": 2,
       "category": 1,
-      "name": "Subcard"
-    },
-    "pk": 65
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 66,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Stamps",
-      "company_url": "",
+      "is_active": true,
       "company": "KFC",
-      "tier": "2",
-      "point_conversion_rate": "0.45",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.kfc.co.uk/colonelsclub#/forgot",
+      "point_conversion_rate": "0.450000",
+      "primary_question": 30,
+      "barcode_type": 3,
       "identifier": "(L224|L125)",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "colonels-club",
-      "barcode_type": "3",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.kfc.co.uk/colonelsclub#/forgot",
+      "scan_message": "Ching Scan Message",
+      "name": "Colonels Club",
+      "tier": 2,
       "category": 5,
-      "name": "Colonels Club"
-    },
-    "pk": 66
+      "url": "http://www.companyURL.com",
+      "point_name": "Stamps"
+    }
   },
   {
+    "pk": 67,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Pounds",
-      "company_url": "",
+      "is_active": true,
       "company": "Greggs",
-      "tier": "2",
-      "point_conversion_rate": "1",
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.greggs.co.uk/greggs-rewards/",
+      "point_conversion_rate": "1.000000",
+      "primary_question": null,
+      "barcode_type": 1,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "greggs-rewards",
-      "barcode_type": "1",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.greggs.co.uk/greggs-rewards/",
+      "scan_message": "Ching Scan Message",
+      "name": "Greggs Rewards",
+      "tier": 2,
       "category": 5,
-      "name": "Greggs Rewards"
-    },
-    "pk": 67
+      "url": "www.companyURL.com",
+      "point_name": "Pounds"
+    }
   },
   {
+    "pk": 68,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Beefeater",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.beefeatergrillrewardclub.co.uk/web/guest/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "219",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "beefeater-grill-reward-club",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.beefeatergrillrewardclub.co.uk/web/guest/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "scan_message": "Ching Scan Message",
+      "name": "Beefeater Grill Reward Club",
+      "tier": 2,
       "category": 5,
-      "name": "Beefeater Grill Reward Club"
-    },
-    "pk": 68
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 69,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "Matalan",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.matalan.co.uk/account/forgotpassword",
+      "primary_question": null,
+      "barcode_type": null,
       "identifier": "",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "matalan-reward-card",
-<<<<<<< Updated upstream
-      "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.matalan.co.uk/account/forgotpassword",
+      "scan_message": "Ching Scan Message",
+      "name": "Matalan Reward Card",
+      "tier": 2,
       "category": 4,
-      "name": "Matalan Reward Card"
-    },
-    "pk": 69
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 70,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "",
-      "company_url": "",
+      "is_active": true,
       "company": "Mothercare",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "0",
-      "forgotten_password_url": "https://www.mothercare.com/on/demandware.store/Sites-MCENGB-Site/default/Account-Show",
-      "identifier": "",
-      "is_active": "1",
-      "slug": "my-mothercare",
-<<<<<<< Updated upstream
+      "primary_question": null,
       "barcode_type": null,
-=======
-      "barcode_type": "-1",
->>>>>>> Stashed changes
+      "identifier": "",
+      "has_points": false,
+      "company_url": "",
+      "slug": "my-mothercare",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.mothercare.com/on/demandware.store/Sites-MCENGB-Site/default/Account-Show",
+      "scan_message": "Ching Scan Message",
+      "name": "My Mothercare",
+      "tier": 2,
       "category": 4,
-      "name": "My Mothercare"
-    },
-    "pk": 70
+      "url": "www.companyURL.com",
+      "point_name": ""
+    }
   },
   {
+    "pk": 71,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "M and Co",
-      "tier": "2",
-<<<<<<< Updated upstream
       "point_conversion_rate": null,
-=======
-      "point_conversion_rate": "-1",
->>>>>>> Stashed changes
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.mandco.com/sign-in",
+      "primary_question": null,
+      "barcode_type": 4,
       "identifier": "777",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "m-co-loyalty-card",
-      "barcode_type": "4",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.mandco.com/sign-in",
+      "scan_message": "Ching Scan Message",
+      "name": "M & Co Loyalty Card ",
+      "tier": 2,
       "category": 4,
-      "name": "M & Co Loyalty Card "
-    },
-    "pk": 71
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 72,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "Table Table",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "https://www.tabletabletastyrewards.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "7164",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "tasty-rewards",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "https://www.tabletabletastyrewards.co.uk/home?p_p_id=58&p_p_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=content-getting-started-right&p_p_col_count=1&_58_struts_action=%2Flogin%2Fforgot_password",
+      "scan_message": "Ching Scan Message",
+      "name": "Tasty Rewards",
+      "tier": 2,
       "category": 4,
-      "name": "Tasty Rewards"
-    },
-    "pk": 72
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
   },
   {
+    "pk": 73,
     "model": "scheme.scheme",
     "fields": {
-      "scan_message": "Ching Scan Message",
-      "url": "www.companyURL.com",
-      "point_name": "Points",
-      "company_url": "",
+      "is_active": true,
       "company": "The Works",
-      "tier": "2",
-      "point_conversion_rate": "0.01",
-      "is_barcode": "1",
-      "forgotten_password_url": "http://www.rewards.theworks.co.uk/log-in/forgotten.html",
+      "point_conversion_rate": "0.010000",
+      "primary_question": null,
+      "barcode_type": 0,
       "identifier": "633884",
-      "is_active": "1",
+      "has_points": false,
+      "company_url": "",
       "slug": "together-rewards-card",
-      "barcode_type": "0",
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.rewards.theworks.co.uk/log-in/forgotten.html",
+      "scan_message": "Ching Scan Message",
+      "name": "Together Rewards Card",
+      "tier": 2,
       "category": 4,
-      "name": "Together Rewards Card"
-    },
-    "pk": 73
+      "url": "www.companyURL.com",
+      "point_name": "Points"
+    }
+  },
+  {
+    "pk": 74,
+    "model": "scheme.scheme",
+    "fields": {
+      "is_active": false,
+      "company": "Crowne Plaza",
+      "point_conversion_rate": null,
+      "primary_question": null,
+      "barcode_type": null,
+      "identifier": null,
+      "has_points": false,
+      "company_url": "",
+      "slug": "crowne-rewards-club",
+      "has_transactions": false,
+      "forgotten_password_url": "http://www.ihg.com/hotels/gb/en/reservation#0",
+      "scan_message": "Test",
+      "name": "Crowne Plaza Priority Club",
+      "tier": 2,
+      "category": 3,
+      "url": "http://www.ihg.com",
+      "point_name": "Points"
+    }
   }
 ]

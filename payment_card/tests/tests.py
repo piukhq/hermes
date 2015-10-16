@@ -11,9 +11,7 @@ class TestPaymentCard(APITestCase):
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
-        cls.auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + str(cls.user.uid),
-        }
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_list(self):
@@ -40,21 +38,27 @@ class TestPaymentCard(APITestCase):
                 'expiry_year': 10,
                 'postcode': '28233',
                 'payment_card': self.payment_card.id,
-                'pan': '869978206660880',
+                'pan': '8699782066600880',
                 'name_on_card': 'Aron Stokes'}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertIn('id', response.data)
+        self.assertEqual(response.data['pan'], '869978******0880')
 
     def test_patch_payment_card_account(self):
-        data = {'pan': '345345345'}
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-                                     data=data, **self.auth_headers)
+                                     data={'pan': '9876782066603455'}, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
-        self.assertEqual(response.data['pan'], data['pan'])
+        self.assertEqual(response.data['pan'], "987678******3455")
+
+    def test_patch_payment_card_account_bad_length(self):
+        response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
+                                     data={'pan': '987678202323466603455'}, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {'pan': ['987678202323466603455 is not the correct length']})
 
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),

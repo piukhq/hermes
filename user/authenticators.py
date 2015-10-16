@@ -1,7 +1,9 @@
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from django.utils.translation import ugettext_lazy as _
 from user.models import CustomUser
-from rest_framework import HTTP_HEADER_ENCODING, exceptions
+from rest_framework import exceptions
+import jwt
+from django.conf import settings
 
 
 class UIDAuthentication(BaseAuthentication):
@@ -55,3 +57,18 @@ class UIDAuthentication(BaseAuthentication):
 
     def authenticate_header(self, request):
         return 'Token'
+
+
+class JwtAuthentication(UIDAuthentication):
+    def authenticate_credentials(self, key):
+        try:
+            token_contents = jwt.decode(key, settings.TOKEN_SECRET)
+        except jwt.DecodeError:
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+
+        try:
+            token = self.model.objects.get(id=token_contents['sub'])
+        except self.model.DoesNotExist:
+            raise exceptions.AuthenticationFailed(_('User does not exist.'))
+
+        return token, token

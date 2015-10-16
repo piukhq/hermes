@@ -4,6 +4,7 @@ BARCODE = 'barcode'
 PASSWORD = 'password'
 DATE_OF_BIRTH = 'date_of_birth'
 EMAIL = 'email'
+POSTCODE = 'postcode'
 
 CREDENTIAL_TYPES = [
     (USER_NAME, 'user name'),
@@ -12,6 +13,7 @@ CREDENTIAL_TYPES = [
     (BARCODE, 'barcode'),
     (PASSWORD, 'password'),
     (DATE_OF_BIRTH, 'date of birth'),
+    (POSTCODE, 'postcode'),
 ]
 
 ENCRYPTED_CREDENTIALS = [
