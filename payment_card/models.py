@@ -89,5 +89,5 @@ class PaymentCardAccount(models.Model):
 
     def save(self, *args, **kwargs):
         pan = self.pan.strip().replace(" ", "").replace("-", "")
-        self.pan = pan[:6] + "xxxxxx" + pan[-4:]
+        self.pan = pan[:6] + "******" + pan[-4:]
         super(PaymentCardAccount, self).save(*args, **kwargs)

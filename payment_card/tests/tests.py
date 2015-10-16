@@ -45,14 +45,14 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertIn('id', response.data)
-        self.assertEqual(response.data['pan'], '869978xxxxxx0880')
+        self.assertEqual(response.data['pan'], '869978******0880')
 
     def test_patch_payment_card_account(self):
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                      data={'pan': '9876782066603455'}, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
-        self.assertEqual(response.data['pan'], "987678xxxxxx3455")
+        self.assertEqual(response.data['pan'], "987678******3455")
 
     def test_patch_payment_card_account_bad_length(self):
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
