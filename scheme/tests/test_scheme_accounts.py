@@ -124,7 +124,7 @@ class TestSchemeAccount(APITestCase):
         deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)
 
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(deleted_scheme_account.status, SchemeAccount.DELETED)
+        self.assertTrue(deleted_scheme_account.is_deleted)
 
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)

@@ -113,7 +113,7 @@ class SchemeImage(models.Model):
 
 class ActiveManager(models.Manager):
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(status=SchemeAccount.DELETED)
+            return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):
@@ -122,7 +122,6 @@ class SchemeAccount(models.Model):
     INVALID_CREDENTIALS = 403
     INVALID_MFA = 432
     END_SITE_DOWN = 530
-    DELETED = 4
     INCOMPLETE = 5
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
@@ -136,7 +135,6 @@ class SchemeAccount(models.Model):
         (INVALID_CREDENTIALS, 'invalid credentials'),
         (INVALID_MFA, 'invalid_mfa'),
         (END_SITE_DOWN, 'end site down'),
-        (DELETED, 'deleted'),
         (INCOMPLETE, 'incomplete'),
         (LOCKED_BY_ENDSITE, 'account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
@@ -151,6 +149,7 @@ class SchemeAccount(models.Model):
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+    is_deleted = models.BooleanField(default=False)
 
     objects = BulkUpdateManager()
     active_objects = ActiveManager()
@@ -183,8 +182,6 @@ class SchemeAccount(models.Model):
             return 'SYSTEM_ACTION_REQUIRED'
         elif self.status == self.ACTIVE:
             return 'ACTIVE'
-        elif self.status == self.DELETED:
-            return 'DELETED'
         elif self.status == self.WALLET_ONLY:
             return 'WALLET_ONLY'
 
