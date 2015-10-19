@@ -4,8 +4,7 @@ from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.views import APIView
+from rest_framework.permissions import IsAdminUser
 from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
@@ -15,7 +14,6 @@ from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer,
                                 ActiveSchemeAccountAccountsSerializer)
 from rest_framework import status
 from rest_framework.response import Response
-from user.authenticators import JwtAuthentication
 from rest_framework import serializers
 
 
@@ -28,25 +26,16 @@ class SwappableSerializerMixin(object):
 
 
 class SchemesList(generics.ListAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     queryset = Scheme.objects.filter(is_active=True)
     serializer_class = SchemeSerializer
 
 
 class RetrieveScheme(RetrieveAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
 
 class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     override_serializer_classes = {
         'PUT': UpdateSchemeAccountSerializer,
         'PATCH': UpdateSchemeAccountSerializer,
@@ -85,9 +74,6 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
         'POST': CreateSchemeAccountSerializer,
@@ -181,21 +167,17 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
 
 class CreateAnswer(CreateAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     serializer_class = SchemeAccountAnswerSerializer
 
 
 class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
-    authentication_classes = (JwtAuthentication,)
-    permission_classes = (IsAuthenticated,)
-
     serializer_class = SchemeAccountAnswerSerializer
     queryset = SchemeAccountCredentialAnswer.objects
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
+    permission_classes = (IsAdminUser,)
+
     serializer_class = StatusSerializer
 
     def post(self, request, *args, **kwargs):
@@ -219,12 +201,16 @@ class Pagination(PageNumberPagination):
 
 
 class ActiveSchemeAccountAccounts(generics.ListAPIView):
+    permission_classes = (IsAdminUser,)
+
     queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE).only("id")
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
 
 
 class SystemActionSchemeAccountAccounts(generics.ListAPIView):
+    permission_classes = (IsAdminUser,)
+
     queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED).only("id")
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
