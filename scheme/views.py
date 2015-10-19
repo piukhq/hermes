@@ -91,19 +91,11 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
             scheme_account.save()
 
         if serialized_credentials:
-            encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
-            parameters = {'scheme_account_id': scheme_account.id, 'user_id': scheme_account.user.id,
-                          'credentials': encrypted_credentials}
-            try:
-                response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
-                if response.status_code == 200:
-                    scheme_account.status = SchemeAccount.ACTIVE
-                    response_data['points'] = response.json()['points']
-                else:
-                    scheme_account.status = response.status_code
-            except ConnectionError:
-                scheme_account.status = SchemeAccount.MIDAS_UNREACHEABLE
+            response_code, points = call_midas(serialized_credentials, scheme_account)
+            scheme_account.status = response_code
             scheme_account.save()
+            if points:
+                response_data['points'] = points
 
         # Pop scheme and user because these are the only two keys not related to questions
         request.data.pop('scheme', None)
@@ -187,19 +179,11 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             scheme_account.save()
 
         if serialized_credentials:
-            encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
-            parameters = {'scheme_account_id': scheme_account.id, 'user_id': scheme_account.user.id,
-                          'credentials': encrypted_credentials}
-            try:
-                response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme.slug), params=parameters)
-                if response.status_code == 200:
-                    scheme_account.status = SchemeAccount.ACTIVE
-                    response_data['points'] = response.json()['points']
-                else:
-                    scheme_account.status = response.status_code
-            except ConnectionError:
-                scheme_account.status = SchemeAccount.MIDAS_UNREACHEABLE
+            response_code, points = call_midas(serialized_credentials, scheme_account)
+            scheme_account.status = response_code
             scheme_account.save()
+            if points:
+                response_data['points'] = points
 
         # Pop scheme and user because these are the only two keys not related to questions
         request.data.pop('scheme')
@@ -271,3 +255,19 @@ class SystemActionSchemeAccountAccounts(generics.ListAPIView):
 
 def json_error_response(message, code):
     return Response({"message": message, "code": code}, status=code)
+
+
+def call_midas(serialized_credentials, scheme_account):
+    encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+    parameters = {'scheme_account_id': scheme_account.id, 'user_id': scheme_account.user.id,
+                  'credentials': encrypted_credentials}
+    try:
+        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, scheme_account.scheme.slug), params=parameters)
+        if response.status_code == 200:
+            return SchemeAccount.ACTIVE,  response.json()['points']
+        else:
+            return response.status_code, None
+    except ConnectionError:
+        return SchemeAccount.MIDAS_UNREACHEABLE, None
+
+
