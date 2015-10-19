@@ -97,6 +97,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['user_name'], 'andrew')
         self.assertEqual(content['card_number'], '1234')
+        self.assertEqual(content['status'], 404)
 
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
