@@ -145,8 +145,9 @@ MEDIA_URL = env_var("HERMES_MEDIA_URL", '/media/')
 AUTH_USER_MODEL = 'user.CustomUser'
 
 LOCAL_AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
-
 AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
+
+SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
 
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 
