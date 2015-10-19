@@ -31,6 +31,8 @@ class TestScheme(APITestCase):
         content = json.loads(response.content.decode())
         self.assertTrue(response.data)
         for resp_scheme in content:
+            self.assertIn('has_points', resp_scheme.keys())
+            self.assertIn('has_transactions', resp_scheme.keys())
             if resp_scheme['id'] == scheme.id:
                 # Question related assertions
                 self.assertEqual(len(resp_scheme['questions']), 1)
