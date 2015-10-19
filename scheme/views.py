@@ -53,7 +53,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
         primary_question = scheme.primary_question
 
-        for scheme_account in scheme_accounts:
+        for scheme_account in scheme_accounts.exclude(id=scheme_account.id):
             try:
                 existing_primary_answer = scheme_account.primary_answer
             except SchemeAccountCredentialAnswer.DoesNotExist:
@@ -106,8 +106,8 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
             scheme_account.save()
 
         # Pop scheme and user because these are the only two keys not related to questions
-        request.data.pop('scheme')
-        request.data.pop('user')
+        request.data.pop('scheme', None)
+        request.data.pop('user', None)
         if list(request.data.keys()) == [scheme.primary_question.type]:
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save()
