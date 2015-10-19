@@ -1,12 +1,13 @@
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from django.utils.translation import ugettext_lazy as _
+from rest_framework.permissions import BasePermission
 from user.models import CustomUser
 from rest_framework import exceptions
 import jwt
 from django.conf import settings
 
 
-class UIDAuthentication(BaseAuthentication):
+class JwtAuthentication(BaseAuthentication):
     """
     Simple token based authentication.
 
@@ -47,21 +48,6 @@ class UIDAuthentication(BaseAuthentication):
 
     def authenticate_credentials(self, key):
         try:
-            token = self.model.objects.get(uid=key)
-        except self.model.DoesNotExist:
-            raise exceptions.AuthenticationFailed(_('Invalid token.'))
-
-        if not token.is_active:
-            raise exceptions.AuthenticationFailed(_('User inactive or deleted.'))
-        return token, token
-
-    def authenticate_header(self, request):
-        return 'Token'
-
-
-class JwtAuthentication(UIDAuthentication):
-    def authenticate_credentials(self, key):
-        try:
             token_contents = jwt.decode(key, settings.TOKEN_SECRET)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
@@ -72,3 +58,22 @@ class JwtAuthentication(UIDAuthentication):
             raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
         return token, token
+
+    def authenticate_header(self, request):
+        return 'Token'
+
+
+class ServiceAuthentication(JwtAuthentication):
+    """
+    Authentication for olympus services
+    """
+    def authenticate_credentials(self, key):
+        if key != settings.SERVICE_API_KEY:
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+        user = "api_user"
+        return user, None
+
+
+class AllowService(BasePermission):
+    def has_permission(self, request, view):
+        return request.user == 'api_user'

@@ -4,7 +4,6 @@ from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAdminUser
 from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount
@@ -15,6 +14,7 @@ from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer,
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
+from user.authentication import ServiceAuthentication, AllowService
 
 
 class SwappableSerializerMixin(object):
@@ -176,7 +176,8 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
 
     serializer_class = StatusSerializer
 
@@ -201,7 +202,8 @@ class Pagination(PageNumberPagination):
 
 
 class ActiveSchemeAccountAccounts(generics.ListAPIView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
 
     queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE).only("id")
     serializer_class = ActiveSchemeAccountAccountsSerializer
@@ -209,7 +211,8 @@ class ActiveSchemeAccountAccounts(generics.ListAPIView):
 
 
 class SystemActionSchemeAccountAccounts(generics.ListAPIView):
-    permission_classes = (IsAdminUser,)
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
 
     queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED).only("id")
     serializer_class = ActiveSchemeAccountAccountsSerializer
