@@ -2,7 +2,7 @@ services:
 - postgres:9.4.4
 
 variables:
-  HERMES_DATABASE_URL:  "postgres://postgres@$POSTGRES_PORT_5432_TCP_ADDR:5432$POSTGRES_NAME"
+  HERMES_DATABASE_URL:  "postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
 
 dev:
   script:
