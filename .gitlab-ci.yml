@@ -1,0 +1,8 @@
+services:
+- postgresql:9.4.4
+
+dev:
+  script:
+  - pip3 install -r requirements.txt
+  - python3 manage.py test
+
