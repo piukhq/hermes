@@ -82,7 +82,7 @@ class RetrieveSchemeAccount(RetrieveAPIView):
                 answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
                                                                    type=security_question.type)
                 if answer.type in ENCRYPTED_CREDENTIALS:
-                    credentials[security_question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer).decode('utf-8')
+                    credentials[security_question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
                 else:
                     credentials[security_question.type] = answer.answer
 
