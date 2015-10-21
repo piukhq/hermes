@@ -51,22 +51,25 @@ class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
 
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
-    primary_answer = SchemeAccountAnswerSerializer(read_only=True)
+    primary_answer_id = serializers.IntegerField()
     scheme = SchemeSerializerNoQuestions(read_only=True)
     action_status = serializers.ReadOnlyField()
+    answers = SchemeAccountAnswerSerializer(many=True, read_only=True)
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', )
+        exclude = ('updated',)
         read_only_fields = ('status', )
 
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
+    primary_answer = SchemeAccountAnswerSerializer(read_only=True)
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', )
+        fields = ('scheme', 'status', 'order', 'created', 'primary_answer', 'action_status')
+        # exclude = ('updated', )
 
 
 class StatusSerializer(serializers.Serializer):

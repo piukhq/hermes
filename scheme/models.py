@@ -175,6 +175,14 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type)
 
     @property
+    def primary_answer_id(self):
+        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type).id
+
+    @property
+    def answers(self):
+        return self.schemeaccountcredentialanswer_set.all()
+
+    @property
     def action_status(self):
         if self.status in self.USER_ACTION_REQUIRED:
             return 'USER_ACTION_REQUIRED'

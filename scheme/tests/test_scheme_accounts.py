@@ -13,9 +13,11 @@ class TestSchemeAccount(APITestCase):
     def setUpClass(cls):
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
         cls.scheme_account = cls.scheme_account_answer.scheme_account
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER, scheme_account=cls.scheme_account)
         cls.scheme = cls.scheme_account.scheme
         cls.user = cls.scheme_account.user
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
+        cls.scheme.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         cls.scheme.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
@@ -105,8 +107,8 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
-        self.assertEqual(response.data['primary_answer']['id'], self.scheme_account_answer.id)
-        self.assertEqual(response.data['primary_answer']['answer'], self.scheme_account_answer.answer)
+        self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
+        self.assertEqual(len(response.data['answers']), 2)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
@@ -146,7 +148,7 @@ class TestSchemeAccount(APITestCase):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
-        self.assertNotIn('primary_answer', response.data[0])
+        self.assertIn('primary_answer', response.data[0])
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
