@@ -68,7 +68,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('scheme', 'status', 'order', 'created', 'primary_answer', 'action_status')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status')
         # exclude = ('updated', )
 
 
