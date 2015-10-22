@@ -73,7 +73,7 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
         scheme = scheme_account.scheme
 
-        credentials = scheme_account.encrypted_credentials()
+        credentials = scheme_account.credentials()
         if not credentials:
             scheme_account.save()
 
