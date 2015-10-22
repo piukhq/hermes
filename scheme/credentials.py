@@ -6,7 +6,7 @@ DATE_OF_BIRTH = 'date_of_birth'
 EMAIL = 'email'
 POSTCODE = 'postcode'
 
-CREDENTIAL_TYPES = [
+CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
     (EMAIL, 'email'),
     (CARD_NUMBER, 'card number'),
@@ -14,8 +14,8 @@ CREDENTIAL_TYPES = [
     (PASSWORD, 'password'),
     (DATE_OF_BIRTH, 'date of birth'),
     (POSTCODE, 'postcode'),
-]
+)
 
-ENCRYPTED_CREDENTIALS = [
+ENCRYPTED_CREDENTIALS = (
     PASSWORD
-]
+)
