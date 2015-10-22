@@ -213,7 +213,7 @@ class TestSchemeAccount(APITestCase):
     def test_scheme_account_collect_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
 
-        self.assertEqual(self.scheme_account.collect_credentials(), {
+        self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
             'user_name': self.scheme_account_answer.answer})
 

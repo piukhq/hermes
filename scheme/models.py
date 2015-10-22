@@ -163,7 +163,7 @@ class SchemeAccount(models.Model):
     objects = BulkUpdateManager()
     active_objects = ActiveManager()
 
-    def collect_credentials(self):
+    def _collect_credentials(self):
         credentials = {}
         for answer in self.schemeaccountcredentialanswer_set.all():
             if answer.type in ENCRYPTED_CREDENTIALS:
@@ -173,7 +173,7 @@ class SchemeAccount(models.Model):
         return credentials
 
     def credentials(self):
-        credentials = self.collect_credentials()
+        credentials = self._collect_credentials()
         if not {question.type for question in self.scheme.questions.all()}.issubset(set(credentials.keys())):
             self.status = SchemeAccount.INCOMPLETE
             return None
