@@ -8,6 +8,7 @@ from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
 import json
 import requests
+import uuid
 
 
 class Category(models.Model):
@@ -162,7 +163,7 @@ class SchemeAccount(models.Model):
     objects = BulkUpdateManager()
     active_objects = ActiveManager()
 
-    def credentials(self):
+    def _collect_credentials(self):
         credentials = {}
         for answer in self.schemeaccountcredentialanswer_set.all():
             if answer.type in ENCRYPTED_CREDENTIALS:
@@ -171,8 +172,8 @@ class SchemeAccount(models.Model):
                 credentials[answer.type] = answer.answer
         return credentials
 
-    def encrypted_credentials(self):
-        credentials = self.credentials()
+    def credentials(self):
+        credentials = self._collect_credentials()
         if not {question.type for question in self.scheme.questions.all()}.issubset(set(credentials.keys())):
             self.status = SchemeAccount.INCOMPLETE
             return None
@@ -182,12 +183,12 @@ class SchemeAccount(models.Model):
     def get_midas_balance(self):
         points = None
         try:
-            credentials = self.encrypted_credentials()
+            credentials = self.credentials()
             if not credentials:
                 return points
             parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
             response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                    params=parameters)
+                                    params=parameters, headers={"transaction": str(uuid.uuid1())})
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE

@@ -77,6 +77,9 @@ class StatusSerializer(serializers.Serializer):
 
 
 class ActiveSchemeAccountAccountsSerializer(serializers.ModelSerializer):
+    credentials = serializers.ReadOnlyField()
+    scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
+
     class Meta:
         model = SchemeAccount
-        fields = ('id', )
+        fields = ('id', 'scheme', 'credentials', 'user')
