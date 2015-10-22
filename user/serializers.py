@@ -57,7 +57,6 @@ class UserSerializer(serializers.ModelSerializer):
             instance.save()
         return instance
 
-
     uid = serializers.CharField(read_only=True, required=False)
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())], required=False)
     first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)

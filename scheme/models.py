@@ -6,6 +6,8 @@ from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
+import json
+import requests
 
 
 class Category(models.Model):
@@ -161,14 +163,38 @@ class SchemeAccount(models.Model):
     active_objects = ActiveManager()
 
     def credentials(self):
-        challenges_with_responses = {}
-        security_questions = SchemeCredentialQuestion.objects.filter(scheme=self.scheme)
-        if security_questions:
-            for security_question in security_questions:
-                answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=self,
-                                                                   type=security_question.type)
-                challenges_with_responses[security_question.type] = answer.answer
-        return challenges_with_responses
+        credentials = {}
+        for answer in self.schemeaccountcredentialanswer_set.all():
+            if answer.type in ENCRYPTED_CREDENTIALS:
+                credentials[answer.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
+            else:
+                credentials[answer.type] = answer.answer
+        return credentials
+
+    def encrypted_credentials(self):
+        credentials = self.credentials()
+        if not {question.type for question in self.scheme.questions.all()}.issubset(set(credentials.keys())):
+            self.status = SchemeAccount.INCOMPLETE
+            return None
+        serialized_credentials = json.dumps(credentials)
+        return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+
+    def get_midas_balance(self):
+        points = None
+        try:
+            credentials = self.encrypted_credentials()
+            if not credentials:
+                return points
+            parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+            response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
+                                    params=parameters)
+            self.status = response.status_code
+            if response.status_code == 200:
+                self.status = SchemeAccount.ACTIVE
+                points = response.json()['points']
+        except ConnectionError:
+            self.status = SchemeAccount.MIDAS_UNREACHEABLE
+        return points
 
     @property
     def primary_answer(self):

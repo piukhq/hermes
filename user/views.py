@@ -11,10 +11,7 @@ from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, Update
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from hermes import settings
-from scheme.credentials import ENCRYPTED_CREDENTIALS
-from scheme.encyption import AESCipher
-from scheme.models import SchemeAccount, SchemeCredentialQuestion, SchemeAccountCredentialAnswer
+from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
@@ -75,24 +72,15 @@ class RetrieveSchemeAccount(RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
         scheme = scheme_account.scheme
-        credentials = {}
-        security_questions = SchemeCredentialQuestion.objects.filter(scheme=scheme)
-        if security_questions:
-            for security_question in security_questions:
-                answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
-                                                                   type=security_question.type)
-                if answer.type in ENCRYPTED_CREDENTIALS:
-                    credentials[security_question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
-                else:
-                    credentials[security_question.type] = answer.answer
 
-        serialized_credentials = json.dumps(credentials)
-        encrypted_credentials = AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+        credentials = scheme_account.encrypted_credentials()
+        if not credentials:
+            scheme_account.save()
 
         instance = SimpleNamespace(scheme_slug=scheme.slug,
                                    user_id=request.user.id,
                                    scheme_account_id=scheme_account.id,
-                                   credentials=encrypted_credentials)
+                                   credentials=credentials)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
