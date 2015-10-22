@@ -6,6 +6,7 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME
+import json
 
 
 class TestSchemeAccount(APITestCase):
@@ -13,7 +14,8 @@ class TestSchemeAccount(APITestCase):
     def setUpClass(cls):
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
         cls.scheme_account = cls.scheme_account_answer.scheme_account
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER, scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
+                                                                         scheme_account=cls.scheme_account)
         cls.scheme = cls.scheme_account.scheme
         cls.user = cls.scheme_account.user
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
@@ -61,7 +63,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
-
 
     def test_update_scheme_account_with_answers(self):
         scheme = SchemeFactory()
@@ -206,3 +207,26 @@ class TestSchemeAccount(APITestCase):
         self.assertIsNone(response.data['next'])
         self.assertIn(scheme.id, scheme_ids)
         self.assertNotIn(scheme_2.id, scheme_ids)
+
+    def test_scheme_account_credentials(self):
+        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
+
+        self.assertEqual(self.scheme_account.credentials(), {'card_number': self.second_scheme_account_answer.answer,
+                                                             'password': 'test_password',
+                                                             'user_name': self.scheme_account_answer.answer})
+
+    def test_scheme_account_encrypted_credentials(self):
+        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
+        decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
+            self.scheme_account.encrypted_credentials()))
+
+        self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
+                                                 'password': 'test_password',
+                                                 'user_name': self.scheme_account_answer.answer})
+
+
+    def test_scheme_account_encrypted_credentials_bad(self):
+        scheme_account = SchemeAccount(scheme=self.scheme)
+        encrypted_credentials = scheme_account.encrypted_credentials()
+        self.assertIsNone(encrypted_credentials)
+        self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
