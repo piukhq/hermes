@@ -79,8 +79,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
         points = scheme_account.get_midas_balance()
         scheme_account.save()
-        if points:
-            response_data['points'] = points
+        response_data['points'] = points
 
         # Pop scheme and user because these are the only two keys not related to questions
         request.data.pop('scheme', None)
