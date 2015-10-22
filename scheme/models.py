@@ -192,6 +192,8 @@ class SchemeAccount(models.Model):
             return 'ACTIVE'
         elif self.status == self.WALLET_ONLY:
             return 'WALLET_ONLY'
+        elif self.status == self.PENDING:
+            return 'PENDING'
 
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
