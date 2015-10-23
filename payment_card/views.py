@@ -1,9 +1,10 @@
 from rest_framework import generics
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, ListCreateAPIView
 from rest_framework.response import Response
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer
 from rest_framework import status
+from scheme.views import SwappableSerializerMixin
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -22,5 +23,13 @@ class RetrievePaymentCardAccount(RetrieveUpdateAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreatePaymentCardAccount(CreateAPIView):
+class CreatePaymentCardAccount(ListCreateAPIView):
     serializer_class = PaymentCardAccountSerializer
+
+    def post(self, request, *args, **kwargs):
+        request.data['user'] = request.user.id
+        return super(CreatePaymentCardAccount, self).post(request, *args, **kwargs)
+
+    def get_queryset(self):
+        user = self.request.user
+        return PaymentCardAccount.active_objects.filter(user=user)
