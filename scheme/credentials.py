@@ -1,4 +1,4 @@
-USER_NAME = 'user_name'
+USER_NAME = 'username'
 CARD_NUMBER = 'card_number'
 BARCODE = 'barcode'
 PASSWORD = 'password'
