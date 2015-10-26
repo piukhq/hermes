@@ -22,6 +22,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = 'uid'
 
+    REQUIRED_FIELDS = ['email']
     objects = CustomUserManager()
 
     class Meta:
