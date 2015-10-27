@@ -69,17 +69,21 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
         fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status')
-        # exclude = ('updated', )
 
 
 class StatusSerializer(serializers.Serializer):
     status = serializers.IntegerField()
 
 
-class ActiveSchemeAccountAccountsSerializer(serializers.ModelSerializer):
+class SchemeAccountIdsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeAccount
+        fields = ('id', )
+
+
+class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     credentials = serializers.ReadOnlyField()
     scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
-
     class Meta:
         model = SchemeAccount
         fields = ('id', 'scheme', 'credentials', 'user', 'status')

@@ -194,8 +194,8 @@ class TestSchemeAccount(APITestCase):
         scheme_ids = [result['id'] for result in response.data['results']]
         self.assertIsNone(response.data['next'])
         self.assertIn(scheme.id, scheme_ids)
-        self.assertIn('credentials', response.data['results'][0])
-        self.assertIn('scheme', response.data['results'][0])
+        self.assertNotIn('credentials', response.data['results'][0])
+        self.assertNotIn('scheme', response.data['results'][0])
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
@@ -208,6 +208,17 @@ class TestSchemeAccount(APITestCase):
         self.assertIsNone(response.data['next'])
         self.assertIn(scheme.id, scheme_ids)
         self.assertNotIn(scheme_2.id, scheme_ids)
+
+    def test_get_scheme_accounts_credentials(self):
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                   **self.auth_service_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('credentials', response.data)
+        self.assertIn('scheme', response.data)
+        self.assertIn('user', response.data)
+        self.assertIn('id', response.data)
+
 
     def test_scheme_account_collect_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)

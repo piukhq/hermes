@@ -1,13 +1,15 @@
 from django.conf.urls import patterns, url
 from scheme.views import (CreateAccount, SchemesList, RetrieveUpdateDeleteAccount, RetrieveScheme,
-                            CreateAnswer, RetrieveUpdateDestroyAnswer, UpdateSchemeAccountStatus,
-                          ActiveSchemeAccountAccounts, SystemActionSchemeAccountAccounts)
+                          CreateAnswer, SchemeAccountsCredentials, UpdateSchemeAccountStatus,
+                          ActiveSchemeAccountAccounts, SystemActionSchemeAccounts)
 
 urlpatterns = patterns('schemes',
                        url(r'^/accounts/?$', CreateAccount.as_view(), name='create_scheme_account'),
                        url(r'^/accounts/active$', ActiveSchemeAccountAccounts.as_view(), name='create_scheme_account'),
-                       url(r'^/accounts/system_retry$', SystemActionSchemeAccountAccounts.as_view(),
+                       url(r'^/accounts/system_retry$', SystemActionSchemeAccounts.as_view(),
                            name='create_scheme_account'),
+                       url(r'^/accounts/(?P<pk>[0-9]+)/credentials', SchemeAccountsCredentials.as_view(),
+                           name='change_account_status'),
                        url(r'^/accounts/(?P<pk>[0-9]+)/status/?$', UpdateSchemeAccountStatus.as_view(),
                            name='change_account_status'),
                        url(r'^/accounts/(?P<pk>[0-9]+)$', RetrieveUpdateDeleteAccount.as_view(),
