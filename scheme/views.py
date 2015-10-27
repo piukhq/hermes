@@ -213,7 +213,9 @@ class ActiveSchemeAccountAccounts(generics.ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
-    queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
+    def get_queryset(self):
+        return SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
+
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
 
@@ -222,7 +224,9 @@ class SystemActionSchemeAccountAccounts(generics.ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
-    queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+    def get_queryset(self):
+        return SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
 
