@@ -82,4 +82,4 @@ class ActiveSchemeAccountAccountsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'user')
+        fields = ('id', 'scheme', 'credentials', 'user', 'status')

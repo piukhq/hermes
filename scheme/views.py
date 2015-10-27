@@ -206,14 +206,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
 
 class Pagination(PageNumberPagination):
-    page_size = 1000
+    page_size = 500
 
 
 class ActiveSchemeAccountAccounts(generics.ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
-    queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE).only("id")
+    queryset = SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
 
@@ -222,7 +222,7 @@ class SystemActionSchemeAccountAccounts(generics.ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
-    queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED).only("id")
+    queryset = SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
     serializer_class = ActiveSchemeAccountAccountsSerializer
     pagination_class = Pagination
 
