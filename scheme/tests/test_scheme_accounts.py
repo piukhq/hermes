@@ -93,7 +93,7 @@ class TestSchemeAccount(APITestCase):
         }
         response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
-        response = self.client.put('/schemes/accounts/{}'.format(scheme.id), data=data, **self.auth_headers)
+        response = self.client.put('/schemes/accounts/{}'.format(content['id']), data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
@@ -227,7 +227,7 @@ class TestSchemeAccount(APITestCase):
                                                  'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials_bad(self):
-        scheme_account = SchemeAccount(scheme=self.scheme)
+        scheme_account = SchemeAccount(scheme=self.scheme, user=self.user)
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)

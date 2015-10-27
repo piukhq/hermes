@@ -176,6 +176,7 @@ class SchemeAccount(models.Model):
         credentials = self._collect_credentials()
         if not {question.type for question in self.scheme.questions.all()}.issubset(set(credentials.keys())):
             self.status = SchemeAccount.INCOMPLETE
+            self.save()
             return None
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
