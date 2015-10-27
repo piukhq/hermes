@@ -43,7 +43,7 @@ class TestSchemeAccount(APITestCase):
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         password = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(content['password'])
         self.assertEqual(password, 'password1234')
         self.assertEqual(content['card_number'], '1234')
@@ -83,7 +83,7 @@ class TestSchemeAccount(APITestCase):
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         self.assertEqual(content['card_number'], '1234')
         data = {
                 'scheme': scheme.id,
@@ -93,12 +93,11 @@ class TestSchemeAccount(APITestCase):
         }
         response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
-        response = self.client.put('/schemes/accounts/{}'.format(scheme.id), data=data, **self.auth_headers)
+        response = self.client.put('/schemes/accounts/{}'.format(content['id']), data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         content = response.data
-        self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         self.assertEqual(content['card_number'], '1234')
         self.assertEqual(content['status'], 404)
 
@@ -195,8 +194,8 @@ class TestSchemeAccount(APITestCase):
         scheme_ids = [result['id'] for result in response.data['results']]
         self.assertIsNone(response.data['next'])
         self.assertIn(scheme.id, scheme_ids)
-        self.assertIn('credentials', response.data['results'][0])
-        self.assertIn('scheme', response.data['results'][0])
+        self.assertNotIn('credentials', response.data['results'][0])
+        self.assertNotIn('scheme', response.data['results'][0])
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
@@ -210,12 +209,23 @@ class TestSchemeAccount(APITestCase):
         self.assertIn(scheme.id, scheme_ids)
         self.assertNotIn(scheme_2.id, scheme_ids)
 
+    def test_get_scheme_accounts_credentials(self):
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                   **self.auth_service_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('credentials', response.data)
+        self.assertIn('scheme', response.data)
+        self.assertIn('user', response.data)
+        self.assertIn('id', response.data)
+
+
     def test_scheme_account_collect_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
 
         self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
-            'user_name': self.scheme_account_answer.answer})
+            'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
@@ -224,10 +234,10 @@ class TestSchemeAccount(APITestCase):
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
-                                                 'user_name': self.scheme_account_answer.answer})
+                                                 'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials_bad(self):
-        scheme_account = SchemeAccount(scheme=self.scheme)
+        scheme_account = SchemeAccount(scheme=self.scheme, user=self.user)
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
