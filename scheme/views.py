@@ -1,12 +1,12 @@
 from rest_framework import generics
 from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
-    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView
+    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView, ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
                                 ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer,
-                                ActiveSchemeAccountAccountsSerializer)
+                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -21,7 +21,7 @@ class SwappableSerializerMixin(object):
         return self.override_serializer_classes[self.request.method]
 
 
-class SchemesList(generics.ListAPIView):
+class SchemesList(ListAPIView):
     queryset = Scheme.objects.filter(is_active=True)
     serializer_class = SchemeSerializer
 
@@ -186,7 +186,6 @@ class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
 class UpdateSchemeAccountStatus(GenericAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
-
     serializer_class = StatusSerializer
 
     def post(self, request, *args, **kwargs):
@@ -209,26 +208,33 @@ class Pagination(PageNumberPagination):
     page_size = 500
 
 
-class ActiveSchemeAccountAccounts(generics.ListAPIView):
+class ActiveSchemeAccountAccounts(ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
         return SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
 
-    serializer_class = ActiveSchemeAccountAccountsSerializer
+    serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
 
 
-class SystemActionSchemeAccountAccounts(generics.ListAPIView):
+class SystemActionSchemeAccounts(ListAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
         return SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
 
-    serializer_class = ActiveSchemeAccountAccountsSerializer
+    serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
+
+
+class SchemeAccountsCredentials(RetrieveAPIView):
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+    queryset = SchemeAccount.active_objects
+    serializer_class = SchemeAccountCredentialsSerializer
 
 
 def json_error_response(message, code):
