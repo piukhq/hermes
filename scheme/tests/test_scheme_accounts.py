@@ -43,7 +43,7 @@ class TestSchemeAccount(APITestCase):
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         password = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(content['password'])
         self.assertEqual(password, 'password1234')
         self.assertEqual(content['card_number'], '1234')
@@ -83,7 +83,7 @@ class TestSchemeAccount(APITestCase):
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         self.assertEqual(content['card_number'], '1234')
         data = {
                 'scheme': scheme.id,
@@ -98,7 +98,7 @@ class TestSchemeAccount(APITestCase):
         content = response.data
         self.assertEqual(content['scheme_id'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['user_name'], 'andrew')
+        self.assertEqual(content['username'], 'andrew')
         self.assertEqual(content['card_number'], '1234')
         self.assertEqual(content['status'], 404)
 
@@ -215,7 +215,7 @@ class TestSchemeAccount(APITestCase):
 
         self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
-            'user_name': self.scheme_account_answer.answer})
+            'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
@@ -224,7 +224,7 @@ class TestSchemeAccount(APITestCase):
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
-                                                 'user_name': self.scheme_account_answer.answer})
+                                                 'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccount(scheme=self.scheme)
