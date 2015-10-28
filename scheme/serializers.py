@@ -46,8 +46,8 @@ class CreateSchemeAccountSerializer(serializers.ModelSerializer):
 class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'status')
-        read_only_fields = ('user', 'scheme')
+        exclude = ('updated', 'status', 'user')
+        read_only_fields = ('scheme', )
 
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):

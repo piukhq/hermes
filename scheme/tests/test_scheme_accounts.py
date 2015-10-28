@@ -114,8 +114,8 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
     def test_patch_schemes_accounts(self):
-        data = {'order': 5,
-                'scheme': 200}
+        new_scheme = SchemeFactory()
+        data = {'order': 5, 'scheme': new_scheme.id}
         response = self.client.patch('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
                                      **self.auth_headers)
 
@@ -241,3 +241,4 @@ class TestSchemeAccount(APITestCase):
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
+
