@@ -209,9 +209,9 @@ TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == '
 
 LOCAL = env_var('HERMES_LOCAL', False),
 
-if not TESTING or not LOCAL:
+if not any([TESTING, LOCAL]):
     RAVEN_CONFIG = {
-        'dsn': env_var('HEMRES_SENTRY_DNS', ''),
+        'dsn': env_var('HERMES_SENTRY_DNS', ''),
         # If you are using git, you can also automatically configure the
         # release based on the git info.
         'release': raven.fetch_git_sha(BASE_DIR),
