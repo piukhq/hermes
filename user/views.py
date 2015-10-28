@@ -25,7 +25,7 @@ class ForgottenPassword:
 
 class OpenAuthentication(SessionAuthentication):
     """
-    We need to disable csrf as we are runing hermes on production through a proxy.
+    We need to disable csrf as we are running hermes on production through a proxy.
     Also we don't need csrf as we are using jwt tokens.
     """
     def enforce_csrf(self, request):
