@@ -1,6 +1,5 @@
-from rest_framework import generics
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, \
-    RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView, GenericAPIView, ListAPIView
+from rest_framework.generics import (CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
+                                     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
@@ -22,7 +21,7 @@ class SwappableSerializerMixin(object):
 
 
 class SchemesList(ListAPIView):
-    queryset = Scheme.objects.filter(is_active=True)
+    queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
 
@@ -168,10 +167,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         response_data['status'] = scheme_account.status
 
-        return Response(response_data,
-                        status=status.HTTP_201_CREATED,
-                        headers=headers,
-                        content_type="application/json")
+        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers, content_type="application/json")
 
 
 class CreateAnswer(CreateAPIView):
