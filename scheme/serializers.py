@@ -34,13 +34,25 @@ class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
         model = SchemeAccountCredentialAnswer
 
 
-class CreateSchemeAccountSerializer(serializers.ModelSerializer):
-    primary_answer = SchemeAccountAnswerSerializer(read_only=True)
+class CreateSchemeAccountSerializer(serializers.Serializer):
+    scheme = serializers.IntegerField()
+    order = serializers.IntegerField(default=0)
+    primary_answer = serializers.CharField()
 
-    class Meta:
-        model = SchemeAccount
-        exclude = ('updated', )
-        read_only_fields = ('status', )
+    def validate(self, data):
+        try:
+            scheme = Scheme.objects.get(pk=data['scheme'])
+            data['primary_answer_type'] = scheme.primary_question.type
+        except Scheme.DoesNotExist:
+            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
+
+        # Loop though users accounts of same scheme and make sure they don't use the same primary answer
+        for scheme_account in SchemeAccount.active_objects.filter(user=self._context['request'].user, scheme=scheme):
+            primary_answer = scheme_account.primary_answer
+            if primary_answer and primary_answer.answer == data['primary_answer']:
+                raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
+                    data['primary_answer']))
+        return data
 
 
 class UpdateSchemeAccountSerializer(serializers.ModelSerializer):

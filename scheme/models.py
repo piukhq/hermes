@@ -200,7 +200,7 @@ class SchemeAccount(models.Model):
 
     @property
     def primary_answer(self):
-        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type)
+        return self.schemeaccountcredentialanswer_set.filter(type=self.scheme.primary_question.type).first()
 
     @property
     def primary_answer_id(self):

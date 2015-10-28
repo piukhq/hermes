@@ -1,15 +1,17 @@
 from rest_framework.generics import (CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
                                      RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
-from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import (SchemeSerializer, SchemeAccountCredentialAnswer, SchemeAccountAnswerSerializer,
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
+from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer,
                                 ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService
+from django.db import transaction
 
 
 class SwappableSerializerMixin(object):
@@ -49,13 +51,8 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         primary_question = scheme.primary_question
 
         for scheme_account in scheme_accounts.exclude(id=scheme_account.id):
-            try:
-                existing_primary_answer = scheme_account.primary_answer
-            except SchemeAccountCredentialAnswer.DoesNotExist:
-                # this shouldn't happen, but can if a scheme account is badly set up
-                continue
-
-            if request.data[primary_question.type] == existing_primary_answer.answer:
+            existing_primary_answer = scheme_account.primary_answer
+            if existing_primary_answer and request.data[primary_question.type] == existing_primary_answer.answer:
                 return json_error_response("A scheme account already exists with this {0}".format(
                     primary_question.label), status.HTTP_400_BAD_REQUEST)
 
@@ -110,64 +107,25 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         return SchemeAccount.active_objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
-        if 'scheme' not in request.data:
-            return json_error_response("Please specify a scheme", status.HTTP_400_BAD_REQUEST)
-
-        scheme = get_object_or_404(Scheme, pk=request.data['scheme'])
-
-        if scheme.primary_question.type not in request.data:
-            return json_error_response("Does not include primary question ({}) response"
-                                       .format(scheme.primary_question.type),
-                                       status.HTTP_400_BAD_REQUEST)
-
-        # Check that the user dosnt have a scheme account with the primary question answer
-        scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
-        primary_question = scheme.primary_question
-
-        for scheme_account in scheme_accounts:
-            try:
-                existing_primary_answer = scheme_account.primary_answer
-            except SchemeAccountCredentialAnswer.DoesNotExist:
-                # this shouldn't happen, but can if a scheme account is badly set up
-                continue
-
-            if request.data[primary_question.type] == existing_primary_answer.answer:
-                return json_error_response("A scheme account already exists with this {0}".format(
-                    primary_question.label), status.HTTP_400_BAD_REQUEST)
-
-        request.data['user'] = request.user.id
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        scheme_account = serializer.save()
+        data = serializer.validated_data
 
-        headers = self.get_success_headers(serializer.data)
-        response_data = {'id': scheme_account.id,
-                         'scheme_id': scheme.id,
-                         'order': scheme_account.order,
-                         'status': scheme_account.status,
-                         'points': None}
-
-        for challenge in scheme.challenges:
-            if challenge.type in request.data:
-                response = request.data[challenge.type]
-                obj, created = SchemeAccountCredentialAnswer.objects.update_or_create(
-                    scheme_account=scheme_account, type=challenge.type, defaults={'answer': response})
-                response_data[obj.type] = obj.answer
-
-        points = scheme_account.get_midas_balance()
-        scheme_account.save()
-        response_data['points'] = points
-
-        # Pop scheme and user because these are the only two keys not related to questions
-        request.data.pop('scheme')
-        request.data.pop('user')
-        if list(request.data.keys()) == [scheme.primary_question.type]:
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save()
-
-        response_data['status'] = scheme_account.status
-
-        return Response(response_data, status=status.HTTP_201_CREATED, headers=headers, content_type="application/json")
+        with transaction.atomic():
+            scheme_account = SchemeAccount.objects.create(
+                user=request.user,
+                scheme_id=data['scheme'],
+                order=data['order'],
+                status=SchemeAccount.WALLET_ONLY
+            )
+            SchemeAccountCredentialAnswer.objects.create(
+                scheme_account=scheme_account,
+                type=data['primary_answer_type'],
+                answer=data['primary_answer'],
+            )
+        data['id'] = scheme_account.id
+        return Response(data, status=status.HTTP_201_CREATED, content_type="application/json",
+                        headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
 
 
 class CreateAnswer(CreateAPIView):

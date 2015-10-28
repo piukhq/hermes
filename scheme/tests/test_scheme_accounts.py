@@ -25,80 +25,18 @@ class TestSchemeAccount(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestSchemeAccount, cls).setUpClass()
 
-    def test_post_scheme_account_with_answers(self):
-        scheme = SchemeFactory()
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
-        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
-        scheme.primary_question = username_question
-        scheme.save()
-        data = {
-                'scheme': scheme.id,
-                username_question.type: 'andrew',
-                card_no_question.type: '1234',
-                password_question.type: 'password1234'
-        }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
-        content = response.data
-        self.assertEqual(content['scheme_id'], scheme.id)
-        self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
-        password = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(content['password'])
-        self.assertEqual(password, 'password1234')
-        self.assertEqual(content['card_number'], '1234')
-
-    def test_post_scheme_account_midas_call_with_points(self):
-        scheme = SchemeFactory(name="Boots", slug="advantage-card")
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type='user_name')
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type='password')
-        scheme.primary_question = username_question
-        scheme.save()
-        data = {
-                'scheme': scheme.id,
-                username_question.type: 'julie.gormley100@gmail.com',
-                password_question.type: 'RAHansbrics5'
-        }
-        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
-        content = response.data
-        self.assertEqual(content['scheme_id'], scheme.id)
-
     def test_update_scheme_account_with_answers(self):
-        scheme = SchemeFactory()
-
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
-        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
-        scheme.primary_question = username_question
-        scheme.save()
         data = {
-                'scheme': scheme.id,
-                username_question.type: 'andrew',
-                card_no_question.type: '1234',
-                password_question.type: 'password'
+                'scheme': self.scheme.id,
+                self.scheme.primary_question.type: 'andrew',
+                self.scheme.secondary_question.type: '1234',
         }
-        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
-        content = response.data
-        self.assertEqual(content['scheme_id'], scheme.id)
-        self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
-        self.assertEqual(content['card_number'], '1234')
-        data = {
-                'scheme': scheme.id,
-                username_question.type: 'andrew',
-                card_no_question.type: '1234',
-                password_question.type: 'password2'
-        }
-        response = self.client.post('/schemes/accounts', data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 400)
-        response = self.client.put('/schemes/accounts/{}'.format(content['id']), data=data, **self.auth_headers)
+        response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         content = response.data
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['username'], 'andrew')
-        self.assertEqual(content['card_number'], '1234')
+        self.assertEqual(content[self.scheme.primary_question.type], 'andrew')
+        self.assertEqual(content[self.scheme.secondary_question.type], '1234')
         self.assertEqual(content['status'], 404)
 
     def test_get_scheme_account(self):
@@ -152,22 +90,18 @@ class TestSchemeAccount(APITestCase):
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
-        username_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
-        card_no_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
-        scheme.primary_question = card_no_question
+        scheme.primary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         scheme.save()
-        data = {
-                'scheme': scheme.id,
-                card_no_question.type: '1234',
-        }
-        response = self.client.post('/schemes/accounts/', data=data, **self.auth_headers)
+
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'primary_answer': '1234'},
+                                    **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
-        self.assertEqual(content['scheme_id'], scheme.id)
+        self.assertEqual(content['scheme'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['card_number'], '1234')
-        self.assertEqual(content['status'], 10)
+        self.assertEqual(content['primary_answer'], '1234')
+        self.assertIn('/schemes/accounts/', response._headers['location'][1])
+        self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
 
     def test_scheme_account_update_status(self):
         data = {
@@ -218,7 +152,6 @@ class TestSchemeAccount(APITestCase):
         self.assertIn('scheme', response.data)
         self.assertIn('user', response.data)
         self.assertIn('id', response.data)
-
 
     def test_scheme_account_collect_credentials(self):
         SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
