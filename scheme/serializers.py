@@ -46,10 +46,12 @@ class CreateSchemeAccountSerializer(serializers.Serializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        if SchemeAccountCredentialAnswer.objects.filter(
-                type=data['primary_answer_type'], answer=data['primary_answer']).exists():
-            raise serializers.ValidationError("The primary answer '{0}' is all ready in use".format(data['primary_answer']))
-
+        # Loop though users accounts of same scheme and make sure they don't use the same primary answer
+        for scheme_account in SchemeAccount.active_objects.filter(user=self._context['request'].user, scheme=scheme):
+            primary_answer = scheme_account.primary_answer
+            if primary_answer and primary_answer.answer == data['primary_answer']:
+                raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
+                    data['primary_answer']))
         return data
 
 
