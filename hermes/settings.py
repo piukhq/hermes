@@ -207,7 +207,9 @@ LOGGING = {
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 
-if not TESTING:
+LOCAL = env_var('HERMES_LOCAL', False),
+
+if not TESTING and not LOCAL:
     RAVEN_CONFIG = {
         'dsn': env_var('HEMRES_SENTRY_DNS', ''),
         # If you are using git, you can also automatically configure the
