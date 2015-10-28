@@ -51,13 +51,8 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         primary_question = scheme.primary_question
 
         for scheme_account in scheme_accounts.exclude(id=scheme_account.id):
-            try:
-                existing_primary_answer = scheme_account.primary_answer
-            except SchemeAccountCredentialAnswer.DoesNotExist:
-                # this shouldn't happen, but can if a scheme account is badly set up
-                continue
-
-            if request.data[primary_question.type] == existing_primary_answer.answer:
+            existing_primary_answer = scheme_account.primary_answer
+            if existing_primary_answer and request.data[primary_question.type] == existing_primary_answer.answer:
                 return json_error_response("A scheme account already exists with this {0}".format(
                     primary_question.label), status.HTTP_400_BAD_REQUEST)
 
