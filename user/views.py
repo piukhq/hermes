@@ -36,6 +36,9 @@ class OpenAuthentication(SessionAuthentication):
 # Will require research, multiple serializers
 # Password Handling
 class Register(CreateAPIView):
+    """
+    Register a new user in the Loyalty Angels App.
+    """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
@@ -46,6 +49,9 @@ class ResetPassword(UpdateAPIView):
 
 
 class Users(RetrieveUpdateAPIView):
+    """
+    Get and update users account information.
+    """
     queryset = CustomUser.objects
     serializer_class = UserSerializer
 
@@ -60,6 +66,18 @@ class Users(RetrieveUpdateAPIView):
 class Authenticate(APIView):
     @method_decorator(csrf_exempt)
     def get(self, request):
+        """
+        Authenticate the user based on the Authorization header parameter.
+        ---
+        type:
+          uid:
+            required: true
+            type: json
+          id:
+            required: true
+            type: json
+
+        """
         return Response({
             'uid': str(request.user.uid),
             'id': str(request.user.id)
@@ -70,6 +88,14 @@ class RetrieveSchemeAccount(RetrieveAPIView):
     serializer_class = SchemeAccountSerializer
 
     def get(self, request, *args, **kwargs):
+        """
+        Retrieve a users scheme accounts.
+        ---
+        responseMessages:
+            - code: 404
+              message: Error retrieing scheme accounts for this user.
+
+        """
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
         scheme = scheme_account.scheme
 
@@ -87,6 +113,23 @@ class Login(GenericAPIView):
     serializer_class = LoginSerializer
 
     def post(self, request):
+        """
+        User login for the Loyalty Angels App
+        ---
+        type:
+          api_key:
+            required: true
+            type: json
+          email:
+            required: true
+            type: json
+        responseMessages:
+            - code: 403
+              message: Login credentials incorrect.
+            - code: 403
+              message: The account associated with this email address is suspended.
+
+        """
         email = request.data['email']
         password = request.data['password']
         user = authenticate(username=email, password=password)
@@ -102,7 +145,7 @@ class Login(GenericAPIView):
 
 class FaceBookLoginWeb(CreateAPIView):
     """
-    This is just used by ching web
+    This is only used by ching web
     """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
@@ -131,6 +174,25 @@ class FaceBookLogin(CreateAPIView):
     serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Login using a Facebook account.
+        ---
+        type:
+          api_key:
+            required: true
+            type: json
+          email:
+            required: true
+            type: json
+        responseMessages:
+            - code: 403
+              message: Cannot validate user_id & access_token.
+            - code: 403
+              message: user_id is invalid for given access token.
+            - code: 403
+              message: Can not access facebook social graph.
+
+        """
         access_token = request.data['access_token']
         user_id = request.data['user_id']
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
@@ -173,6 +235,10 @@ class TwitterLogin(APIView):
     serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        Login using a Twitter account.
+
+        """
         request_token_url = 'https://api.twitter.com/oauth/request_token'
         access_token_url = 'https://api.twitter.com/oauth/access_token'
 
