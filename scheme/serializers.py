@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeImage
-
+from scheme.credentials import CREDENTIAL_TYPES
 
 class SchemeImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,6 +52,20 @@ class CreateSchemeAccountSerializer(serializers.Serializer):
             if primary_answer and primary_answer.answer == data['primary_answer']:
                 raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
                     data['primary_answer']))
+        return data
+
+
+class CreateSchemeAccountSerializerResponse(CreateSchemeAccountSerializer):
+    id = serializers.IntegerField()
+    primary_answer_type = serializers.CharField()
+
+    def validate(self, data):
+        """
+        Check that the primary answer type has been supplied.
+        """
+        if not data['primary_answer_type'] in dict(CREDENTIAL_TYPES):
+            raise serializers.ValidationError("The primary answer type is incorrect: '{0}'".format(
+                    data['primary_answer_type']))
         return data
 
 

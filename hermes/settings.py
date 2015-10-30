@@ -13,9 +13,11 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import raven
-from environment import env_var
+from environment import env_var, read_env
 import dj_database_url
 import sys
+
+read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -215,9 +217,11 @@ LOGGING = {
     },
 }
 
-TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
-LOCAL = env_var('HERMES_LOCAL', False),
+TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+LOCAL = env_var('HERMES_LOCAL', False)
+
 
 if not any([TESTING, LOCAL]):
     RAVEN_CONFIG = {
@@ -226,4 +230,19 @@ if not any([TESTING, LOCAL]):
         # release based on the git info.
         'release': raven.fetch_git_sha(BASE_DIR),
     }
+
+SWAGGER_SETTINGS = {
+    'api_version': '1',
+    'info': {
+        'contact': 'Paul Batty',
+        'description': 'Loyalty Angels REST API for registering users and loyalty rewards schemes. '
+                       '<br>'
+                       'All calls to the the API endpoints require an authorization token obtained '
+                       'by registering through the Registration endpoint. '
+                       '<br>'
+                       'An Authorization token in the form "Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV..." is '
+                       'required in the header. ',
+        'title': 'Loyalty Angels registrations service - Hermes',
+    },
+}
 
