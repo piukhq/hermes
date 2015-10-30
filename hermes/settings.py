@@ -184,7 +184,12 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'verbose'
-        }
+        },
+        'gelf': {
+            'class': 'graypy.GELFHandler',
+            'host': '192.168.1.53',
+            'port': 12201,
+        },
     },
     'loggers': {
         'django.db.backends': {
@@ -201,6 +206,11 @@ LOGGING = {
             'level': 'DEBUG',
             'handlers': ['console'],
             'propagate': False,
+        },
+        'graylog': {
+            # mail_admins will only accept ERROR and higher
+            'handlers': ['gelf'],
+            'level': 'DEBUG',
         },
     },
 }
