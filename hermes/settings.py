@@ -205,9 +205,11 @@ LOGGING = {
     },
 }
 
-TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
-LOCAL = env_var('HERMES_LOCAL', False),
+TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+LOCAL = env_var('HERMES_LOCAL', False)
+
 
 if not any([TESTING, LOCAL]):
     RAVEN_CONFIG = {
@@ -216,4 +218,3 @@ if not any([TESTING, LOCAL]):
         # release based on the git info.
         'release': raven.fetch_git_sha(BASE_DIR),
     }
-
