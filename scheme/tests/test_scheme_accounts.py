@@ -1,11 +1,13 @@
 from django.conf import settings
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
+from scheme.serializers import ResponseAgentSerializer, SchemeAccountAnswerSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME
+from unittest.mock import patch
+from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES
 import json
 
 
@@ -25,20 +27,6 @@ class TestSchemeAccount(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestSchemeAccount, cls).setUpClass()
 
-    def test_update_scheme_account_with_answers(self):
-        data = {
-                'scheme': self.scheme.id,
-                self.scheme.primary_question.type: 'andrew',
-                self.scheme.secondary_question.type: '1234',
-        }
-        response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        content = response.data
-        self.assertEqual(content['order'], 0)
-        self.assertEqual(content[self.scheme.primary_question.type], 'andrew')
-        self.assertEqual(content[self.scheme.secondary_question.type], '1234')
-        self.assertEqual(content['status'], 404)
-
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
@@ -51,15 +39,22 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
-    def test_patch_schemes_accounts(self):
+    def test_put_schemes_account(self):
         new_scheme = SchemeFactory()
-        data = {'order': 5, 'scheme': new_scheme.id}
-        response = self.client.patch('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
+        data = {'order': 5, 'scheme': new_scheme.id, 'primary_answer': '234234234'}
+        response = self.client.put('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
                                      **self.auth_headers)
-
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['scheme'], self.scheme_account.scheme.id)  # this shouldn't change
         self.assertEqual(response.data['order'], 5)
+        self.assertEqual(response.data['primary_answer'], '234234234')
+
+    def test_patch_schemes_account(self):
+        response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data={},
+                                   **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        content = response.data
+        self.assertEqual(content['order'], self.scheme_account.order)
+
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -71,16 +66,14 @@ class TestSchemeAccount(APITestCase):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
-    def test_post_schemes_account_answer(self):
-        data = {
-            "scheme_account": self.scheme_account.id,
-            "type": self.scheme_account_answer.type,
-            "answer": "London"
-        }
-        response = self.client.post('/schemes/accounts/credentials/', data=data, **self.auth_headers)
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_post_schemes_account_answers(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = 100
+        data = {CARD_NUMBER: "London"}
+        response = self.client.post('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data["answer"], data["answer"])
-        self.assertIn("id", response.data)
+        self.assertTrue(ResponseAgentSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
@@ -145,7 +138,7 @@ class TestSchemeAccount(APITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_get_scheme_accounts_credentials(self):
-        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+        response = self.client.get('/schemes/accounts/{0}/service_credentials'.format(self.scheme_account.id),
                                    **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -176,3 +169,8 @@ class TestSchemeAccount(APITestCase):
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
 
+    def test_scheme_account_answer_serializer(self):
+        """
+        If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
+        """
+        self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(SchemeAccountAnswerSerializer._declared_fields.keys()))
