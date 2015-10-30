@@ -4,7 +4,8 @@ from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer,
                                 ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, StatusSerializer,
+                                CreateSchemeAccountSerializer, CreateSchemeAccountSerializerResponse,
+                                GetSchemeAccountSerializer, StatusSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer)
 from rest_framework import status
 from rest_framework.response import Response
@@ -23,16 +24,25 @@ class SwappableSerializerMixin(object):
 
 
 class SchemesList(ListAPIView):
+    """
+    Retrieve a list of loyalty schemes.
+    """
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
 
 class RetrieveScheme(RetrieveAPIView):
+    """
+    Retrieve a Loyalty Scheme.
+    """
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
 
 class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
+    """
+    Get, update and delete scheme accounts.
+    """
     override_serializer_classes = {
         'PUT': UpdateSchemeAccountSerializer,
         'PATCH': UpdateSchemeAccountSerializer,
@@ -44,6 +54,16 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
     queryset = SchemeAccount.active_objects
 
     def put(self, request, *args, **kwargs):
+        """
+        Update a users scheme account.<br>
+        This will attempt to log into the loyalty scheme endsite and retrieve points.
+        ---
+        responseMessages:
+            - code: 404
+              message: Error retrieving the scheme account information.
+            - code: 400
+              message: A scheme account already exists with this primary question
+        """
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
         scheme = scheme_account.scheme
         # Check that the user doesnt have a scheme account with the primary question answer
@@ -89,6 +109,10 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         return Response(response_data)
 
     def delete(self, request, *args, **kwargs):
+        """
+        Marks a users scheme account as deleted.
+        Responds with a 204 - No content.
+        """
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
@@ -96,6 +120,9 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
+    """
+    Retrieve a scheme account using the scheme account id.
+    """
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
         'POST': CreateSchemeAccountSerializer,
@@ -107,6 +134,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         return SchemeAccount.active_objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
+        """
+        Create a new scheme account within the users wallet.<br>
+        This does not log into the loyalty scheme end site.
+        ---
+        response_serializer: CreateSchemeAccountSerializerResponse
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -124,11 +157,16 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 answer=data['primary_answer'],
             )
         data['id'] = scheme_account.id
-        return Response(data, status=status.HTTP_201_CREATED, content_type="application/json",
+        response_serializer = CreateSchemeAccountSerializerResponse(data=data)
+        response_serializer.is_valid()
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, content_type="application/json",
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
 
 
 class CreateAnswer(CreateAPIView):
+    """
+    Provide credentials for loyalty scheme login.
+    """
     serializer_class = SchemeAccountAnswerSerializer
 
 
@@ -143,6 +181,19 @@ class UpdateSchemeAccountStatus(GenericAPIView):
     serializer_class = StatusSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        ---
+        type:
+          id:
+            required: true
+            type: json
+          status:
+            required: true
+            type: json
+        responseMessages:
+            - code: 404
+              message: Error setting status - TO CONFIRM MESSAGE.
+        """
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
@@ -163,6 +214,9 @@ class Pagination(PageNumberPagination):
 
 
 class ActiveSchemeAccountAccounts(ListAPIView):
+    """
+    DO NOT USE - NOT FOR APP ACCESS
+    """
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
@@ -174,6 +228,9 @@ class ActiveSchemeAccountAccounts(ListAPIView):
 
 
 class SystemActionSchemeAccounts(ListAPIView):
+    """
+    DO NOT USE - NOT FOR APP ACCESS
+    """
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
 
@@ -185,6 +242,9 @@ class SystemActionSchemeAccounts(ListAPIView):
 
 
 class SchemeAccountsCredentials(RetrieveAPIView):
+    """
+    Provide credentials for the specified loyalty scheme login.
+    """
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     queryset = SchemeAccount.active_objects

@@ -100,6 +100,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(content['scheme'], scheme.id)
         self.assertEqual(content['order'], 0)
         self.assertEqual(content['primary_answer'], '1234')
+        self.assertEqual(content['primary_answer_type'], 'card_number')
         self.assertIn('/schemes/accounts/', response._headers['location'][1])
         self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
 

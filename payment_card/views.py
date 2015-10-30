@@ -8,15 +8,25 @@ from scheme.views import SwappableSerializerMixin
 
 
 class ListPaymentCard(generics.ListAPIView):
+    """
+    List of supported payment cards.
+    """
     queryset = PaymentCard.objects
     serializer_class = PaymentCardSerializer
 
 
 class RetrievePaymentCardAccount(RetrieveUpdateAPIView):
+    """
+    Retrieve and update payment card information.
+    """
     queryset = PaymentCardAccount.active_objects
     serializer_class = PaymentCardAccountSerializer
 
     def delete(self, request, *args, **kwargs):
+        """
+        Marks a users payment card as deleted.
+        Responds with a 204 - No content.
+        """
         instance = self.get_object()
         instance.status = PaymentCardAccount.DELETED
         instance.save()
@@ -24,6 +34,9 @@ class RetrievePaymentCardAccount(RetrieveUpdateAPIView):
 
 
 class CreatePaymentCardAccount(ListCreateAPIView):
+    """
+    Create and retrieve users payment card information.
+    """
     serializer_class = PaymentCardAccountSerializer
 
     def post(self, request, *args, **kwargs):
