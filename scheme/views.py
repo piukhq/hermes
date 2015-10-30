@@ -1,12 +1,11 @@
-from rest_framework.generics import (CreateAPIView, RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
-                                     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView)
+from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
+                                     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer,
-                                ListSchemeAccountSerializer, UpdateSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, CreateSchemeAccountSerializerResponse,
-                                GetSchemeAccountSerializer, StatusSerializer,
-                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer)
+from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer, ListSchemeAccountSerializer,
+                                UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
+                                GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
+                                SchemeAccountIdsSerializer, StatusSerializer, ResponseAgentSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -18,6 +17,7 @@ from django.db import transaction
 class SwappableSerializerMixin(object):
     serializer_class = None
     override_serializer_classes = None
+    context = None
 
     def get_serializer_class(self):
         return self.override_serializer_classes[self.request.method]
@@ -53,7 +53,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
     queryset = SchemeAccount.active_objects
 
-    def put(self, request, *args, **kwargs):
+    def update(self, request, *args, **kwargs):
         """
         Update a users scheme account.<br>
         This will attempt to log into the loyalty scheme endsite and retrieve points.
@@ -65,48 +65,18 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
               message: A scheme account already exists with this primary question
         """
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
-        scheme = scheme_account.scheme
-        # Check that the user doesnt have a scheme account with the primary question answer
-        scheme_accounts = SchemeAccount.active_objects.filter(scheme=scheme, user=request.user)
-        primary_question = scheme.primary_question
-
-        for scheme_account in scheme_accounts.exclude(id=scheme_account.id):
-            existing_primary_answer = scheme_account.primary_answer
-            if existing_primary_answer and request.data[primary_question.type] == existing_primary_answer.answer:
-                return json_error_response("A scheme account already exists with this {0}".format(
-                    primary_question.label), status.HTTP_400_BAD_REQUEST)
-
-        partial = kwargs.pop('partial', True)
-        instance = scheme_account
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        self.context = {'scheme': scheme_account.scheme}
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        response_data = {
-            'id': scheme_account.id,
-            'status': scheme_account.status,
-            'order': scheme_account.order,
-            'scheme_id': scheme_account.id,
-        }
-        for challenge in scheme_account.scheme.challenges:
-            response = request.data[challenge.type]
-            obj, created = SchemeAccountCredentialAnswer.objects.update_or_create(
-                scheme_account=scheme_account, type=challenge.type, defaults={'answer': response})
-            response_data[obj.type] = obj.answer
+        data = serializer.validated_data
 
-        points = scheme_account.get_midas_balance()
-        scheme_account.save()
-        response_data['points'] = points
+        scheme_account.order = data.get('order', scheme_account.order)
+        answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
+                                                           type=scheme_account.primary_answer.type)
+        answer.answer = data.get('primary_answer', answer.answer)
+        answer.save()
 
-        # Pop scheme and user because these are the only two keys not related to questions
-        request.data.pop('scheme', None)
-        request.data.pop('user', None)
-        if list(request.data.keys()) == [scheme.primary_question.type]:
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save()
-
-        response_data['status'] = scheme_account.status
-
-        return Response(response_data)
+        return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -117,6 +87,31 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         instance.is_deleted = True
         instance.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CreateCredentials(GenericAPIView):
+    serializer_class = SchemeAccountAnswerSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        Provide credentials for loyalty scheme login
+        ---
+        response_serializer: ResponseAgentSerializer
+        """
+        serializer = SchemeAccountAnswerSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        scheme_account = data.pop('scheme_account')
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.get_or_create(
+                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+
+        response_data = {
+            'points': scheme_account.get_midas_balance(),
+            'status': scheme_account.status,
+        }
+        out_serializer = ResponseAgentSerializer(response_data)
+        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
@@ -138,7 +133,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         ---
-        response_serializer: CreateSchemeAccountSerializerResponse
+        response_serializer: ResponseAgentSerializer
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -157,17 +152,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 answer=data['primary_answer'],
             )
         data['id'] = scheme_account.id
-        response_serializer = CreateSchemeAccountSerializerResponse(data=data)
-        response_serializer.is_valid()
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, content_type="application/json",
+        return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
-
-
-class CreateAnswer(CreateAPIView):
-    """
-    Provide credentials for loyalty scheme login.
-    """
-    serializer_class = SchemeAccountAnswerSerializer
 
 
 class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
@@ -182,17 +168,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
     def post(self, request, *args, **kwargs):
         """
-        ---
-        type:
-          id:
-            required: true
-            type: json
-          status:
-            required: true
-            type: json
-        responseMessages:
-            - code: 404
-              message: Error setting status - TO CONFIRM MESSAGE.
+        DO NOT USE - NOT FOR APP ACCESS
         """
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
@@ -243,7 +219,7 @@ class SystemActionSchemeAccounts(ListAPIView):
 
 class SchemeAccountsCredentials(RetrieveAPIView):
     """
-    Provide credentials for the specified loyalty scheme login.
+    DO NOT USE - NOT FOR APP ACCESS
     """
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)

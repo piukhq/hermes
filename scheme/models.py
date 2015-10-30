@@ -172,9 +172,15 @@ class SchemeAccount(models.Model):
                 credentials[answer.type] = answer.answer
         return credentials
 
+    def valid_credentials(self, credential_types):
+        """
+        Given a list of credential_types are they all that's required by the scheme
+        """
+        return {question.type for question in self.scheme.questions.all()}.issubset(set(credential_types))
+
     def credentials(self):
         credentials = self._collect_credentials()
-        if not {question.type for question in self.scheme.questions.all()}.issubset(set(credentials.keys())):
+        if not self.valid_credentials(credentials.keys()):
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None

@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeImage
-from scheme.credentials import CREDENTIAL_TYPES
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage
+
 
 class SchemeImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,15 +29,53 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         model = Scheme
 
 
-class SchemeAccountAnswerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SchemeAccountCredentialAnswer
+class SchemeAccountAnswerSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=250, required=False)
+    card_number = serializers.CharField(max_length=250, required=False)
+    barcode = serializers.CharField(max_length=250, required=False)
+    password = serializers.CharField(max_length=250, required=False)
+    place_of_birth = serializers.CharField(max_length=250, required=False)
+    email = serializers.CharField(max_length=250, required=False)
+    postcode = serializers.CharField(max_length=250, required=False)
+    memorable_date = serializers.CharField(max_length=250, required=False)
+    pin = serializers.CharField(max_length=250, required=False)
+    last_name = serializers.CharField(max_length=250, required=False)
+
+    def validate(self, data):
+        try:
+            scheme_account = SchemeAccount.objects.get(id=self.context['pk'])
+        except SchemeAccount.DoesNotExist:
+            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
+
+        primary_question_type = scheme_account.scheme.primary_question.type
+
+        if primary_question_type in data:
+            raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
+
+        question_types = [answer_type for answer_type, value in data.items()] + [primary_question_type, ]
+        if not scheme_account.valid_credentials(question_types):
+            raise serializers.ValidationError("All the required credentials have not been submitted")
+        data['scheme_account'] = scheme_account
+        return data
 
 
-class CreateSchemeAccountSerializer(serializers.Serializer):
-    scheme = serializers.IntegerField()
-    order = serializers.IntegerField(default=0)
+class SchemeAccountSerializer(serializers.Serializer):
+    order = serializers.IntegerField(default=0, required=False)
     primary_answer = serializers.CharField()
+
+    @staticmethod
+    def check_primary_answer(user, scheme, new_primary_answer):
+        # Loop though users accounts of same scheme and make sure they don't use the same primary answer
+        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme)
+        for scheme_account in scheme_accounts:
+            primary_answer = scheme_account.primary_answer
+            if primary_answer and primary_answer.answer == new_primary_answer:
+                raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
+                   new_primary_answer))
+
+
+class CreateSchemeAccountSerializer(SchemeAccountSerializer):
+    scheme = serializers.IntegerField()
 
     def validate(self, data):
         try:
@@ -46,34 +84,21 @@ class CreateSchemeAccountSerializer(serializers.Serializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        # Loop though users accounts of same scheme and make sure they don't use the same primary answer
-        for scheme_account in SchemeAccount.active_objects.filter(user=self._context['request'].user, scheme=scheme):
-            primary_answer = scheme_account.primary_answer
-            if primary_answer and primary_answer.answer == data['primary_answer']:
-                raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
-                    data['primary_answer']))
+        self.check_primary_answer(self._context['request'].user, scheme, data['primary_answer'])
         return data
 
 
-class CreateSchemeAccountSerializerResponse(CreateSchemeAccountSerializer):
-    id = serializers.IntegerField()
-    primary_answer_type = serializers.CharField()
+class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
+    primary_answer = serializers.CharField(required=False)
 
-    def validate(self, data):
-        """
-        Check that the primary answer type has been supplied.
-        """
-        if not data['primary_answer_type'] in dict(CREDENTIAL_TYPES):
-            raise serializers.ValidationError("The primary answer type is incorrect: '{0}'".format(
-                    data['primary_answer_type']))
-        return data
+    def validate_primary_answer(self, value):
+        self.check_primary_answer(self.context['request'].user, self._context['view'].context['scheme'], value)
+        return value
 
 
-class UpdateSchemeAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SchemeAccount
-        exclude = ('updated', 'status', 'user')
-        read_only_fields = ('scheme', )
+class ResponseAgentSerializer(serializers.Serializer):
+    points = serializers.IntegerField(allow_null=True)
+    status = serializers.IntegerField()
 
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
