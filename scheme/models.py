@@ -259,6 +259,11 @@ class SchemeAccountCredentialAnswer(models.Model):
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     answer = models.CharField(max_length=250)
 
+    def clean_answer(self):
+        if self.type in ENCRYPTED_CREDENTIALS:
+            return "****"
+        return self.answer
+
     def __str__(self):
         return self.answer
 
