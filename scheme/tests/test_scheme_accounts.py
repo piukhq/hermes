@@ -18,7 +18,9 @@ class TestSchemeAccount(APITestCase):
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
                                                                          scheme_account=cls.scheme_account)
-        SchemeCredentialAnswerFactory(type=PASSWORD, scheme_account=cls.scheme_account)
+
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD,
+                                                                           scheme_account=cls.scheme_account)
 
         cls.scheme = cls.scheme_account.scheme
         cls.user = cls.scheme_account.user
@@ -152,14 +154,11 @@ class TestSchemeAccount(APITestCase):
         self.assertIn('id', response.data)
 
     def test_scheme_account_collect_credentials(self):
-        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
-
         self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
             'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials(self):
-        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
             self.scheme_account.credentials()))
 
