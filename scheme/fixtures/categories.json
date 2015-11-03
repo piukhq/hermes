@@ -1,1 +1,37 @@
-[{"model": "scheme.category", "fields": {"name": "Uncategorised"}, "pk": 1}, {"model": "scheme.category", "fields": {"name": "Travel"}, "pk": 2}, {"model": "scheme.category", "fields": {"name": "Finance"}, "pk": 3}, {"model": "scheme.category", "fields": {"name": "Household"}, "pk": 4}, {"model": "scheme.category", "fields": {"name": "Social"}, "pk": 5}]
+[
+  {
+    "model": "scheme.category",
+    "fields": {
+      "name": "Uncategorised"
+    },
+    "pk": 1
+  },
+  {
+    "model": "scheme.category",
+    "fields": {
+      "name": "Travel"
+    },
+    "pk": 2
+  },
+  {
+    "model": "scheme.category",
+    "fields": {
+      "name": "Finance"
+    },
+    "pk": 3
+  },
+  {
+    "model": "scheme.category",
+    "fields": {
+      "name": "Household"
+    },
+    "pk": 4
+  },
+  {
+    "model": "scheme.category",
+    "fields": {
+      "name": "Social"
+    },
+    "pk": 5
+  }
+]
