@@ -12,6 +12,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService
 from django.db import transaction
+from scheme.account_status_summary import scheme_account_status_data
 
 
 class SwappableSerializerMixin(object):
@@ -225,6 +226,19 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     authentication_classes = (ServiceAuthentication,)
     queryset = SchemeAccount.active_objects
     serializer_class = SchemeAccountCredentialsSerializer
+
+
+class SchemeAccountStatusData(ListAPIView):
+    """
+    DO NOT USE - NOT FOR APP ACCESS
+    """
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+
+    def get_queryset(self):
+        return scheme_account_status_data
+
+    pagination_class = Pagination
 
 
 def json_error_response(message, code):
