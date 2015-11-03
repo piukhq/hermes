@@ -35,6 +35,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
         self.assertEqual(len(response.data['answers']), 2)
+        self.assertIn('answer', response.data['answers'][0])
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
@@ -43,7 +44,7 @@ class TestSchemeAccount(APITestCase):
         new_scheme = SchemeFactory()
         data = {'order': 5, 'scheme': new_scheme.id, 'primary_answer': '234234234'}
         response = self.client.put('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
-                                     **self.auth_headers)
+                                   **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['order'], 5)
         self.assertEqual(response.data['primary_answer'], '234234234')

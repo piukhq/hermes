@@ -129,6 +129,8 @@ class SchemeAccount(models.Model):
     INVALID_CREDENTIALS = 403
     INVALID_MFA = 432
     END_SITE_DOWN = 530
+    IP_BLOCKED = 531
+    TRIPPED_CAPTCHA = 532
     INCOMPLETE = 5
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
@@ -142,6 +144,8 @@ class SchemeAccount(models.Model):
         (INVALID_CREDENTIALS, 'invalid credentials'),
         (INVALID_MFA, 'invalid_mfa'),
         (END_SITE_DOWN, 'end site down'),
+        (IP_BLOCKED, 'ip blocked'),
+        (TRIPPED_CAPTCHA, 'tripped captcha'),
         (INCOMPLETE, 'incomplete'),
         (LOCKED_BY_ENDSITE, 'account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
@@ -150,7 +154,8 @@ class SchemeAccount(models.Model):
         (WALLET_ONLY, 'This is a wallet only card')
     )
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
-    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE]
+    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
+                              IP_BLOCKED, TRIPPED_CAPTCHA]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')

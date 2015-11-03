@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -101,11 +101,16 @@ class ResponseAgentSerializer(serializers.Serializer):
     status = serializers.IntegerField()
 
 
+class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeAccountCredentialAnswer
+
+
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     primary_answer_id = serializers.IntegerField()
     scheme = SchemeSerializerNoQuestions(read_only=True)
     action_status = serializers.ReadOnlyField()
-    answers = SchemeAccountAnswerSerializer(many=True, read_only=True)
+    answers = ReadSchemeAccountAnswerSerializer(many=True, read_only=True)
 
     class Meta:
         model = SchemeAccount
@@ -115,7 +120,7 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    primary_answer = SchemeAccountAnswerSerializer(read_only=True)
+    primary_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
 
     class Meta:
         model = SchemeAccount
