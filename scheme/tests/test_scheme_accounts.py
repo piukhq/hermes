@@ -39,7 +39,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
         self.assertEqual(len(response.data['answers']), 3)
         self.assertIn('answer', response.data['answers'][0])
-        self.assertEqual(response.data['answers'][0], '****')
+        self.assertEqual(response.data['answers'][0]['answer'], '****')
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
