@@ -18,10 +18,15 @@ class TestSchemeAccount(APITestCase):
         cls.scheme_account = cls.scheme_account_answer.scheme_account
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
                                                                          scheme_account=cls.scheme_account)
+
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD,
+                                                                           scheme_account=cls.scheme_account)
+
         cls.scheme = cls.scheme_account.scheme
         cls.user = cls.scheme_account.user
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
+
         cls.scheme.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
@@ -34,8 +39,9 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
-        self.assertEqual(len(response.data['answers']), 2)
+        self.assertEqual(len(response.data['answers']), 3)
         self.assertIn('answer', response.data['answers'][0])
+        self.assertEqual(response.data['answers'][0]['answer'], '****')
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
@@ -55,7 +61,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 200)
         content = response.data
         self.assertEqual(content['order'], self.scheme_account.order)
-
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -149,14 +154,11 @@ class TestSchemeAccount(APITestCase):
         self.assertIn('id', response.data)
 
     def test_scheme_account_collect_credentials(self):
-        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
-
         self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
             'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials(self):
-        SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD, scheme_account=self.scheme_account)
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
             self.scheme_account.credentials()))
 

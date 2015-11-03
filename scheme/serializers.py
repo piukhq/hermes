@@ -102,6 +102,8 @@ class ResponseAgentSerializer(serializers.Serializer):
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
+    answer = serializers.CharField(source='clean_answer', read_only=True)
+
     class Meta:
         model = SchemeAccountCredentialAnswer
 
