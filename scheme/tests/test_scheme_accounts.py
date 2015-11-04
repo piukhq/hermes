@@ -1,7 +1,7 @@
 from django.conf import settings
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseAgentSerializer, SchemeAccountAnswerSerializer
+from scheme.serializers import ResponseAgentSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory
 from scheme.models import SchemeAccount
@@ -74,11 +74,12 @@ class TestSchemeAccount(APITestCase):
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_post_schemes_account_answers(self, mock_get_midas_balance):
-        mock_get_midas_balance.return_value = 100
+        mock_get_midas_balance.return_value = {'points': 100}
         data = {CARD_NUMBER: "London"}
-        response = self.client.post('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['points'], 100)
         self.assertTrue(ResponseAgentSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
@@ -176,7 +177,7 @@ class TestSchemeAccount(APITestCase):
         """
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
-        self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(SchemeAccountAnswerSerializer._declared_fields.keys()))
+        self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
 
     def test_unique_scheme_account(self):
         scheme = SchemeFactory()
@@ -200,4 +201,5 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data,
                          {'non_field_errors': ["You already have an account for this scheme: '{}'".format(scheme.name)]})
+
 

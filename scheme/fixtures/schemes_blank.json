@@ -1,0 +1,610 @@
+[{
+    "pk": 0,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 0
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 1,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 1
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 2,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 2
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 3,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 3
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 4,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 4
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 5,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 5
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 6,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 6
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 7,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 7
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 8,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 8
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 9,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 9
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 10,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 10
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 11,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 11
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 12,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 12
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 13,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 13
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 14,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 14
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 15,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 15
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 16,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 16
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 17,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 17
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 18,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 18
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 19,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 19
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 20,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 20
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 21,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 21
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 22,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 22
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 23,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 23
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 24,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 24
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 25,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 25
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 26,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 26
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 27,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 27
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 28,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 28
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 29,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 29
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 30,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 30
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 31,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 31
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 32,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 32
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 33,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 33
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 34,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 34
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 35,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 35
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 36,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 36
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 37,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 37
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 38,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 38
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 39,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 39
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 40,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 40
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 41,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 41
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 42,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 42
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 43,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 43
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 44,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 44
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 45,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 45
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 46,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 46
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 47,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 47
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 48,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 48
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 49,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 49
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 50,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 50
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 51,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 51
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 52,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 52
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 53,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 53
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 54,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 54
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 55,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 55
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 56,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 56
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 57,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 57
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 58,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 58
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 59,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 59
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 60,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 60
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 61,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 61
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 62,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 62
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 63,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 63
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 64,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 64
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 65,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 65
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 66,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 66
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 67,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 67
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 68,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 68
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 69,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 69
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 70,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 70
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 71,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 71
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 72,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 72
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 73,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 73
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 74,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 74
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 75,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 75
+    },
+    "model": "scheme.scheme"
+  }
+]
