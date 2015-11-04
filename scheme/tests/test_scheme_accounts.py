@@ -177,3 +177,27 @@ class TestSchemeAccount(APITestCase):
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
         self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(SchemeAccountAnswerSerializer._declared_fields.keys()))
+
+    def test_unique_scheme_account(self):
+        scheme = SchemeFactory()
+        scheme.primary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        scheme.save()
+
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'primary_answer': '1234'},
+                                    **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        content = response.data
+        self.assertEqual(content['scheme'], scheme.id)
+        self.assertEqual(content['order'], 0)
+        self.assertEqual(content['primary_answer'], '1234')
+        self.assertEqual(content['primary_answer_type'], 'card_number')
+        self.assertIn('/schemes/accounts/', response._headers['location'][1])
+        self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
+
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'primary_answer': '1234'},
+                            **self.auth_headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data,
+                         {'non_field_errors': ["You already have an account for this scheme: '{}'".format(scheme.name)]})
+

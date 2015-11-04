@@ -64,14 +64,12 @@ class SchemeAccountSerializer(serializers.Serializer):
     primary_answer = serializers.CharField()
 
     @staticmethod
-    def check_primary_answer(user, scheme, new_primary_answer):
+    def check_unique_scheme(user, scheme):
         # Loop though users accounts of same scheme and make sure they don't use the same primary answer
-        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme)
-        for scheme_account in scheme_accounts:
-            primary_answer = scheme_account.primary_answer
-            if primary_answer and primary_answer.answer == new_primary_answer:
-                raise serializers.ValidationError("You already have an account with the primary answer: '{0}'".format(
-                   new_primary_answer))
+        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme).count()
+        if scheme_accounts >= 1:
+                raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(
+                   scheme))
 
 
 class CreateSchemeAccountSerializer(SchemeAccountSerializer):
@@ -84,16 +82,12 @@ class CreateSchemeAccountSerializer(SchemeAccountSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        self.check_primary_answer(self._context['request'].user, scheme, data['primary_answer'])
+        self.check_unique_scheme(self._context['request'].user, scheme)
         return data
 
 
 class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
     primary_answer = serializers.CharField(required=False)
-
-    def validate_primary_answer(self, value):
-        self.check_primary_answer(self.context['request'].user, self._context['view'].context['scheme'], value)
-        return value
 
 
 class ResponseAgentSerializer(serializers.Serializer):
