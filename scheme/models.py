@@ -1,3 +1,4 @@
+import socket
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_save
@@ -200,7 +201,9 @@ class SchemeAccount(models.Model):
                 return points
             parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
             response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                    params=parameters, headers={"transaction": str(uuid.uuid1())})
+                                    params=parameters, headers={
+                    "transaction": str(uuid.uuid1()),
+                    "User-agent": 'Hermes on {0}'.format(socket.gethostname())})
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE
