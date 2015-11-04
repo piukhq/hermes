@@ -137,6 +137,7 @@ class SchemeAccount(models.Model):
     RETRY_LIMIT_REACHED = 429
     UNKNOWN_ERROR = 520
     MIDAS_UNREACHEABLE = 9
+    AGENT_NOT_FOUND = 404
     WALLET_ONLY = 10
 
     STATUSES = (
@@ -152,7 +153,8 @@ class SchemeAccount(models.Model):
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
-        (WALLET_ONLY, 'This is a wallet only card')
+        (WALLET_ONLY, 'This is a wallet only card'),
+        (AGENT_NOT_FOUND, 'Agent does not exist on midas')
     )
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
@@ -194,7 +196,7 @@ class SchemeAccount(models.Model):
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
     def get_midas_balance(self):
-        points = None
+        points = {}
         try:
             credentials = self.credentials()
             if not credentials:
@@ -207,7 +209,7 @@ class SchemeAccount(models.Model):
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE
-                points = response.json()['points']
+                points = response.json()
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHEABLE
         self.save()

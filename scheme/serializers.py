@@ -29,7 +29,7 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         model = Scheme
 
 
-class SchemeAccountAnswerSerializer(serializers.Serializer):
+class LinkSchemeSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=250, required=False)
     card_number = serializers.CharField(max_length=250, required=False)
     barcode = serializers.CharField(max_length=250, required=False)
@@ -98,6 +98,8 @@ class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
 
 class ResponseAgentSerializer(serializers.Serializer):
     points = serializers.IntegerField(allow_null=True)
+    value = serializers.IntegerField(allow_null=True)
+    label = serializers.IntegerField(allow_null=True)
     status = serializers.IntegerField()
 
 

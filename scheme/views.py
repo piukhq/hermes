@@ -2,7 +2,7 @@ from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, Lis
                                      RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer, ListSchemeAccountSerializer,
+from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
                                 SchemeAccountIdsSerializer, StatusSerializer, ResponseAgentSerializer)
@@ -89,26 +89,26 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreateCredentials(GenericAPIView):
-    serializer_class = SchemeAccountAnswerSerializer
-
+class LinkCredentials(GenericAPIView):
     def post(self, request, *args, **kwargs):
         """
-        Provide credentials for loyalty scheme login
+        Link credentials for loyalty scheme login
         ---
         response_serializer: ResponseAgentSerializer
         """
-        serializer = SchemeAccountAnswerSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer = LinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.get_or_create(
                 type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
-
+        points = scheme_account.get_midas_balance()
         response_data = {
-            'points': scheme_account.get_midas_balance(),
-            'status': scheme_account.status,
+            'value': points.get('value'),
+            'points': points.get('points'),
+            'label': points.get('label'),
+            'status': scheme_account.status
         }
         out_serializer = ResponseAgentSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -154,11 +154,6 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         data['id'] = scheme_account.id
         return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
-
-
-class RetrieveUpdateDestroyAnswer(RetrieveUpdateDestroyAPIView):
-    serializer_class = SchemeAccountAnswerSerializer
-    queryset = SchemeAccountCredentialAnswer.objects
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
