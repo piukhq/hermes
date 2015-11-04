@@ -178,3 +178,14 @@ class TestSchemeAccount(APITestCase):
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
         self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
+
+    def test_unique_scheme_account(self):
+        response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.id,
+                                                               'primary_answer': '1234'}, **self.auth_headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data,
+                         {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
+                             self.scheme_account.scheme.name)]})
+
+
