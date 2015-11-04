@@ -65,9 +65,8 @@ class SchemeAccountSerializer(serializers.Serializer):
 
     @staticmethod
     def check_unique_scheme(user, scheme):
-        # Loop though users accounts of same scheme and make sure they don't use the same primary answer
-        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme).count()
-        if scheme_accounts >= 1:
+        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme).exists()
+        if scheme_accounts:
                 raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(
                    scheme))
 
