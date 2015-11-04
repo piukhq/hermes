@@ -207,6 +207,7 @@ class SchemeAccount(models.Model):
                 points = response.json()['points']
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHEABLE
+        self.save()
         return points
 
     @property
