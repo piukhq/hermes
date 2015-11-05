@@ -145,3 +145,9 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
         fields = ('id', 'scheme', 'credentials', 'user', 'status')
+
+
+class SchemeAccountSummarySerializer(serializers.Serializer):
+    status = serializers.CharField()
+    count = serializers.IntegerField()
+

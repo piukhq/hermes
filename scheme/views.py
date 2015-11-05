@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
                                      RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
@@ -5,7 +7,8 @@ from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, SchemeAccountAnswerSerializer, ListSchemeAccountSerializer,
                                 UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseAgentSerializer)
+                                SchemeAccountIdsSerializer, StatusSerializer, ResponseAgentSerializer,
+                                SchemeAccountSummarySerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -236,9 +239,11 @@ class SchemeAccountStatusData(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return scheme_account_status_data
+        queryset = scheme_account_status_data(self)
 
-    pagination_class = Pagination
+        return queryset
+
+    serializer_class = SchemeAccountSummarySerializer
 
 
 def json_error_response(message, code):

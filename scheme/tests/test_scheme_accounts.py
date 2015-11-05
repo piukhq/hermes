@@ -177,3 +177,12 @@ class TestSchemeAccount(APITestCase):
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
         self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(SchemeAccountAnswerSerializer._declared_fields.keys()))
+
+    def test_scheme_account_summary(self):
+        self.fixtures = ['categories.json', 'schemes_blank.json', 'scheme_questions.json', 'schemes.json',
+                         'scheme_images.json']
+        response = self.client.get('/schemes/dashboard', **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(type(response.data), ReturnList)
+        self.assertEqual(int(response.data[0]['status']), 1)
+        self.assertEqual(int(response.data[0]['count']), 1)
