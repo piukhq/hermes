@@ -141,15 +141,15 @@ class SchemeAccount(models.Model):
     WALLET_ONLY = 10
 
     STATUSES = (
-        (PENDING, 'pending'),
-        (ACTIVE, 'active'),
+        (PENDING, 'Pending'),
+        (ACTIVE, 'Active'),
         (INVALID_CREDENTIALS, 'invalid credentials'),
-        (INVALID_MFA, 'invalid_mfa'),
-        (END_SITE_DOWN, 'end site down'),
-        (IP_BLOCKED, 'ip blocked'),
-        (TRIPPED_CAPTCHA, 'tripped captcha'),
-        (INCOMPLETE, 'incomplete'),
-        (LOCKED_BY_ENDSITE, 'account locked on end site'),
+        (INVALID_MFA, 'Invalid_mfa'),
+        (END_SITE_DOWN, 'End site down'),
+        (IP_BLOCKED, 'OP blocked'),
+        (TRIPPED_CAPTCHA, 'Tripped captcha'),
+        (INCOMPLETE, 'Incomplete'),
+        (LOCKED_BY_ENDSITE, 'Account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
@@ -170,6 +170,10 @@ class SchemeAccount(models.Model):
 
     objects = BulkUpdateManager()
     active_objects = ActiveManager()
+
+    @property
+    def status_name(self):
+        return dict(self.STATUSES)[self.status]
 
     def _collect_credentials(self):
         credentials = {}

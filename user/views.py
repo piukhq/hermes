@@ -93,8 +93,7 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         ---
         responseMessages:
             - code: 404
-              message: Error retrieing scheme accounts for this user.
-
+              message: Error retrieving scheme accounts for this user.
         """
         scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
         scheme = scheme_account.scheme
@@ -102,6 +101,8 @@ class RetrieveSchemeAccount(RetrieveAPIView):
         instance = SimpleNamespace(scheme_slug=scheme.slug,
                                    user_id=request.user.id,
                                    scheme_account_id=scheme_account.id,
+                                   status=scheme_account.status,
+                                   status_name=scheme_account.status_name,
                                    credentials=scheme_account.credentials())
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

@@ -442,10 +442,9 @@ class TestSchemeAccounts(TestCase):
     def test_get_scheme_accounts(self):
         scheme = SchemeFactory()
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        question = SchemeCredentialQuestionFactory(scheme=scheme)
-        answer = SchemeCredentialAnswerFactory(scheme_account=scheme_account)
+        SchemeCredentialQuestionFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account)
         user = scheme_account.user
-        uid = str(user.uid)
         auth_headers = {
             'HTTP_AUTHORIZATION': "Token " + user.create_token()
         }
@@ -456,6 +455,8 @@ class TestSchemeAccounts(TestCase):
         self.assertEqual(content['scheme_slug'], scheme.slug)
         self.assertEqual(content['scheme_account_id'], scheme_account.id)
         self.assertEqual(content['user_id'], scheme_account.user.id)
+        self.assertEqual(content['status'], 1)
+        self.assertEqual(content['status_name'], 'Active')
         decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
         credentials = json.loads(decrypted_credentials)
         # self.assertEqual(credentials['username'], scheme_account.username)
