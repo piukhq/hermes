@@ -1,7 +1,7 @@
 from django.conf import settings
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseAgentSerializer, LinkSchemeSerializer
+from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory
 from scheme.models import SchemeAccount
@@ -80,7 +80,7 @@ class TestSchemeAccount(APITestCase):
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['points'], 100)
-        self.assertTrue(ResponseAgentSerializer(data=response.data).is_valid())
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)

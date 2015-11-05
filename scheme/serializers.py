@@ -89,10 +89,11 @@ class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
     primary_answer = serializers.CharField(required=False)
 
 
-class ResponseAgentSerializer(serializers.Serializer):
+class ResponseLinkSerializer(serializers.Serializer):
     points = serializers.IntegerField(allow_null=True)
     value = serializers.IntegerField(allow_null=True)
-    label = serializers.IntegerField(allow_null=True)
+    value_label = serializers.IntegerField(allow_null=True)
+    balance = serializers.IntegerField(allow_null=True)
     status = serializers.IntegerField()
 
 
