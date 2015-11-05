@@ -90,11 +90,13 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class LinkCredentials(GenericAPIView):
+    serializer_class = LinkSchemeSerializer
+
     def post(self, request, *args, **kwargs):
         """
         Link credentials for loyalty scheme login
         ---
-        response_serializer: ResponseAgentSerializer
+        response_serializer: ResponseLinkSerializer
         """
         serializer = LinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
         serializer.is_valid(raise_exception=True)
@@ -134,7 +136,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         ---
-        response_serializer: ResponseAgentSerializer
+        response_serializer: ResponseLinkSerializer
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
