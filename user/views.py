@@ -103,6 +103,7 @@ class RetrieveSchemeAccount(RetrieveAPIView):
                                    scheme_account_id=scheme_account.id,
                                    status=scheme_account.status,
                                    status_name=scheme_account.status_name,
+                                   action_status=scheme_account.action_status,
                                    credentials=scheme_account.credentials())
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

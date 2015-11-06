@@ -457,6 +457,7 @@ class TestSchemeAccounts(TestCase):
         self.assertEqual(content['user_id'], scheme_account.user.id)
         self.assertEqual(content['status'], 1)
         self.assertEqual(content['status_name'], 'Active')
+        self.assertEqual(content['action_status'], 'ACTIVE')
         decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
         credentials = json.loads(decrypted_credentials)
         # self.assertEqual(credentials['username'], scheme_account.username)

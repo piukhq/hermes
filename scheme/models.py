@@ -139,22 +139,24 @@ class SchemeAccount(models.Model):
     MIDAS_UNREACHEABLE = 9
     AGENT_NOT_FOUND = 404
     WALLET_ONLY = 10
+    PASSWORD_EXPIRED = 533
 
     STATUSES = (
         (PENDING, 'Pending'),
         (ACTIVE, 'Active'),
-        (INVALID_CREDENTIALS, 'invalid credentials'),
-        (INVALID_MFA, 'Invalid_mfa'),
+        (INVALID_CREDENTIALS, 'Invalid credentials'),
+        (INVALID_MFA, 'Invalid mfa'),
         (END_SITE_DOWN, 'End site down'),
-        (IP_BLOCKED, 'OP blocked'),
+        (IP_BLOCKED, 'IP blocked'),
         (TRIPPED_CAPTCHA, 'Tripped captcha'),
         (INCOMPLETE, 'Incomplete'),
         (LOCKED_BY_ENDSITE, 'Account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
-        (WALLET_ONLY, 'This is a wallet only card'),
-        (AGENT_NOT_FOUND, 'Agent does not exist on midas')
+        (WALLET_ONLY, 'Wallet only card'),
+        (AGENT_NOT_FOUND, 'Agent does not exist on midas'),
+        (PASSWORD_EXPIRED, "Password expired")
     )
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
@@ -173,7 +175,7 @@ class SchemeAccount(models.Model):
 
     @property
     def status_name(self):
-        return dict(self.STATUSES)[self.status]
+        return dict(self.STATUSES).get(self.status)
 
     def _collect_credentials(self):
         credentials = {}

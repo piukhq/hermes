@@ -100,6 +100,7 @@ class SchemeAccountSerializer(serializers.Serializer):
     user_id = serializers.IntegerField()
     status = serializers.IntegerField()
     status_name = serializers.CharField()
+    action_status = serializers.CharField()
     credentials = serializers.CharField(max_length=300)
 
 
