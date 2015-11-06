@@ -1,7 +1,7 @@
 from django.conf import settings
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseAgentSerializer, LinkSchemeSerializer
+from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory
 from scheme.models import SchemeAccount
@@ -46,6 +46,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
+
     def test_put_schemes_account(self):
         new_scheme = SchemeFactory()
         data = {'order': 5, 'scheme': new_scheme.id, 'primary_answer': '234234234'}
@@ -80,12 +81,13 @@ class TestSchemeAccount(APITestCase):
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['points'], 100)
-        self.assertTrue(ResponseAgentSerializer(data=response.data).is_valid())
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
+        self.assertEqual(response.data[0]['status_name'], 'Active')
         self.assertIn('primary_answer', response.data[0])
 
     def test_wallet_only(self):

@@ -7,8 +7,9 @@ from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseAgentSerializer,
+                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer)
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -94,11 +95,13 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class LinkCredentials(GenericAPIView):
+    serializer_class = LinkSchemeSerializer
+
     def post(self, request, *args, **kwargs):
         """
         Link credentials for loyalty scheme login
         ---
-        response_serializer: ResponseAgentSerializer
+        response_serializer: ResponseLinkSerializer
         """
         serializer = LinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
         serializer.is_valid(raise_exception=True)
@@ -111,10 +114,11 @@ class LinkCredentials(GenericAPIView):
         response_data = {
             'value': points.get('value'),
             'points': points.get('points'),
-            'label': points.get('label'),
+            'value_label': points.get('value_label'),
+            'balance': points.get('balance'),
             'status': scheme_account.status
         }
-        out_serializer = ResponseAgentSerializer(response_data)
+        out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -137,7 +141,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         ---
-        response_serializer: ResponseAgentSerializer
+        response_serializer: ResponseLinkSerializer
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -89,10 +89,11 @@ class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
     primary_answer = serializers.CharField(required=False)
 
 
-class ResponseAgentSerializer(serializers.Serializer):
+class ResponseLinkSerializer(serializers.Serializer):
     points = serializers.IntegerField(allow_null=True)
     value = serializers.IntegerField(allow_null=True)
-    label = serializers.IntegerField(allow_null=True)
+    value_label = serializers.IntegerField(allow_null=True)
+    balance = serializers.IntegerField(allow_null=True)
     status = serializers.IntegerField()
 
 
@@ -118,10 +119,11 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
     primary_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
+    status_name = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status', 'status_name')
 
 
 class StatusSerializer(serializers.Serializer):
