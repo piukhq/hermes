@@ -90,11 +90,12 @@ class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
 
 
 class ResponseLinkSerializer(serializers.Serializer):
-    points = serializers.IntegerField(allow_null=True)
-    value = serializers.IntegerField(allow_null=True)
-    value_label = serializers.IntegerField(allow_null=True)
-    balance = serializers.IntegerField(allow_null=True)
-    status = serializers.IntegerField()
+    points = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    value = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    value_label = serializers.CharField(allow_null=True)
+    balance = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    status = serializers.IntegerField(allow_null=True)
+    status_name = serializers.CharField()
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
