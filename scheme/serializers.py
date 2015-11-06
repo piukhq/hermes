@@ -94,12 +94,13 @@ class BalanceSerializer(serializers.Serializer):
     value = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     value_label = serializers.CharField(allow_null=True)
     balance = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    is_stale = serializers.BooleanField()
 
 
 class ResponseLinkSerializer(serializers.Serializer):
     status = serializers.IntegerField(allow_null=True)
     status_name = serializers.CharField()
-    balance = BalanceSerializer()
+    balance = BalanceSerializer(allow_null=True)
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):

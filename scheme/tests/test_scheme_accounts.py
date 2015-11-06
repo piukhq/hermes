@@ -81,8 +81,7 @@ class TestSchemeAccount(APITestCase):
             'points': Decimal('100'),
             'value_label': "$10",
             'balance': Decimal('20'),
-            'status': 1,
-            'status_name': "Active"
+            'is_stale': False
         }
         data = {CARD_NUMBER: "London"}
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),

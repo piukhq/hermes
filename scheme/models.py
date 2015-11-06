@@ -216,6 +216,8 @@ class SchemeAccount(models.Model):
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE
                 points = response.json()
+                points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
+                points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHEABLE
         self.save()
