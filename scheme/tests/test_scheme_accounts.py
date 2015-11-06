@@ -189,10 +189,9 @@ class TestSchemeAccount(APITestCase):
                              self.scheme_account.scheme.name)]})
 
     def test_scheme_account_summary(self):
-        self.fixtures = ['categories.json', 'schemes_blank.json', 'scheme_questions.json', 'schemes.json',
-                         'scheme_images.json']
+        scheme_account = SchemeAccountFactory()
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
-        self.assertEqual(int(response.data[0]['status']), 1)
+        self.assertEqual(int(response.data[0]['status']), scheme_account.status)
         self.assertEqual(int(response.data[0]['count']), 1)
