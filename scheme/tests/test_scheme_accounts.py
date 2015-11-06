@@ -75,7 +75,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_post_schemes_account_answers(self, mock_get_midas_balance):
+    def test_link_schemes_account(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -88,7 +88,7 @@ class TestSchemeAccount(APITestCase):
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['points'], '100.00')
+        self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
