@@ -146,6 +146,9 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
 
 
 class SchemeAccountSummarySerializer(serializers.Serializer):
+    scheme_id = serializers.IntegerField()
+    name = serializers.CharField()
     status = serializers.CharField()
+    description = serializers.CharField()
     count = serializers.IntegerField()
 

@@ -190,10 +190,16 @@ class TestSchemeAccount(APITestCase):
                          {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
                              self.scheme_account.scheme.name)]})
 
+    def find(self, scheme_list, key, value):
+        for i, dic in enumerate(scheme_list):
+            if dic[key] == value:
+                return i
+        return -1
+
     def test_scheme_account_summary(self):
-        scheme_account = SchemeAccountFactory()
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
-        self.assertEqual(int(response.data[0]['status']), scheme_account.status)
-        self.assertEqual(int(response.data[0]['count']), 1)
+        self.assertTrue(len(response.data) > 0)
+        self.assertTrue(self.find(response.data, 'status', '10') >= 0)
+
