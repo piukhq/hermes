@@ -39,7 +39,8 @@ class TestPaymentCard(APITestCase):
                 'postcode': '28233',
                 'payment_card': self.payment_card.id,
                 'pan': '8699782066600880',
-                'name_on_card': 'Aron Stokes'}
+                'name_on_card': 'Aron Stokes',
+                'token': "some-token"}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
 
         self.assertEqual(response.status_code, 201)

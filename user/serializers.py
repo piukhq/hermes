@@ -90,16 +90,13 @@ class SchemeAccountsSerializer(serializers.ModelSerializer):
         return ret
 
 
-# class RetrieveSchemeAccountSerializer(serializers.Serializer):
-#     scheme = serializers.IntegerField
-
-
 class SchemeAccountSerializer(serializers.Serializer):
     scheme_slug = serializers.CharField(max_length=50)
     scheme_account_id = serializers.IntegerField()
     user_id = serializers.IntegerField()
     status = serializers.IntegerField()
     status_name = serializers.CharField()
+    action_status = serializers.CharField()
     credentials = serializers.CharField(max_length=300)
 
 

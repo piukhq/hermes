@@ -108,15 +108,12 @@ class LinkCredentials(GenericAPIView):
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
         for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.get_or_create(
+            SchemeAccountCredentialAnswer.objects.update_or_create(
                 type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
-        points = scheme_account.get_midas_balance()
         response_data = {
-            'value': points.get('value'),
-            'points': points.get('points'),
-            'value_label': points.get('value_label'),
-            'balance': points.get('balance'),
-            'status': scheme_account.status
+            'balance': scheme_account.get_midas_balance(),
+            'status': scheme_account.status,
+            'status_name': scheme_account.status_name
         }
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
