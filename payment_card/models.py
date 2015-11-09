@@ -72,6 +72,7 @@ class PaymentCardAccount(models.Model):
     start_year = models.IntegerField(null=True)
     expiry_month = models.IntegerField()
     expiry_year = models.IntegerField()
+    token = models.CharField(max_length=255)
     pan = models.CharField(max_length=50, validators=[validate_pan_length])
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
