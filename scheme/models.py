@@ -202,7 +202,7 @@ class SchemeAccount(models.Model):
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
     def get_midas_balance(self):
-        points = {}
+        points = None
         try:
             credentials = self.credentials()
             if not credentials:
