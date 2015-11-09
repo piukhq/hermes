@@ -1,6 +1,7 @@
 from django.db import connection
 from scheme.models import SchemeAccount
 
+
 def scheme_account_status_data(self):
 
     cursor = connection.cursor()
@@ -14,7 +15,8 @@ def scheme_account_status_data(self):
     cursor.execute(sql)
     db_data = dictfetchall(cursor)
 
-    # Create a new list to hold the new dictionaries containing all status plus scheme info.
+    # Create a new list to hold the dictionaries containing all status plus scheme info.
+    # Need to have all scheme statuses for each scheme, then update counts
     scheme_status_list = []
     schemes_list = []
     for statusItem in SchemeAccount.STATUSES:
@@ -22,7 +24,6 @@ def scheme_account_status_data(self):
         scheme_status_list.append(scheme_dict)
 
     for item in db_data:
-
         for scheme_item in scheme_status_list:
             code = list(scheme_item.keys())[0]
             val = list(scheme_item.values())[0]
