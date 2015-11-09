@@ -8,6 +8,8 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch
+from unittest import mock
+from django.test import SimpleTestCase
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES
 import json
 
@@ -46,7 +48,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
-
 
     def test_put_schemes_account(self):
         new_scheme = SchemeFactory()
@@ -199,3 +200,25 @@ class TestSchemeAccount(APITestCase):
                              self.scheme_account.scheme.name)]})
 
 
+class TestAnswerValidation(SimpleTestCase):
+    def test_email_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"email": "bobgmail.com"})
+        self.assertFalse(serializer.is_valid())
+
+    def test_memorable_date_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"memorable_date": "122/11/2015"})
+        self.assertFalse(serializer.is_valid())
+
+    @patch.object(LinkSchemeSerializer, 'validate')
+    def test_memorable_date_validation(self, mock_validate):
+        serializer = LinkSchemeSerializer(data={"memorable_date": "22/11/2015"})
+        self.assertTrue(serializer.is_valid())
+
+    def test_pin_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"pin": "das33"})
+        self.assertFalse(serializer.is_valid())
+
+    @patch.object(LinkSchemeSerializer, 'validate')
+    def test_pin_validation(self, mock_validate):
+        serializer = LinkSchemeSerializer(data={"pin": "3333"})
+        self.assertTrue(serializer.is_valid())

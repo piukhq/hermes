@@ -246,3 +246,4 @@ SWAGGER_SETTINGS = {
     },
 }
 
+TEST_RUNNER = env_var('HERMES_TEST_RUNNER', 'django.test.runner.DiscoverRunner')

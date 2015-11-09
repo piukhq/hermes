@@ -35,27 +35,29 @@ class LinkSchemeSerializer(serializers.Serializer):
     barcode = serializers.CharField(max_length=250, required=False)
     password = serializers.CharField(max_length=250, required=False)
     place_of_birth = serializers.CharField(max_length=250, required=False)
-    email = serializers.CharField(max_length=250, required=False)
+    email = serializers.EmailField(max_length=250, required=False)
     postcode = serializers.CharField(max_length=250, required=False)
-    memorable_date = serializers.CharField(max_length=250, required=False)
-    pin = serializers.CharField(max_length=250, required=False)
+    memorable_date = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
+    pin = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
     last_name = serializers.CharField(max_length=250, required=False)
 
     def validate(self, data):
+        # Validate scheme account
         try:
             scheme_account = SchemeAccount.objects.get(id=self.context['pk'])
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
+        data['scheme_account'] = scheme_account
 
+        # Validate no Primary answer
         primary_question_type = scheme_account.scheme.primary_question.type
-
         if primary_question_type in data:
             raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
 
+        # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [primary_question_type, ]
         if not scheme_account.valid_credentials(question_types):
             raise serializers.ValidationError("All the required credentials have not been submitted")
-        data['scheme_account'] = scheme_account
         return data
 
 
