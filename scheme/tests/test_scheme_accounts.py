@@ -8,7 +8,6 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch
-from unittest import mock
 from django.test import SimpleTestCase
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES
 import json
