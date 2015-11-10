@@ -3,13 +3,11 @@ from scheme.models import SchemeAccount
 
 
 def scheme_account_status_data():
-
     db_data = status_summary_from_db()
 
     # Create a new list to hold the dictionaries containing all status plus scheme info.
     # Need to have all scheme statuses for each scheme, then update counts
     schemes_list = scheme_summary_list(db_data)
-
     return schemes_list
 
 
@@ -27,12 +25,9 @@ def status_summary_from_db():
 
 
 def convert_to_dictionary(cursor):
-    "Return all rows from a cursor as a dict"
+    """Return all rows from a cursor as a dict"""
     columns = [col[0] for col in cursor.description]
-    return [
-        dict(zip(columns, row))
-        for row in cursor.fetchall()
-        ]
+    return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
 
 def scheme_summary_list(db_data):
@@ -40,20 +35,18 @@ def scheme_summary_list(db_data):
     statuses = SchemeAccount.STATUSES
 
     for item in db_data:
-        for scheme_item in statuses:
-            code = scheme_item[0]
-            val = scheme_item[1]
+        for code, description in statuses:
             if code == item['status']:
-                item['description'] = val
+                item['description'] = description
                 schemes_list.append(item)
             else:
-                temp = {
+                new_status = {
                     'scheme_id': item['scheme_id'],
                     'name': item['name'],
                     'count': 0,
                     'status': code,
-                    'description': val
+                    'description': description
                 }
-                schemes_list.append(temp)
+                schemes_list.append(new_status)
 
     return schemes_list

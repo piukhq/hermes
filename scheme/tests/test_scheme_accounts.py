@@ -210,11 +210,12 @@ class TestSchemeAccount(APITestCase):
 
     def all_statuses_correct(self, scheme_list):
         status_dict = dict(SchemeAccount.STATUSES)
+        scheme_status_codes = [int(scheme['status']) for scheme in scheme_list]
         for status_code in status_dict:
-            if next((item for item in scheme_list if int(item["status"]) == status_code), None) is None:
+            if status_code not in scheme_status_codes:
                 return False
-
         return True
+
 
 class TestAnswerValidation(SimpleTestCase):
     def test_email_validation_error(self):
