@@ -54,8 +54,11 @@ class TestSchemeAccount(APITestCase):
         response = self.client.put('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
                                    **self.auth_headers)
         self.assertEqual(response.status_code, 200)
+        primary_answer_id = response.data['primary_answer_id']
         self.assertEqual(response.data['order'], 5)
-        self.assertEqual(response.data['primary_answer'], '234234234')
+        for answer in response.data['answers']:
+            if answer['id'] == primary_answer_id:
+                self.assertEqual(answer['answer'], '234234234')
 
     def test_patch_schemes_account(self):
         response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data={},
