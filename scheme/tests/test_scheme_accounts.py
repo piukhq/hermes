@@ -201,6 +201,21 @@ class TestSchemeAccount(APITestCase):
                          {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
                              self.scheme_account.scheme.name)]})
 
+    def test_scheme_account_summary(self):
+        response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(type(response.data), ReturnList)
+        self.assertTrue(len(response.data) > 0)
+        self.assertTrue(self.all_statuses_correct(response.data))
+
+    def all_statuses_correct(self, scheme_list):
+        status_dict = dict(SchemeAccount.STATUSES)
+        scheme_status_codes = [int(scheme['status']) for scheme in scheme_list]
+        for status_code in status_dict:
+            if status_code not in scheme_status_codes:
+                return False
+        return True
+
 
 class TestAnswerValidation(SimpleTestCase):
     def test_email_validation_error(self):

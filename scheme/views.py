@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
                                      RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
@@ -5,13 +7,16 @@ from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer)
+                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
+                                SchemeAccountSummarySerializer)
+
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService
 from django.db import transaction
+from scheme.account_status_summary import scheme_account_status_data
 
 
 class SwappableSerializerMixin(object):
@@ -222,6 +227,21 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     authentication_classes = (ServiceAuthentication,)
     queryset = SchemeAccount.active_objects
     serializer_class = SchemeAccountCredentialsSerializer
+
+
+class SchemeAccountStatusData(ListAPIView):
+    """
+    DO NOT USE - NOT FOR APP ACCESS
+    """
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+
+    def get_queryset(self):
+        queryset = scheme_account_status_data()
+
+        return queryset
+
+    serializer_class = SchemeAccountSummarySerializer
 
 
 def json_error_response(message, code):
