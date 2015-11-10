@@ -71,12 +71,14 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
         data = serializer.validated_data
 
         scheme_account.order = data.get('order', scheme_account.order)
+        scheme_account.save()
         answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
                                                            type=scheme_account.primary_answer.type)
         answer.answer = data.get('primary_answer', answer.answer)
         answer.save()
 
-        return Response(serializer.data)
+        out_serializer = GetSchemeAccountSerializer(scheme_account)
+        return Response(out_serializer.data)
 
     def delete(self, request, *args, **kwargs):
         """
