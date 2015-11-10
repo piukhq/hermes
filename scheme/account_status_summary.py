@@ -2,8 +2,18 @@ from django.db import connection
 from scheme.models import SchemeAccount
 
 
-def scheme_account_status_data(self):
+def scheme_account_status_data():
 
+    db_data = status_summary_from_db()
+
+    # Create a new list to hold the dictionaries containing all status plus scheme info.
+    # Need to have all scheme statuses for each scheme, then update counts
+    schemes_list = scheme_summary_list(db_data)
+
+    return schemes_list
+
+
+def status_summary_from_db():
     cursor = connection.cursor()
 
     sql = "SELECT sa.scheme_id, ss.name, sa.status, COUNT (status) " \
@@ -13,13 +23,7 @@ def scheme_account_status_data(self):
           "ORDER BY sa.scheme_id,sa.status"
 
     cursor.execute(sql)
-    db_data = convert_to_dictionary(cursor)
-
-    # Create a new list to hold the dictionaries containing all status plus scheme info.
-    # Need to have all scheme statuses for each scheme, then update counts
-    schemes_list = scheme_summary_list(db_data)
-
-    return schemes_list
+    return convert_to_dictionary(cursor)
 
 
 def convert_to_dictionary(cursor):

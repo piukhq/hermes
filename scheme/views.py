@@ -235,7 +235,7 @@ class SchemeAccountStatusData(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        queryset = scheme_account_status_data(self)
+        queryset = scheme_account_status_data()
 
         return queryset
 
