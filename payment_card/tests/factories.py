@@ -36,8 +36,7 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     start_year = fake.month()
     expiry_month = fake.month()
     expiry_year = fake.month()
-    pan = fake.credit_card_number()
+    pan_start = 111111
+    pan_end = 2222
     order = 0
-    postcode = fake.postcode()
-    security_code = fake.credit_card_security_code()
     issuer = factory.SubFactory(IssuerFactory)

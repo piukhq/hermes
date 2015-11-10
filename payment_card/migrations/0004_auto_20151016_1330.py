@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='paymentcardaccount',
             name='pan',
-            field=models.CharField(max_length=50, validators=[payment_card.models.validate_pan_length]),
+            field=models.CharField(max_length=50),
         ),
     ]

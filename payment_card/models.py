@@ -1,11 +1,9 @@
+from functools import partial
 from django.db import models
 from bulk_update.manager import BulkUpdateManager
 from django.core.exceptions import ValidationError
 
 
-def validate_pan_length(value):
-    if len(str(value)) != 16:
-        raise ValidationError(u'%s is not the correct length' % value)
 
 
 class Issuer(models.Model):
@@ -50,19 +48,23 @@ class ActiveManager(models.Manager):
             return super(ActiveManager, self).get_queryset().exclude(status=PaymentCardAccount.DELETED)
 
 
+def validate_pan_start(value):
+    if len(str(value)) != 6:
+        raise ValidationError('{0} is not of the correct length {1}'.format(value, 6))
+
+
+def validate_pan_end(value):
+    if len(str(value)) != 4:
+        raise ValidationError('{0} is not of the correct length {1}'.format(value, 4))
+
+
 class PaymentCardAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
-    INVALID_CREDENTIALS = 2
-    END_SITE_DOWN = 3
-    DELETED = 4
 
     STATUSES = (
         (PENDING, 'pending'),
         (ACTIVE, 'active'),
-        (INVALID_CREDENTIALS, 'invalid credentials'),
-        (END_SITE_DOWN, 'end site down'),
-        (DELETED, 'deleted'),
     )
 
     user = models.ForeignKey('user.CustomUser')
@@ -72,23 +74,22 @@ class PaymentCardAccount(models.Model):
     start_year = models.IntegerField(null=True)
     expiry_month = models.IntegerField()
     expiry_year = models.IntegerField()
+    currency_code = models.CharField(max_length=3)
+    country = models.CharField(max_length=40)
     token = models.CharField(max_length=255)
-    pan = models.CharField(max_length=50, validators=[validate_pan_length])
+    pan_start = models.CharField(validators=[validate_pan_start], max_length=6)
+    pan_end = models.CharField(validators=[validate_pan_end], max_length=4)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    postcode = models.CharField(max_length=20, blank=True, null=True)
-    security_code = models.CharField(max_length=6)
     issuer = models.ForeignKey(Issuer)
 
     objects = BulkUpdateManager()
-    active_objects = ActiveManager()
 
     def __str__(self):
-        return self.pan
+        return "{0}******{1}".format(self.pan_start, self.pan_end)
 
-    def save(self, *args, **kwargs):
-        pan = self.pan.strip().replace(" ", "").replace("-", "")
-        self.pan = pan[:6] + "******" + pan[-4:]
-        super(PaymentCardAccount, self).save(*args, **kwargs)
+    @property
+    def status_name(self):
+        return dict(self.STATUSES).get(self.status)
