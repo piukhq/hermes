@@ -13,20 +13,32 @@ def scheme_account_status_data(self):
           "ORDER BY sa.scheme_id,sa.status"
 
     cursor.execute(sql)
-    db_data = dictfetchall(cursor)
+    db_data = convert_to_dictionary(cursor)
 
     # Create a new list to hold the dictionaries containing all status plus scheme info.
     # Need to have all scheme statuses for each scheme, then update counts
-    scheme_status_list = []
+    schemes_list = scheme_summary_list(db_data)
+
+    return schemes_list
+
+
+def convert_to_dictionary(cursor):
+    "Return all rows from a cursor as a dict"
+    columns = [col[0] for col in cursor.description]
+    return [
+        dict(zip(columns, row))
+        for row in cursor.fetchall()
+        ]
+
+
+def scheme_summary_list(db_data):
     schemes_list = []
-    for statusItem in SchemeAccount.STATUSES:
-        scheme_dict = {statusItem[0]: statusItem[1]}
-        scheme_status_list.append(scheme_dict)
+    statuses = SchemeAccount.STATUSES
 
     for item in db_data:
-        for scheme_item in scheme_status_list:
-            code = list(scheme_item.keys())[0]
-            val = list(scheme_item.values())[0]
+        for scheme_item in statuses:
+            code = scheme_item[0]
+            val = scheme_item[1]
             if code == item['status']:
                 item['description'] = val
                 schemes_list.append(item)
@@ -41,13 +53,3 @@ def scheme_account_status_data(self):
                 schemes_list.append(temp)
 
     return schemes_list
-
-
-def dictfetchall(cursor):
-    "Return all rows from a cursor as a dict"
-    columns = [col[0] for col in cursor.description]
-    return [
-        dict(zip(columns, row))
-        for row in cursor.fetchall()
-        ]
-

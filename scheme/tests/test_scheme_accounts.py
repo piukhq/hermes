@@ -198,16 +198,18 @@ class TestSchemeAccount(APITestCase):
                          {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
                              self.scheme_account.scheme.name)]})
 
-    def find(self, scheme_list, key, value):
-        for i, dic in enumerate(scheme_list):
-            if dic[key] == value:
-                return i
-        return -1
-
     def test_scheme_account_summary(self):
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
         self.assertTrue(len(response.data) > 0)
-        self.assertTrue(self.find(response.data, 'status', '10') >= 0)
+        self.assertTrue(self.all_statuses_correct(response.data))
+
+    def all_statuses_correct(self, scheme_list):
+        status_dict = dict(SchemeAccount.STATUSES)
+        for status_code in status_dict:
+            if next((item for item in scheme_list if int(item["status"]) == status_code), None) is None:
+                return False
+
+        return True
 
