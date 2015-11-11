@@ -9,7 +9,9 @@ from user.models import CustomUser, UserDetail
 
 class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
-    password = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+    api_key = serializers.CharField(read_only=True)
+    uid = serializers.CharField(read_only=True)
 
     def create(self, validated_data):
         email = validated_data['email']
