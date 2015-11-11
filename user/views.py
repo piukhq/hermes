@@ -15,7 +15,7 @@ from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    FaceBookWebRegisterSerializer, SocialRegisterSerializer
+    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer
 from django.conf import settings
 
 
@@ -43,6 +43,12 @@ class Register(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
+    def post(self, request, *args, **kwargs):
+        """
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
+        return super().post(request, *args, **kwargs)
 
 class ResetPassword(UpdateAPIView):
     pass
@@ -76,7 +82,6 @@ class Authenticate(APIView):
           id:
             required: true
             type: json
-
         """
         return Response({
             'uid': str(request.user.uid),
@@ -130,7 +135,7 @@ class Login(GenericAPIView):
               message: Login credentials incorrect.
             - code: 403
               message: The account associated with this email address is suspended.
-
+        response_serializer: ResponseAuthSerializer
         """
         email = request.data['email']
         password = request.data['password']
@@ -142,7 +147,8 @@ class Login(GenericAPIView):
             return Response({"message": "The account associated with this email address is suspended."}, status=403)
 
         login(request, user)
-        return Response({'email': email, 'api_key': user.create_token()})
+        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+        return Response(out_serializer.data)
 
 
 class FaceBookLoginWeb(CreateAPIView):
@@ -154,6 +160,10 @@ class FaceBookLoginWeb(CreateAPIView):
     serializer_class = FaceBookWebRegisterSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
         access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
         params = {
             'client_id': request.data['clientId'],
@@ -180,10 +190,10 @@ class FaceBookLogin(CreateAPIView):
         Login using a Facebook account.
         ---
         type:
-          api_key:
+          access_token:
             required: true
             type: json
-          email:
+          user_id:
             required: true
             type: json
         responseMessages:
@@ -193,7 +203,7 @@ class FaceBookLogin(CreateAPIView):
               message: user_id is invalid for given access token.
             - code: 403
               message: Can not access facebook social graph.
-
+        response_serializer: ResponseAuthSerializer
         """
         access_token = request.data['access_token']
         user_id = request.data['user_id']
@@ -206,40 +216,43 @@ class FaceBookLogin(CreateAPIView):
 
 
 def facebook_graph(access_token):
-    params = {"access_token": access_token,
-              "fields": "email,name,id"}
+    params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
         return Response({"message": 'Can not access facebook social graph.'}, status=403)
     profile = r.json()
+    status = 200
     # Create a new account or return an existing one.
     try:
         user = CustomUser.objects.get(facebook=profile['id'])
     except CustomUser.DoesNotExist:
         password = get_random_string(length=32)
         try:
-            # See if they have an email in our system
+            # If the user has an email in our system link them
             user = CustomUser.objects.get(email=profile['email'])
             user.facebook = profile['id']
             user.save()
         except CustomUser.DoesNotExist:
-            user = CustomUser.objects.create(email=profile['email'], password=password, user=profile['id'])
+            user = CustomUser.objects.create(email=profile['email'], password=password, facebook=profile['id'])
+            status = 201
         except KeyError:
-            user = CustomUser.objects.create(password=password, user=profile['id'])
-
-    return Response({'email': user.email, 'api_key': user.create_token()})
+            user = CustomUser.objects.create(password=password, facebook=profile['id'])
+            status = 201
+    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+    return Response(out_serializer.data, status)
 
 
 class TwitterLogin(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-    serializer_class = SocialRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         """
         Login using a Twitter account.
-
+        for how to implement see: https://dev.twitter.com/web/sign-in/implementing
+        ---
+        response_serializer: ResponseAuthSerializer
         """
         request_token_url = 'https://api.twitter.com/oauth/request_token'
         access_token_url = 'https://api.twitter.com/oauth/access_token'
@@ -253,12 +266,13 @@ class TwitterLogin(APIView):
 
             try:
                 user = CustomUser.objects.get(twitter=access_token['user_id'])
+                status = 200
             except CustomUser.DoesNotExist:
                 password = get_random_string(length=32)
                 user = CustomUser.objects.create(password=password, twitter=access_token['user_id'])
-
-            return Response({'email': user.email, 'api_key': user.create_token()})
-
+                status = 201
+            out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+            return Response(out_serializer.data, status=status)
         oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
                                       client_secret=settings.TWITTER_CONSUMER_SECRET,
                                       callback_uri=settings.TWITTER_CALLBACK_URL)

@@ -22,7 +22,6 @@ class RegisterSerializer(serializers.Serializer):
         ret = OrderedDict()
         ret['email'] = instance.email
         ret['api_key'] = instance.create_token()
-        ret['uid'] = instance.uid
         return ret
 
 
@@ -111,4 +110,9 @@ class FaceBookWebRegisterSerializer(serializers.Serializer):
 class SocialRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+
+
+class ResponseAuthSerializer(serializers.Serializer):
+    email = serializers.CharField(max_length=600)
+    api_key = serializers.CharField(max_length=120)
 
