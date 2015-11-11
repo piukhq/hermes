@@ -11,7 +11,6 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
-    uid = serializers.CharField(read_only=True)
 
     def create(self, validated_data):
         email = validated_data['email']
@@ -114,5 +113,5 @@ class SocialRegisterSerializer(serializers.Serializer):
 
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
-    api_key = serializers.CharField(max_length=120)
+    api_key = serializers.CharField()
 

@@ -43,12 +43,6 @@ class Register(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
-    def post(self, request, *args, **kwargs):
-        """
-        ---
-        response_serializer: ResponseAuthSerializer
-        """
-        return super().post(request, *args, **kwargs)
 
 class ResetPassword(UpdateAPIView):
     pass
