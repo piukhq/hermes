@@ -153,10 +153,15 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
         fields = ('id', 'scheme', 'credentials', 'user', 'status')
 
 
-class SchemeAccountSummarySerializer(serializers.Serializer):
-    scheme_id = serializers.IntegerField()
+class SchemeAccountStatusSerializer(serializers.Serializer):
     name = serializers.CharField()
     status = serializers.CharField()
     description = serializers.CharField()
     count = serializers.IntegerField()
+
+
+class SchemeAccountSummarySerializer(serializers.Serializer):
+    scheme_id = serializers.IntegerField()
+    statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
+
 

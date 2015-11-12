@@ -210,10 +210,11 @@ class TestSchemeAccount(APITestCase):
 
     def all_statuses_correct(self, scheme_list):
         status_dict = dict(SchemeAccount.STATUSES)
-        scheme_status_codes = [int(scheme['status']) for scheme in scheme_list]
-        for status_code in status_dict:
-            if status_code not in scheme_status_codes:
-                return False
+        for scheme in scheme_list:
+            scheme_status_codes = [int(s['status']) for s in scheme['statuses']]
+            for status_code in status_dict:
+                if status_code not in scheme_status_codes:
+                    return False
         return True
 
 

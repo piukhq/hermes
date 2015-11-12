@@ -1,3 +1,4 @@
+from copy import copy
 from django.db import connection
 from scheme.models import SchemeAccount
 
@@ -34,19 +35,25 @@ def scheme_summary_list(db_data):
     schemes_list = []
     statuses = SchemeAccount.STATUSES
 
+    scheme_ids = sorted(list({x['scheme_id'] for x in db_data}))
+    for scheme_id in scheme_ids:
+        schemes_list.append({'scheme_id': scheme_id, 'statuses': []})
+
     for item in db_data:
         for code, description in statuses:
+            scheme_dict = list(filter(lambda scheme: scheme['scheme_id'] == item['scheme_id'], schemes_list))[0]
             if code == item['status']:
                 item['description'] = description
-                schemes_list.append(item)
+                new_item = copy(item)
+                new_item.pop('scheme_id')
+                scheme_dict['statuses'].append(new_item)
             else:
                 new_status = {
-                    'scheme_id': item['scheme_id'],
                     'name': item['name'],
                     'count': 0,
                     'status': code,
                     'description': description
                 }
-                schemes_list.append(new_status)
+                scheme_dict['statuses'].append(new_status)
 
     return schemes_list
