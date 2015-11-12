@@ -75,6 +75,8 @@ class SchemeAccountSerializer(serializers.Serializer):
 
 class CreateSchemeAccountSerializer(SchemeAccountSerializer):
     scheme = serializers.IntegerField()
+    id = serializers.IntegerField(read_only=True)
+    primary_answer_type = serializers.CharField(read_only=True)
 
     def validate(self, data):
         try:
@@ -159,4 +161,3 @@ class SchemeAccountSummarySerializer(serializers.Serializer):
     status = serializers.CharField()
     description = serializers.CharField()
     count = serializers.IntegerField()
-
