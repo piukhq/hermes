@@ -1,7 +1,5 @@
-import json
-
 from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
-                                     RetrieveUpdateDestroyAPIView, get_object_or_404, ListCreateAPIView,)
+                                     get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
@@ -139,8 +137,6 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         """
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
-        ---
-        response_serializer: ResponseLinkSerializer
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
