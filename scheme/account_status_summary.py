@@ -1,3 +1,7 @@
+from collections import defaultdict
+from copy import copy
+from pprint import pprint
+
 from django.db import connection
 from scheme.models import SchemeAccount
 
@@ -31,22 +35,28 @@ def convert_to_dictionary(cursor):
 
 
 def scheme_summary_list(db_data):
-    schemes_list = []
-    statuses = SchemeAccount.STATUSES
+    schemes = defaultdict(dict)
+    # Put the schemes into a dict format
+    for scheme_status in db_data:
+        schemes[scheme_status['scheme_id']][scheme_status['status']] = scheme_status
 
-    for item in db_data:
-        for code, description in statuses:
-            if code == item['status']:
-                item['description'] = description
-                schemes_list.append(item)
-            else:
-                new_status = {
-                    'scheme_id': item['scheme_id'],
-                    'name': item['name'],
-                    'count': 0,
-                    'status': code,
-                    'description': description
-                }
-                schemes_list.append(new_status)
+    output = []
+    for scheme_id, present_statuses in schemes.items():
+        output.append({
+            "scheme_id": scheme_id,
+            "statuses": generate_all_statuses(present_statuses)
+        })
+    return output
 
-    return schemes_list
+
+def generate_all_statuses(statuses):
+    name = list(statuses.values())[0]['name']  # We just need the first name
+    all_statuses = []
+    for code, description in SchemeAccount.STATUSES:
+        all_statuses.append({
+            'name': name,
+            'count': statuses.get(code, {}).get('count', 0),
+            'status': code,
+            'description': description
+        })
+    return all_statuses

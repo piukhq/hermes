@@ -10,5 +10,11 @@ summary_scheme_data = [
         'count': 1,
         'status': 1,
         'name': 'name2'
-    }
+    },
+    {
+        'scheme_id': 76,
+        'count': 1,
+        'status': 8,
+        'name': 'name2'
+    },
 ]
