@@ -216,6 +216,10 @@ class TestSchemeAccount(APITestCase):
                 return False
         return True
 
+    def test_valid_credentials(self):
+        self.assertEqual(self.scheme_account.missing_credentials([]), set(['card_number', 'username']))
+        self.assertFalse(self.scheme_account.missing_credentials(['card_number', 'username', 'dummy']))
+
 
 class TestAnswerValidation(SimpleTestCase):
     def test_email_validation_error(self):

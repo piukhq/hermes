@@ -56,8 +56,10 @@ class LinkSchemeSerializer(serializers.Serializer):
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [primary_question_type, ]
-        if not scheme_account.valid_credentials(question_types):
-            raise serializers.ValidationError("All the required credentials have not been submitted")
+        missing_credentials = scheme_account.missing_credentials(question_types)
+        if missing_credentials:
+            raise serializers.ValidationError(
+                "All the required credentials have not been submitted: {0}".format(missing_credentials))
         return data
 
 
