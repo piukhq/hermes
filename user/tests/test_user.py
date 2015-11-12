@@ -1,11 +1,19 @@
 import json
+
+import httpretty as httpretty
 from django.test import Client, TestCase
+from requests_oauthlib import OAuth1Session
+
 from hermes import settings
 from scheme.encyption import AESCipher
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
     SchemeCredentialQuestionFactory
+from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
+from unittest import mock
+
+from user.views import facebook_graph
 
 
 class TestRegisterNewUser(TestCase):
@@ -467,13 +475,82 @@ class TestSchemeAccounts(TestCase):
         # self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
 
 
-class TestSocialLogin(TestCase):
-    def test_register_facebook(self):
+class TestTwitterLogin(APITestCase):
+    @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
+    def test_twitter_login(self, mock_fetch_access_token):
+        user = UserFactory(twitter='VPQ4TiPKbd')
+        mock_fetch_access_token.return_value = {'user_id': 'VPQ4TiPKbd'}
+        response = self.client.post('/users/auth/twitter', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], user.email)
+        self.assertIn('api_key', response.data)
+        self.assertEqual(mock_fetch_access_token.call_args[0][1],  'https://api.twitter.com/oauth/access_token')
+
+    @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
+    def test_twitter_login_create(self, mock_fetch_access_token):
+        twitter_id = 'omsr4k7yta'
+        mock_fetch_access_token.return_value = {'user_id': twitter_id}
+        response = self.client.post('/users/auth/twitter', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
+
+        self.assertEqual(response.status_code, 201)
+        user = CustomUser.objects.get(twitter=twitter_id)
+        self.assertEqual(response.data['email'], user.email)
+        self.assertEqual(mock_fetch_access_token.call_args[0][1],  'https://api.twitter.com/oauth/access_token')
+
+    @mock.patch.object(OAuth1Session, 'fetch_request_token', autospec=True)
+    def test_twitter_request_token(self, mock_fetch_request_token):
+        mock_fetch_request_token.return_value = {'test': True}
+        response = self.client.post('/users/auth/twitter')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, {'test': True})
+        self.assertEqual(mock_fetch_request_token.call_args[0][1],  'https://api.twitter.com/oauth/request_token')
+
+
+class TestFacebookLogin(APITestCase):
+    def stub_graph(self, data):
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/me',
+                               body=json.dumps(data), content_type="application/json")
+
+    @httpretty.activate
+    def test_facebook_graph_user_exists(self):
+        facebook_id = 'O7bz6vG60Y'
+        self.stub_graph({"email": "", "id": facebook_id})
+        user = UserFactory(facebook=facebook_id)
+
+        response = facebook_graph('Ju76xER1A5')
+        user = CustomUser.objects.get(id=user.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(user.facebook, facebook_id)
+
+    @httpretty.activate
+    def test_facebook_graph_no_user(self):
+        facebook_id = '9l0RFutSn7'
+        email = "dyost@kunze.biz"
+        self.stub_graph({"email": email, "id": facebook_id})
+        response = facebook_graph('Ju76xER1A5')
+        user = CustomUser.objects.get(facebook=facebook_id)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(user.facebook, facebook_id)
+        self.assertEqual(user.email, email)
+
+    @httpretty.activate
+    def test_facebook_graph_no_user_or_email(self):
+        facebook_id = 'GzQ6YzqJ7H'
+        self.stub_graph({"id": facebook_id})
+        response = facebook_graph('Ju76xER1A5')
+        user = CustomUser.objects.get(facebook=facebook_id)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(user.facebook, facebook_id)
+
+    @httpretty.activate
+    def test_facebook_graph_link_user_with_email(self):
         user = UserFactory()
-        data = {
-            "email": user.email,
-            "token": '1234',
-            "type": "facebook"
-        }
-        client = Client()
-        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password1'})
+        self.stub_graph({"email": user.email, "id": 793875})
+        response = facebook_graph('Ju76xER1A5')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], user.email)
