@@ -51,12 +51,12 @@ def scheme_summary_list(db_data):
 
 def generate_all_statuses(statuses):
     name = list(statuses.values())[0]['name']  # We just need the first name
-    statuses = []
+    all_statuses = []
     for code, description in SchemeAccount.STATUSES:
-        statuses.append({
+        all_statuses.append({
             'name': name,
             'count': statuses.get(code, {}).get('count', 0),
             'status': code,
             'description': description
         })
-    return statuses
+    return all_statuses
