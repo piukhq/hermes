@@ -31,7 +31,6 @@ class SchemeFactory(factory.DjangoModelFactory):
     has_points = True
     barcode_type = 1
     scan_message = fake.sentence()
-    point_conversion_rate = 1
     category = factory.SubFactory(CategoryFactory)
 
 
