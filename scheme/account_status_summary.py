@@ -1,7 +1,4 @@
 from collections import defaultdict
-from copy import copy
-from pprint import pprint
-
 from django.db import connection
 from scheme.models import SchemeAccount
 
