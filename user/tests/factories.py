@@ -35,4 +35,3 @@ class UserProfileFactory(factory.Factory):
     notifications = '0'
     pass_code = '1234'
     currency = 'GBP'
-

@@ -1,4 +1,3 @@
-import json
 from types import SimpleNamespace
 from django.contrib.auth import authenticate, login
 from django.utils.crypto import get_random_string

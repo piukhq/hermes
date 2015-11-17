@@ -1,10 +1,9 @@
 from django.utils import timezone
-from django.contrib.auth.models import BaseUserManager, UserManager
+from django.contrib.auth.models import BaseUserManager
 
 
 class CustomUserManager(BaseUserManager):
-    def _create_user(self, email, password,
-                 is_staff, is_superuser, **extra_fields):
+    def _create_user(self, email, password, is_staff, is_superuser, **extra_fields):
         """
         Creates and saves a User with the given username, email and password.
         """

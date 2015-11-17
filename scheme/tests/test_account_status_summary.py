@@ -3,7 +3,6 @@ from scheme.account_status_summary import scheme_summary_list
 from scheme.tests.fixtures import summary_scheme_data
 
 
-
 class TestStatusSummary(SimpleTestCase):
     def test_convert_to_dictionary(self):
         test_dict = scheme_summary_list(summary_scheme_data)

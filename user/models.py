@@ -64,8 +64,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         token = jwt.encode(payload, settings.TOKEN_SECRET)
         return token.decode('unicode_escape')
 
-
-    # # Admin required fields
+    # Admin required fields
     # @property
     # def is_superuser(self):
     #     return self.is_superuser

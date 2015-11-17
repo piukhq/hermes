@@ -5,6 +5,8 @@ from faker import Factory
 from user.tests.factories import UserFactory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
+
+
 fake = Factory.create()
 
 
@@ -59,6 +61,7 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     type = USER_NAME
     answer = fake.first_name()
+
 
 class SchemeImageFactory(factory.DjangoModelFactory):
     class Meta:

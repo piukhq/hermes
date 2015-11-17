@@ -1,8 +1,14 @@
 services:
 - postgres:9.4.4
 
-dev:
-  script:
-  - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
+before_script:
   - pip3 install -r requirements.txt
-  - py.test --cov=.
+
+tests:
+  script:
+    - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
+    - py.test --cov=.
+
+flake8:
+  script:
+    - flake8 *
