@@ -2,8 +2,6 @@ import json
 import httpretty as httpretty
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
-from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
-    SchemeCredentialQuestionFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
@@ -437,40 +435,6 @@ class TestAuthentication(APITestCase):
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
         self.assertEqual(content['detail'], 'Invalid token.')
-
-
-class TestSchemeAccounts(TestCase):
-    def test_get_scheme_accounts(self):
-        scheme = SchemeFactory()
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialQuestionFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account)
-        user = scheme_account.user
-        auth_headers = {
-            'HTTP_AUTHORIZATION': "Token " + user.create_token()
-        }
-        client = Client()
-        response = client.get('/users/scheme_accounts/{}/'.format(scheme_account.id), content_type='application/json',
-                              **auth_headers)
-        self.assertEqual(response.status_code, 200)
-        content = json.loads(response.content.decode())
-        self.assertEqual(content['scheme_slug'], scheme.slug)
-        self.assertEqual(content['scheme_account_id'], scheme_account.id)
-        self.assertEqual(content['user_id'], scheme_account.user.id)
-        self.assertEqual(content['status'], 1)
-        self.assertEqual(content['status_name'], 'Active')
-        self.assertEqual(content['action_status'], 'ACTIVE')
-
-        """
-        TODO: andrew
-        decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
-        credentials = json.loads(decrypted_credentials)
-        self.assertEqual(credentials['username'], scheme_account.username)
-        self.assertEqual(credentials['card_number'], scheme_account.card_number)
-        self.assertEqual(credentials['membership_number'], str(scheme_account.membership_number))
-        self.assertEqual(credentials['password'], scheme_account.decrypt())
-        self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
-        """
 
 
 class TestTwitterLogin(APITestCase):

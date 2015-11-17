@@ -1,21 +1,19 @@
-from types import SimpleNamespace
+import requests
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-import requests
 from requests_oauthlib import OAuth1Session
-from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
-    RetrieveAPIView, get_object_or_404
+from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
+                                     get_object_or_404)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
-from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer
-from django.conf import settings
+from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
+                              SocialRegisterSerializer, ResponseAuthSerializer)
 
 
 class ForgottenPassword:
@@ -80,31 +78,6 @@ class Authenticate(APIView):
             'uid': str(request.user.uid),
             'id': str(request.user.id)
         })
-
-
-class RetrieveSchemeAccount(RetrieveAPIView):
-    serializer_class = SchemeAccountSerializer
-
-    def get(self, request, *args, **kwargs):
-        """
-        Retrieve a users scheme accounts.
-        ---
-        responseMessages:
-            - code: 404
-              message: Error retrieving scheme accounts for this user.
-        """
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
-        scheme = scheme_account.scheme
-
-        instance = SimpleNamespace(scheme_slug=scheme.slug,
-                                   user_id=request.user.id,
-                                   scheme_account_id=scheme_account.id,
-                                   status=scheme_account.status,
-                                   status_name=scheme_account.status_name,
-                                   action_status=scheme_account.action_status,
-                                   credentials=scheme_account.credentials())
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
 
 class Login(GenericAPIView):

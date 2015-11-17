@@ -1,3 +1,4 @@
+from django.contrib.auth.models import AnonymousUser
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.permissions import BasePermission
@@ -24,8 +25,8 @@ class JwtAuthentication(BaseAuthentication):
     * key -- The string identifying the token
     * user -- The user to which the token belongs
     """
-
-    def authenticate(self, request):
+    @staticmethod
+    def get_token(request):
         auth = get_authorization_header(request).split()
 
         if not auth or auth[0].lower() != b'token':
@@ -43,7 +44,13 @@ class JwtAuthentication(BaseAuthentication):
         except UnicodeError:
             msg = _('Invalid token header. Token string should not contain invalid characters.')
             raise exceptions.AuthenticationFailed(msg)
+        return token
 
+    def authenticate(self, request):
+        token = self.get_token(request)
+        # If its not a JWT token return none
+        if "." not in token:
+            return None
         return self.authenticate_credentials(token)
 
     def authenticate_credentials(self, key):
@@ -63,6 +70,12 @@ class JwtAuthentication(BaseAuthentication):
         return 'Token'
 
 
+class ServiceUser(AnonymousUser):
+    def is_authenticated(self):
+        return True
+    uid = 'api_user'
+
+
 class ServiceAuthentication(JwtAuthentication):
     """
     Authentication for olympus services
@@ -70,10 +83,12 @@ class ServiceAuthentication(JwtAuthentication):
     def authenticate_credentials(self, key):
         if key != settings.SERVICE_API_KEY:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
-        user = "api_user"
-        return user, None
+        return ServiceUser(), None
+
+    def authenticate(self, request):
+        return self.authenticate_credentials(self.get_token(request))
 
 
 class AllowService(BasePermission):
     def has_permission(self, request, view):
-        return request.user == 'api_user'
+        return request.user.uid == 'api_user'
