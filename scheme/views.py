@@ -120,14 +120,18 @@ class LinkCredentials(GenericAPIView):
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-    """
-    Retrieve a scheme account using the scheme account id.
-    """
+
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
         'POST': CreateSchemeAccountSerializer,
         'OPTIONS': ListSchemeAccountSerializer,
     }
+
+    def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        return super().get(self, request, *args, **kwargs)
 
     def get_queryset(self):
         user = self.request.user
