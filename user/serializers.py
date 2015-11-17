@@ -114,4 +114,3 @@ class SocialRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
-

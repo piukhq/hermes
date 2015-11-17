@@ -207,10 +207,9 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+            headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
             response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                    params=parameters, headers={
-                    "transaction": str(uuid.uuid1()),
-                    "User-agent": 'Hermes on {0}'.format(socket.gethostname())})
+                                    params=parameters, headers=headers)
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE

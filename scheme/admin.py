@@ -42,7 +42,4 @@ class SchemeAccountAdmin(admin.ModelAdmin):
     list_display = ('user', 'scheme', 'status')
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
-
-
 admin.site.register(Category)
-

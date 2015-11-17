@@ -1,11 +1,7 @@
 import json
-
 import httpretty as httpretty
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
-
-from hermes import settings
-from scheme.encyption import AESCipher
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
     SchemeCredentialQuestionFactory
 from user.models import CustomUser
@@ -157,12 +153,11 @@ class TestUserProfile(TestCase):
                               content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         data['uid'] = api_key
-        #TODO: SORT THESE
+        # TODO: SORT THESE
         data['notifications'] = 0
-        #TODO: Check all fields in response
+        # TODO: Check all fields in response
         pass
-        #TODO: Check all fields in model
-
+        # TODO: Check all fields in model
 
     def test_partial_update(self):
         user_profile = UserProfileFactory()
@@ -267,7 +262,6 @@ class TestUserProfile(TestCase):
     def test_edit_unique_email(self):
         user_profile1 = UserProfileFactory()
         user_profile2 = UserProfileFactory()
-        uid = user_profile1.user.uid
         data = {
             'email': user_profile2.user.email,
         }
@@ -372,7 +366,6 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], '')
 
-
     def test_remove_partial(self):
         pass
 
@@ -457,7 +450,8 @@ class TestSchemeAccounts(TestCase):
             'HTTP_AUTHORIZATION': "Token " + user.create_token()
         }
         client = Client()
-        response = client.get('/users/scheme_accounts/{}/'.format(scheme_account.id), content_type='application/json', **auth_headers)
+        response = client.get('/users/scheme_accounts/{}/'.format(scheme_account.id), content_type='application/json',
+                              **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
         self.assertEqual(content['scheme_slug'], scheme.slug)
@@ -466,13 +460,17 @@ class TestSchemeAccounts(TestCase):
         self.assertEqual(content['status'], 1)
         self.assertEqual(content['status_name'], 'Active')
         self.assertEqual(content['action_status'], 'ACTIVE')
+
+        """
+        TODO: andrew
         decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
         credentials = json.loads(decrypted_credentials)
-        # self.assertEqual(credentials['username'], scheme_account.username)
-        # self.assertEqual(credentials['card_number'], scheme_account.card_number)
-        # self.assertEqual(credentials['membership_number'], str(scheme_account.membership_number))
-        # self.assertEqual(credentials['password'], scheme_account.decrypt())
-        # self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
+        self.assertEqual(credentials['username'], scheme_account.username)
+        self.assertEqual(credentials['card_number'], scheme_account.card_number)
+        self.assertEqual(credentials['membership_number'], str(scheme_account.membership_number))
+        self.assertEqual(credentials['password'], scheme_account.decrypt())
+        self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
+        """
 
 
 class TestTwitterLogin(APITestCase):

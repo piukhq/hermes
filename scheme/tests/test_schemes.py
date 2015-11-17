@@ -5,7 +5,6 @@ from scheme.tests import factories
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 
 
-
 class TestScheme(APITestCase):
     @classmethod
     def setUpClass(cls):
@@ -24,7 +23,7 @@ class TestScheme(APITestCase):
         question = SchemeCredentialQuestionFactory(scheme=scheme)
         scheme.primary_question = question
         scheme.save()
-        image = SchemeImageFactory(scheme=scheme)
+        SchemeImageFactory(scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertEqual(response.status_code, 200,)
         self.assertEqual(type(response.data), ReturnList)
@@ -45,4 +44,3 @@ class TestScheme(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme.id)
-

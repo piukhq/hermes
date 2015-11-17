@@ -13,4 +13,3 @@ class CustomUserDetail(admin.ModelAdmin):
 
 
 admin.site.register(CustomUser, CustomUserDetail)
-
