@@ -1,5 +1,6 @@
 import json
 import httpretty as httpretty
+from django.contrib.auth import authenticate
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
@@ -429,14 +430,12 @@ class TestAuthentication(APITestCase):
 
     def test_change_password(self):
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-
-        old_password = self.user.password
         response = self.client.put('/users/me/password', {'password': 'test'}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        self.assertNotEqual(user.password, 'test')
-        self.assertNotEqual(user.password, old_password)
+        user = authenticate(username=user.email, password='test')
+        self.assertTrue(user.password)
 
 
 class TestSchemeAccounts(TestCase):
