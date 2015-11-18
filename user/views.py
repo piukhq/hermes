@@ -236,14 +236,13 @@ def facebook_graph(access_token):
     return Response(out_serializer.data, status)
 
 
-class TwitterLogin(APIView):
+class TwitterLoginWeb(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
 
     def post(self, request, *args, **kwargs):
         """
-        Login using a Twitter account.
-        for how to implement see: https://dev.twitter.com/web/sign-in/implementing
+        Login using a Twitter account from web app.
         ---
         response_serializer: ResponseAuthSerializer
         """
@@ -256,18 +255,47 @@ class TwitterLogin(APIView):
                                           resource_owner_key=request.data['oauth_token'],
                                           verifier=request.data['oauth_verifier'])
             access_token = oauth_session.fetch_access_token(access_token_url)
+            return twitter_login(access_token['oauth_token'], access_token['oauth_token_secret'])
 
-            try:
-                user = CustomUser.objects.get(twitter=access_token['user_id'])
-                status = 200
-            except CustomUser.DoesNotExist:
-                password = get_random_string(length=32)
-                user = CustomUser.objects.create(password=password, twitter=access_token['user_id'])
-                status = 201
-            out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
-            return Response(out_serializer.data, status=status)
         oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
                                       client_secret=settings.TWITTER_CONSUMER_SECRET,
                                       callback_uri=settings.TWITTER_CALLBACK_URL)
         request_token = oauth_session.fetch_request_token(request_token_url)
         return Response(request_token)
+
+
+class TwitterLogin(APIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Login using a Twitter account.
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
+        return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+
+
+def twitter_login(access_token, access_token_secret):
+    """
+    https://dev.twitter.com/web/sign-in/implementing
+    https://dev.twitter.com/rest/reference/get/account/verify_credentials
+    """
+    oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
+                                  client_secret=settings.TWITTER_CONSUMER_SECRET,
+                                  resource_owner_key=access_token,
+                                  resource_owner_secret=access_token_secret)
+    params = {'skip_status': True, 'include_entities': False, 'include_email': True}
+    profile = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params).json()
+
+    try:
+        user = CustomUser.objects.get(twitter=profile['id_str'])
+        status = 200
+    except CustomUser.DoesNotExist:
+        password = get_random_string(length=32)
+        user = CustomUser.objects.create(password=password, twitter=profile['id_str'])
+        status = 201
+
+    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+    return Response(out_serializer.data, status=status)

@@ -1,5 +1,6 @@
 import json
 import httpretty as httpretty
+from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
 from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
@@ -9,7 +10,7 @@ from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
 
-from user.views import facebook_graph
+from user.views import facebook_graph, twitter_login
 
 
 class TestRegisterNewUser(TestCase):
@@ -474,35 +475,52 @@ class TestSchemeAccounts(TestCase):
 
 
 class TestTwitterLogin(APITestCase):
+    def stub_verify_credentials(self, data):
+        httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
+                               body=json.dumps(data), content_type="application/json")
+
+    @mock.patch('user.views.twitter_login', autospec=True)
     @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
-    def test_twitter_login(self, mock_fetch_access_token):
-        user = UserFactory(twitter='VPQ4TiPKbd')
-        mock_fetch_access_token.return_value = {'user_id': 'VPQ4TiPKbd'}
-        response = self.client.post('/users/auth/twitter', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], user.email)
-        self.assertIn('api_key', response.data)
+    def test_twitter_login_web(self, mock_fetch_access_token, mock_twitter_login):
+        mock_twitter_login.return_value = HttpResponse()
+        mock_fetch_access_token.return_value = {'oauth_token': 'sdfsdf', 'oauth_token_secret': 'asdfasdf'}
+        self.client.post('/users/auth/twitter_web', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
         self.assertEqual(mock_fetch_access_token.call_args[0][1],  'https://api.twitter.com/oauth/access_token')
-
-    @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
-    def test_twitter_login_create(self, mock_fetch_access_token):
-        twitter_id = 'omsr4k7yta'
-        mock_fetch_access_token.return_value = {'user_id': twitter_id}
-        response = self.client.post('/users/auth/twitter', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
-
-        self.assertEqual(response.status_code, 201)
-        user = CustomUser.objects.get(twitter=twitter_id)
-        self.assertEqual(response.data['email'], user.email)
-        self.assertEqual(mock_fetch_access_token.call_args[0][1],  'https://api.twitter.com/oauth/access_token')
+        self.assertEqual(mock_twitter_login.call_args[0], ('sdfsdf', 'asdfasdf'))
 
     @mock.patch.object(OAuth1Session, 'fetch_request_token', autospec=True)
     def test_twitter_request_token(self, mock_fetch_request_token):
         mock_fetch_request_token.return_value = {'test': True}
-        response = self.client.post('/users/auth/twitter')
+        response = self.client.post('/users/auth/twitter_web')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, {'test': True})
         self.assertEqual(mock_fetch_request_token.call_args[0][1],  'https://api.twitter.com/oauth/request_token')
+
+    @mock.patch('user.views.twitter_login', autospec=True)
+    def test_twitter_login_app(self, twitter_login_mock):
+        twitter_login_mock.return_value = HttpResponse()
+        self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
+        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234'))
+
+    @httpretty.activate
+    def test_twitter_login_user_create(self):
+        twitter_id = 'omsr4k7yta'
+        self.stub_verify_credentials({'id_str': twitter_id})
+
+        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
+        self.assertEqual(response.status_code, 201)
+        user = CustomUser.objects.get(twitter=twitter_id)
+        self.assertEqual(response.data['email'], user.email)
+
+    @httpretty.activate
+    def test_twitter_login_user_exists(self):
+        twitter_id = 'omsr4k7yta'
+        user = UserFactory(twitter=twitter_id)
+        self.stub_verify_credentials({'id_str': twitter_id})
+        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], user.email)
 
 
 class TestFacebookLogin(APITestCase):
