@@ -14,7 +14,7 @@ from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
 from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer
+    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer
 from django.conf import settings
 
 
@@ -44,7 +44,12 @@ class Register(CreateAPIView):
 
 
 class ResetPassword(UpdateAPIView):
-    pass
+    serializer_class = ResetPasswordSerializer
+
+    def get_object(self):
+        obj = get_object_or_404(CustomUser, id=self.request.user.id)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class Users(RetrieveUpdateAPIView):
@@ -57,7 +62,6 @@ class Users(RetrieveUpdateAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         obj = get_object_or_404(queryset, id=self.request.user.id)
-
         self.check_object_permissions(self.request, obj)
         return obj
 
