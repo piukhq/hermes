@@ -434,7 +434,7 @@ class TestAuthentication(APITestCase):
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['detail'], 'Invalid token.')
+        self.assertEqual(content['detail'], 'Authentication credentials were not provided.')
 
 
 class TestTwitterLogin(APITestCase):

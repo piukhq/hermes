@@ -49,7 +49,7 @@ class JwtAuthentication(BaseAuthentication):
     def authenticate(self, request):
         token = self.get_token(request)
         # If its not a JWT token return none
-        if "." not in token:
+        if not token or "." not in token:
             return None
         return self.authenticate_credentials(token)
 
@@ -60,11 +60,11 @@ class JwtAuthentication(BaseAuthentication):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
         try:
-            token = self.model.objects.get(id=token_contents['sub'])
+            user = self.model.objects.get(id=token_contents['sub'])
         except self.model.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
-        return token, token
+        return user, None
 
     def authenticate_header(self, request):
         return 'Token'

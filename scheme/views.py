@@ -223,7 +223,6 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
-    # permission_classes = (IsAuthenticated, AllowService, )
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
     queryset = SchemeAccount.active_objects
     serializer_class = SchemeAccountCredentialsSerializer
