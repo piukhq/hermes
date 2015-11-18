@@ -40,6 +40,7 @@ class LinkSchemeSerializer(serializers.Serializer):
     memorable_date = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
     pin = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
     last_name = serializers.CharField(max_length=250, required=False)
+    favourite_place = serializers.CharField(max_length=250, required=False)
 
     def validate(self, data):
         # Validate scheme account
