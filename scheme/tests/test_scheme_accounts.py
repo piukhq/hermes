@@ -94,6 +94,25 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_put_link_schemes_account(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        data = {"primary_answer": "Scotland"}
+        primary_question_type = self.scheme_account.scheme.primary_question.type
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                   data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertEqual(response.data[primary_question_type], "Scotland")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)

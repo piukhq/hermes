@@ -6,7 +6,8 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
                                 SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
-                                SchemeAccountSummarySerializer)
+                                SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
+                                ResponseSchemeAccountAndBalanceSerializer)
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -95,7 +96,39 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class LinkCredentials(GenericAPIView):
-    serializer_class = LinkSchemeSerializer
+    override_serializer_classes = {
+        'PUT': UpdateLinkSchemeSerializer,
+        'POST': LinkSchemeSerializer,
+        'OPTIONS': LinkSchemeSerializer,
+    }
+
+    def put(self, request, *args, **kwargs):
+        """Update Primary Question answer"""
+        serializer = UpdateLinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        scheme_account = data.pop('scheme_account')
+        response_data = {}
+        if 'primary_answer' in data.keys():
+            primary_question_response = SchemeAccountCredentialAnswer.objects.get(
+                scheme_account=scheme_account,
+                type=data['primary_answer_type'],
+            )
+            primary_question_response.answer = data['primary_answer']
+            primary_question_response.save()
+            response_data[data['primary_answer_type']] = primary_question_response.clean_answer()
+            data.pop('primary_answer')
+            data.pop('primary_answer_type')
+
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+        response_data['balance'] = scheme_account.get_midas_balance()
+        response_data['status'] = scheme_account.status
+        response_data['status_name'] = scheme_account.status_name
+
+        out_serializer = ResponseSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
+        return Response(out_serializer.data)
 
     def post(self, request, *args, **kwargs):
         """
