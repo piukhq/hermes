@@ -69,7 +69,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
 
 class LinkCredentials(GenericAPIView):
-    serializer_class = LinkSchemeSerializer
+    serializer_class = UpdateLinkSchemeSerializer
     override_serializer_classes = {
         'PUT': UpdateLinkSchemeSerializer,
         'POST': LinkSchemeSerializer,
@@ -77,7 +77,10 @@ class LinkCredentials(GenericAPIView):
     }
 
     def put(self, request, *args, **kwargs):
-        """Update Primary Question answer"""
+        """Update Primary Answer or other credentials
+        ---
+        response_serializer: ResponseSchemeAccountAndBalanceSerializer
+        """
         serializer = UpdateLinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
