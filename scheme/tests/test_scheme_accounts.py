@@ -106,7 +106,7 @@ class TestSchemeAccount(APITestCase):
         data = {"primary_answer": "Scotland"}
         primary_question_type = self.scheme_account.scheme.primary_question.type
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                    data=data, **self.auth_headers)
+                                   data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
