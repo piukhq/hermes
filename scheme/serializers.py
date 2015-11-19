@@ -150,11 +150,13 @@ class SchemeAccountIdsSerializer(serializers.ModelSerializer):
 
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     credentials = serializers.ReadOnlyField()
+    status_name = serializers.ReadOnlyField()
+    action_status = serializers.ReadOnlyField()
     scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'user', 'status')
+        fields = ('id', 'scheme', 'credentials', 'user', 'status', 'status_name', 'action_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):
