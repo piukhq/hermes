@@ -42,7 +42,7 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
 
-class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
+class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     """
     Get, update and delete scheme accounts.
     """
