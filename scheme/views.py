@@ -1,11 +1,11 @@
-from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView,)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
-                                GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
+                                StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer)
 
 from rest_framework import status
