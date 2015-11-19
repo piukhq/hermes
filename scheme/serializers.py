@@ -63,6 +63,32 @@ class LinkSchemeSerializer(serializers.Serializer):
         return data
 
 
+class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
+    primary_answer = serializers.CharField(required=False)
+
+    def validate(self, data):        # Validate scheme account
+        try:
+            scheme_account = SchemeAccount.objects.get(id=self.context['pk'])
+        except SchemeAccount.DoesNotExist:
+            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
+        data['scheme_account'] = scheme_account
+
+        # Primary Answer Stuff
+        try:
+            scheme = SchemeAccount.objects.get(id=self.context['pk']).scheme
+            data['primary_answer_type'] = scheme.primary_question.type
+        except SchemeAccount.DoesNotExist:
+            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
+
+        primary_question_type = scheme_account.scheme.primary_question.type
+        if primary_question_type in data and data['primary_answer']:
+            raise serializers.ValidationError("Primary answer {0} cannot be included twice in one request.")
+
+        return data
+
+
+
+
 class SchemeAccountSerializer(serializers.Serializer):
     order = serializers.IntegerField(default=0, required=False)
     primary_answer = serializers.CharField()
@@ -166,3 +192,6 @@ class SchemeAccountStatusSerializer(serializers.Serializer):
 class SchemeAccountSummarySerializer(serializers.Serializer):
     scheme_id = serializers.IntegerField()
     statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
+
+class GetSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
+    pass
