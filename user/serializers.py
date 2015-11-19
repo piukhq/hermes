@@ -29,6 +29,15 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField()
 
 
+class ResetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['password'])
+        instance.save()
+        return instance
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDetail

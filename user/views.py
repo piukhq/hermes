@@ -1,21 +1,19 @@
-from types import SimpleNamespace
+import requests
 from django.contrib.auth import authenticate, login
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-import requests
 from requests_oauthlib import OAuth1Session
-from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
-    RetrieveAPIView, get_object_or_404
+from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
+                                     get_object_or_404)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
-from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer
 from django.conf import settings
+from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
+                              SocialRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer)
 
 
 class ForgottenPassword:
@@ -44,7 +42,12 @@ class Register(CreateAPIView):
 
 
 class ResetPassword(UpdateAPIView):
-    pass
+    serializer_class = ResetPasswordSerializer
+
+    def get_object(self):
+        obj = get_object_or_404(CustomUser, id=self.request.user.id)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class Users(RetrieveUpdateAPIView):
@@ -57,7 +60,6 @@ class Users(RetrieveUpdateAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         obj = get_object_or_404(queryset, id=self.request.user.id)
-
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -80,31 +82,6 @@ class Authenticate(APIView):
             'uid': str(request.user.uid),
             'id': str(request.user.id)
         })
-
-
-class RetrieveSchemeAccount(RetrieveAPIView):
-    serializer_class = SchemeAccountSerializer
-
-    def get(self, request, *args, **kwargs):
-        """
-        Retrieve a users scheme accounts.
-        ---
-        responseMessages:
-            - code: 404
-              message: Error retrieving scheme accounts for this user.
-        """
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
-        scheme = scheme_account.scheme
-
-        instance = SimpleNamespace(scheme_slug=scheme.slug,
-                                   user_id=request.user.id,
-                                   scheme_account_id=scheme_account.id,
-                                   status=scheme_account.status,
-                                   status_name=scheme_account.status_name,
-                                   action_status=scheme_account.action_status,
-                                   credentials=scheme_account.credentials())
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
 
 class Login(GenericAPIView):
@@ -236,14 +213,13 @@ def facebook_graph(access_token):
     return Response(out_serializer.data, status)
 
 
-class TwitterLogin(APIView):
+class TwitterLoginWeb(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
 
     def post(self, request, *args, **kwargs):
         """
-        Login using a Twitter account.
-        for how to implement see: https://dev.twitter.com/web/sign-in/implementing
+        Login using a Twitter account from web app.
         ---
         response_serializer: ResponseAuthSerializer
         """
@@ -256,18 +232,47 @@ class TwitterLogin(APIView):
                                           resource_owner_key=request.data['oauth_token'],
                                           verifier=request.data['oauth_verifier'])
             access_token = oauth_session.fetch_access_token(access_token_url)
+            return twitter_login(access_token['oauth_token'], access_token['oauth_token_secret'])
 
-            try:
-                user = CustomUser.objects.get(twitter=access_token['user_id'])
-                status = 200
-            except CustomUser.DoesNotExist:
-                password = get_random_string(length=32)
-                user = CustomUser.objects.create(password=password, twitter=access_token['user_id'])
-                status = 201
-            out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
-            return Response(out_serializer.data, status=status)
         oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
                                       client_secret=settings.TWITTER_CONSUMER_SECRET,
                                       callback_uri=settings.TWITTER_CALLBACK_URL)
         request_token = oauth_session.fetch_request_token(request_token_url)
         return Response(request_token)
+
+
+class TwitterLogin(APIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Login using a Twitter account.
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
+        return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+
+
+def twitter_login(access_token, access_token_secret):
+    """
+    https://dev.twitter.com/web/sign-in/implementing
+    https://dev.twitter.com/rest/reference/get/account/verify_credentials
+    """
+    oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
+                                  client_secret=settings.TWITTER_CONSUMER_SECRET,
+                                  resource_owner_key=access_token,
+                                  resource_owner_secret=access_token_secret)
+    params = {'skip_status': True, 'include_entities': False, 'include_email': True}
+    profile = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params).json()
+
+    try:
+        user = CustomUser.objects.get(twitter=profile['id_str'])
+        status = 200
+    except CustomUser.DoesNotExist:
+        password = get_random_string(length=32)
+        user = CustomUser.objects.create(password=password, twitter=profile['id_str'])
+        status = 201
+
+    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+    return Response(out_serializer.data, status=status)
