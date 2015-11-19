@@ -48,25 +48,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
-    def test_put_schemes_account(self):
-        new_scheme = SchemeFactory()
-        data = {'order': 5, 'scheme': new_scheme.id, 'primary_answer': '234234234'}
-        response = self.client.put('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
-                                   **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        primary_answer_id = response.data['primary_answer_id']
-        self.assertEqual(response.data['order'], 5)
-        for answer in response.data['answers']:
-            if answer['id'] == primary_answer_id:
-                self.assertEqual(answer['answer'], '234234234')
-
-    def test_patch_schemes_account(self):
-        response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data={},
-                                   **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        content = response.data
-        self.assertEqual(content['order'], self.scheme_account.order)
-
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)

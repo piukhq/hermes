@@ -1,13 +1,15 @@
-from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
+
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
-                                GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
+                                StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
                                 ResponseSchemeAccountAndBalanceSerializer)
+
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -43,46 +45,17 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
 
-class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
+class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     """
     Get, update and delete scheme accounts.
     """
     override_serializer_classes = {
-        'PUT': UpdateSchemeAccountSerializer,
-        'PATCH': UpdateSchemeAccountSerializer,
         'GET': GetSchemeAccountSerializer,
         'DELETE': GetSchemeAccountSerializer,
         'OPTIONS': GetSchemeAccountSerializer,
     }
 
     queryset = SchemeAccount.active_objects
-
-    def update(self, request, *args, **kwargs):
-        """
-        Update a users scheme account.<br>
-        This will attempt to log into the loyalty scheme endsite and retrieve points.
-        ---
-        responseMessages:
-            - code: 404
-              message: Error retrieving the scheme account information.
-            - code: 400
-              message: A scheme account already exists with this primary question
-        """
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
-        self.context = {'scheme': scheme_account.scheme}
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        scheme_account.order = data.get('order', scheme_account.order)
-        scheme_account.save()
-        answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
-                                                           type=scheme_account.primary_answer.type)
-        answer.answer = data.get('primary_answer', answer.answer)
-        answer.save()
-
-        out_serializer = GetSchemeAccountSerializer(scheme_account)
-        return Response(out_serializer.data)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -96,6 +69,7 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class LinkCredentials(GenericAPIView):
+    serializer_class = LinkSchemeSerializer
     override_serializer_classes = {
         'PUT': UpdateLinkSchemeSerializer,
         'POST': LinkSchemeSerializer,
