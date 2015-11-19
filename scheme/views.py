@@ -69,6 +69,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
 
 class LinkCredentials(GenericAPIView):
+    serializer_class = LinkSchemeSerializer
     override_serializer_classes = {
         'PUT': UpdateLinkSchemeSerializer,
         'POST': LinkSchemeSerializer,
