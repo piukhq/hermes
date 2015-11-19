@@ -192,5 +192,5 @@ class SchemeAccountSummarySerializer(serializers.Serializer):
     statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
 
 
-class GetSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
+class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
     pass

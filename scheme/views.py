@@ -7,7 +7,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
                                 SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
-                                GetSchemeAccountAndBalanceSerializer)
+                                ResponseSchemeAccountAndBalanceSerializer)
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -127,7 +127,7 @@ class LinkCredentials(GenericAPIView):
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
 
-        out_serializer = GetSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
+        out_serializer = ResponseSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
         return Response(out_serializer.data)
 
     def post(self, request, *args, **kwargs):
