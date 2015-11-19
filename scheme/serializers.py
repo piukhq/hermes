@@ -87,8 +87,6 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
         return data
 
 
-
-
 class SchemeAccountSerializer(serializers.Serializer):
     order = serializers.IntegerField(default=0, required=False)
     primary_answer = serializers.CharField()
@@ -192,6 +190,7 @@ class SchemeAccountStatusSerializer(serializers.Serializer):
 class SchemeAccountSummarySerializer(serializers.Serializer):
     scheme_id = serializers.IntegerField()
     statuses = SchemeAccountStatusSerializer(many=True, read_only=True)
+
 
 class GetSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
     pass

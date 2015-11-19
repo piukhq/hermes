@@ -119,16 +119,13 @@ class LinkCredentials(GenericAPIView):
             response_data[data['primary_answer_type']] = data['primary_answer']
             data.pop('primary_answer')
             data.pop('primary_answer_type')
-        else:
-            response_data
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
         response_data['balance'] = scheme_account.get_midas_balance()
         response_data['status'] = scheme_account.status
-        response_data['status_name'] =scheme_account.status_name
-        response_data
+        response_data['status_name'] = scheme_account.status_name
         dict(serializer.validated_data, **response_data)
 
         out_serializer = GetSchemeAccountAndBalanceSerializer(response_data)
