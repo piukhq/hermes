@@ -116,7 +116,7 @@ class LinkCredentials(GenericAPIView):
             )
             primary_question_response.answer = data['primary_answer']
             primary_question_response.save()
-            response_data[data['primary_answer_type']] = data['primary_answer']
+            response_data[data['primary_answer_type']] = primary_question_response.clean_answer()
             data.pop('primary_answer')
             data.pop('primary_answer_type')
 
@@ -126,9 +126,8 @@ class LinkCredentials(GenericAPIView):
         response_data['balance'] = scheme_account.get_midas_balance()
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
-        dict(serializer.validated_data, **response_data)
 
-        out_serializer = GetSchemeAccountAndBalanceSerializer(response_data)
+        out_serializer = GetSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
         return Response(out_serializer.data)
 
     def post(self, request, *args, **kwargs):
