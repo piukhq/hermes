@@ -82,7 +82,7 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
 
         primary_question_type = scheme_account.scheme.primary_question.type
-        if primary_question_type in data and data['primary_answer']:
+        if primary_question_type in data and data.get('primary_answer'):
             raise serializers.ValidationError("Primary answer {0} cannot be included twice in one request.")
 
         return data
