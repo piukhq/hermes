@@ -9,8 +9,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
                                 ResponseSchemeAccountAndBalanceSerializer)
-
-
+from rest_framework import exceptions
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -55,6 +54,13 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         'OPTIONS': GetSchemeAccountSerializer,
     }
 
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            raise exceptions.PermissionDenied()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
     queryset = SchemeAccount.active_objects
 
     def delete(self, request, *args, **kwargs):
@@ -63,6 +69,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         Responds with a 204 - No content.
         """
         instance = self.get_object()
+        if instance.user != request.user:
+            raise exceptions.PermissionDenied()
         instance.is_deleted = True
         instance.save()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -85,6 +93,8 @@ class LinkCredentials(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
+        if scheme_account.user != request.user:
+            raise exceptions.PermissionDenied()
         response_data = {}
         if 'primary_answer' in data.keys():
             primary_question_response = SchemeAccountCredentialAnswer.objects.get(
@@ -117,6 +127,8 @@ class LinkCredentials(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
+        if scheme_account.user != request.user:
+            raise exceptions.PermissionDenied()
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
@@ -237,6 +249,12 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     queryset = SchemeAccount.active_objects
     serializer_class = SchemeAccountCredentialsSerializer
 
+    def get(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.user.uid != 'api_user' and instance.user != request.user:
+            raise exceptions.PermissionDenied()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
 class SchemeAccountStatusData(ListAPIView):
     """
