@@ -15,7 +15,7 @@ class CredentialQuestionInline(admin.StackedInline):
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
-    list_display = ('name', 'id', 'category', 'is_active', 'company')
+    list_display = ('name', 'id', 'category', 'is_active', 'company', 'primary_question')
     list_filter = ('is_active', )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
