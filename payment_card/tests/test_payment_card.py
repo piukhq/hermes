@@ -15,7 +15,7 @@ class TestPaymentCard(APITestCase):
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_list(self):
-        response = self.client.get('/payment_cards/', **self.auth_headers)
+        response = self.client.get('/payment_cards', **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
         self.assertTrue(response.data)
