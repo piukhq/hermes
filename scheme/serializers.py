@@ -45,7 +45,7 @@ class LinkSchemeSerializer(serializers.Serializer):
     def validate(self, data):
         # Validate scheme account
         try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'])
+            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
         data['scheme_account'] = scheme_account
@@ -69,7 +69,7 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
 
     def validate(self, data):        # Validate scheme account
         try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'])
+            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
         data['scheme_account'] = scheme_account

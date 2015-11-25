@@ -147,7 +147,7 @@ class TestSchemeAccount(APITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
-        scheme = SchemeAccountFactory(status=SchemeAccount.LOCKED_BY_ENDSITE)
+        scheme = SchemeAccountFactory(status=SchemeAccount.RETRY_LIMIT_REACHED)
         scheme_2 = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         response = self.client.get('/schemes/accounts/system_retry', **self.auth_service_headers)
         scheme_ids = [result['id'] for result in response.data['results']]
@@ -288,12 +288,12 @@ class TestAccessTokens(APITestCase):
         response = self.client.get('/schemes/accounts/{}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.get('/schemes/accounts/{}'.format(self.scheme_account2.id), **self.auth_headers)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
         # DELETE Request
         response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 204)
         response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account2.id), **self.auth_headers)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
 
         # Undo delete.
         self.scheme_account.is_deleted = False
@@ -315,14 +315,14 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(response.status_code, 201)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                     data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
         # Test Put Method
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                     data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 400)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):
@@ -346,4 +346,4 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(response.status_code, 200)
         response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
                                    **self.auth_headers)
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 404)
