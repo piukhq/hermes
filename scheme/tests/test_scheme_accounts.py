@@ -318,10 +318,10 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(response.status_code, 400)
         # Test Put Method
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                    data=data, **self.auth_headers)
+                                   data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                    data=data, **self.auth_headers)
+                                   data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
 
     @patch.object(SchemeAccount, 'get_midas_balance')

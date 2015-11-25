@@ -9,7 +9,6 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
                                 ResponseSchemeAccountAndBalanceSerializer)
-from rest_framework import exceptions
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
