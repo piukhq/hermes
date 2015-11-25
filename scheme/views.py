@@ -9,8 +9,6 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
                                 ResponseSchemeAccountAndBalanceSerializer)
-
-
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -55,7 +53,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         'OPTIONS': GetSchemeAccountSerializer,
     }
 
-    queryset = SchemeAccount.active_objects
+    def get_queryset(self):
+        return SchemeAccount.active_objects.filter(user=self.request.user)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -81,7 +80,8 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        serializer = UpdateLinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer = UpdateLinkSchemeSerializer(data=request.data,
+                                                context={'pk': self.kwargs['pk'], 'user': self.request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
@@ -113,7 +113,8 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        serializer = LinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer = LinkSchemeSerializer(data=request.data,
+                                          context={'pk': self.kwargs['pk'], 'user': self.request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
@@ -234,8 +235,13 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     DO NOT USE - NOT FOR APP ACCESS
     """
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
-    queryset = SchemeAccount.active_objects
     serializer_class = SchemeAccountCredentialsSerializer
+
+    def get_queryset(self):
+        queryset = SchemeAccount.active_objects
+        if self.request.user.uid != 'api_user':
+            queryset = queryset.filter(user=self.request.user)
+        return queryset
 
 
 class SchemeAccountStatusData(ListAPIView):
