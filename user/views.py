@@ -271,6 +271,8 @@ def social_login(social_id, email, service):
             user.save()
     except CustomUser.DoesNotExist:
         try:
+            if not email:
+                raise CustomUser.DoesNotExist
             # User exists in our system but hasn't been linked
             user = CustomUser.objects.get(email=email)
             setattr(user, service, social_id)
