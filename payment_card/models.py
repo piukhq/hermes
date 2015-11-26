@@ -1,6 +1,5 @@
 from django.db import models
 from bulk_update.manager import BulkUpdateManager
-from django.core.exceptions import ValidationError
 
 
 class Issuer(models.Model):
@@ -45,16 +44,6 @@ class ActiveManager(models.Manager):
             return super(ActiveManager, self).get_queryset().exclude(status=PaymentCardAccount.DELETED)
 
 
-def validate_pan_start(value):
-    if len(str(value)) != 6:
-        raise ValidationError('{0} is not of the correct length {1}'.format(value, 6))
-
-
-def validate_pan_end(value):
-    if len(str(value)) != 4:
-        raise ValidationError('{0} is not of the correct length {1}'.format(value, 4))
-
-
 class PaymentCardAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
@@ -74,8 +63,8 @@ class PaymentCardAccount(models.Model):
     currency_code = models.CharField(max_length=3)
     country = models.CharField(max_length=40)
     token = models.CharField(max_length=255)
-    pan_start = models.CharField(validators=[validate_pan_start], max_length=6)
-    pan_end = models.CharField(validators=[validate_pan_end], max_length=4)
+    pan_start = models.CharField(max_length=6)
+    pan_end = models.CharField(max_length=6)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
