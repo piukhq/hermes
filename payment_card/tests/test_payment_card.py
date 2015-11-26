@@ -36,14 +36,13 @@ class TestPaymentCard(APITestCase):
                 'expiry_month': 4,
                 'expiry_year': 10,
                 'payment_card': self.payment_card.id,
-                'pan_start': '869820',
-                'pan_end': '0880',
+                'pan_start': '9820',
+                'pan_end': '088012',
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
                 'token': "some-token"}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('token', response.data)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
@@ -59,9 +58,14 @@ class TestPaymentCard(APITestCase):
 
     def test_patch_payment_card_account_bad_length(self):
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-                                     data={'pan_start': '000'}, **self.auth_headers)
+                                     data={'pan_start': '0000000'}, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data, {'pan_start': ['000 is not of the correct length 6']})
+        self.assertEqual(response.data, {'pan_start': ['Ensure this field has no more than 6 characters.']})
+
+        response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
+                                     data={'pan_end': '0000000'}, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {'pan_end': ['Ensure this field has no more than 6 characters.']})
 
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
