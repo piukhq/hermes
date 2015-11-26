@@ -1,6 +1,5 @@
 from django.db import models
 from bulk_update.manager import BulkUpdateManager
-from django.core.exceptions import ValidationError
 
 
 class Issuer(models.Model):
