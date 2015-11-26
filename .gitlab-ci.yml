@@ -1,9 +1,7 @@
-variables:
-  HERMES_DATABASE_URL: "postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
-
 tests:
   script:
     - pip3 install -r requirements.txt
+    - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - py.test --cov=.
   services:
   - postgres:9.4.4
