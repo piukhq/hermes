@@ -146,7 +146,7 @@ class FaceBookLoginWeb(CreateAPIView):
         if not r.ok:
             return Response({"error": 'Cannot get facebook user token.'}, status=403)
 
-        return facebook_graph(r.json()['access_token'])
+        return facebook_login(r.json()['access_token'])
 
 
 class FaceBookLogin(CreateAPIView):
@@ -182,33 +182,18 @@ class FaceBookLogin(CreateAPIView):
             return Response({"error": "Cannot validate user_id & access_token."}, status=403)
         if r.json()['id'] != user_id.strip():
             return Response({"error": "user_id is invalid for given access token"}, status=403)
-        return facebook_graph(access_token)
+        return facebook_login(access_token)
 
 
-def facebook_graph(access_token):
+def facebook_login(access_token):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
         return Response({"message": 'Can not access facebook social graph.'}, status=403)
     profile = r.json()
-    status = 200
-    # Create a new account or return an existing one.
-    try:
-        user = CustomUser.objects.get(facebook=profile['id'])
-    except CustomUser.DoesNotExist:
-        password = get_random_string(length=32)
-        try:
-            # If the user has an email in our system link them
-            user = CustomUser.objects.get(email=profile['email'])
-            user.facebook = profile['id']
-            user.save()
-        except CustomUser.DoesNotExist:
-            user = CustomUser.objects.create(email=profile['email'], password=password, facebook=profile['id'])
-            status = 201
-        except KeyError:
-            user = CustomUser.objects.create(password=password, facebook=profile['id'])
-            status = 201
+    status, user = social_login(profile['id'], profile.get('email'), 'facebook')
+
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status)
 
@@ -263,16 +248,37 @@ def twitter_login(access_token, access_token_secret):
                                   client_secret=settings.TWITTER_CONSUMER_SECRET,
                                   resource_owner_key=access_token,
                                   resource_owner_secret=access_token_secret)
-    params = {'skip_status': True, 'include_entities': False, 'include_email': True}
-    profile = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params).json()
 
-    try:
-        user = CustomUser.objects.get(twitter=profile['id_str'])
-        status = 200
-    except CustomUser.DoesNotExist:
-        password = get_random_string(length=32)
-        user = CustomUser.objects.create(password=password, twitter=profile['id_str'])
-        status = 201
+    params = {'skip_status': 'true', 'include_entities': 'false', 'include_email': 'true'}
+    request = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params)
 
+    if not request.ok:
+        # TODO: add logging
+        return Response(request.json()['errors'], status=request.status_code)
+
+    profile = request.json()
+    status, user = social_login(profile['id_str'], profile.get('email'), 'twitter')
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
+
+
+def social_login(social_id, email, service):
+    status = 200
+    try:
+        user = CustomUser.objects.get(**{service: social_id})
+        if not user.email and email:
+            user.email = email
+            user.save()
+    except CustomUser.DoesNotExist:
+        try:
+            if not email:
+                raise CustomUser.DoesNotExist
+            # User exists in our system but hasn't been linked
+            user = CustomUser.objects.get(email=email)
+            setattr(user, service, social_id)
+            user.save()
+        except CustomUser.DoesNotExist:
+            password = get_random_string(length=32)
+            user = CustomUser.objects.create(**{'email': email, 'password': password, service: social_id})
+            status = 201
+    return status, user
