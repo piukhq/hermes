@@ -19,6 +19,15 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     queryset = PaymentCardAccount.objects
     serializer_class = PaymentCardAccountSerializer
 
+    def delete(self, request, *args, **kwargs):
+        """
+        Delete a payment card.</br>
+        Responds with a 204 - No content.
+        ---
+        omit_serializer: true
+        """
+        return super(RetrievePaymentCardAccount, self).delete(request, *args, **kwargs)
+
 
 class CreatePaymentCardAccount(ListCreateAPIView):
     """
