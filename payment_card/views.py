@@ -26,7 +26,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         ---
         omit_serializer: true
         """
-        # request.data['user'] = request.user.id
         return super(RetrievePaymentCardAccount, self).delete(request, *args, **kwargs)
 
 
