@@ -67,6 +67,22 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'pan_end': ['Ensure this field has no more than 6 characters.']})
 
+    def test_patch_payment_card_cannot_change_scheme(self):
+        payment_card_2 = factories.PaymentCardFactory(name='sommet', slug='sommet')
+        response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
+                                     data={'payment_card': payment_card_2.id}, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {'payment_card': ['Cannot change payment card for payment card account.']})
+
+    def test_put_payment_card_cannot_change_scheme(self):
+        payment_card_2 = factories.PaymentCardFactory(name='sommet', slug='sommet')
+        response = self.client.put('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
+                                   data={'issuer': self.issuer.id,
+                                         'pan_end': '000000',
+                                         'payment_card': payment_card_2.id}, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {'payment_card': ['Cannot change payment card for payment card account.']})
+
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)

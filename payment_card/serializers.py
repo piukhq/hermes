@@ -14,3 +14,12 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         model = PaymentCardAccount
         extra_kwargs = {'token': {'write_only': True}}
         read_only_fields = ('status', )
+
+
+class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
+
+    def validate_payment_card(self, value):
+        raise serializers.ValidationError("Cannot change payment card for payment card account.")
+
+    class Meta(PaymentCardAccountSerializer.Meta):
+        pass

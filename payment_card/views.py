@@ -1,7 +1,9 @@
 from rest_framework import generics
+from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from payment_card.models import PaymentCardAccount, PaymentCard
-from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer
+from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
+    UpdatePaymentCardAccountSerializer
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -18,6 +20,14 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     """
     queryset = PaymentCardAccount.objects
     serializer_class = PaymentCardAccountSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
         """
