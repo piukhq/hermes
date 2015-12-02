@@ -30,7 +30,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
 
-
 class CreatePaymentCardAccount(ListCreateAPIView):
     """
     Create and retrieve users payment card information.

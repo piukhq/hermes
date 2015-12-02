@@ -23,4 +23,3 @@ class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
 
     class Meta(PaymentCardAccountSerializer.Meta):
         pass
-
