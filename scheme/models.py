@@ -148,7 +148,7 @@ class SchemeAccount(models.Model):
         (END_SITE_DOWN, 'End site down'),
         (IP_BLOCKED, 'IP blocked'),
         (TRIPPED_CAPTCHA, 'Tripped captcha'),
-        (INCOMPLETE, 'Incomplete'),
+        (INCOMPLETE, 'Please check your scheme account login details.'),
         (LOCKED_BY_ENDSITE, 'Account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
