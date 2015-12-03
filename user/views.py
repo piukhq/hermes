@@ -107,7 +107,7 @@ class Login(GenericAPIView):
               message: The account associated with this email address is suspended.
         response_serializer: ResponseAuthSerializer
         """
-        email = request.data['email']
+        email = self.lower_email_domain(request.data['email'])
         password = request.data['password']
         user = authenticate(username=email, password=password)
 
@@ -119,6 +119,11 @@ class Login(GenericAPIView):
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
         return Response(out_serializer.data)
+
+    @staticmethod
+    def lower_email_domain(email):
+        parts = email.rsplit("@")
+        return "@".join(parts[:-1] + [parts[-1].lower()])
 
 
 class FaceBookLoginWeb(CreateAPIView):
