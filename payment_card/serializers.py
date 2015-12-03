@@ -17,7 +17,8 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PaymentCardAccount
-        read_only_fields = ('status', )
+        extra_kwargs = {'token': {'write_only': True}}
+        read_only_fields = ('status', 'order', 'user')
 
 
 class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
