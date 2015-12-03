@@ -22,6 +22,10 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     queryset = PaymentCardAccount.objects
     serializer_class = PaymentCardAccountSerializer
 
+    def get_queryset(self):
+        user = self.request.user
+        return PaymentCardAccount.objects.filter(user=user)
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()

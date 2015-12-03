@@ -107,3 +107,10 @@ class TestPaymentCard(APITestCase):
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                    **self.auth_headers)
         self.assertEqual(response.status_code, 404)
+
+    def test_cant_delete_other_payment_card_account(self):
+        payment_card = factories.PaymentCardAccountFactory(payment_card=self.payment_card)
+
+        response = self.client.delete('/payment_cards/accounts/{0}'.format(payment_card.id),
+                                      **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
