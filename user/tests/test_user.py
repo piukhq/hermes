@@ -8,7 +8,7 @@ from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
-from user.views import facebook_login, twitter_login, social_login
+from user.views import facebook_login, twitter_login, social_login, Login
 
 
 class TestRegisterNewUser(TestCase):
@@ -91,6 +91,21 @@ class TestRegisterNewUser(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', content.keys())
         self.assertEqual(content['email'], ['This field must be unique.'])
+
+    def test_strange_email_case(self):
+        email = 'TEST_12@Example.com'
+        response = self.client.post('/users/register/', {'email': email, 'password': 'password6'})
+        content = json.loads(response.content.decode())
+        user = CustomUser.objects.get(email=content['email'])
+        # Test that django lowers the domain of the email address
+        self.assertEqual(user.email, 'TEST_12@example.com')
+        # Test that we can login with the domain still with upper case letters
+        response = self.client.post('/users/login/', data={"email": email, "password": 'password6'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("api_key", response.data)
+
+    def test_lower_email_domain(self):
+        self.assertEqual(Login.lower_email_domain('TEST@Example.com'), 'TEST@example.com')
 
 
 class TestUserProfile(TestCase):
