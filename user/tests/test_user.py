@@ -106,6 +106,7 @@ class TestRegisterNewUser(TestCase):
 
     def test_lower_email_domain(self):
         self.assertEqual(Login.lower_email_domain('TEST@Example.com'), 'TEST@example.com')
+        self.assertEqual(Login.lower_email_domain('"user@SOMETHING"@EXAMPLE.com'), '"user@SOMETHING"@example.com')
 
 
 class TestUserProfile(TestCase):

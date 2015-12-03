@@ -39,7 +39,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
     list_filter = ('is_deleted', 'status', 'scheme')
-    list_display = ('user', 'scheme', 'status')
+    list_display = ('user', 'scheme', 'status', 'is_deleted')
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
