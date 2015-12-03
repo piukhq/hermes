@@ -1,5 +1,5 @@
+from bulk_update.helper import bulk_update
 from django.db import models
-from bulk_update.manager import BulkUpdateManager
 
 
 class Issuer(models.Model):
@@ -39,9 +39,13 @@ class PaymentCard(models.Model):
         return self.name
 
 
-class ActiveManager(models.Manager):
+class PaymentCardAccountManager(models.Manager):
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(status=PaymentCardAccount.DELETED)
+            return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
+
+    def bulk_update(self, objs, update_fields=None, exclude_fields=None):
+        bulk_update(objs, update_fields=update_fields,
+                    exclude_fields=exclude_fields, using=self.db)
 
 
 class PaymentCardAccount(models.Model):
@@ -70,8 +74,9 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer)
+    is_deleted = models.BooleanField(default=False)
 
-    objects = BulkUpdateManager()
+    objects = PaymentCardAccountManager()
 
     def __str__(self):
         return "{0}******{1}".format(self.pan_start, self.pan_end)

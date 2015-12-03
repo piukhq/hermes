@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from payment_card.models import PaymentCard, PaymentCardAccount
 
 
@@ -9,10 +10,13 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
+    token = serializers.CharField(
+        max_length=255,
+        write_only=True,
+        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
 
     class Meta:
         model = PaymentCardAccount
-        extra_kwargs = {'token': {'write_only': True}}
         read_only_fields = ('status', )
 
 
