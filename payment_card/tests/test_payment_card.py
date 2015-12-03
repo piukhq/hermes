@@ -7,7 +7,7 @@ from payment_card.models import PaymentCardAccount
 class TestPaymentCard(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account = factories.PaymentCardAccountFactory()
+        cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
@@ -82,6 +82,23 @@ class TestPaymentCard(APITestCase):
                                          'payment_card': payment_card_2.id}, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'payment_card': ['Cannot change payment card for payment card account.']})
+
+    def test_payment_card_account_token_unique(self):
+        data = {'user': self.user.id,
+                'issuer': self.issuer.id,
+                'status': 1,
+                'expiry_month': 4,
+                'expiry_year': 10,
+                'payment_card': self.payment_card.id,
+                'pan_start': '9820',
+                'pan_end': '088012',
+                'country': 'New Zealand',
+                'currency_code': 'GBP',
+                'name_on_card': 'Aron Stokes',
+                'token': self.payment_card_account.token}
+        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {'token': ['This field must be unique.']})
 
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),

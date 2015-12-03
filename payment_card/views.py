@@ -1,6 +1,7 @@
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework import status
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
     UpdatePaymentCardAccountSerializer
@@ -31,12 +32,13 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
     def delete(self, request, *args, **kwargs):
         """
-        Delete a payment card.</br>
+        Marks a paymentcardaccount as deleted.
         Responds with a 204 - No content.
-        ---
-        omit_serializer: true
         """
-        return super(RetrievePaymentCardAccount, self).delete(request, *args, **kwargs)
+        instance = self.get_object()
+        instance.is_deleted = True
+        instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CreatePaymentCardAccount(ListCreateAPIView):
