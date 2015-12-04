@@ -8,7 +8,7 @@ from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
-from user.views import facebook_login, twitter_login, social_login, Login
+from user.views import facebook_login, twitter_login, social_login
 
 
 class TestRegisterNewUser(TestCase):
@@ -83,14 +83,13 @@ class TestRegisterNewUser(TestCase):
 
     def test_existing_email(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
         self.assertEqual(response.status_code, 201)
-
-        response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', content.keys())
-        self.assertEqual(content['email'], ['This field must be unique.'])
+        self.assertEqual(content['email'], ['That user already exists'])
 
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
@@ -103,10 +102,6 @@ class TestRegisterNewUser(TestCase):
         response = self.client.post('/users/login/', data={"email": email, "password": 'password6'})
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
-
-    def test_lower_email_domain(self):
-        self.assertEqual(Login.lower_email_domain('TEST@Example.com'), 'TEST@example.com')
-        self.assertEqual(Login.lower_email_domain('"user@SOMETHING"@EXAMPLE.com'), '"user@SOMETHING"@example.com')
 
 
 class TestUserProfile(TestCase):
