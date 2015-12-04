@@ -64,6 +64,7 @@ INSTALLED_APPS = (
     'scheme',
     'payment_card',
     'order',
+    'colorful',
 )
 
 MIDDLEWARE_CLASSES = (

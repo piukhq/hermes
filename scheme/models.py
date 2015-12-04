@@ -7,6 +7,7 @@ from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
+from colorful.fields import RGBColorField
 import json
 import requests
 import uuid
@@ -55,6 +56,7 @@ class Scheme(models.Model):
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
     primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
                                          related_name='primary_question')
+    colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
 
