@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator

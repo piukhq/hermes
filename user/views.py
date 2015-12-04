@@ -121,7 +121,6 @@ class Login(GenericAPIView):
         return Response(out_serializer.data)
 
 
-
 class FaceBookLoginWeb(CreateAPIView):
     """
     This is only used by ching web

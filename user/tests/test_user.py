@@ -8,7 +8,7 @@ from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
-from user.views import facebook_login, twitter_login, social_login, Login
+from user.views import facebook_login, twitter_login, social_login
 
 
 class TestRegisterNewUser(TestCase):
