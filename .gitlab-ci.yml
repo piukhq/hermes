@@ -13,4 +13,4 @@ flake8:
 deploy:
   stage: deploy
   script:
-  - curl http://deployer.loyaltyangels.local/deploy/dev/zeus
+  - curl http://deployer.loyaltyangels.local/deploy/dev/hermes
