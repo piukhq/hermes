@@ -8,7 +8,7 @@ from user.models import CustomUser, UserDetail
 
 
 class RegisterSerializer(serializers.Serializer):
-    email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())])
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
 
@@ -16,6 +16,12 @@ class RegisterSerializer(serializers.Serializer):
         email = validated_data['email']
         password = validated_data['password']
         return CustomUser.objects.create_user(email, password)
+
+    def validate_email(self, value):
+        email = CustomUser.objects.normalize_email(value)
+        if CustomUser.objects.filter(email=email).exists():
+            raise serializers.ValidationError("That user already exists")
+        return email
 
     def to_representation(self, instance):
         ret = OrderedDict()
