@@ -300,7 +300,7 @@ class TestAccessTokens(APITestCase):
         self.scheme_account.save()
 
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_linkCredentials(self, mock_get_midas_balance):
+    def test_link_credentials(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
