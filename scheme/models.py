@@ -7,6 +7,7 @@ from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
+from colorful.fields import RGBColorField
 import json
 import requests
 import uuid
@@ -55,6 +56,7 @@ class Scheme(models.Model):
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
     primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
                                          related_name='primary_question')
+    colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
 
@@ -148,7 +150,7 @@ class SchemeAccount(models.Model):
         (END_SITE_DOWN, 'End site down'),
         (IP_BLOCKED, 'IP blocked'),
         (TRIPPED_CAPTCHA, 'Tripped captcha'),
-        (INCOMPLETE, 'Incomplete'),
+        (INCOMPLETE, 'Please check your scheme account login details.'),
         (LOCKED_BY_ENDSITE, 'Account locked on end site'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
         (UNKNOWN_ERROR, 'An unknown error has occurred'),
@@ -157,8 +159,8 @@ class SchemeAccount(models.Model):
         (AGENT_NOT_FOUND, 'Agent does not exist on midas'),
         (PASSWORD_EXPIRED, "Password expired")
     )
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE]
-    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, LOCKED_BY_ENDSITE, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
+    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA]
 
     user = models.ForeignKey('user.CustomUser')

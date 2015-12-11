@@ -48,25 +48,6 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
-    def test_put_schemes_account(self):
-        new_scheme = SchemeFactory()
-        data = {'order': 5, 'scheme': new_scheme.id, 'primary_answer': '234234234'}
-        response = self.client.put('/schemes/accounts/{0}'.format(self.scheme_account.id), data=data,
-                                   **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        primary_answer_id = response.data['primary_answer_id']
-        self.assertEqual(response.data['order'], 5)
-        for answer in response.data['answers']:
-            if answer['id'] == primary_answer_id:
-                self.assertEqual(answer['answer'], '234234234')
-
-    def test_patch_schemes_account(self):
-        response = self.client.put('/schemes/accounts/{}'.format(self.scheme_account.id), data={},
-                                   **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        content = response.data
-        self.assertEqual(content['order'], self.scheme_account.order)
-
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)
@@ -92,6 +73,25 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_put_link_schemes_account(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        data = {"primary_answer": "Scotland"}
+        primary_question_type = self.scheme_account.scheme.primary_question.type
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                   data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertEqual(response.data[primary_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
@@ -147,7 +147,7 @@ class TestSchemeAccount(APITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_system_retry_scheme_accounts(self):
-        scheme = SchemeAccountFactory(status=SchemeAccount.LOCKED_BY_ENDSITE)
+        scheme = SchemeAccountFactory(status=SchemeAccount.RETRY_LIMIT_REACHED)
         scheme_2 = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         response = self.client.get('/schemes/accounts/system_retry', **self.auth_service_headers)
         scheme_ids = [result['id'] for result in response.data['results']]
@@ -158,13 +158,20 @@ class TestSchemeAccount(APITestCase):
         self.assertNotIn(scheme_2.id, scheme_ids)
 
     def test_get_scheme_accounts_credentials(self):
-        response = self.client.get('/schemes/accounts/{0}/service_credentials'.format(self.scheme_account.id),
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
                                    **self.auth_service_headers)
-
         self.assertEqual(response.status_code, 200)
         self.assertIn('credentials', response.data)
         self.assertIn('scheme', response.data)
+        self.assertIn('action_status', response.data)
+        self.assertIn('status_name', response.data)
         self.assertIn('user', response.data)
+        self.assertIn('id', response.data)
+
+    def test_get_scheme_accounts_credentials_user(self):
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                   **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
         self.assertIn('id', response.data)
 
     def test_scheme_account_collect_credentials(self):
@@ -244,3 +251,99 @@ class TestAnswerValidation(SimpleTestCase):
     def test_pin_validation(self, mock_validate):
         serializer = LinkSchemeSerializer(data={"pin": "3333"})
         self.assertTrue(serializer.is_valid())
+
+
+class TestAccessTokens(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
+        cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(type=USER_NAME)
+
+        cls.scheme_account = cls.scheme_account_answer.scheme_account
+        cls.scheme_account2 = cls.scheme_account_answer2.scheme_account
+
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
+                                                                         scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer2 = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
+                                                                          scheme_account=cls.scheme_account2)
+
+        cls.scheme = cls.scheme_account.scheme
+        cls.scheme2 = cls.scheme_account2.scheme
+
+        cls.user = cls.scheme_account.user
+        cls.user2 = cls.scheme_account2.user
+
+        cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
+        cls.scheme.save()
+
+        cls.scheme2.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME)
+        cls.scheme2.save()
+
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        super(TestAccessTokens, cls).setUpClass()
+
+    def test_retrieve_scheme_accounts(self):
+        # GET Request
+        response = self.client.get('/schemes/accounts/{}'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/schemes/accounts/{}'.format(self.scheme_account2.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+        # DELETE Request
+        response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 204)
+        response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account2.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+
+        # Undo delete.
+        self.scheme_account.is_deleted = False
+        self.scheme_account.save()
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_link_credentials(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        data = {CARD_NUMBER: "London"}
+        # Test Post Method
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                    data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
+                                    data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+        # Test Put Method
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                   data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
+                                   data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 400)
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        # Test with service headers
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                   **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
+                                   **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        # Test as standard user
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                   **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
+                                   **self.auth_headers)
+        self.assertEqual(response.status_code, 404)

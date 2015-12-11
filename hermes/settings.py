@@ -64,6 +64,7 @@ INSTALLED_APPS = (
     'scheme',
     'payment_card',
     'order',
+    'colorful',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -102,6 +103,9 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'user.authentication.JwtAuthentication',
+    ),
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
     )
 }
 
@@ -220,10 +224,10 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
-
-if not any([TESTING, LOCAL]):
+HERMES_SENTRY_DNS = env_var('HERMES_SENTRY_DNS', None)
+if not any([TESTING, LOCAL]) and HERMES_SENTRY_DNS:
     RAVEN_CONFIG = {
-        'dsn': env_var('HERMES_SENTRY_DNS', ''),
+        'dsn': HERMES_SENTRY_DNS,
         # If you are using git, you can also automatically configure the
         # release based on the git info.
         'release': raven.fetch_git_sha(BASE_DIR),

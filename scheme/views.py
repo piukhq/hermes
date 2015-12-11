@@ -1,18 +1,19 @@
-from rest_framework.generics import (RetrieveUpdateAPIView, RetrieveAPIView, ListAPIView, GenericAPIView,
-                                     get_object_or_404, ListCreateAPIView,)
+
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
+                                     get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                UpdateSchemeAccountSerializer, CreateSchemeAccountSerializer,
-                                GetSchemeAccountSerializer, SchemeAccountCredentialsSerializer,
-                                SchemeAccountIdsSerializer, StatusSerializer, ResponseLinkSerializer,
-                                SchemeAccountSummarySerializer)
-
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
+                                StatusSerializer, ResponseLinkSerializer,
+                                SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
+                                ResponseSchemeAccountAndBalanceSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-from user.authentication import ServiceAuthentication, AllowService
+from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 
@@ -42,46 +43,18 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
 
-class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIView):
+class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     """
     Get, update and delete scheme accounts.
     """
     override_serializer_classes = {
-        'PUT': UpdateSchemeAccountSerializer,
-        'PATCH': UpdateSchemeAccountSerializer,
         'GET': GetSchemeAccountSerializer,
         'DELETE': GetSchemeAccountSerializer,
         'OPTIONS': GetSchemeAccountSerializer,
     }
 
-    queryset = SchemeAccount.active_objects
-
-    def update(self, request, *args, **kwargs):
-        """
-        Update a users scheme account.<br>
-        This will attempt to log into the loyalty scheme endsite and retrieve points.
-        ---
-        responseMessages:
-            - code: 404
-              message: Error retrieving the scheme account information.
-            - code: 400
-              message: A scheme account already exists with this primary question
-        """
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, id=kwargs['pk'])
-        self.context = {'scheme': scheme_account.scheme}
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        scheme_account.order = data.get('order', scheme_account.order)
-        scheme_account.save()
-        answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=scheme_account,
-                                                           type=scheme_account.primary_answer.type)
-        answer.answer = data.get('primary_answer', answer.answer)
-        answer.save()
-
-        out_serializer = GetSchemeAccountSerializer(scheme_account)
-        return Response(out_serializer.data)
+    def get_queryset(self):
+        return SchemeAccount.active_objects.filter(user=self.request.user)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -95,7 +68,44 @@ class RetrieveUpdateDeleteAccount(SwappableSerializerMixin, RetrieveUpdateAPIVie
 
 
 class LinkCredentials(GenericAPIView):
-    serializer_class = LinkSchemeSerializer
+    serializer_class = UpdateLinkSchemeSerializer
+    override_serializer_classes = {
+        'PUT': UpdateLinkSchemeSerializer,
+        'POST': LinkSchemeSerializer,
+        'OPTIONS': LinkSchemeSerializer,
+    }
+
+    def put(self, request, *args, **kwargs):
+        """Update Primary Answer or other credentials
+        ---
+        response_serializer: ResponseSchemeAccountAndBalanceSerializer
+        """
+        serializer = UpdateLinkSchemeSerializer(data=request.data,
+                                                context={'pk': self.kwargs['pk'], 'user': self.request.user})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        scheme_account = data.pop('scheme_account')
+        response_data = {}
+        if 'primary_answer' in data.keys():
+            primary_question_response = SchemeAccountCredentialAnswer.objects.get(
+                scheme_account=scheme_account,
+                type=data['primary_answer_type'],
+            )
+            primary_question_response.answer = data['primary_answer']
+            primary_question_response.save()
+            response_data[data['primary_answer_type']] = primary_question_response.clean_answer()
+            data.pop('primary_answer')
+            data.pop('primary_answer_type')
+
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+        response_data['balance'] = scheme_account.get_midas_balance()
+        response_data['status'] = scheme_account.status
+        response_data['status_name'] = scheme_account.status_name
+
+        out_serializer = ResponseSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
+        return Response(out_serializer.data)
 
     def post(self, request, *args, **kwargs):
         """
@@ -103,7 +113,8 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        serializer = LinkSchemeSerializer(data=request.data, context={'pk': self.kwargs['pk']})
+        serializer = LinkSchemeSerializer(data=request.data,
+                                          context={'pk': self.kwargs['pk'], 'user': self.request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         scheme_account = data.pop('scheme_account')
@@ -120,14 +131,18 @@ class LinkCredentials(GenericAPIView):
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-    """
-    Retrieve a scheme account using the scheme account id.
-    """
+
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
         'POST': CreateSchemeAccountSerializer,
         'OPTIONS': ListSchemeAccountSerializer,
     }
+
+    def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        return super().get(self, request, *args, **kwargs)
 
     def get_queryset(self):
         user = self.request.user
@@ -219,10 +234,14 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
-    permission_classes = (AllowService,)
-    authentication_classes = (ServiceAuthentication,)
-    queryset = SchemeAccount.active_objects
+    authentication_classes = (JwtAuthentication, ServiceAuthentication)
     serializer_class = SchemeAccountCredentialsSerializer
+
+    def get_queryset(self):
+        queryset = SchemeAccount.active_objects
+        if self.request.user.uid != 'api_user':
+            queryset = queryset.filter(user=self.request.user)
+        return queryset
 
 
 class SchemeAccountStatusData(ListAPIView):

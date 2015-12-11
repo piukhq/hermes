@@ -606,5 +606,117 @@
       "slug": 75
     },
     "model": "scheme.scheme"
+  }, {
+    "pk": 76,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 76
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 77,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 77
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 78,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 78
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 79,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 79
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 80,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 80
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 81,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 81
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 82,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 82
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 83,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 83
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 84,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 84
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 85,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 85
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 86,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 86
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 87,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 87
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 88,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 88
+    },
+    "model": "scheme.scheme"
+  }, {
+    "pk": 89,
+    "fields": {
+      "tier": 2,
+      "category": 1,
+      "slug": 89
+    },
+    "model": "scheme.scheme"
   }
 ]

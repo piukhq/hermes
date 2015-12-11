@@ -3,8 +3,9 @@ from rest_framework import generics
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
-    PaymentCardSchemeAccountSerializer
-from scheme.models import SchemeAccount
+    PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
+from rest_framework.response import Response
+from rest_framework import status
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -21,6 +22,28 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     """
     queryset = PaymentCardAccount.objects
     serializer_class = PaymentCardAccountSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return PaymentCardAccount.objects.filter(user=user)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+    def delete(self, request, *args, **kwargs):
+        """
+        Marks a paymentcardaccount as deleted.
+        Responds with a 204 - No content.
+        """
+        instance = self.get_object()
+        instance.is_deleted = True
+        instance.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class CreatePaymentCardAccount(ListCreateAPIView):

@@ -1,6 +1,5 @@
+from bulk_update.helper import bulk_update
 from django.db import models
-from bulk_update.manager import BulkUpdateManager
-from django.core.exceptions import ValidationError
 
 
 class Issuer(models.Model):
@@ -40,19 +39,13 @@ class PaymentCard(models.Model):
         return self.name
 
 
-class ActiveManager(models.Manager):
+class PaymentCardAccountManager(models.Manager):
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(status=PaymentCardAccount.DELETED)
+            return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
 
-
-def validate_pan_start(value):
-    if len(str(value)) != 6:
-        raise ValidationError('{0} is not of the correct length {1}'.format(value, 6))
-
-
-def validate_pan_end(value):
-    if len(str(value)) != 4:
-        raise ValidationError('{0} is not of the correct length {1}'.format(value, 4))
+    def bulk_update(self, objs, update_fields=None, exclude_fields=None):
+        bulk_update(objs, update_fields=update_fields,
+                    exclude_fields=exclude_fields, using=self.db)
 
 
 class PaymentCardAccount(models.Model):
@@ -74,15 +67,16 @@ class PaymentCardAccount(models.Model):
     currency_code = models.CharField(max_length=3)
     country = models.CharField(max_length=40)
     token = models.CharField(max_length=255)
-    pan_start = models.CharField(validators=[validate_pan_start], max_length=6)
-    pan_end = models.CharField(validators=[validate_pan_end], max_length=4)
+    pan_start = models.CharField(max_length=6)
+    pan_end = models.CharField(max_length=6)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer)
+    is_deleted = models.BooleanField(default=False)
 
-    objects = BulkUpdateManager()
+    objects = PaymentCardAccountManager()
 
     def __str__(self):
         return "{0}******{1}".format(self.pan_start, self.pan_end)

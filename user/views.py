@@ -1,21 +1,19 @@
-from types import SimpleNamespace
+import requests
 from django.contrib.auth import authenticate, login
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-import requests
 from requests_oauthlib import OAuth1Session
-from rest_framework.generics import RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,\
-    RetrieveAPIView, get_object_or_404
+from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
+                                     get_object_or_404)
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from scheme.models import SchemeAccount
 from rest_framework.authentication import SessionAuthentication
 from user.models import CustomUser
-from user.serializers import UserSerializer, RegisterSerializer, SchemeAccountSerializer, LoginSerializer, \
-    FaceBookWebRegisterSerializer, SocialRegisterSerializer, ResponseAuthSerializer
 from django.conf import settings
+from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
+                              SocialRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer)
 
 
 class ForgottenPassword:
@@ -44,7 +42,12 @@ class Register(CreateAPIView):
 
 
 class ResetPassword(UpdateAPIView):
-    pass
+    serializer_class = ResetPasswordSerializer
+
+    def get_object(self):
+        obj = get_object_or_404(CustomUser, id=self.request.user.id)
+        self.check_object_permissions(self.request, obj)
+        return obj
 
 
 class Users(RetrieveUpdateAPIView):
@@ -57,7 +60,6 @@ class Users(RetrieveUpdateAPIView):
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
         obj = get_object_or_404(queryset, id=self.request.user.id)
-
         self.check_object_permissions(self.request, obj)
         return obj
 
@@ -80,31 +82,6 @@ class Authenticate(APIView):
             'uid': str(request.user.uid),
             'id': str(request.user.id)
         })
-
-
-class RetrieveSchemeAccount(RetrieveAPIView):
-    serializer_class = SchemeAccountSerializer
-
-    def get(self, request, *args, **kwargs):
-        """
-        Retrieve a users scheme accounts.
-        ---
-        responseMessages:
-            - code: 404
-              message: Error retrieving scheme accounts for this user.
-        """
-        scheme_account = get_object_or_404(SchemeAccount, user=request.user, pk=kwargs['scheme_account_id'])
-        scheme = scheme_account.scheme
-
-        instance = SimpleNamespace(scheme_slug=scheme.slug,
-                                   user_id=request.user.id,
-                                   scheme_account_id=scheme_account.id,
-                                   status=scheme_account.status,
-                                   status_name=scheme_account.status_name,
-                                   action_status=scheme_account.action_status,
-                                   credentials=scheme_account.credentials())
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
 
 
 class Login(GenericAPIView):
@@ -130,7 +107,7 @@ class Login(GenericAPIView):
               message: The account associated with this email address is suspended.
         response_serializer: ResponseAuthSerializer
         """
-        email = request.data['email']
+        email = CustomUser.objects.normalize_email(request.data['email'])
         password = request.data['password']
         user = authenticate(username=email, password=password)
 
@@ -169,7 +146,7 @@ class FaceBookLoginWeb(CreateAPIView):
         if not r.ok:
             return Response({"error": 'Cannot get facebook user token.'}, status=403)
 
-        return facebook_graph(r.json()['access_token'])
+        return facebook_login(r.json()['access_token'])
 
 
 class FaceBookLogin(CreateAPIView):
@@ -205,33 +182,18 @@ class FaceBookLogin(CreateAPIView):
             return Response({"error": "Cannot validate user_id & access_token."}, status=403)
         if r.json()['id'] != user_id.strip():
             return Response({"error": "user_id is invalid for given access token"}, status=403)
-        return facebook_graph(access_token)
+        return facebook_login(access_token)
 
 
-def facebook_graph(access_token):
+def facebook_login(access_token):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
         return Response({"message": 'Can not access facebook social graph.'}, status=403)
     profile = r.json()
-    status = 200
-    # Create a new account or return an existing one.
-    try:
-        user = CustomUser.objects.get(facebook=profile['id'])
-    except CustomUser.DoesNotExist:
-        password = get_random_string(length=32)
-        try:
-            # If the user has an email in our system link them
-            user = CustomUser.objects.get(email=profile['email'])
-            user.facebook = profile['id']
-            user.save()
-        except CustomUser.DoesNotExist:
-            user = CustomUser.objects.create(email=profile['email'], password=password, facebook=profile['id'])
-            status = 201
-        except KeyError:
-            user = CustomUser.objects.create(password=password, facebook=profile['id'])
-            status = 201
+    status, user = social_login(profile['id'], profile.get('email'), 'facebook')
+
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status)
 
@@ -286,16 +248,37 @@ def twitter_login(access_token, access_token_secret):
                                   client_secret=settings.TWITTER_CONSUMER_SECRET,
                                   resource_owner_key=access_token,
                                   resource_owner_secret=access_token_secret)
-    params = {'skip_status': True, 'include_entities': False, 'include_email': True}
-    profile = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params).json()
 
-    try:
-        user = CustomUser.objects.get(twitter=profile['id_str'])
-        status = 200
-    except CustomUser.DoesNotExist:
-        password = get_random_string(length=32)
-        user = CustomUser.objects.create(password=password, twitter=profile['id_str'])
-        status = 201
+    params = {'skip_status': 'true', 'include_entities': 'false', 'include_email': 'true'}
+    request = oauth_session.get("https://api.twitter.com/1.1/account/verify_credentials.json", params=params)
 
+    if not request.ok:
+        # TODO: add logging
+        return Response(request.json()['errors'], status=request.status_code)
+
+    profile = request.json()
+    status, user = social_login(profile['id_str'], profile.get('email'), 'twitter')
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
+
+
+def social_login(social_id, email, service):
+    status = 200
+    try:
+        user = CustomUser.objects.get(**{service: social_id})
+        if not user.email and email:
+            user.email = email
+            user.save()
+    except CustomUser.DoesNotExist:
+        try:
+            if not email:
+                raise CustomUser.DoesNotExist
+            # User exists in our system but hasn't been linked
+            user = CustomUser.objects.get(email=email)
+            setattr(user, service, social_id)
+            user.save()
+        except CustomUser.DoesNotExist:
+            password = get_random_string(length=32)
+            user = CustomUser.objects.create(**{'email': email, 'password': password, service: social_id})
+            status = 201
+    return status, user

@@ -1,16 +1,14 @@
 import json
 import httpretty as httpretty
+from django.contrib.auth import authenticate
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
-from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeFactory, \
-    SchemeCredentialQuestionFactory
 from user.models import CustomUser
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
-
-from user.views import facebook_graph, twitter_login
+from user.views import facebook_login, twitter_login, social_login
 
 
 class TestRegisterNewUser(TestCase):
@@ -85,14 +83,25 @@ class TestRegisterNewUser(TestCase):
 
     def test_existing_email(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
         self.assertEqual(response.status_code, 201)
-
-        response = client.post('/users/register/', {'email': 'test_6@example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', content.keys())
-        self.assertEqual(content['email'], ['This field must be unique.'])
+        self.assertEqual(content['email'], ['That user already exists'])
+
+    def test_strange_email_case(self):
+        email = 'TEST_12@Example.com'
+        response = self.client.post('/users/register/', {'email': email, 'password': 'password6'})
+        content = json.loads(response.content.decode())
+        user = CustomUser.objects.get(email=content['email'])
+        # Test that django lowers the domain of the email address
+        self.assertEqual(user.email, 'TEST_12@example.com')
+        # Test that we can login with the domain still with upper case letters
+        response = self.client.post('/users/login/', data={"email": email, "password": 'password6'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("api_key", response.data)
 
 
 class TestUserProfile(TestCase):
@@ -367,18 +376,6 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], '')
 
-    def test_remove_partial(self):
-        pass
-
-    def test_cannot_remove_email(self):
-        pass
-
-    def test_currency_valid(self):
-        pass
-
-    def test_notifications_settings_valid(self):
-        pass
-
 
 class TestAuthentication(APITestCase):
     @classmethod
@@ -437,48 +434,19 @@ class TestAuthentication(APITestCase):
         response = client.get('/users/authenticate/', **auth_headers)
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['detail'], 'Invalid token.')
+        self.assertEqual(content['detail'], 'Authentication credentials were not provided.')
 
+    def test_change_password(self):
+        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
+        response = self.client.put('/users/me/password', {'password': 'test'}, **auth_headers)
+        user = CustomUser.objects.get(id=self.user.id)
 
-class TestSchemeAccounts(TestCase):
-    def test_get_scheme_accounts(self):
-        scheme = SchemeFactory()
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialQuestionFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(scheme_account=scheme_account)
-        user = scheme_account.user
-        auth_headers = {
-            'HTTP_AUTHORIZATION': "Token " + user.create_token()
-        }
-        client = Client()
-        response = client.get('/users/scheme_accounts/{}/'.format(scheme_account.id), content_type='application/json',
-                              **auth_headers)
         self.assertEqual(response.status_code, 200)
-        content = json.loads(response.content.decode())
-        self.assertEqual(content['scheme_slug'], scheme.slug)
-        self.assertEqual(content['scheme_account_id'], scheme_account.id)
-        self.assertEqual(content['user_id'], scheme_account.user.id)
-        self.assertEqual(content['status'], 1)
-        self.assertEqual(content['status_name'], 'Active')
-        self.assertEqual(content['action_status'], 'ACTIVE')
-
-        """
-        TODO: andrew
-        decrypted_credentials = AESCipher(settings.AES_KEY.encode()).decrypt(content['credentials'])
-        credentials = json.loads(decrypted_credentials)
-        self.assertEqual(credentials['username'], scheme_account.username)
-        self.assertEqual(credentials['card_number'], scheme_account.card_number)
-        self.assertEqual(credentials['membership_number'], str(scheme_account.membership_number))
-        self.assertEqual(credentials['password'], scheme_account.decrypt())
-        self.assertEqual(credentials['extra'], {question.type: answer.decrypt()})
-        """
+        user = authenticate(username=user.email, password='test')
+        self.assertTrue(user.password)
 
 
 class TestTwitterLogin(APITestCase):
-    def stub_verify_credentials(self, data):
-        httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
-                               body=json.dumps(data), content_type="application/json")
-
     @mock.patch('user.views.twitter_login', autospec=True)
     @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
     def test_twitter_login_web(self, mock_fetch_access_token, mock_twitter_login):
@@ -502,71 +470,95 @@ class TestTwitterLogin(APITestCase):
         self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
         self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234'))
 
+    @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
-    def test_twitter_login_user_create(self):
-        twitter_id = 'omsr4k7yta'
-        self.stub_verify_credentials({'id_str': twitter_id})
-
-        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
-        self.assertEqual(response.status_code, 201)
-        user = CustomUser.objects.get(twitter=twitter_id)
-        self.assertEqual(response.data['email'], user.email)
-
-    @httpretty.activate
-    def test_twitter_login_user_exists(self):
+    def test_twitter_login(self, mock_social_login):
         twitter_id = 'omsr4k7yta'
         user = UserFactory(twitter=twitter_id)
-        self.stub_verify_credentials({'id_str': twitter_id})
+        mock_social_login.return_value = (201, user)
+        httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
+                               body=json.dumps({'id_str': twitter_id}), content_type="application/json")
         response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
-
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['email'], user.email)
 
 
 class TestFacebookLogin(APITestCase):
-    def stub_graph(self, data):
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/me',
-                               body=json.dumps(data), content_type="application/json")
-
+    @mock.patch('user.views.facebook_login', autospec=True)
     @httpretty.activate
-    def test_facebook_graph_user_exists(self):
-        facebook_id = 'O7bz6vG60Y'
-        self.stub_graph({"email": "", "id": facebook_id})
-        user = UserFactory(facebook=facebook_id)
-
-        response = facebook_graph('Ju76xER1A5')
-        user = CustomUser.objects.get(id=user.id)
-
+    def test_facebook_web_login_view(self, facebook_login_mock):
+        facebook_login_mock.return_value = HttpResponse()
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/oauth/access_token',
+                               body=json.dumps({'access_token': '252345'}), content_type="application/json")
+        response = self.client.post('/users/auth/facebook_web', data={'clientId': '6b045AG',
+                                                                      'redirectUri': 'pa11mZTFOB', 'code': '235345wer'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(user.facebook, facebook_id)
+        self.assertEqual(facebook_login_mock.call_args[0][0],  '252345')
+
+    @mock.patch('user.views.facebook_login', autospec=True)
+    @httpretty.activate
+    def test_facebook_login_view(self, mock_facebook_login):
+        mock_facebook_login.return_value = HttpResponse()
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({'id': '12'}), content_type="application/json")
+        response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_facebook_login.call_args[0][0],  '25232345')
 
     @httpretty.activate
-    def test_facebook_graph_no_user(self):
-        facebook_id = '9l0RFutSn7'
-        email = "dyost@kunze.biz"
-        self.stub_graph({"email": email, "id": facebook_id})
-        response = facebook_graph('Ju76xER1A5')
-        user = CustomUser.objects.get(facebook=facebook_id)
+    def test_facebook_login_view_bad_id(self):
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({'id': '1122'}), content_type="application/json")
+        response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.data, {'error': 'user_id is invalid for given access token'})
 
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(user.facebook, facebook_id)
-        self.assertEqual(user.email, email)
-
+    @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
-    def test_facebook_graph_no_user_or_email(self):
-        facebook_id = 'GzQ6YzqJ7H'
-        self.stub_graph({"id": facebook_id})
-        response = facebook_graph('Ju76xER1A5')
-        user = CustomUser.objects.get(facebook=facebook_id)
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(user.facebook, facebook_id)
-
-    @httpretty.activate
-    def test_facebook_graph_link_user_with_email(self):
-        user = UserFactory()
-        self.stub_graph({"email": user.email, "id": 793875})
-        response = facebook_graph('Ju76xER1A5')
-
+    def test_facebook_login(self, mock_social_login):
+        facebook_id = 'O7bz6vG60Y'
+        user = UserFactory(facebook=facebook_id)
+        mock_social_login.return_value = (200, user)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/me',
+                               body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
+        response = facebook_login('Ju76xER1A5')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], user.email)
+
+
+class TestSocialLogin(APITestCase):
+    def test_social_login_exists(self):
+        facebook_id = 'O7bz6vG60Y'
+        created_user = UserFactory(facebook=facebook_id)
+        status, user = social_login(facebook_id, None, 'facebook')
+        self.assertEqual(status, 200)
+        self.assertEqual(created_user, user)
+
+    def test_social_login_exists_no_email(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
+        self.assertEqual(status, 200)
+        self.assertEqual(user.email, 'frank@sea.com')
+
+    def test_social_login_not_linked(self):
+        user = UserFactory()
+        twitter_id = '3456bz23466vG'
+        status, user = social_login(twitter_id, user.email, 'twitter')
+        self.assertEqual(status, 200)
+        self.assertEqual(user.twitter, twitter_id)
+
+    def test_social_login_no_user(self):
+        twitter_id = '6u111bzUNL'
+        twitter_email = 'bob@sea.com'
+        status, user = social_login(twitter_id, twitter_email, 'twitter')
+        self.assertEqual(status, 201)
+        self.assertEqual(user.twitter, twitter_id)
+        self.assertEqual(user.email, twitter_email)
+
+    def test_social_login_no_user_no_email(self):
+        twitter_id = 'twitter_email'
+        status, user = social_login(twitter_id, None, 'twitter')
+        self.assertEqual(status, 201)
+        self.assertEqual(user.twitter, twitter_id)
+        self.assertEqual(user.email, None)
