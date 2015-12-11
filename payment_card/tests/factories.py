@@ -22,8 +22,8 @@ class PaymentCardFactory(factory.DjangoModelFactory):
     image = fake.image_url()
     scan_message = fake.bs()
     input_label = fake.bs()
-    system = models.PaymentCard.MATERCARD
-    type = models.PaymentCard.MATERCARD
+    system = models.PaymentCard.MASTERCARD
+    type = models.PaymentCard.MASTERCARD
 
 
 class PaymentCardAccountFactory(factory.DjangoModelFactory):
