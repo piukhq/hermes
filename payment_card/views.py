@@ -6,6 +6,7 @@ from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSe
     PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from user.authentication import JwtAuthentication, ServiceAuthentication
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -63,6 +64,9 @@ class CreatePaymentCardAccount(ListCreateAPIView):
 
 class RetrievePaymentCardSchemeAccounts(ListAPIView):
     serializer_class = PaymentCardSchemeAccountSerializer
+
+    # TODO: Remove JwtAuthentication before pushing to production.
+    authentication_classes = (JwtAuthentication, ServiceAuthentication)
 
     def get_queryset(self):
         token = self.kwargs.get('token')
