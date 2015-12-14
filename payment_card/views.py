@@ -18,7 +18,7 @@ class ListPaymentCard(generics.ListAPIView):
 
 class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     """
-    Retrieve and update payment card information.result = {QuerySet} []
+    Retrieve and update payment card information.
     """
     queryset = PaymentCardAccount.objects
     serializer_class = PaymentCardAccountSerializer
