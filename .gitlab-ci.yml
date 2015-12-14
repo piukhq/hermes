@@ -16,4 +16,3 @@ deploy:
   - curl http://deployer.loyaltyangels.local/deploy/dev/hermes
   only:
   - master
- 

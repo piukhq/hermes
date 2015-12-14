@@ -1,7 +1,10 @@
+from payment_card.tests.factories import PaymentCardAccountFactory
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
+from scheme.tests.factories import SchemeAccountFactory
+from user.tests.factories import UserFactory
 
 
 class TestPaymentCard(APITestCase):
@@ -114,3 +117,17 @@ class TestPaymentCard(APITestCase):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(payment_card.id),
                                       **self.auth_headers)
         self.assertEqual(response.status_code, 404)
+
+    def test_get_payment_card_scheme_accounts(self):
+        token = 'test_token_123'
+        user = UserFactory()
+        SchemeAccountFactory(user=user)
+        PaymentCardAccountFactory(user=user, token=token, payment_card=self.payment_card)
+        response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(len(response.data[0]), 3)
+        keys = list(response.data[0].keys())
+        self.assertEqual(keys[0], 'scheme_id')
+        self.assertEqual(keys[1], 'user_id')
+        self.assertEqual(keys[2], 'scheme_account_id')

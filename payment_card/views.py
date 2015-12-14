@@ -1,10 +1,11 @@
+from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
-from rest_framework.response import Response
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
-from rest_framework import status
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
-    UpdatePaymentCardAccountSerializer
+    PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
+from rest_framework.response import Response
+from rest_framework import status
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -58,3 +59,12 @@ class CreatePaymentCardAccount(ListCreateAPIView):
     def get_queryset(self):
         user = self.request.user
         return PaymentCardAccount.objects.filter(user=user)
+
+
+class RetrievePaymentCardSchemeAccounts(ListAPIView):
+    serializer_class = PaymentCardSchemeAccountSerializer
+
+    def get_queryset(self):
+        token = self.kwargs.get('token')
+        data = payment_card_scheme_accounts(token)
+        return data

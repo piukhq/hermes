@@ -17,9 +17,17 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PaymentCardAccount
-        extra_kwargs = {'token': {'write_only': True}, 'user': {'required': False}}
-        read_only_fields = ('status', 'order', )
-        exclude = ('is_deleted', )
+        extra_kwargs = {'token': {'write_only': True}}
+        read_only_fields = ('status', )
+
+
+class PaymentCardSchemeAccountSerializer(serializers.Serializer):
+    scheme_id = serializers.ReadOnlyField()
+    user_id = serializers.ReadOnlyField()
+    scheme_account_id = serializers.ReadOnlyField()
+    extra_kwargs = {'token': {'write_only': True}, 'user': {'required': False}}
+    read_only_fields = ('status', 'order', )
+    exclude = ('is_deleted', )
 
 
 class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):

@@ -12,11 +12,11 @@ class Issuer(models.Model):
 
 class PaymentCard(models.Model):
     VISA = 'visa'
-    MATERCARD = 'mastercard'
+    MASTERCARD = 'mastercard'
     AMEX = 'amex'
     SYSTEMS = (
         (VISA, 'Visa'),
-        (MATERCARD, 'Master Card'),
+        (MASTERCARD, 'Master Card'),
         (AMEX, 'American Express‎'),
     )
     DEBIT = 'debit'

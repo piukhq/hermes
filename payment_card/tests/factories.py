@@ -1,4 +1,5 @@
 import factory
+from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 from payment_card import models
 from user.tests.factories import UserFactory
@@ -16,13 +17,13 @@ class PaymentCardFactory(factory.DjangoModelFactory):
         model = models.PaymentCard
 
     name = fake.word()
-    slug = fake.slug()
+    slug = FuzzyAttribute(fake.slug)
     url = fake.url()
     image = fake.image_url()
     scan_message = fake.bs()
     input_label = fake.bs()
-    system = models.PaymentCard.MATERCARD
-    type = models.PaymentCard.MATERCARD
+    system = models.PaymentCard.MASTERCARD
+    type = models.PaymentCard.MASTERCARD
 
 
 class PaymentCardAccountFactory(factory.DjangoModelFactory):
