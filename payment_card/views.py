@@ -6,8 +6,7 @@ from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSe
     PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
 from rest_framework.response import Response
 from rest_framework import status
-from user.authentication import JwtAuthentication
-from user.authentication import ServiceAuthentication
+from user.authentication import JwtAuthentication, ServiceAuthentication
 
 
 class ListPaymentCard(generics.ListAPIView):
