@@ -256,7 +256,7 @@ class SchemeAccount(models.Model):
 
 
 class SchemeCredentialQuestion(models.Model):
-    scheme = models.ForeignKey('Scheme', related_name='questions')
+    scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
