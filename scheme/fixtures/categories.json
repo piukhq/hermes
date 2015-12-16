@@ -1,37 +1,51 @@
 [
   {
     "model": "scheme.category",
+    "pk": 1,
     "fields": {
       "name": "Uncategorised"
-    },
-    "pk": 1
+    }
   },
   {
     "model": "scheme.category",
+    "pk": 2,
     "fields": {
       "name": "Travel"
-    },
-    "pk": 2
+    }
   },
   {
     "model": "scheme.category",
+    "pk": 3,
     "fields": {
       "name": "Finance"
-    },
-    "pk": 3
+    }
   },
   {
     "model": "scheme.category",
+    "pk": 4,
     "fields": {
       "name": "Household"
-    },
-    "pk": 4
+    }
   },
   {
     "model": "scheme.category",
+    "pk": 5,
     "fields": {
       "name": "Social"
-    },
-    "pk": 5
+    }
+  },
+  {
+    "model": "scheme.category",
+    "pk": 6,
+    "fields": {
+      "name": "Food & Drink"
+    }
+  },
+  {
+    "model": "scheme.category",
+    "pk": 7,
+    "fields": {
+      "name": "Retail"
+    }
   }
 ]
