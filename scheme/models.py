@@ -103,7 +103,7 @@ class SchemeImage(models.Model):
     )
 
     scheme = models.ForeignKey('scheme.Scheme', related_name='images')
-    image_type_code = models.IntegerField()
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
     strap_line = models.CharField(max_length=50, null=True, blank=True)
