@@ -38,6 +38,7 @@ class Scheme(models.Model):
         (4, 'EAN (13)'),
         (5, 'DataMatrix'),
         (6, "ITF (Interleaved 2 of 5)"),
+        (7, 'Code 39'),
     )
 
     # this is the same slugs found in the active.py file in the midas repo
