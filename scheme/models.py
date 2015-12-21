@@ -22,7 +22,8 @@ class Category(models.Model):
 
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
-        return super(ActiveSchemeManager, self).get_queryset().exclude(primary_question__isnull=True, is_active=True)
+        return super(ActiveSchemeManager, self).get_queryset().exclude(
+            primary_question__isnull=True).exclude(is_active=False)
 
 
 class Scheme(models.Model):
