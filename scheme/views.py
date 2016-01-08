@@ -257,7 +257,3 @@ class SchemeAccountStatusData(ListAPIView):
         return queryset
 
     serializer_class = SchemeAccountSummarySerializer
-
-
-def json_error_response(message, code):
-    return Response({"message": message, "code": code}, status=code)
