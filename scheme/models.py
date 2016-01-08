@@ -254,7 +254,7 @@ class SchemeAccount(models.Model):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['order', '-created']
 
 
 class SchemeCredentialQuestion(models.Model):
