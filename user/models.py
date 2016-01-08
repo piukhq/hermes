@@ -74,11 +74,18 @@ NOTIFICATIONS_SETTING = (
     (1, True),
 )
 
+GENDERS = (
+    ('female', 'Female'),
+    ('male', 'Male'),
+    ('other', 'Other'),
+)
+
 
 class UserDetail(models.Model):
     user = models.OneToOneField(CustomUser, related_name='profile')
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
+    gender = models.CharField(max_length=6, null=True, blank=True, choices=GENDERS)
     date_of_birth = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=100, null=True, blank=True)
     address_line_1 = models.CharField(max_length=255, null=True, blank=True)

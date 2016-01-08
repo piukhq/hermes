@@ -179,6 +179,7 @@ class TestUserProfile(TestCase):
             'region': user_profile.region,
             'postcode': user_profile.postcode,
             'country': user_profile.country,
+            'gender': user_profile.gender
         }
         auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
@@ -201,6 +202,7 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content['gender'], user_profile.gender)
 
         # Test that adding a new field does not blank existing fields
         data = {

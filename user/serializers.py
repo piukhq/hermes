@@ -4,7 +4,7 @@ from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail
+from user.models import CustomUser, UserDetail, GENDERS
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -49,7 +49,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserDetail
         date_of_birth = serializers.DateField(required=False, allow_null=True)
         fields = ('first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1', 'address_line_2', 'city',
-                  'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency')
+                  'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency', 'gender')
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -80,6 +80,7 @@ class UserSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source='profile.phone', required=False, allow_blank=True)
     address_line_1 = serializers.CharField(source='profile.address_line_1', required=False, allow_blank=True)
     address_line_2 = serializers.CharField(source='profile.address_line_2', required=False, allow_blank=True)
+    gender = serializers.ChoiceField(source='profile.gender', required=False, allow_blank=True, choices=GENDERS)
     city = serializers.CharField(source='profile.city', required=False, allow_blank=True)
     region = serializers.CharField(source='profile.region', required=False, allow_blank=True)
     postcode = serializers.CharField(source='profile.postcode', required=False, allow_blank=True)
@@ -90,7 +91,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ('uid', 'email', 'first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1',
-                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', )
+                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', 'gender')
 
 
 class SchemeAccountsSerializer(serializers.ModelSerializer):
