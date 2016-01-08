@@ -191,7 +191,7 @@ LOGGING = {
         },
         'gelf': {
             'class': 'graypy.GELFHandler',
-            'host': '192.168.1.53',
+            'host': env_var('GRAYLOG_HOST'),
             'port': 12201,
         },
     },
