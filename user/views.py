@@ -10,6 +10,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
+
+from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS, \
+    INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN
 from user.models import CustomUser
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
@@ -112,9 +115,9 @@ class Login(GenericAPIView):
         user = authenticate(username=email, password=password)
 
         if not user:
-            return Response({"message": 'Login credentials incorrect.'}, status=403)
+            return error_response(INCORRECT_CREDENTIALS)
         if not user.is_active:
-            return Response({"message": "The account associated with this email address is suspended."}, status=403)
+            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
@@ -144,7 +147,7 @@ class FaceBookLoginWeb(CreateAPIView):
         # Exchange authorization code for access token.
         r = requests.get(access_token_url, params=params)
         if not r.ok:
-            return Response({"error": 'Cannot get facebook user token.'}, status=403)
+            return error_response(FACEBOOK_BAD_TOKEN)
 
         return facebook_login(r.json()['access_token'])
 
@@ -179,9 +182,9 @@ class FaceBookLogin(CreateAPIView):
         user_id = request.data['user_id']
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
-            return Response({"error": "Cannot validate user_id & access_token."}, status=403)
+            return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
-            return Response({"error": "user_id is invalid for given access token"}, status=403)
+            return error_response(FACEBOOK_INVALID_USER)
         return facebook_login(access_token)
 
 
@@ -190,7 +193,7 @@ def facebook_login(access_token):
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
-        return Response({"message": 'Can not access facebook social graph.'}, status=403)
+        return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
     status, user = social_login(profile['id'], profile.get('email'), 'facebook')
 

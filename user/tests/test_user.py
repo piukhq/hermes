@@ -513,7 +513,9 @@ class TestFacebookLogin(APITestCase):
                                body=json.dumps({'id': '1122'}), content_type="application/json")
         response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data, {'error': 'user_id is invalid for given access token'})
+        self.assertEqual(response.data['message'], 'user_id is invalid for given access token')
+        self.assertEqual(response.data['name'], 'FACEBOOK_INVALID_USER')
+        self.assertEqual(response.data['code'], 403)
 
     @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
