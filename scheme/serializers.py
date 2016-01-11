@@ -48,7 +48,7 @@ class LinkSchemeSerializer(serializers.Serializer):
             scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        data['scheme_account'] = scheme_account
+        self.context['scheme_account'] = scheme_account
 
         # Validate no Primary answer
         primary_question_type = scheme_account.scheme.primary_question.type
@@ -72,12 +72,12 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
             scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        data['scheme_account'] = scheme_account
+        self.context['scheme_account'] = scheme_account
 
         # Primary Answer Stuff
         try:
             scheme = SchemeAccount.objects.get(id=self.context['pk']).scheme
-            data['primary_answer_type'] = scheme.primary_question.type
+            self.context['primary_answer_type'] = scheme.primary_question.type
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
 

@@ -84,18 +84,18 @@ class LinkCredentials(GenericAPIView):
                                                 context={'pk': self.kwargs['pk'], 'user': self.request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        scheme_account = data.pop('scheme_account')
+        scheme_account = serializer.context['scheme_account']
         response_data = {}
         if 'primary_answer' in data.keys():
+            primary_answer_type = serializer.context['primary_answer_type']
             primary_question_response = SchemeAccountCredentialAnswer.objects.get(
                 scheme_account=scheme_account,
-                type=data['primary_answer_type'],
+                type=primary_answer_type,
             )
             primary_question_response.answer = data['primary_answer']
             primary_question_response.save()
-            response_data[data['primary_answer_type']] = primary_question_response.clean_answer()
+            response_data[primary_answer_type] = primary_question_response.clean_answer()
             data.pop('primary_answer')
-            data.pop('primary_answer_type')
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -117,7 +117,7 @@ class LinkCredentials(GenericAPIView):
                                           context={'pk': self.kwargs['pk'], 'user': self.request.user})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        scheme_account = data.pop('scheme_account')
+        scheme_account = serializer.context['scheme_account']
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
