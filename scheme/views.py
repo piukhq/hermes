@@ -90,7 +90,7 @@ class LinkCredentials(GenericAPIView):
             primary_answer_type = serializer.context['primary_answer_type']
             primary_question_response = SchemeAccountCredentialAnswer.objects.get(
                 scheme_account=scheme_account,
-                type=primary_answer_type,
+                question=scheme_account.question(primary_answer_type),
             )
             primary_question_response.answer = data['primary_answer']
             primary_question_response.save()
@@ -99,7 +99,8 @@ class LinkCredentials(GenericAPIView):
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
-                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
         response_data['balance'] = scheme_account.get_midas_balance()
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
@@ -120,7 +121,8 @@ class LinkCredentials(GenericAPIView):
         scheme_account = serializer.context['scheme_account']
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
-                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
         response_data = {
             'balance': scheme_account.get_midas_balance(),
             'status': scheme_account.status,
@@ -166,7 +168,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             )
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                type=data['primary_answer_type'],
+                question=scheme_account.question(data['primary_answer_type']),
                 answer=data['primary_answer'],
             )
         data['id'] = scheme_account.id

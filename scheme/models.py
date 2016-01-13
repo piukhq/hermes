@@ -183,10 +183,10 @@ class SchemeAccount(models.Model):
     def _collect_credentials(self):
         credentials = {}
         for answer in self.schemeaccountcredentialanswer_set.all():
-            if answer.type in ENCRYPTED_CREDENTIALS:
-                credentials[answer.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
+            if answer.question.type in ENCRYPTED_CREDENTIALS:
+                credentials[answer.question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
             else:
-                credentials[answer.type] = answer.answer
+                credentials[answer.question.type] = answer.answer
         return credentials
 
     def missing_credentials(self, credential_types):
@@ -225,13 +225,24 @@ class SchemeAccount(models.Model):
         self.save()
         return points
 
+    def question(self, question_type):
+        """
+        Return the scheme question instance for the given question type
+        :param question_type:
+        :return:
+        """
+        return SchemeCredentialQuestion.objects.get(type=question_type, scheme=self.scheme)
+
     @property
     def primary_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(type=self.scheme.primary_question.type).first()
+        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.primary_question).first()
 
     @property
     def primary_answer_id(self):
-        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type).id
+        primary_answer = self.primary_answer
+        if primary_answer:
+            return primary_answer.id
+        return None
 
     @property
     def answers(self):
@@ -265,6 +276,7 @@ class SchemeCredentialQuestion(models.Model):
 
     class Meta:
         ordering = ['order']
+        unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
@@ -272,20 +284,23 @@ class SchemeCredentialQuestion(models.Model):
 
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
-    type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+    question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)
     answer = models.CharField(max_length=250)
 
     def clean_answer(self):
-        if self.type in ENCRYPTED_CREDENTIALS:
+        if self.question.type in ENCRYPTED_CREDENTIALS:
             return "****"
         return self.answer
 
     def __str__(self):
-        return self.answer
+        return self.clean_answer()
+
+    class Meta:
+        unique_together = ("scheme_account", "question")
 
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
-    if instance.type in ENCRYPTED_CREDENTIALS:
+    if instance.question.type in ENCRYPTED_CREDENTIALS:
         encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         instance.answer = encrypted_answer

@@ -35,6 +35,16 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     model = SchemeAccountCredentialAnswer
     extra = 0
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "question":
+            try:
+                pk = int(request.path.split('/')[-2])
+                scheme_account = SchemeAccount.objects.get(id=pk)
+                kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=scheme_account.scheme.id)
+            except ValueError:
+                kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
