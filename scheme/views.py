@@ -86,16 +86,16 @@ class LinkCredentials(GenericAPIView):
         data = serializer.validated_data
         scheme_account = serializer.context['scheme_account']
         response_data = {}
-        if 'primary_answer' in data.keys():
-            primary_answer_type = serializer.context['primary_answer_type']
-            primary_question_response = SchemeAccountCredentialAnswer.objects.get(
+        if 'manual_answer' in data.keys():
+            manual_answer_type = serializer.context['manual_answer_type']
+            manual_question_response = SchemeAccountCredentialAnswer.objects.get(
                 scheme_account=scheme_account,
-                question=scheme_account.question(primary_answer_type),
+                question=scheme_account.question(manual_answer_type),
             )
-            primary_question_response.answer = data['primary_answer']
-            primary_question_response.save()
-            response_data[primary_answer_type] = primary_question_response.clean_answer()
-            data.pop('primary_answer')
+            manual_question_response.answer = data['manual_answer']
+            manual_question_response.save()
+            response_data[manual_answer_type] = manual_question_response.clean_answer()
+            data.pop('manual_answer')
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -168,8 +168,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             )
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                question=scheme_account.question(data['primary_answer_type']),
-                answer=data['primary_answer'],
+                question=scheme_account.question(data['manual_answer_type']),
+                answer=data['manual_answer'],
             )
         data['id'] = scheme_account.id
         return Response(data, status=status.HTTP_201_CREATED,

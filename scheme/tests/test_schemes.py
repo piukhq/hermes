@@ -14,14 +14,14 @@ class TestScheme(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.scheme = cls.scheme_account.scheme
         question = SchemeCredentialQuestionFactory(scheme=cls.scheme)
-        cls.scheme.primary_question = question
+        cls.scheme.manual_question = question
         cls.scheme.save()
         super(TestScheme, cls).setUpClass()
 
     def test_scheme_list(self):
         scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=scheme)
-        scheme.primary_question = question
+        scheme.manual_question = question
         scheme.save()
         SchemeImageFactory(scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
