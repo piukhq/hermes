@@ -23,7 +23,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
         return super(ActiveSchemeManager, self).get_queryset().exclude(
-            primary_question__isnull=True).exclude(is_active=False)
+            manual_question__isnull=True).exclude(is_active=False)
 
 
 class Scheme(models.Model):
@@ -56,8 +56,10 @@ class Scheme(models.Model):
     has_points = models.BooleanField(default=False)
     identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
-    primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
-                                         related_name='primary_question')
+    manual_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
+                                        related_name='manual_question')
+    # scan_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
+    #                                   related_name='scan_question')
     colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
@@ -234,14 +236,14 @@ class SchemeAccount(models.Model):
         return SchemeCredentialQuestion.objects.get(type=question_type, scheme=self.scheme)
 
     @property
-    def primary_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.primary_question).first()
+    def manual_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
 
     @property
-    def primary_answer_id(self):
-        primary_answer = self.primary_answer
-        if primary_answer:
-            return primary_answer.id
+    def manual_answer_id(self):
+        manual_answer = self.manual_answer
+        if manual_answer:
+            return manual_answer.id
         return None
 
     @property

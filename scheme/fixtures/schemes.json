@@ -14,7 +14,7 @@
       "barcode_type": null,
       "name": "Affiliate Program",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -37,7 +37,7 @@
       "barcode_type": 0,
       "name": "Avios",
       "is_active": true,
-      "primary_question": 26,
+      "manual_question": 26,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -60,7 +60,7 @@
       "barcode_type": null,
       "name": "Freedom Rewards",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -83,7 +83,7 @@
       "barcode_type": 0,
       "name": "Advantage Card",
       "is_active": true,
-      "primary_question": 3,
+      "manual_question": 3,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -106,7 +106,7 @@
       "barcode_type": null,
       "name": "B&Q Club",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -129,7 +129,7 @@
       "barcode_type": 1,
       "name": "Coffee Club",
       "is_active": true,
-      "primary_question": 8,
+      "manual_question": 8,
       "scan_message": "Please turn card over and enter card number",
       "has_points": true,
       "tier": 2
@@ -152,7 +152,7 @@
       "barcode_type": null,
       "name": "Giraffe",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -175,7 +175,7 @@
       "barcode_type": null,
       "name": "Play Points",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -198,7 +198,7 @@
       "barcode_type": null,
       "name": "Ikea",
       "is_active": true,
-      "primary_question": 83,
+      "manual_question": 83,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -221,7 +221,7 @@
       "barcode_type": 0,
       "name": "My John Lewis",
       "is_active": true,
-      "primary_question": 184,
+      "manual_question": 184,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": false,
       "tier": 2
@@ -244,7 +244,7 @@
       "barcode_type": null,
       "name": "Vantage Club",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -267,7 +267,7 @@
       "barcode_type": 0,
       "name": "Match & More",
       "is_active": true,
-      "primary_question": 29,
+      "manual_question": 29,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -290,7 +290,7 @@
       "barcode_type": 0,
       "name": "My Waitrose",
       "is_active": true,
-      "primary_question": 187,
+      "manual_question": 187,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": false,
       "tier": 2
@@ -313,7 +313,7 @@
       "barcode_type": 0,
       "name": "Nectar Card",
       "is_active": true,
-      "primary_question": 14,
+      "manual_question": 14,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -336,7 +336,7 @@
       "barcode_type": 3,
       "name": "MyStarbucks Rewards",
       "is_active": true,
-      "primary_question": 167,
+      "manual_question": 167,
       "scan_message": "Please enter card number manually",
       "has_points": true,
       "tier": 1
@@ -359,7 +359,7 @@
       "barcode_type": 4,
       "name": "Health & Beautycard",
       "is_active": true,
-      "primary_question": 27,
+      "manual_question": 27,
       "scan_message": "Please turn over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -382,7 +382,7 @@
       "barcode_type": 0,
       "name": "Tesco Clubcard",
       "is_active": true,
-      "primary_question": 22,
+      "manual_question": 22,
       "scan_message": "Please turn over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -405,7 +405,7 @@
       "barcode_type": null,
       "name": "Virgin Flyingclub",
       "is_active": true,
-      "primary_question": 123,
+      "manual_question": 123,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -428,7 +428,7 @@
       "barcode_type": null,
       "name": "Best Western Rewards",
       "is_active": true,
-      "primary_question": 91,
+      "manual_question": 91,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -451,7 +451,7 @@
       "barcode_type": 0,
       "name": "Executive Club",
       "is_active": true,
-      "primary_question": 6,
+      "manual_question": 6,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -474,7 +474,7 @@
       "barcode_type": 0,
       "name": "Hilton HHonors",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -497,7 +497,7 @@
       "barcode_type": null,
       "name": "Gold Passport",
       "is_active": true,
-      "primary_question": 135,
+      "manual_question": 135,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -520,7 +520,7 @@
       "barcode_type": null,
       "name": "Rewards Club",
       "is_active": true,
-      "primary_question": 126,
+      "manual_question": 126,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -543,7 +543,7 @@
       "barcode_type": null,
       "name": "Starwood Preferred Guest",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -566,7 +566,7 @@
       "barcode_type": null,
       "name": "Emirates Skywards",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -589,7 +589,7 @@
       "barcode_type": null,
       "name": "Le Club",
       "is_active": true,
-      "primary_question": 155,
+      "manual_question": 155,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -612,7 +612,7 @@
       "barcode_type": null,
       "name": "Gold Circle",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -635,7 +635,7 @@
       "barcode_type": null,
       "name": "Altitude",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -658,7 +658,7 @@
       "barcode_type": null,
       "name": "Flying Blue",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -681,7 +681,7 @@
       "barcode_type": null,
       "name": "MilleMiglia",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -704,7 +704,7 @@
       "barcode_type": null,
       "name": "American Express Membership Rewards",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -727,7 +727,7 @@
       "barcode_type": 0,
       "name": "Heathrow Rewards",
       "is_active": true,
-      "primary_question": 102,
+      "manual_question": 102,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -750,7 +750,7 @@
       "barcode_type": null,
       "name": "Dynasty Flyer",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -773,7 +773,7 @@
       "barcode_type": null,
       "name": "Matmid Frequent Flyer Club",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -796,7 +796,7 @@
       "barcode_type": null,
       "name": "Etihad Guest",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -819,7 +819,7 @@
       "barcode_type": null,
       "name": "Finnair Plus",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -842,7 +842,7 @@
       "barcode_type": null,
       "name": "Flying Returns",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -865,7 +865,7 @@
       "barcode_type": null,
       "name": "JAL Mileage Bank",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -888,7 +888,7 @@
       "barcode_type": null,
       "name": "JetPrivilege",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -911,7 +911,7 @@
       "barcode_type": null,
       "name": "KLM Flying Blue",
       "is_active": true,
-      "primary_question": 153,
+      "manual_question": 153,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -934,7 +934,7 @@
       "barcode_type": null,
       "name": "KrisFlyer",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -957,7 +957,7 @@
       "barcode_type": null,
       "name": "Miles & More",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -980,7 +980,7 @@
       "barcode_type": null,
       "name": "Frequent Flyer",
       "is_active": true,
-      "primary_question": 39,
+      "manual_question": 39,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1003,7 +1003,7 @@
       "barcode_type": null,
       "name": "Victoria",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1026,7 +1026,7 @@
       "barcode_type": null,
       "name": "Miles & More",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1049,7 +1049,7 @@
       "barcode_type": null,
       "name": "Royal Orchid Plus Frequent Flyer",
       "is_active": true,
-      "primary_question": 162,
+      "manual_question": 162,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1072,7 +1072,7 @@
       "barcode_type": null,
       "name": "Marriott Rewards Card",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1095,7 +1095,7 @@
       "barcode_type": null,
       "name": "YourPoints",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1118,7 +1118,7 @@
       "barcode_type": 0,
       "name": "The Co-operative Membership",
       "is_active": true,
-      "primary_question": 23,
+      "manual_question": 23,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -1141,7 +1141,7 @@
       "barcode_type": null,
       "name": "Quidco",
       "is_active": true,
-      "primary_question": 36,
+      "manual_question": 36,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1164,7 +1164,7 @@
       "barcode_type": 0,
       "name": "Debenhams Beauty Club",
       "is_active": true,
-      "primary_question": 38,
+      "manual_question": 38,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1187,7 +1187,7 @@
       "barcode_type": 1,
       "name": "The Waterstones Card",
       "is_active": true,
-      "primary_question": 57,
+      "manual_question": 57,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1210,7 +1210,7 @@
       "barcode_type": null,
       "name": "Maximiles",
       "is_active": true,
-      "primary_question": 88,
+      "manual_question": 88,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1233,7 +1233,7 @@
       "barcode_type": 1,
       "name": "Game Reward",
       "is_active": true,
-      "primary_question": 114,
+      "manual_question": 114,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1256,7 +1256,7 @@
       "barcode_type": null,
       "name": "Harrods Rewards",
       "is_active": true,
-      "primary_question": 69,
+      "manual_question": 69,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1279,7 +1279,7 @@
       "barcode_type": 0,
       "name": "Decathlon Card",
       "is_active": true,
-      "primary_question": 93,
+      "manual_question": 93,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1302,7 +1302,7 @@
       "barcode_type": 6,
       "name": "My Esprit",
       "is_active": true,
-      "primary_question": 108,
+      "manual_question": 108,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1325,7 +1325,7 @@
       "barcode_type": null,
       "name": "Shell Drivers Club",
       "is_active": true,
-      "primary_question": 28,
+      "manual_question": 28,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 1
@@ -1348,7 +1348,7 @@
       "barcode_type": null,
       "name": "Eurostar Plus Points",
       "is_active": true,
-      "primary_question": 96,
+      "manual_question": 96,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1371,7 +1371,7 @@
       "barcode_type": 0,
       "name": "Recognition Reward Card",
       "is_active": true,
-      "primary_question": 190,
+      "manual_question": 190,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -1394,7 +1394,7 @@
       "barcode_type": 0,
       "name": "Bonus Club",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1417,7 +1417,7 @@
       "barcode_type": 0,
       "name": "Rewards for Life",
       "is_active": true,
-      "primary_question": 129,
+      "manual_question": 129,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -1440,7 +1440,7 @@
       "barcode_type": null,
       "name": "GBK Rewards",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1463,7 +1463,7 @@
       "barcode_type": null,
       "name": "Nandos Card",
       "is_active": true,
-      "primary_question": 63,
+      "manual_question": 63,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1486,7 +1486,7 @@
       "barcode_type": 2,
       "name": "Subcard",
       "is_active": true,
-      "primary_question": 193,
+      "manual_question": 193,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": false,
       "tier": 2
@@ -1509,7 +1509,7 @@
       "barcode_type": 3,
       "name": "Colonels Club",
       "is_active": true,
-      "primary_question": 30,
+      "manual_question": 30,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -1532,7 +1532,7 @@
       "barcode_type": 1,
       "name": "Greggs Rewards",
       "is_active": true,
-      "primary_question": 75,
+      "manual_question": 75,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1555,7 +1555,7 @@
       "barcode_type": 0,
       "name": "Beefeater Grill Reward Club",
       "is_active": true,
-      "primary_question": 42,
+      "manual_question": 42,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1578,7 +1578,7 @@
       "barcode_type": 3,
       "name": "Matalan Reward Card",
       "is_active": true,
-      "primary_question": 66,
+      "manual_question": 66,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1601,7 +1601,7 @@
       "barcode_type": null,
       "name": "My Mothercare",
       "is_active": true,
-      "primary_question": 194,
+      "manual_question": 194,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1624,7 +1624,7 @@
       "barcode_type": 4,
       "name": "M & Co Loyalty Card ",
       "is_active": true,
-      "primary_question": 85,
+      "manual_question": 85,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1647,7 +1647,7 @@
       "barcode_type": 0,
       "name": "Tasty Rewards",
       "is_active": true,
-      "primary_question": 99,
+      "manual_question": 99,
       "scan_message": "Please turn card over to scan barcode (avoid QR code)",
       "has_points": true,
       "tier": 2
@@ -1670,7 +1670,7 @@
       "barcode_type": 0,
       "name": "Together Rewards Card",
       "is_active": true,
-      "primary_question": 132,
+      "manual_question": 132,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1693,7 +1693,7 @@
       "barcode_type": null,
       "name": "Crowne Plaza Priority Club",
       "is_active": false,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -1716,7 +1716,7 @@
       "barcode_type": null,
       "name": "Hertz Gold Plus Rewards",
       "is_active": true,
-      "primary_question": 34,
+      "manual_question": 34,
       "scan_message": "Ching scan message",
       "has_points": true,
       "tier": 2
@@ -1739,7 +1739,7 @@
       "barcode_type": 6,
       "name": "Monsoon Reward",
       "is_active": true,
-      "primary_question": 45,
+      "manual_question": 45,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -1762,7 +1762,7 @@
       "barcode_type": null,
       "name": "The Perfume Shop Rewards Club",
       "is_active": true,
-      "primary_question": 48,
+      "manual_question": 48,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1785,7 +1785,7 @@
       "barcode_type": null,
       "name": "JetBlue TrueBlue",
       "is_active": true,
-      "primary_question": 51,
+      "manual_question": 51,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1808,7 +1808,7 @@
       "barcode_type": null,
       "name": "Rewards4Golf",
       "is_active": true,
-      "primary_question": 54,
+      "manual_question": 54,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1831,7 +1831,7 @@
       "barcode_type": null,
       "name": "Toys 'R' Us Gold Card",
       "is_active": true,
-      "primary_question": 60,
+      "manual_question": 60,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1854,7 +1854,7 @@
       "barcode_type": null,
       "name": "Rewards4Fishing",
       "is_active": true,
-      "primary_question": 72,
+      "manual_question": 72,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1877,7 +1877,7 @@
       "barcode_type": null,
       "name": "Rewards4Racing",
       "is_active": true,
-      "primary_question": 78,
+      "manual_question": 78,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1900,7 +1900,7 @@
       "barcode_type": null,
       "name": "Miles & More",
       "is_active": true,
-      "primary_question": 81,
+      "manual_question": 81,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1923,7 +1923,7 @@
       "barcode_type": null,
       "name": "N.Dulge Space.NK",
       "is_active": true,
-      "primary_question": 90,
+      "manual_question": 90,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1946,7 +1946,7 @@
       "barcode_type": null,
       "name": "Avis Preferred",
       "is_active": true,
-      "primary_question": 105,
+      "manual_question": 105,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1969,7 +1969,7 @@
       "barcode_type": null,
       "name": "Enterprise Plus",
       "is_active": true,
-      "primary_question": 111,
+      "manual_question": 111,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -1992,7 +1992,7 @@
       "barcode_type": null,
       "name": "Odeon Premi\u00e8re Club",
       "is_active": true,
-      "primary_question": 117,
+      "manual_question": 117,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2015,7 +2015,7 @@
       "barcode_type": 0,
       "name": "Sparks",
       "is_active": true,
-      "primary_question": 120,
+      "manual_question": 120,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2
@@ -2038,7 +2038,7 @@
       "barcode_type": null,
       "name": "Foyalty",
       "is_active": true,
-      "primary_question": 138,
+      "manual_question": 138,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2061,7 +2061,7 @@
       "barcode_type": null,
       "name": "Priority Guest Rewards",
       "is_active": true,
-      "primary_question": 140,
+      "manual_question": 140,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2084,7 +2084,7 @@
       "barcode_type": null,
       "name": "Paperchase Treat Me",
       "is_active": true,
-      "primary_question": 142,
+      "manual_question": 142,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2107,7 +2107,7 @@
       "barcode_type": null,
       "name": "Global Hotel Alliance Discovery",
       "is_active": true,
-      "primary_question": 145,
+      "manual_question": 145,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2130,7 +2130,7 @@
       "barcode_type": null,
       "name": "Omni Hotels & Resorts",
       "is_active": true,
-      "primary_question": 148,
+      "manual_question": 148,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2153,7 +2153,7 @@
       "barcode_type": null,
       "name": "Club Carlson",
       "is_active": true,
-      "primary_question": 151,
+      "manual_question": 151,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2176,7 +2176,7 @@
       "barcode_type": null,
       "name": "Choice Privileges",
       "is_active": true,
-      "primary_question": 159,
+      "manual_question": 159,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2199,7 +2199,7 @@
       "barcode_type": null,
       "name": "Enrich Malaysia Airlines",
       "is_active": true,
-      "primary_question": 164,
+      "manual_question": 164,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2222,7 +2222,7 @@
       "barcode_type": null,
       "name": "Papa Rewards",
       "is_active": true,
-      "primary_question": 181,
+      "manual_question": 181,
       "scan_message": "Ching Scan Message",
       "has_points": true,
       "tier": 2
@@ -2245,7 +2245,7 @@
       "barcode_type": null,
       "name": "AA",
       "is_active": true,
-      "primary_question": 196,
+      "manual_question": 196,
       "scan_message": "Ching Scan Message",
       "has_points": false,
       "tier": 2
@@ -2268,7 +2268,7 @@
       "barcode_type": 0,
       "name": "VIP Card",
       "is_active": true,
-      "primary_question": 197,
+      "manual_question": 197,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": false,
       "tier": 2
@@ -2291,7 +2291,7 @@
       "barcode_type": 0,
       "name": "Gold Club",
       "is_active": true,
-      "primary_question": 198,
+      "manual_question": 198,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": false,
       "tier": 2
@@ -2314,7 +2314,7 @@
       "barcode_type": 0,
       "name": "Love Rewards",
       "is_active": true,
-      "primary_question": null,
+      "manual_question": null,
       "scan_message": "Please turn card over to scan barcode",
       "has_points": true,
       "tier": 2

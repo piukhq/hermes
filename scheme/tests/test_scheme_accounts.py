@@ -17,12 +17,12 @@ class TestSchemeAccount(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
-        cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
+        cls.scheme.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.primary_question,
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
                                                                   scheme_account=cls.scheme_account)
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.secondary_question,
                                                                          scheme_account=cls.scheme_account)
@@ -43,7 +43,7 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
-        self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
+        self.assertEqual(response.data['manual_answer_id'], self.scheme_account_answer.id)
         self.assertEqual(len(response.data['answers']), 3)
         self.assertIn('answer', response.data['answers'][0])
 
@@ -89,14 +89,14 @@ class TestSchemeAccount(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {"primary_answer": "Scotland"}
-        primary_question_type = self.scheme_account.scheme.primary_question.type
+        data = {"manual_answer": "Scotland"}
+        manual_question_type = self.scheme_account.scheme.manual_question.type
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
-        self.assertEqual(response.data[primary_question_type], "Scotland")
+        self.assertEqual(response.data[manual_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
     def test_list_schemes_accounts(self):
@@ -104,21 +104,21 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['status_name'], 'Active')
-        self.assertIn('primary_answer', response.data[0])
+        self.assertIn('manual_answer', response.data[0])
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
-        scheme.primary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        scheme.manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         scheme.save()
 
-        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'primary_answer': '1234'},
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'manual_answer': '1234'},
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme'], scheme.id)
         self.assertEqual(content['order'], 0)
-        self.assertEqual(content['primary_answer'], '1234')
-        self.assertEqual(content['primary_answer_type'], 'card_number')
+        self.assertEqual(content['manual_answer'], '1234')
+        self.assertEqual(content['manual_answer_type'], 'card_number')
         self.assertIn('/schemes/accounts/', response._headers['location'][1])
         self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
 
@@ -206,7 +206,7 @@ class TestSchemeAccount(APITestCase):
 
     def test_unique_scheme_account(self):
         response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.id,
-                                                               'primary_answer': '1234'}, **self.auth_headers)
+                                                               'manual_answer': '1234'}, **self.auth_headers)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data,
@@ -265,7 +265,7 @@ class TestAccessTokens(APITestCase):
         cls.scheme_account = SchemeAccountFactory()
         question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account.scheme)
         cls.scheme = cls.scheme_account.scheme
-        cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
+        cls.scheme.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.save()
 
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account, question=question)
@@ -281,11 +281,11 @@ class TestAccessTokens(APITestCase):
                                                                           question=question_2)
 
         cls.scheme2 = cls.scheme_account2.scheme
-        cls.scheme2.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME)
+        cls.scheme2.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME)
         cls.scheme2.save()
 
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
-                                                                   question=cls.scheme2.primary_question)
+                                                                   question=cls.scheme2.manual_question)
         cls.user2 = cls.scheme_account2.user
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}

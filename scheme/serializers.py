@@ -51,12 +51,12 @@ class LinkSchemeSerializer(serializers.Serializer):
         self.context['scheme_account'] = scheme_account
 
         # Validate no Primary answer
-        primary_question_type = scheme_account.scheme.primary_question.type
-        if primary_question_type in data:
+        manual_question_type = scheme_account.scheme.manual_question.type
+        if manual_question_type in data:
             raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
 
         # Validate credentials existence
-        question_types = [answer_type for answer_type, value in data.items()] + [primary_question_type, ]
+        question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
         missing_credentials = scheme_account.missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
@@ -65,7 +65,7 @@ class LinkSchemeSerializer(serializers.Serializer):
 
 
 class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
-    primary_answer = serializers.CharField(required=False)
+    manual_answer = serializers.CharField(required=False)
 
     def validate(self, data):        # Validate scheme account
         try:
@@ -77,12 +77,12 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
         # Primary Answer Stuff
         try:
             scheme = SchemeAccount.objects.get(id=self.context['pk']).scheme
-            self.context['primary_answer_type'] = scheme.primary_question.type
+            self.context['manual_answer_type'] = scheme.manual_question.type
         except SchemeAccount.DoesNotExist:
             raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
 
-        primary_question_type = scheme_account.scheme.primary_question.type
-        if primary_question_type in data and data.get('primary_answer'):
+        manual_question_type = scheme_account.scheme.manual_question.type
+        if manual_question_type in data and data.get('manual_answer'):
             raise serializers.ValidationError("Primary answer {0} cannot be included twice in one request.")
 
         return data
@@ -90,7 +90,7 @@ class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
 
 class SchemeAccountSerializer(serializers.Serializer):
     order = serializers.IntegerField(default=0, required=False)
-    primary_answer = serializers.CharField()
+    manual_answer = serializers.CharField()
 
     @staticmethod
     def check_unique_scheme(user, scheme):
@@ -102,12 +102,12 @@ class SchemeAccountSerializer(serializers.Serializer):
 class CreateSchemeAccountSerializer(SchemeAccountSerializer):
     scheme = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
-    primary_answer_type = serializers.CharField(read_only=True)
+    manual_answer_type = serializers.CharField(read_only=True)
 
     def validate(self, data):
         try:
             scheme = Scheme.objects.get(pk=data['scheme'])
-            data['primary_answer_type'] = scheme.primary_question.type
+            data['manual_answer_type'] = scheme.manual_question.type
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
@@ -116,7 +116,7 @@ class CreateSchemeAccountSerializer(SchemeAccountSerializer):
 
 
 class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
-    primary_answer = serializers.CharField(required=False)
+    manual_answer = serializers.CharField(required=False)
 
 
 class BalanceSerializer(serializers.Serializer):
@@ -141,7 +141,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
-    primary_answer_id = serializers.IntegerField()
+    manual_answer_id = serializers.IntegerField()
     scheme = SchemeSerializerNoQuestions(read_only=True)
     action_status = serializers.ReadOnlyField()
     answers = ReadSchemeAccountAnswerSerializer(many=True, read_only=True)
@@ -154,12 +154,12 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    primary_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
+    manual_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
     status_name = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status', 'status_name')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'manual_answer', 'action_status', 'status_name')
 
 
 class StatusSerializer(serializers.Serializer):
