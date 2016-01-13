@@ -16,18 +16,21 @@ import json
 class TestSchemeAccount(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
-        cls.scheme_account = cls.scheme_account_answer.scheme_account
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
-                                                                         scheme_account=cls.scheme_account)
-
-        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password", type=PASSWORD,
-                                                                           scheme_account=cls.scheme_account)
-
-        cls.scheme = cls.scheme_account.scheme
-        cls.user = cls.scheme_account.user
+        cls.scheme = SchemeFactory()
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
+        password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
+
+        cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.primary_question,
+                                                                  scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.secondary_question,
+                                                                         scheme_account=cls.scheme_account)
+
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password",
+                                                                           question=password_question,
+                                                                           scheme_account=cls.scheme_account)
+        cls.user = cls.scheme_account.user
 
         cls.scheme.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
@@ -67,7 +70,7 @@ class TestSchemeAccount(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London"}
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf"}
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
@@ -225,8 +228,8 @@ class TestSchemeAccount(APITestCase):
         return True
 
     def test_valid_credentials(self):
-        self.assertEqual(self.scheme_account.missing_credentials([]), set(['card_number', 'username']))
-        self.assertFalse(self.scheme_account.missing_credentials(['card_number', 'username', 'dummy']))
+        self.assertEqual(self.scheme_account.missing_credentials([]), set(['card_number', 'username', 'password']))
+        self.assertFalse(self.scheme_account.missing_credentials(['card_number', 'username', 'password', 'dummy']))
 
 
 class TestAnswerValidation(SimpleTestCase):
@@ -256,28 +259,31 @@ class TestAnswerValidation(SimpleTestCase):
 class TestAccessTokens(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(type=USER_NAME)
-        cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(type=USER_NAME)
-
-        cls.scheme_account = cls.scheme_account_answer.scheme_account
-        cls.scheme_account2 = cls.scheme_account_answer2.scheme_account
-
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
-                                                                         scheme_account=cls.scheme_account)
-        cls.second_scheme_account_answer2 = SchemeCredentialAnswerFactory(type=CARD_NUMBER,
-                                                                          scheme_account=cls.scheme_account2)
-
+        # Scheme Account 3
+        cls.scheme_account = SchemeAccountFactory()
+        question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account.scheme)
         cls.scheme = cls.scheme_account.scheme
-        cls.scheme2 = cls.scheme_account2.scheme
-
-        cls.user = cls.scheme_account.user
-        cls.user2 = cls.scheme_account2.user
-
         cls.scheme.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
         cls.scheme.save()
 
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account, question=question)
+        cls.user = cls.scheme_account.user
+
+        # Scheme Account 2
+        cls.scheme_account2 = SchemeAccountFactory()
+        question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account2.scheme)
+
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2, question=question)
+        cls.second_scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
+                                                                          question=question_2)
+
+        cls.scheme2 = cls.scheme_account2.scheme
         cls.scheme2.primary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME)
         cls.scheme2.save()
+
+        cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
+                                                                   question=cls.scheme2.primary_question)
+        cls.user2 = cls.scheme_account2.user
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}

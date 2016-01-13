@@ -59,7 +59,7 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
         model = models.SchemeAccountCredentialAnswer
 
     scheme_account = factory.SubFactory(SchemeAccountFactory)
-    type = USER_NAME
+    question = factory.SubFactory(SchemeCredentialQuestionFactory)
     answer = fake.first_name()
 
 
