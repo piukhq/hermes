@@ -11,13 +11,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='scheme',
-            name='primary_question',
-        ),
-        migrations.AddField(
-            model_name='scheme',
-            name='manual_question',
-            field=models.ForeignKey(null=True, related_name='manual_question', to='scheme.SchemeCredentialQuestion', blank=True),
-        ),
+        migrations.RenameField('scheme', 'primary_question', 'manual_question'),
     ]
