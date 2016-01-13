@@ -46,7 +46,9 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.data['primary_answer_id'], self.scheme_account_answer.id)
         self.assertEqual(len(response.data['answers']), 3)
         self.assertIn('answer', response.data['answers'][0])
-        self.assertEqual(response.data['answers'][0]['answer'], '****')
+
+        answers = {answer['id']: answer['answer'] for answer in response.data['answers']}
+        self.assertEqual(answers[self.scheme_account_answer_password.id], '****')
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
@@ -273,7 +275,8 @@ class TestAccessTokens(APITestCase):
         cls.scheme_account2 = SchemeAccountFactory()
         question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account2.scheme)
 
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2, question=question)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
+                                                                         question=question)
         cls.second_scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
                                                                           question=question_2)
 

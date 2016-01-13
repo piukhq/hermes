@@ -2,7 +2,7 @@
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -121,7 +121,8 @@ class LinkCredentials(GenericAPIView):
         scheme_account = serializer.context['scheme_account']
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type), scheme_account=scheme_account, defaults={'answer': answer})
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
         response_data = {
             'balance': scheme_account.get_midas_balance(),
             'status': scheme_account.status,
