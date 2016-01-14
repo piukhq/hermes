@@ -58,8 +58,8 @@ class Scheme(models.Model):
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
     manual_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
                                         related_name='manual_question')
-    # scan_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
-    #                                   related_name='scan_question')
+    scan_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
+                                      related_name='scan_question')
     colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)

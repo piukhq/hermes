@@ -15,11 +15,11 @@ class CredentialQuestionInline(admin.StackedInline):
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
-    list_display = ('name', 'id', 'category', 'is_active', 'company', 'manual_question')
+    list_display = ('name', 'id', 'category', 'is_active', 'company', 'manual_question', 'scan_question')
     list_filter = ('is_active', )
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "manual_question":
+        if db_field.name in ("manual_question", "scan_question"):
             try:
                 pk = int(request.path.split('/')[-2])
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=pk)
