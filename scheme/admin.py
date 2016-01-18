@@ -1,6 +1,9 @@
 from django.contrib import admin
-from scheme.models import Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer, \
-    SchemeCredentialQuestion
+from django.core.exceptions import ValidationError
+from django.forms import BaseInlineFormSet
+
+from scheme.models import (Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion)
 
 
 class SchemeImageInline(admin.StackedInline):
@@ -8,8 +11,24 @@ class SchemeImageInline(admin.StackedInline):
     extra = 0
 
 
+class CredentialQuestionFormset(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        if manual_questions.count(True) > 1:
+            raise ValidationError("You may only select one manual question")
+
+        scan_questions = [form.cleaned_data['scan_question'] for form in self.forms]
+        if scan_questions.count(True) > 1:
+            raise ValidationError("You may only select one scan question")
+
+        if self.instance.is_active and not any(manual_questions):
+            raise ValidationError("You must have a manual question when a scheme is set tp active")
+
+
 class CredentialQuestionInline(admin.TabularInline):
     model = SchemeCredentialQuestion
+    formset = CredentialQuestionFormset
     extra = 0
 
 

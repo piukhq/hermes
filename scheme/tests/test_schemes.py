@@ -15,8 +15,7 @@ class TestSchemeViews(APITestCase):
         super().setUpClass()
 
     def test_scheme_list(self):
-        question = SchemeCredentialQuestionFactory(manual_question=True)
-
+        SchemeCredentialQuestionFactory(manual_question=True)
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200,)

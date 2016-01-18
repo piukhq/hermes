@@ -24,7 +24,6 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
         return super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
-    # .exclude(manual_question__isnull=True)
 
 
 class Scheme(models.Model):

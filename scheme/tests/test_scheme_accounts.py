@@ -302,7 +302,7 @@ class TestAccessTokens(APITestCase):
                                                                           question=question_2)
 
         cls.scheme2 = cls.scheme_account2.scheme
-        manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME, manual_question=True)
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
                                                                    question=cls.scheme2.manual_question)
         cls.user2 = cls.scheme_account2.user
