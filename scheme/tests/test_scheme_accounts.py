@@ -84,8 +84,8 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {"manual_answer": "Scotland"}
         manual_question_type = self.scheme_account.scheme.manual_question.type
+        data = {manual_question_type: "Scotland"}
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
@@ -342,14 +342,14 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(response.status_code, 201)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                     data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
         # Test Put Method
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                    data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):

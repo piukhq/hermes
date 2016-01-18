@@ -52,48 +52,17 @@ class SchemeAnswerSerializer(serializers.Serializer):
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
     def validate(self, data):
-        # Validate scheme account
-        try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        self.context['scheme_account'] = scheme_account
-
         # Validate no manual answer
-        manual_question_type = scheme_account.scheme.manual_question.type
+        manual_question_type = self.context['scheme_account'].scheme.manual_question.type
         if manual_question_type in data:
             raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
-        missing_credentials = scheme_account.missing_credentials(question_types)
+        missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
                 "All the required credentials have not been submitted: {0}".format(missing_credentials))
-        return data
-
-
-class UpdateLinkSchemeSerializer(SchemeAnswerSerializer):
-    manual_answer = serializers.CharField(required=False)
-
-    def validate(self, data):        # Validate scheme account
-        try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        self.context['scheme_account'] = scheme_account
-
-        # Primary Answer Stuff
-        try:
-            scheme = SchemeAccount.objects.get(id=self.context['pk']).scheme
-            self.context['manual_answer_type'] = scheme.manual_question.type
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
-
-        manual_question_type = scheme_account.scheme.manual_question.type
-        if manual_question_type in data and data.get('manual_answer'):
-            raise serializers.ValidationError("Primary answer {0} cannot be included twice in one request.")
-
         return data
 
 
@@ -131,10 +100,6 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         if scheme.scan_question:
             allowed_types.append(scheme.scan_question.type)
         return allowed_types
-
-
-class UpdateSchemeAccountSerializer(SchemeAnswerSerializer):
-    pass
 
 
 class BalanceSerializer(serializers.Serializer):
