@@ -23,8 +23,8 @@ class Category(models.Model):
 
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
-        return super(ActiveSchemeManager, self).get_queryset().exclude(
-            manual_question__isnull=True).exclude(is_active=False)
+        return super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+    # .exclude(manual_question__isnull=True)
 
 
 class Scheme(models.Model):
@@ -57,10 +57,6 @@ class Scheme(models.Model):
     has_points = models.BooleanField(default=False)
     identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
-    manual_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
-                                        related_name='manual_question')
-    scan_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
-                                      related_name='scan_question')
     colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
@@ -77,9 +73,16 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
+    def manual_question(self):
+        return self.questions.filter(manual_question=True).first()
+
+    @property
+    def scan_question(self):
+        return self.questions.filter(scan_question=True).first()
+
+    @property
     def link_questions(self):
-        wallet_ids = filter(None, [self.manual_question_id, self.scan_question_id])
-        return self.questions.exclude(id__in=wallet_ids)
+        return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 
     def __str__(self):
         return self.name
@@ -311,6 +314,9 @@ class SchemeCredentialQuestion(models.Model):
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
+
+    manual_question = models.BooleanField(default=False)
+    scan_question = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['order']

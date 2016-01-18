@@ -8,24 +8,15 @@ class SchemeImageInline(admin.StackedInline):
     extra = 0
 
 
-class CredentialQuestionInline(admin.StackedInline):
+class CredentialQuestionInline(admin.TabularInline):
     model = SchemeCredentialQuestion
     extra = 0
 
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
-    list_display = ('name', 'id', 'category', 'is_active', 'company', 'manual_question', 'scan_question')
+    list_display = ('name', 'id', 'category', 'is_active', 'company')  # 'manual_question', 'scan_question'
     list_filter = ('is_active', )
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name in ("manual_question", "scan_question"):
-            try:
-                pk = int(request.path.split('/')[-2])
-                kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=pk)
-            except ValueError:
-                kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
-        return super(SchemeAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 admin.site.register(Scheme, SchemeAdmin)

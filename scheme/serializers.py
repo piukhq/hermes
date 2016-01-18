@@ -19,8 +19,8 @@ class QuestionSerializer(serializers.ModelSerializer):
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
-    manual_question = QuestionSerializer(read_only=True)
-    scan_question = QuestionSerializer(read_only=True)
+    manual_question = QuestionSerializer()
+    scan_question = QuestionSerializer()
 
     class Meta:
         model = Scheme

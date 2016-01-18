@@ -16,14 +16,14 @@ class TestSchemeAccountViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
-        cls.scheme.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
-        cls.scheme.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
                                                                   scheme_account=cls.scheme_account)
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.secondary_question,
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                          scheme_account=cls.scheme_account)
 
         cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password",
@@ -103,8 +103,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
-        scheme.manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        scheme.save()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
 
         response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, CARD_NUMBER: '1234'},
                                     **self.auth_headers)
@@ -250,9 +249,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertEqual(scheme_account.card_label, '9826300030842203039')
 
     def test_card_label_from_manual_answer(self):
-        question = SchemeCredentialQuestionFactory(type=EMAIL)
-        question.scheme.manual_question = question
-        question.scheme.save()
+        question = SchemeCredentialQuestionFactory(type=EMAIL, manual_question=True)
         scheme_account = SchemeAccountFactory(scheme=question.scheme)
         SchemeCredentialAnswerFactory(question=question, answer='frank@sdfg.com', scheme_account=scheme_account)
         self.assertEqual(scheme_account.card_label, 'frank@sdfg.com')
@@ -294,8 +291,7 @@ class TestAccessTokens(APITestCase):
         cls.scheme_account = SchemeAccountFactory()
         question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account.scheme)
         cls.scheme = cls.scheme_account.scheme
-        cls.scheme.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME)
-        cls.scheme.save()
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
 
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account, question=question)
         cls.user = cls.scheme_account.user
@@ -310,9 +306,7 @@ class TestAccessTokens(APITestCase):
                                                                           question=question_2)
 
         cls.scheme2 = cls.scheme_account2.scheme
-        cls.scheme2.manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME)
-        cls.scheme2.save()
-
+        manual_question = SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME, manual_question=True)
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
                                                                    question=cls.scheme2.manual_question)
         cls.user2 = cls.scheme_account2.user
