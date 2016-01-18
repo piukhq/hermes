@@ -34,7 +34,7 @@ class CredentialQuestionInline(admin.TabularInline):
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
-    list_display = ('name', 'id', 'category', 'is_active', 'company')  # 'manual_question', 'scan_question'
+    list_display = ('name', 'id', 'category', 'is_active', 'company')
     list_filter = ('is_active', )
 
 
