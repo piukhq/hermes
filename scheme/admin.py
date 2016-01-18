@@ -23,7 +23,7 @@ class CredentialQuestionFormset(BaseInlineFormSet):
             raise ValidationError("You may only select one scan question")
 
         if self.instance.is_active and not any(manual_questions):
-            raise ValidationError("You must have a manual question when a scheme is set tp active")
+            raise ValidationError("You must have a manual question when a scheme is set to active")
 
 
 class CredentialQuestionInline(admin.TabularInline):
