@@ -8,12 +8,11 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch
-from django.test import SimpleTestCase
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
 import json
 
 
-class TestSchemeAccount(APITestCase):
+class TestSchemeAccountViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
@@ -35,7 +34,7 @@ class TestSchemeAccount(APITestCase):
         cls.scheme.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        super(TestSchemeAccount, cls).setUpClass()
+        super().setUpClass()
 
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -223,9 +222,14 @@ class TestSchemeAccount(APITestCase):
                     return False
         return True
 
+
+class TestSchemeAccountModel(APITestCase):
     def test_valid_credentials(self):
-        self.assertEqual(self.scheme_account.missing_credentials([]), set(['card_number', 'username', 'password']))
-        self.assertFalse(self.scheme_account.missing_credentials(['card_number', 'username', 'password', 'dummy']))
+        scheme_account = SchemeAccountFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD)
+        self.assertEqual(scheme_account.missing_credentials([]), set(['card_number', 'password']))
+        self.assertFalse(scheme_account.missing_credentials(['card_number', 'password']))
 
     def test_card_label_from_regex(self):
         scheme = SchemeFactory(card_number_regex='^[0-9]{3}([0-9]+)', card_number_prefix='98263000')
@@ -270,30 +274,6 @@ class TestSchemeAccount(APITestCase):
         question = SchemeCredentialQuestionFactory(type=BARCODE)
         scheme_account = SchemeAccountFactory(scheme=question.scheme)
         self.assertIsNone(scheme_account.barcode)
-
-
-class TestAnswerValidation(SimpleTestCase):
-    def test_email_validation_error(self):
-        serializer = LinkSchemeSerializer(data={"email": "bobgmail.com"})
-        self.assertFalse(serializer.is_valid())
-
-    def test_memorable_date_validation_error(self):
-        serializer = LinkSchemeSerializer(data={"memorable_date": "122/11/2015"})
-        self.assertFalse(serializer.is_valid())
-
-    @patch.object(LinkSchemeSerializer, 'validate')
-    def test_memorable_date_validation(self, mock_validate):
-        serializer = LinkSchemeSerializer(data={"memorable_date": "22/11/2015"})
-        self.assertTrue(serializer.is_valid())
-
-    def test_pin_validation_error(self):
-        serializer = LinkSchemeSerializer(data={"pin": "das33"})
-        self.assertFalse(serializer.is_valid())
-
-    @patch.object(LinkSchemeSerializer, 'validate')
-    def test_pin_validation(self, mock_validate):
-        serializer = LinkSchemeSerializer(data={"pin": "3333"})
-        self.assertTrue(serializer.is_valid())
 
 
 class TestAccessTokens(APITestCase):

@@ -1,9 +1,9 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer
+from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
 from scheme.credentials import BARCODE
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from user.tests.factories import UserFactory
 
@@ -56,6 +56,30 @@ class TestCreateSchemeAccountSerializer(TestCase):
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': question.scheme.id, 'email': "dfg@gmail.com"})
         self.assertEqual(e.exception.detail[0], "Your answer type 'email' is not allowed")
+
+
+class TestAnswerValidation(TestCase):
+    def test_email_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"email": "bobgmail.com"})
+        self.assertFalse(serializer.is_valid())
+
+    def test_memorable_date_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"memorable_date": "122/11/2015"})
+        self.assertFalse(serializer.is_valid())
+
+    @patch.object(LinkSchemeSerializer, 'validate')
+    def test_memorable_date_validation(self, mock_validate):
+        serializer = LinkSchemeSerializer(data={"memorable_date": "22/11/2015"})
+        self.assertTrue(serializer.is_valid())
+
+    def test_pin_validation_error(self):
+        serializer = LinkSchemeSerializer(data={"pin": "das33"})
+        self.assertFalse(serializer.is_valid())
+
+    @patch.object(LinkSchemeSerializer, 'validate')
+    def test_pin_validation(self, mock_validate):
+        serializer = LinkSchemeSerializer(data={"pin": "3333"})
+        self.assertTrue(serializer.is_valid())
 
 
 class TestSchemeSerializer(TestCase):
