@@ -163,13 +163,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             scheme_account = SchemeAccount.objects.create(
                 user=request.user,
                 scheme_id=data['scheme'],
-                order=data['order'],
                 status=SchemeAccount.WALLET_ONLY
             )
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                question=scheme_account.question(data['manual_answer_type']),
-                answer=data['manual_answer'],
+                question=scheme_account.question(serializer.context['answer_type']),
+                answer=data[serializer.context['answer_type']],
             )
         data['id'] = scheme_account.id
         return Response(data, status=status.HTTP_201_CREATED,

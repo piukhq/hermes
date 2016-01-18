@@ -9,7 +9,7 @@ from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch
 from django.test import SimpleTestCase
-from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES
+from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
 import json
 
 
@@ -43,14 +43,10 @@ class TestSchemeAccount(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
-        self.assertEqual(response.data['manual_answer_id'], self.scheme_account_answer.id)
-        self.assertEqual(len(response.data['answers']), 3)
-        self.assertIn('answer', response.data['answers'][0])
-
-        answers = {answer['id']: answer['answer'] for answer in response.data['answers']}
-        self.assertEqual(answers[self.scheme_account_answer_password.id], '****')
+        self.assertIsNone(response.data['barcode'])
+        self.assertEqual(response.data['card_label'], self.scheme_account_answer.answer)
+        self.assertNotIn('is_deleted', response.data)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
-        self.assertEqual(response.data['scheme']['is_barcode'], True)
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
     def test_delete_schemes_accounts(self):
@@ -111,14 +107,12 @@ class TestSchemeAccount(APITestCase):
         scheme.manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         scheme.save()
 
-        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, 'manual_answer': '1234'},
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, CARD_NUMBER: '1234'},
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
         self.assertEqual(content['scheme'], scheme.id)
-        self.assertEqual(content['order'], 0)
-        self.assertEqual(content['manual_answer'], '1234')
-        self.assertEqual(content['manual_answer_type'], 'card_number')
+        self.assertEqual(content['card_number'], '1234')
         self.assertIn('/schemes/accounts/', response._headers['location'][1])
         self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
 
@@ -232,6 +226,50 @@ class TestSchemeAccount(APITestCase):
     def test_valid_credentials(self):
         self.assertEqual(self.scheme_account.missing_credentials([]), set(['card_number', 'username', 'password']))
         self.assertFalse(self.scheme_account.missing_credentials(['card_number', 'username', 'password', 'dummy']))
+
+    def test_card_label_from_regex(self):
+        scheme = SchemeFactory(card_number_regex='^[0-9]{3}([0-9]+)', card_number_prefix='98263000')
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(question=SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE),
+                                      answer='29930842203039', scheme_account=scheme_account)
+        self.assertEqual(scheme_account.card_label, '9826300030842203039')
+
+    def test_card_label_from_manual_answer(self):
+        question = SchemeCredentialQuestionFactory(type=EMAIL)
+        question.scheme.manual_question = question
+        question.scheme.save()
+        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        SchemeCredentialAnswerFactory(question=question, answer='frank@sdfg.com', scheme_account=scheme_account)
+        self.assertEqual(scheme_account.card_label, 'frank@sdfg.com')
+
+    def test_card_label_from_barcode(self):
+        question = SchemeCredentialQuestionFactory(type=BARCODE)
+        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        SchemeCredentialAnswerFactory(question=question, answer='49932498', scheme_account=scheme_account)
+        self.assertEqual(scheme_account.card_label, '49932498')
+
+    def test_card_label_none(self):
+        question = SchemeCredentialQuestionFactory(type=BARCODE)
+        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        self.assertIsNone(scheme_account.card_label)
+
+    def test_barcode_from_barcode(self):
+        question = SchemeCredentialQuestionFactory(type=BARCODE)
+        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        SchemeCredentialAnswerFactory(question=question, answer='49932498', scheme_account=scheme_account)
+        self.assertEqual(scheme_account.barcode, '49932498')
+
+    def test_barcode_from_card_number(self):
+        scheme = SchemeFactory(barcode_regex='^634004([0-9]+)', barcode_prefix='9794')
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(question=SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER),
+                                      answer='634004025035765504', scheme_account=scheme_account)
+        self.assertEqual(scheme_account.barcode, '9794025035765504')
+
+    def test_barcode_none(self):
+        question = SchemeCredentialQuestionFactory(type=BARCODE)
+        scheme_account = SchemeAccountFactory(scheme=question.scheme)
+        self.assertIsNone(scheme_account.barcode)
 
 
 class TestAnswerValidation(SimpleTestCase):

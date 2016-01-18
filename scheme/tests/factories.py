@@ -28,7 +28,6 @@ class SchemeFactory(factory.DjangoModelFactory):
     company_url = fake.url()
     forgotten_password_url = fake.url()
     tier = 1
-    is_barcode = True
     has_transactions = True
     has_points = True
     barcode_type = 1

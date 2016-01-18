@@ -4,13 +4,14 @@ from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
 from colorful.fields import RGBColorField
 import json
 import requests
 import uuid
+import re
 
 
 class Category(models.Model):
@@ -64,18 +65,21 @@ class Scheme(models.Model):
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
 
+    card_number_regex = models.CharField(max_length=100, null=True, blank=True,
+                                         help_text="Regex to map barcode to card number")
+    barcode_regex = models.CharField(max_length=100, null=True, blank=True,
+                                     help_text="Regex to map card number to barcode")
+    card_number_prefix = models.CharField(max_length=100, null=True, blank=True,
+                                          help_text="Prefix to from barcode -> card number mapping")
+    barcode_prefix = models.CharField(max_length=100, null=True, blank=True,
+                                      help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
 
     @property
-    def is_barcode(self):
-        if self.barcode_type is not None:
-            return True
-        return False
-
-    @property
-    def challenges(self):
-        return self.questions.all()
+    def link_questions(self):
+        wallet_ids = filter(None, [self.manual_question_id, self.scan_question_id])
+        return self.questions.exclude(id__in=wallet_ids)
 
     def __str__(self):
         return self.name
@@ -233,22 +237,48 @@ class SchemeAccount(models.Model):
         :param question_type:
         :return:
         """
-        return SchemeCredentialQuestion.objects.get(type=question_type, scheme=self.scheme)
+        return SchemeCredentialQuestion.objects.filter(type=question_type, scheme=self.scheme).first()
+
+    @property
+    def card_label(self):
+        manual_answer = self.manual_answer
+        if self.manual_answer:
+            return manual_answer.answer
+
+        barcode_answer = self.barcode_answer
+        if not barcode_answer:
+            return None
+
+        if self.scheme.card_number_regex:
+            regex_match = re.search(self.scheme.card_number_regex, barcode_answer.answer)
+            if regex_match:
+                return self.scheme.card_number_prefix + regex_match.group(1)
+        return barcode_answer.answer
+
+    @property
+    def barcode(self):
+        barcode_answer = self.barcode_answer
+        if barcode_answer:
+            return barcode_answer.answer
+
+        card_number = self.card_number_answer
+        if card_number and self.scheme.barcode_regex:
+            regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+            if regex_match:
+                return self.scheme.barcode_prefix + regex_match.group(1)
+        return None
+
+    @property
+    def barcode_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.question(BARCODE)).first()
+
+    @property
+    def card_number_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.question(CARD_NUMBER)).first()
 
     @property
     def manual_answer(self):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
-
-    @property
-    def manual_answer_id(self):
-        manual_answer = self.manual_answer
-        if manual_answer:
-            return manual_answer.id
-        return None
-
-    @property
-    def answers(self):
-        return self.schemeaccountcredentialanswer_set.all()
 
     @property
     def action_status(self):
