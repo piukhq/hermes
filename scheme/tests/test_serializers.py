@@ -19,8 +19,7 @@ class TestCreateSchemeAccountSerializer(TestCase):
         super().setUpClass()
 
     def test_allowed_answers(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        question.scheme.scan_question = question
+        question = SchemeCredentialQuestionFactory(type=BARCODE, scan_question=True)
         allowed_answers = CreateSchemeAccountSerializer.allowed_answers(question.scheme)
         self.assertEqual(allowed_answers, [BARCODE, ])
 
@@ -30,9 +29,7 @@ class TestCreateSchemeAccountSerializer(TestCase):
         self.assertEqual(e.exception.detail[0], "Scheme '2342342' does not exist")
 
     def test_validate_existing_scheme_account(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        question.scheme.manual_question = question
-        question.scheme.save()
+        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         scheme_account = SchemeAccountFactory(scheme=question.scheme, user=self.user)
 
         with self.assertRaises(ValidationError) as e:
@@ -40,19 +37,13 @@ class TestCreateSchemeAccountSerializer(TestCase):
         self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))
 
     def test_validate_answer_types(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        question.scheme.manual_question = question
-        question.scheme.save()
-
+        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': question.scheme.id})
         self.assertEqual(e.exception.detail[0], "You must submit one scan or manual question answer")
 
     def test_validate_bad_question_type(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        question.scheme.manual_question = question
-        question.scheme.save()
-
+        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': question.scheme.id, 'email': "dfg@gmail.com"})
         self.assertEqual(e.exception.detail[0], "Your answer type 'email' is not allowed")

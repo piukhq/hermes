@@ -15,10 +15,7 @@ class TestSchemeViews(APITestCase):
         super().setUpClass()
 
     def test_scheme_list(self):
-        scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(scheme=scheme)
-        scheme.manual_question = question
-        scheme.save()
+        SchemeCredentialQuestionFactory(manual_question=True)
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200,)
@@ -31,9 +28,7 @@ class TestSchemeViews(APITestCase):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
         link_question = SchemeCredentialQuestionFactory.create(scheme=scheme, type=EMAIL)
-        question = SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE)
-        scheme.manual_question = question
-        scheme.save()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
 
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
 
@@ -47,10 +42,9 @@ class TestSchemeViews(APITestCase):
 class TestSchemeModel(TestCase):
     def test_link_questions(self):
         scheme = SchemeFactory()
-        barcode_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme)
+        SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True)
         email_question = SchemeCredentialQuestionFactory(type=EMAIL, scheme=scheme)
-        scheme.manual_question = barcode_question
-        scheme.save()
+
         link_questions = scheme.link_questions
         self.assertEqual(len(link_questions), 1)
         self.assertEqual(link_questions[0].id, email_question.id)

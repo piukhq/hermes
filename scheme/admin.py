@@ -1,6 +1,9 @@
 from django.contrib import admin
-from scheme.models import Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer, \
-    SchemeCredentialQuestion
+from django.core.exceptions import ValidationError
+from django.forms import BaseInlineFormSet
+
+from scheme.models import (Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion)
 
 
 class SchemeImageInline(admin.StackedInline):
@@ -8,24 +11,31 @@ class SchemeImageInline(admin.StackedInline):
     extra = 0
 
 
-class CredentialQuestionInline(admin.StackedInline):
+class CredentialQuestionFormset(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        if manual_questions.count(True) > 1:
+            raise ValidationError("You may only select one manual question")
+
+        scan_questions = [form.cleaned_data['scan_question'] for form in self.forms]
+        if scan_questions.count(True) > 1:
+            raise ValidationError("You may only select one scan question")
+
+        if self.instance.is_active and not any(manual_questions):
+            raise ValidationError("You must have a manual question when a scheme is set to active")
+
+
+class CredentialQuestionInline(admin.TabularInline):
     model = SchemeCredentialQuestion
+    formset = CredentialQuestionFormset
     extra = 0
 
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
-    list_display = ('name', 'id', 'category', 'is_active', 'company', 'manual_question', 'scan_question')
+    list_display = ('name', 'id', 'category', 'is_active', 'company')
     list_filter = ('is_active', )
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name in ("manual_question", "scan_question"):
-            try:
-                pk = int(request.path.split('/')[-2])
-                kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=pk)
-            except ValueError:
-                kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
-        return super(SchemeAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 admin.site.register(Scheme, SchemeAdmin)
