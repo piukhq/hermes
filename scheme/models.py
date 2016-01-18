@@ -197,9 +197,15 @@ class SchemeAccount(models.Model):
 
     def missing_credentials(self, credential_types):
         """
-        Given a list of credential_types are they all that's required by the scheme
+        Given a list of credential_types return credentials if they are required by the scheme
+
+        Note, scan question is an optional field for all schemes.
         """
-        return {question.type for question in self.scheme.questions.all()}.difference(set(credential_types))
+        required_credentials = {question.type for question in self.scheme.questions.all()}
+        scan_question = self.scheme.scan_question
+        if scan_question and scan_question.type in required_credentials:
+            required_credentials.remove(scan_question.type)
+        return required_credentials.difference(set(credential_types))
 
     def credentials(self):
         credentials = self._collect_credentials()
