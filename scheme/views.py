@@ -76,7 +76,7 @@ class LinkCredentials(GenericAPIView):
     }
 
     def put(self, request, *args, **kwargs):
-        """Update Primary Answer or other credentials
+        """Update manual answer or other credentials
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """

@@ -55,7 +55,7 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         # Validate no manual answer
         manual_question_type = self.context['scheme_account'].scheme.manual_question.type
         if manual_question_type in data:
-            raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
+            raise serializers.ValidationError("Manual answer cannot be submitted to this endpoint")
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
