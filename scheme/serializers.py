@@ -13,7 +13,7 @@ class SchemeImageSerializer(serializers.ModelSerializer):
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme',)
+        exclude = ('scheme', 'manual_question', 'scan_question')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
