@@ -11,8 +11,9 @@ flake8:
     - flake8 *
 
 deploy:
+  image: boloyaltyangels/ansible
   stage: deploy
   script:
-  - curl http://deployer.loyaltyangels.local/deploy/dev/hermes
+  - cd /ansible && ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=dev_web
   only:
   - master
