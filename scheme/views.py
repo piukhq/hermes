@@ -80,7 +80,7 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account)
         out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
@@ -92,7 +92,7 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
         response_data = self.link_account(serializer, scheme_account)
         out_serializer = ResponseLinkSerializer(response_data)
