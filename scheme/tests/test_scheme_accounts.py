@@ -46,6 +46,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['card_label'], self.scheme_account_answer.answer)
         self.assertNotIn('is_deleted', response.data)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
+        self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
     def test_delete_schemes_accounts(self):
@@ -99,6 +100,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['status_name'], 'Active')
+        self.assertNotIn('barcode_regex', response.data[0]['scheme'])
 
     def test_wallet_only(self):
         scheme = SchemeFactory()

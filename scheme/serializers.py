@@ -34,6 +34,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
     class Meta:
         model = Scheme
+        exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
 
 class SchemeAnswerSerializer(serializers.Serializer):
