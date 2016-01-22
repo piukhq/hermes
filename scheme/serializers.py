@@ -137,12 +137,11 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    manual_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
     status_name = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'manual_answer', 'action_status', 'status_name')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name')
 
 
 class StatusSerializer(serializers.Serializer):
