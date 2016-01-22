@@ -99,7 +99,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['status_name'], 'Active')
-        self.assertIn('manual_answer', response.data[0])
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
