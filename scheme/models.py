@@ -201,12 +201,18 @@ class SchemeAccount(models.Model):
         """
         Given a list of credential_types return credentials if they are required by the scheme
 
-        A scan question is an optional field if it's not also a barcode question
+        A scan or manual question is an optional if one of the other exists
         """
         required_credentials = {question.type for question in self.scheme.questions.all()}
+        manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
-        if scan_question and scan_question.type != self.scheme.manual_question.type:
-            required_credentials.remove(scan_question.type)
+
+        if scan_question and manual_question:
+            if scan_question.type in credential_types:
+                required_credentials.remove(manual_question.type)
+            if required_credentials and manual_question.type in credential_types:
+                required_credentials.remove(scan_question.type)
+
         return required_credentials.difference(set(credential_types))
 
     def credentials(self):

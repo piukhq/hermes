@@ -224,17 +224,20 @@ class TestSchemeAccountViews(APITestCase):
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, scan_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD, manual_question=True)
-        self.assertEqual(scheme_account.missing_credentials([]), {CARD_NUMBER, PASSWORD})
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER, scan_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
+        self.assertEqual(scheme_account.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
         self.assertFalse(scheme_account.missing_credentials([CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
+        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
 
     def test_missing_credentials_same_manual_and_scan(self):
         scheme_account = SchemeAccountFactory()
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE,
                                         scan_question=True, manual_question=True)
         self.assertFalse(scheme_account.missing_credentials([BARCODE]))
+        self.assertEqual(scheme_account.missing_credentials([]), {BARCODE})
 
     def test_card_label_from_regex(self):
         scheme = SchemeFactory(card_number_regex='^[0-9]{3}([0-9]+)', card_number_prefix='98263000')
