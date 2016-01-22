@@ -76,8 +76,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.active_objects.filter(
-            user=self.context['request'].user, scheme=scheme).exists()
+        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme).exists()
         if scheme_accounts:
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 

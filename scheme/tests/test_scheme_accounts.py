@@ -50,7 +50,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
-        deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)
+        deleted_scheme_account = SchemeAccount.all_objects.get(id=self.scheme_account.id)
 
         self.assertEqual(response.status_code, 204)
         self.assertTrue(deleted_scheme_account.is_deleted)

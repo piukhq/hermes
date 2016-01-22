@@ -130,7 +130,7 @@ class SchemeImage(models.Model):
     objects = ActiveSchemeImageManager()
 
 
-class ActiveManager(models.Manager):
+class ActiveManager(BulkUpdateManager):
     def get_queryset(self):
             return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
@@ -181,8 +181,8 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 
-    objects = BulkUpdateManager()
-    active_objects = ActiveManager()
+    all_objects = models.Manager()
+    objects = ActiveManager()
 
     @property
     def status_name(self):
