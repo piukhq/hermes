@@ -54,7 +54,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(user=self.request.user)
+        return SchemeAccount.objects.filter(user=self.request.user)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -80,7 +80,7 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account)
         out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
@@ -92,7 +92,7 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
         response_data = self.link_account(serializer, scheme_account)
         out_serializer = ResponseLinkSerializer(response_data)
@@ -131,7 +131,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return SchemeAccount.active_objects.filter(user=user)
+        return SchemeAccount.objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
         """
@@ -194,7 +194,7 @@ class ActiveSchemeAccountAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
+        return SchemeAccount.objects.filter(status=SchemeAccount.ACTIVE)
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -208,7 +208,7 @@ class SystemActionSchemeAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+        return SchemeAccount.objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -222,7 +222,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     serializer_class = SchemeAccountCredentialsSerializer
 
     def get_queryset(self):
-        queryset = SchemeAccount.active_objects
+        queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
             queryset = queryset.filter(user=self.request.user)
         return queryset

@@ -46,16 +46,19 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['card_label'], self.scheme_account_answer.answer)
         self.assertNotIn('is_deleted', response.data)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
+        self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
     def test_delete_schemes_accounts(self):
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
-        deleted_scheme_account = SchemeAccount.objects.get(id=self.scheme_account.id)
+        deleted_scheme_account = SchemeAccount.all_objects.get(id=self.scheme_account.id)
 
         self.assertEqual(response.status_code, 204)
         self.assertTrue(deleted_scheme_account.is_deleted)
 
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
@@ -99,6 +102,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['status_name'], 'Active')
+        self.assertNotIn('barcode_regex', response.data[0]['scheme'])
 
     def test_wallet_only(self):
         scheme = SchemeFactory()
