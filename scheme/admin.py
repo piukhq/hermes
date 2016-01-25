@@ -34,9 +34,14 @@ class CredentialQuestionInline(admin.TabularInline):
 
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
+    exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company')
     list_filter = ('is_active', )
 
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        if not request.user.is_superuser and object_id:
+            self.exclude.append('slug')
+        return super().change_view(request, object_id, form_url='', extra_context=None)
 
 admin.site.register(Scheme, SchemeAdmin)
 
@@ -45,7 +50,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     model = SchemeAccountCredentialAnswer
     extra = 0
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+    def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == "question":
             try:
                 pk = int(request.path.split('/')[-2])
