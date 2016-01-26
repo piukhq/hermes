@@ -54,7 +54,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
         if db_field.name == "question":
             try:
                 pk = int(request.path.split('/')[-2])
-                scheme_account = SchemeAccount.objects.get(id=pk)
+                scheme_account = SchemeAccount.all_objects.get(id=pk)
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=scheme_account.scheme.id)
             except ValueError:
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.none()
