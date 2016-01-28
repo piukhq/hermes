@@ -126,20 +126,15 @@ class TestPromoCodeViews(TestCase):
 
 class TestUserProfileViews(TestCase):
     def test_empty_profile(self):
+        user = UserFactory()
         client = Client()
-        email = 'empty_profile@example.com'
-        response = client.post('/users/register/', {'email': email, 'password': 'password1'})
-        self.assertEqual(response.status_code, 201)
-        content = json.loads(response.content.decode())
-        token = content['api_key']
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + token
+            'HTTP_AUTHORIZATION': 'Token ' + user.create_token()
         }
-
         response = client.get('/users/me', content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['email'], email)
+        self.assertEqual(content['email'], user.email)
         self.assertEqual(content['first_name'], None)
         self.assertEqual(content['last_name'], None)
         self.assertEqual(content['date_of_birth'], None)
@@ -152,6 +147,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['country'], None)
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content['referral_code'], user.referral_code)
 
     def test_full_update(self):
         # Create User
