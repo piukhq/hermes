@@ -1,5 +1,5 @@
 from django.contrib.auth.admin import UserAdmin
-from user.models import CustomUser, UserDetail
+from user.models import CustomUser, UserDetail, Referral
 from django.contrib import admin
 
 
@@ -20,3 +20,10 @@ class CustomUserDetail(UserAdmin):
 
 
 admin.site.register(CustomUser, CustomUserDetail)
+
+
+class ReferralAdmin(admin.ModelAdmin):
+    list_display = ('referrer', 'recipient', 'date')
+
+
+admin.site.register(Referral, ReferralAdmin)

@@ -1,6 +1,6 @@
 from django.conf.urls import patterns, url
 from user.views import (Users, Register, Login, Authenticate, FaceBookLogin, TwitterLoginWeb,
-                        FaceBookLoginWeb, TwitterLogin, ResetPassword)
+                        FaceBookLoginWeb, TwitterLogin, ResetPassword, ValidatePromoCode)
 
 
 urlpatterns = patterns('user',
@@ -13,4 +13,5 @@ urlpatterns = patterns('user',
                        url(r'login/?$', Login.as_view(), name='login'),
                        url(r'me$', Users.as_view(), name='user_detail'),
                        url(r'me/password$', ResetPassword.as_view(), name='user_detail'),
+                       url(r'promo_code', ValidatePromoCode.as_view(), name='user_detail'),
                        )
