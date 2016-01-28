@@ -12,6 +12,7 @@ djangorestframework==3.2.3
 factory-boy==2.5.2
 fake-factory==0.5.2
 graypy==0.2.12
+hashids==1.1.0
 httpretty==0.8.10
 ipython==4.0.0
 ipython-genutils==0.1.0

@@ -2,13 +2,24 @@ import arrow
 import jwt
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from hashids import Hashids
 from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
-from django.utils import timezone
+
+
+hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
+
+
+def valid_promo_code(promo_code):
+    pk = hash_ids.decode(promo_code)
+    valid = False
+    if pk and CustomUser.objects.filter(id=pk[0], is_active=True).exists():
+        valid = True
+    return valid
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -16,7 +27,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
-    date_joined = models.DateTimeField(_('date joined'), default=timezone.now)
+    date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
 
@@ -33,6 +44,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self):
         return self.uid
+
+    @property
+    def referral_code(self):
+        return hash_ids.encode(self.id)
+
+    def create_referral(self, referral_code):
+        referrer_id = hash_ids.decode(referral_code)[0]
+        Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
 
     def __unicode__(self):
         return self.email or str(self.uid)
@@ -98,10 +117,18 @@ class UserDetail(models.Model):
     notifications = models.IntegerField(null=True, blank=True, choices=NOTIFICATIONS_SETTING)
     pass_code = models.CharField(max_length=20, null=True, blank=True)
     currency = models.CharField(max_length=3, default='GBP', null=True, blank=True)
-    # avatar
 
     def __str__(self):
         return str(self.user_id)
+
+
+class Referral(models.Model):
+    referrer = models.ForeignKey(CustomUser, related_name='referrer')
+    recipient = models.OneToOneField(CustomUser, related_name='recipient')
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return "{0} referred {1}".format(self.referrer, self.recipient)
 
 
 @receiver(post_save, sender=CustomUser)

@@ -15,6 +15,7 @@ FACEBOOK_BAD_TOKEN = "FACEBOOK_BAD_TOKEN"
 FACEBOOK_CANT_VALIDATE = "FACEBOOK_CANT_VALIDATE"
 FACEBOOK_INVALID_USER = "FACEBOOK_INVALID_USER"
 FACEBOOK_GRAPH_ACCESS = "FACEBOOK_GRAPH_ACCESS"
+INVALID_PROMO_CODE = "INVALID_PROMO_CODE"
 
 errors = {
     INCORRECT_CREDENTIALS: {"code": 403,
@@ -28,7 +29,9 @@ errors = {
     FACEBOOK_INVALID_USER: {"code": 403,
                             "message": "user_id is invalid for given access token"},
     FACEBOOK_GRAPH_ACCESS: {"code": 403,
-                            "message": "Can not access facebook social graph."}
+                            "message": "Can not access facebook social graph."},
+    INVALID_PROMO_CODE: {"code": 403,
+                         "message": "The promotion code provided is invalid."}
 }
 
 
