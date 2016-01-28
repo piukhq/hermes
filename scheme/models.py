@@ -90,8 +90,7 @@ class Scheme(models.Model):
 class ActiveSchemeImageManager(models.Manager):
     def get_queryset(self):
         return super(ActiveSchemeImageManager, self).get_queryset()\
-            .filter(start_date__lt=timezone.now, end_date__gte=timezone.now())\
-            .exclude(status=0)
+            .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
 
 
 class SchemeImage(models.Model):
