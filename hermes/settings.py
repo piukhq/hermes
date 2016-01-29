@@ -44,6 +44,9 @@ CORS_ORIGIN_WHITELIST = (
     "local.chingweb.chingrewards.com",
     "dev.chingweb.loyaltyangels.local",
     "local.chingweb.chingrewards.com:8000",
+    "dev.api.chingrewards.com",
+    "staging.api.chingrewards.com",
+    "api.chingrewards.com",
 )
 
 
