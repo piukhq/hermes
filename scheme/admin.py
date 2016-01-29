@@ -53,7 +53,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
     def formfield_for_foreignkey(self, db_field, request=None, **kwargs):
         if db_field.name == "question":
             try:
-                pk = int(request.path.split('/')[-2])
+                pk = int(request.path.split('/')[-3])
                 scheme_account = SchemeAccount.all_objects.get(id=pk)
                 kwargs["queryset"] = SchemeCredentialQuestion.objects.filter(scheme_id=scheme_account.scheme.id)
             except ValueError:
