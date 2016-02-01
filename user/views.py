@@ -16,8 +16,8 @@ from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER
 from user.models import CustomUser, valid_promo_code
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
-                              SocialRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
-                              PromoCodeSerializer)
+                              FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
+                              PromoCodeSerializer, TwitterRegisterSerializer)
 
 
 class ForgottenPassword:
@@ -45,7 +45,7 @@ class Register(CreateAPIView):
     serializer_class = RegisterSerializer
 
 
-class ValidatePromoCode(APIView):
+class ValidatePromoCode(CreateAPIView):
     """
     Validate promo codes
     """
@@ -53,9 +53,10 @@ class ValidatePromoCode(APIView):
     permission_classes = (AllowAny,)
     serializer_class = PromoCodeSerializer
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         promo_code = request.data['promo_code']
-        return Response({'valid': valid_promo_code(promo_code)})
+        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(promo_code)})
+        return Response(out_serializer.data)
 
 
 class ResetPassword(UpdateAPIView):
@@ -170,19 +171,12 @@ class FaceBookLogin(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
 
-    serializer_class = SocialRegisterSerializer
+    serializer_class = FacebookRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         """
         Login using a Facebook account.
         ---
-        type:
-          access_token:
-            required: true
-            type: json
-          user_id:
-            required: true
-            type: json
         responseMessages:
             - code: 403
               message: Cannot validate user_id & access_token.
@@ -230,9 +224,11 @@ class TwitterLoginWeb(APIView):
         return Response(request_token)
 
 
-class TwitterLogin(APIView):
+class TwitterLogin(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
+
+    serializer_class = TwitterRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         """
