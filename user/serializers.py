@@ -8,7 +8,7 @@ from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code
 
 
 class RegisterSerializer(serializers.Serializer):
-    promo_code = serializers.CharField(required=False, allow_blank=True)
+    promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
@@ -39,7 +39,8 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class PromoCodeSerializer(serializers.Serializer):
-    promo_code = serializers.CharField()
+    promo_code = serializers.CharField(write_only=True)
+    valid = serializers.BooleanField(read_only=True)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -136,9 +137,16 @@ class FaceBookWebRegisterSerializer(serializers.Serializer):
     redirectUri = serializers.CharField(max_length=120)
 
 
-class SocialRegisterSerializer(serializers.Serializer):
+class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
+
+
+class TwitterRegisterSerializer(serializers.Serializer):
+    access_token_secret = serializers.CharField(max_length=600)
+    access_token = serializers.CharField(max_length=120)
+    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
 
 
 class ResponseAuthSerializer(serializers.Serializer):
