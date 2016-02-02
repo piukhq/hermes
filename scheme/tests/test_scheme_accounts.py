@@ -7,7 +7,7 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
     SchemeAccountFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
 import json
 
@@ -200,8 +200,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
 
     def test_unique_scheme_account(self):
-        response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.id,
-                                                               'manual_answer': '1234'}, **self.auth_headers)
+        response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
+                                                               USER_NAME: 'sdf'}, **self.auth_headers)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data,
@@ -284,6 +284,31 @@ class TestSchemeAccountModel(APITestCase):
         question = SchemeCredentialQuestionFactory(type=BARCODE)
         scheme_account = SchemeAccountFactory(scheme=question.scheme)
         self.assertIsNone(scheme_account.barcode)
+
+    @patch.object(SchemeAccount, 'credentials', auto_spec=True, return_value=None)
+    def test_get_midas_balance_no_credentials(self, mock_credentials):
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+        self.assertIsNone(points)
+        self.assertTrue(mock_credentials.called)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {'points': 500}
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+        self.assertEqual(points['points'], 500)
+        self.assertFalse(points['is_stale'])
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+
+    @patch('requests.get', auto_spec=True, side_effect=ConnectionError)
+    def test_get_midas_balance_connection_error(self, mock_request):
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHEABLE)
 
 
 class TestAccessTokens(APITestCase):

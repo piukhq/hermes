@@ -2,3 +2,6 @@
 omit = *migrations*
        *test*
 branch = True
+
+[report]
+fail_under = 90
