@@ -2,1970 +2,2070 @@
   {
     "pk": 1,
     "fields": {
+      "scheme": 4,
       "order": 1,
-      "type": "email",
       "label": "Email",
-      "scheme": 4
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 2,
     "fields": {
+      "scheme": 4,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 4
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 3,
     "fields": {
+      "scheme": 4,
       "order": 0,
-      "type": "barcode",
-      "label": "Barcode Number",
-      "scheme": 4
+      "label": "barcode or card number",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 4,
     "fields": {
+      "scheme": 2,
       "order": 1,
-      "type": "email",
       "label": "Email address",
-      "scheme": 2
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 5,
     "fields": {
+      "scheme": 2,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 2
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 6,
     "fields": {
+      "scheme": 20,
       "order": 0,
-      "type": "card_number",
       "label": "Card number",
-      "scheme": 20
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 7,
     "fields": {
-      "order": 1,
-      "type": "password",
+      "scheme": 20,
+      "order": 2,
       "label": "PIN or Password",
-      "scheme": 20
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 8,
     "fields": {
+      "scheme": 6,
       "order": 0,
-      "type": "card_number",
       "label": "Card Number",
-      "scheme": 6
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 9,
     "fields": {
+      "scheme": 6,
       "order": 1,
-      "type": "email",
       "label": "Email",
-      "scheme": 6
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 10,
     "fields": {
+      "scheme": 66,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 66
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 11,
     "fields": {
+      "scheme": 66,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 66
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 12,
     "fields": {
+      "scheme": 12,
       "order": 1,
-      "type": "email",
       "label": "Email address",
-      "scheme": 12
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 13,
     "fields": {
+      "scheme": 12,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 12
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 14,
     "fields": {
+      "scheme": 14,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 14
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 15,
     "fields": {
+      "scheme": 14,
       "order": 1,
-      "type": "password",
       "label": "Password",
-      "scheme": 14
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 16,
     "fields": {
+      "scheme": 58,
       "order": 1,
-      "type": "username",
       "label": "Card no. or Email (If activated)",
-      "scheme": 58
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 17,
     "fields": {
+      "scheme": 58,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 58
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 18,
     "fields": {
+      "scheme": 16,
       "order": 1,
-      "type": "email",
       "label": "Email address",
-      "scheme": 16
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 19,
     "fields": {
+      "scheme": 16,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 16
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 20,
     "fields": {
+      "scheme": 17,
       "order": 0,
-      "type": "email",
       "label": "Email",
-      "scheme": 17
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 21,
     "fields": {
+      "scheme": 17,
       "order": 1,
-      "type": "password",
       "label": "Password",
-      "scheme": 17
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 22,
     "fields": {
+      "scheme": 17,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 17
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 23,
     "fields": {
+      "scheme": 49,
       "order": 0,
-      "type": "barcode",
-      "label": "Barcode",
-      "scheme": 49
+      "label": "Barcode/CardNumber",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 24,
     "fields": {
+      "scheme": 49,
       "order": 1,
-      "type": "place_of_birth",
       "label": "Place of birth",
-      "scheme": 49
+      "type": "place_of_birth"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 25,
     "fields": {
+      "scheme": 49,
       "order": 0,
-      "type": "postcode",
       "label": "Postcode",
-      "scheme": 49
+      "type": "postcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 26,
     "fields": {
+      "scheme": 2,
       "order": 0,
-      "type": "barcode",
-      "label": "Barcode Number (Ignore the QR code)",
-      "scheme": 2
+      "label": "Barcode Number",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 27,
     "fields": {
+      "scheme": 16,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 16
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 28,
     "fields": {
+      "scheme": 58,
       "order": 0,
-      "type": "card_number",
       "label": "Card Number",
-      "scheme": 58
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 29,
     "fields": {
+      "scheme": 12,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 12
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 30,
     "fields": {
+      "scheme": 66,
       "order": 0,
-      "type": "card_number",
-      "label": "card number",
-      "scheme": 66
+      "label": "Barcode/Card Number",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 31,
     "fields": {
+      "scheme": 51,
       "order": 0,
-      "type": "username",
       "label": "User Name",
-      "scheme": 51
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 32,
     "fields": {
+      "scheme": 51,
       "order": 2,
-      "type": "memorable_date",
       "label": "Memorable Date (DD/MM/YYYY)",
-      "scheme": 51
+      "type": "memorable_date"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 33,
     "fields": {
+      "scheme": 51,
       "order": 1,
-      "type": "password",
       "label": "Password",
-      "scheme": 51
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 34,
     "fields": {
+      "scheme": 75,
       "order": 0,
-      "type": "email",
       "label": "Email Address",
-      "scheme": 75
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 35,
     "fields": {
+      "scheme": 75,
       "order": 1,
-      "type": "username",
       "label": "Gold Plus no. or Email",
-      "scheme": 75
-    },
-    "model": "scheme.schemecredentialquestion"
-  },
-  {
-    "pk": 36,
-    "fields": {
-      "order": 0,
-      "type": "email",
-      "label": "email",
-      "scheme": 50
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 37,
     "fields": {
-      "order": 2,
-      "type": "password",
+      "scheme": 50,
+      "order": 1,
       "label": "Password",
-      "scheme": 50
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 38,
     "fields": {
+      "scheme": 51,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 51
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 39,
     "fields": {
+      "scheme": 43,
       "order": 0,
-      "type": "card_number",
       "label": "Card number",
-      "scheme": 43
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 40,
     "fields": {
+      "scheme": 43,
       "order": 1,
-      "type": "last_name",
       "label": "Last name",
-      "scheme": 43
+      "type": "last_name"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 41,
     "fields": {
+      "scheme": 43,
       "order": 2,
-      "type": "pin",
       "label": "Pin",
-      "scheme": 43
+      "type": "pin"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 42,
     "fields": {
+      "scheme": 68,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 68
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 43,
     "fields": {
+      "scheme": 68,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 68
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 44,
     "fields": {
+      "scheme": 68,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 68
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 45,
     "fields": {
+      "scheme": 77,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 77
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 46,
     "fields": {
+      "scheme": 77,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 77
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 47,
     "fields": {
+      "scheme": 77,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 77
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 48,
     "fields": {
+      "scheme": 78,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 78
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 49,
     "fields": {
+      "scheme": 78,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 78
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 50,
     "fields": {
+      "scheme": 78,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 78
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 51,
     "fields": {
+      "scheme": 79,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 79
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 52,
     "fields": {
+      "scheme": 79,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 79
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 53,
     "fields": {
+      "scheme": 79,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 79
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 54,
     "fields": {
+      "scheme": 80,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 80
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 55,
     "fields": {
+      "scheme": 80,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 80
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 56,
     "fields": {
+      "scheme": 80,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 80
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 57,
     "fields": {
+      "scheme": 52,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 52
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 58,
     "fields": {
+      "scheme": 52,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 52
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 59,
     "fields": {
+      "scheme": 52,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 52
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 60,
     "fields": {
+      "scheme": 81,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 81
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 61,
     "fields": {
+      "scheme": 81,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 81
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 62,
     "fields": {
+      "scheme": 81,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 81
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 63,
     "fields": {
+      "scheme": 64,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 64
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 64,
     "fields": {
+      "scheme": 64,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 64
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 65,
     "fields": {
+      "scheme": 64,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 64
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 66,
     "fields": {
+      "scheme": 69,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 69
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 67,
     "fields": {
+      "scheme": 69,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 69
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 68,
     "fields": {
+      "scheme": 69,
       "order": 1,
-      "type": "email",
       "label": "Email",
-      "scheme": 69
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 69,
     "fields": {
+      "scheme": 55,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 55
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 70,
     "fields": {
+      "scheme": 55,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 55
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 71,
     "fields": {
+      "scheme": 55,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 55
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 72,
     "fields": {
+      "scheme": 82,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 82
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 73,
     "fields": {
+      "scheme": 82,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 82
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 74,
     "fields": {
+      "scheme": 82,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 82
-    },
-    "model": "scheme.schemecredentialquestion"
-  },
-  {
-    "pk": 75,
-    "fields": {
-      "order": 0,
-      "type": "barcode",
-      "label": "barcode",
-      "scheme": 67
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 76,
     "fields": {
+      "scheme": 67,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 67
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 77,
     "fields": {
+      "scheme": 67,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 67
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 78,
     "fields": {
+      "scheme": 83,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 83
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 79,
     "fields": {
+      "scheme": 83,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 83
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 80,
     "fields": {
+      "scheme": 83,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 83
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 81,
     "fields": {
+      "scheme": 84,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 84
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 82,
     "fields": {
+      "scheme": 84,
       "order": 1,
-      "type": "pin",
       "label": "pin",
-      "scheme": 84
+      "type": "pin"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 83,
     "fields": {
+      "scheme": 9,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 9
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 84,
     "fields": {
+      "scheme": 9,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 9
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 85,
     "fields": {
+      "scheme": 71,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 71
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 86,
     "fields": {
+      "scheme": 71,
       "order": 1,
-      "type": "username",
       "label": "Email or Loyalty Card no.",
-      "scheme": 71
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 87,
     "fields": {
+      "scheme": 71,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 71
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 88,
     "fields": {
+      "scheme": 53,
       "order": 0,
-      "type": "email",
       "label": "email",
-      "scheme": 53
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 89,
     "fields": {
+      "scheme": 53,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 53
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 90,
     "fields": {
+      "scheme": 85,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 85
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 91,
     "fields": {
+      "scheme": 19,
       "order": 0,
-      "type": "email",
       "label": "email",
-      "scheme": 19
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 92,
     "fields": {
+      "scheme": 19,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 19
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 93,
     "fields": {
+      "scheme": 56,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 56
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 94,
     "fields": {
+      "scheme": 56,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 56
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 95,
     "fields": {
+      "scheme": 56,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 56
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 96,
     "fields": {
+      "scheme": 59,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 59
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 97,
     "fields": {
+      "scheme": 59,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 59
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 98,
     "fields": {
+      "scheme": 59,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 59
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 99,
     "fields": {
+      "scheme": 72,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode / Card Number",
-      "scheme": 72
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 100,
     "fields": {
+      "scheme": 72,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 72
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 101,
     "fields": {
+      "scheme": 72,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 72
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 102,
     "fields": {
+      "scheme": 32,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 32
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 103,
     "fields": {
+      "scheme": 32,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 32
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 104,
     "fields": {
+      "scheme": 32,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 32
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 105,
     "fields": {
+      "scheme": 86,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 86
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 106,
     "fields": {
+      "scheme": 86,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 86
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 107,
     "fields": {
+      "scheme": 86,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 86
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 108,
     "fields": {
+      "scheme": 57,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 57
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 109,
     "fields": {
+      "scheme": 57,
       "order": 1,
-      "type": "username",
       "label": "Email or Esprit Friends no.",
-      "scheme": 57
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 110,
     "fields": {
+      "scheme": 57,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 57
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 111,
     "fields": {
+      "scheme": 87,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 87
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 112,
     "fields": {
+      "scheme": 87,
       "order": 1,
-      "type": "username",
       "label": "Membership no. or Email",
-      "scheme": 87
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 113,
     "fields": {
+      "scheme": 87,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 87
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 114,
     "fields": {
+      "scheme": 54,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 54
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 115,
     "fields": {
+      "scheme": 54,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 54
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 116,
     "fields": {
+      "scheme": 54,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 54
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 117,
     "fields": {
+      "scheme": 88,
       "order": 0,
-      "type": "barcode",
-      "label": "barcode",
-      "scheme": 88
+      "label": "Barcode/CardNumberGood",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 118,
     "fields": {
+      "scheme": 88,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 88
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 119,
     "fields": {
+      "scheme": 88,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 88
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 120,
     "fields": {
+      "scheme": 89,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 89
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 121,
     "fields": {
+      "scheme": 89,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 89
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 122,
     "fields": {
+      "scheme": 89,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 89
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 123,
     "fields": {
+      "scheme": 18,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 18
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 124,
     "fields": {
+      "scheme": 18,
       "order": 1,
-      "type": "username",
       "label": "user name",
-      "scheme": 18
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 125,
     "fields": {
+      "scheme": 18,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 18
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 126,
     "fields": {
+      "scheme": 23,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 23
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 127,
     "fields": {
+      "scheme": 23,
       "order": 1,
-      "type": "username",
       "label": "Email or Member no.",
-      "scheme": 23
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 128,
     "fields": {
+      "scheme": 23,
       "order": 2,
-      "type": "pin",
       "label": "pin",
-      "scheme": 23
+      "type": "pin"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 129,
     "fields": {
+      "scheme": 62,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 62
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 130,
     "fields": {
+      "scheme": 62,
       "order": 1,
-      "type": "email",
       "label": "Email Address",
-      "scheme": 62
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 131,
     "fields": {
+      "scheme": 62,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 62
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 132,
     "fields": {
+      "scheme": 73,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 73
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 133,
     "fields": {
+      "scheme": 73,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 73
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 134,
     "fields": {
+      "scheme": 73,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 73
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 135,
     "fields": {
+      "scheme": 22,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 22
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 136,
     "fields": {
+      "scheme": 22,
       "order": 1,
-      "type": "username",
       "label": "Gold Passport no or Username",
-      "scheme": 22
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 137,
     "fields": {
+      "scheme": 22,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 22
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 138,
     "fields": {
+      "scheme": 90,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 90
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 139,
     "fields": {
+      "scheme": 90,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 90
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 140,
     "fields": {
+      "scheme": 91,
       "order": 0,
-      "type": "username",
       "label": "username",
-      "scheme": 91
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 141,
     "fields": {
+      "scheme": 91,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 91
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 142,
     "fields": {
+      "scheme": 92,
       "order": 0,
-      "type": "barcode",
       "label": "barcode",
-      "scheme": 92
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 143,
     "fields": {
+      "scheme": 92,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 92
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 144,
     "fields": {
+      "scheme": 92,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 92
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 145,
     "fields": {
+      "scheme": 93,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 93
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 146,
     "fields": {
+      "scheme": 93,
       "order": 1,
-      "type": "username",
       "label": "username",
-      "scheme": 93
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 147,
     "fields": {
+      "scheme": 93,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 93
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 148,
     "fields": {
+      "scheme": 94,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 94
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 149,
     "fields": {
+      "scheme": 94,
       "order": 1,
-      "type": "email",
       "label": "email",
-      "scheme": 94
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 150,
     "fields": {
+      "scheme": 94,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 94
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 151,
     "fields": {
+      "scheme": 95,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 95
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 152,
     "fields": {
+      "scheme": 95,
       "order": 1,
-      "type": "username",
       "label": "Email or Club Carlson no.",
-      "scheme": 95
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 153,
     "fields": {
+      "scheme": 40,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 40
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 154,
     "fields": {
+      "scheme": 40,
       "order": 1,
-      "type": "username",
       "label": "Flying Blue no. or Email",
-      "scheme": 40
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 155,
     "fields": {
+      "scheme": 26,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 26
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 156,
     "fields": {
+      "scheme": 26,
       "order": 1,
-      "type": "username",
       "label": "Email or Card no.",
-      "scheme": 26
+      "type": "username"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 157,
+    "fields": {
+      "scheme": 65,
+      "order": 0,
+      "label": "Barcode Number",
+      "type": "barcode"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 158,
+    "fields": {
+      "scheme": 6,
+      "order": 2,
+      "label": "Password",
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 159,
     "fields": {
+      "scheme": 97,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 97
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 160,
     "fields": {
+      "scheme": 97,
       "order": 1,
-      "type": "username",
       "label": "user name",
-      "scheme": 97
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 161,
     "fields": {
+      "scheme": 97,
       "order": 2,
-      "type": "password",
       "label": "password",
-      "scheme": 97
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 162,
     "fields": {
+      "scheme": 46,
       "order": 0,
-      "type": "username",
       "label": "username",
-      "scheme": 46
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 163,
     "fields": {
+      "scheme": 46,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 46
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 164,
     "fields": {
+      "scheme": 98,
       "order": 0,
-      "type": "card_number",
       "label": "card number",
-      "scheme": 98
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 165,
     "fields": {
+      "scheme": 98,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 98
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 166,
     "fields": {
-      "order": 1,
-      "type": "username",
+      "scheme": 50,
+      "order": 0,
       "label": "Email or Username",
-      "scheme": 50
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 167,
     "fields": {
+      "scheme": 15,
       "order": 0,
-      "type": "card_number",
       "label": "card number (or app card)",
-      "scheme": 15
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 168,
     "fields": {
+      "scheme": 15,
       "order": 1,
-      "type": "username",
       "label": "Username or Email",
-      "scheme": 15
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 169,
     "fields": {
+      "scheme": 15,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 15
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 170,
     "fields": {
+      "scheme": 24,
       "order": 0,
-      "type": "card_number",
       "label": "Card number",
-      "scheme": 24
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 171,
     "fields": {
+      "scheme": 24,
       "order": 1,
-      "type": "username",
       "label": "Username or Starwood no.",
-      "scheme": 24
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 172,
     "fields": {
+      "scheme": 24,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 24
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 173,
     "fields": {
+      "scheme": 21,
       "order": 0,
-      "type": "card_number",
       "label": "Card number",
-      "scheme": 21
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 174,
     "fields": {
+      "scheme": 21,
       "order": 1,
-      "type": "username",
       "label": "Username or HHonors no.",
-      "scheme": 21
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 175,
     "fields": {
+      "scheme": 21,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 21
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 176,
     "fields": {
+      "scheme": 40,
       "order": 2,
-      "type": "pin",
       "label": "PIN",
-      "scheme": 40
+      "type": "pin"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 177,
     "fields": {
+      "scheme": 26,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 26
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 178,
     "fields": {
+      "scheme": 95,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 95
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 179,
     "fields": {
-      "order": 2,
-      "type": "username",
+      "scheme": 20,
+      "order": 1,
       "label": "Membership no. or Username",
-      "scheme": 20
+      "type": "username"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 180,
     "fields": {
+      "scheme": 75,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 75
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 181,
     "fields": {
+      "scheme": 99,
       "order": 0,
-      "type": "email",
       "label": "email",
-      "scheme": 99
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 182,
     "fields": {
+      "scheme": 99,
       "order": 1,
-      "type": "password",
       "label": "password",
-      "scheme": 99
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 183,
     "fields": {
+      "scheme": 6,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 6
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 184,
     "fields": {
+      "scheme": 10,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 10
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 185,
     "fields": {
+      "scheme": 10,
       "order": 1,
-      "type": "email",
       "label": "Email Address",
-      "scheme": 10
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 186,
     "fields": {
+      "scheme": 10,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 10
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 187,
     "fields": {
+      "scheme": 13,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 13
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 188,
     "fields": {
+      "scheme": 13,
       "order": 1,
-      "type": "email",
       "label": "Email Address",
-      "scheme": 13
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 189,
     "fields": {
+      "scheme": 13,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 13
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 190,
     "fields": {
+      "scheme": 60,
       "order": 0,
-      "type": "barcode",
-      "label": "Barcode",
-      "scheme": 60
+      "label": "Barcode/CardNumber",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 191,
     "fields": {
+      "scheme": 60,
       "order": 1,
-      "type": "email",
       "label": "Email Address",
-      "scheme": 60
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 192,
     "fields": {
+      "scheme": 60,
       "order": 2,
-      "type": "password",
       "label": "Password",
-      "scheme": 60
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 193,
     "fields": {
+      "scheme": 65,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 65
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 194,
     "fields": {
+      "scheme": 70,
       "order": 0,
-      "type": "username",
-      "label": "Username",
-      "scheme": 70
+      "label": "Email Address",
+      "type": "email"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 195,
     "fields": {
+      "scheme": 70,
       "order": 1,
-      "type": "password",
       "label": "Password",
-      "scheme": 70
+      "type": "password"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 196,
     "fields": {
+      "scheme": 100,
       "order": 0,
-      "type": "card_number",
       "label": "Membership Number",
-      "scheme": 100
+      "type": "card_number"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 197,
     "fields": {
+      "scheme": 101,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 101
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 198,
     "fields": {
+      "scheme": 102,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 102
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   },
   {
     "pk": 199,
     "fields": {
+      "scheme": 103,
       "order": 0,
-      "type": "barcode",
       "label": "Barcode",
-      "scheme": 103
+      "type": "barcode"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 200,
+    "fields": {
+      "scheme": 104,
+      "order": 0,
+      "label": "email",
+      "type": "email"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 201,
+    "fields": {
+      "scheme": 104,
+      "order": 1,
+      "label": "password",
+      "type": "password"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 202,
+    "fields": {
+      "scheme": 106,
+      "order": 0,
+      "label": "Email",
+      "type": "email"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 203,
+    "fields": {
+      "scheme": 106,
+      "order": 1,
+      "label": "Password",
+      "type": "password"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 204,
+    "fields": {
+      "scheme": 107,
+      "order": 0,
+      "label": "Skymiles number or Username",
+      "type": "username"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 205,
+    "fields": {
+      "scheme": 107,
+      "order": 1,
+      "label": "Password",
+      "type": "password"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 206,
+    "fields": {
+      "scheme": 61,
+      "order": 0,
+      "label": "barcode / card number",
+      "type": "barcode"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 207,
+    "fields": {
+      "scheme": 61,
+      "order": 1,
+      "label": "Email",
+      "type": "email"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 208,
+    "fields": {
+      "scheme": 61,
+      "order": 2,
+      "label": "Password",
+      "type": "password"
+    },
+    "model": "scheme.schemecredentialquestion"
+  },
+  {
+    "pk": 209,
+    "fields": {
+      "scheme": 5,
+      "order": 0,
+      "label": "Barcode Number",
+      "type": "barcode"
     },
     "model": "scheme.schemecredentialquestion"
   }
