@@ -4,13 +4,14 @@ from django.db import models
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
 from colorful.fields import RGBColorField
 import json
 import requests
 import uuid
+import re
 
 
 class Category(models.Model):
@@ -22,8 +23,7 @@ class Category(models.Model):
 
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
-        return super(ActiveSchemeManager, self).get_queryset().exclude(
-            primary_question__isnull=True).exclude(is_active=False)
+        return super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
 
 
 class Scheme(models.Model):
@@ -56,24 +56,32 @@ class Scheme(models.Model):
     has_points = models.BooleanField(default=False)
     identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
     point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
-    primary_question = models.ForeignKey('SchemeCredentialQuestion', null=True, blank=True,
-                                         related_name='primary_question')
     colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
 
+    card_number_regex = models.CharField(max_length=100, null=True, blank=True,
+                                         help_text="Regex to map barcode to card number")
+    barcode_regex = models.CharField(max_length=100, null=True, blank=True,
+                                     help_text="Regex to map card number to barcode")
+    card_number_prefix = models.CharField(max_length=100, null=True, blank=True,
+                                          help_text="Prefix to from barcode -> card number mapping")
+    barcode_prefix = models.CharField(max_length=100, null=True, blank=True,
+                                      help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
 
     @property
-    def is_barcode(self):
-        if self.barcode_type is not None:
-            return True
-        return False
+    def manual_question(self):
+        return self.questions.filter(manual_question=True).first()
 
     @property
-    def challenges(self):
-        return self.questions.all()
+    def scan_question(self):
+        return self.questions.filter(scan_question=True).first()
+
+    @property
+    def link_questions(self):
+        return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 
     def __str__(self):
         return self.name
@@ -82,8 +90,7 @@ class Scheme(models.Model):
 class ActiveSchemeImageManager(models.Manager):
     def get_queryset(self):
         return super(ActiveSchemeImageManager, self).get_queryset()\
-            .filter(start_date__lt=timezone.now, end_date__gte=timezone.now())\
-            .exclude(status=0)
+            .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
 
 
 class SchemeImage(models.Model):
@@ -122,7 +129,7 @@ class SchemeImage(models.Model):
     objects = ActiveSchemeImageManager()
 
 
-class ActiveManager(models.Manager):
+class ActiveManager(BulkUpdateManager):
     def get_queryset(self):
             return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
@@ -173,8 +180,8 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
 
-    objects = BulkUpdateManager()
-    active_objects = ActiveManager()
+    all_objects = models.Manager()
+    objects = ActiveManager()
 
     @property
     def status_name(self):
@@ -183,17 +190,29 @@ class SchemeAccount(models.Model):
     def _collect_credentials(self):
         credentials = {}
         for answer in self.schemeaccountcredentialanswer_set.all():
-            if answer.type in ENCRYPTED_CREDENTIALS:
-                credentials[answer.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
+            if answer.question.type in ENCRYPTED_CREDENTIALS:
+                credentials[answer.question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
             else:
-                credentials[answer.type] = answer.answer
+                credentials[answer.question.type] = answer.answer
         return credentials
 
     def missing_credentials(self, credential_types):
         """
-        Given a list of credential_types are they all that's required by the scheme
+        Given a list of credential_types return credentials if they are required by the scheme
+
+        A scan or manual question is an optional if one of the other exists
         """
-        return {question.type for question in self.scheme.questions.all()}.difference(set(credential_types))
+        required_credentials = {question.type for question in self.scheme.questions.all()}
+        manual_question = self.scheme.manual_question
+        scan_question = self.scheme.scan_question
+
+        if scan_question and manual_question:
+            if scan_question.type in credential_types:
+                required_credentials.remove(manual_question.type)
+            if required_credentials and manual_question.type in credential_types:
+                required_credentials.remove(scan_question.type)
+
+        return required_credentials.difference(set(credential_types))
 
     def credentials(self):
         credentials = self._collect_credentials()
@@ -225,17 +244,54 @@ class SchemeAccount(models.Model):
         self.save()
         return points
 
-    @property
-    def primary_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(type=self.scheme.primary_question.type).first()
+    def question(self, question_type):
+        """
+        Return the scheme question instance for the given question type
+        :param question_type:
+        :return:
+        """
+        return SchemeCredentialQuestion.objects.filter(type=question_type, scheme=self.scheme).first()
 
     @property
-    def primary_answer_id(self):
-        return self.schemeaccountcredentialanswer_set.get(type=self.scheme.primary_question.type).id
+    def card_label(self):
+        manual_answer = self.manual_answer
+        if self.manual_answer:
+            return manual_answer.answer
+
+        barcode_answer = self.barcode_answer
+        if not barcode_answer:
+            return None
+
+        if self.scheme.card_number_regex:
+            regex_match = re.search(self.scheme.card_number_regex, barcode_answer.answer)
+            if regex_match:
+                return self.scheme.card_number_prefix + regex_match.group(1)
+        return barcode_answer.answer
 
     @property
-    def answers(self):
-        return self.schemeaccountcredentialanswer_set.all()
+    def barcode(self):
+        barcode_answer = self.barcode_answer
+        if barcode_answer:
+            return barcode_answer.answer
+
+        card_number = self.card_number_answer
+        if card_number and self.scheme.barcode_regex:
+            regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+            if regex_match:
+                return self.scheme.barcode_prefix + regex_match.group(1)
+        return None
+
+    @property
+    def barcode_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.question(BARCODE)).first()
+
+    @property
+    def card_number_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.question(CARD_NUMBER)).first()
+
+    @property
+    def manual_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
 
     @property
     def action_status(self):
@@ -254,7 +310,7 @@ class SchemeAccount(models.Model):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
     class Meta:
-        ordering = ['order']
+        ordering = ['order', '-created']
 
 
 class SchemeCredentialQuestion(models.Model):
@@ -263,8 +319,12 @@ class SchemeCredentialQuestion(models.Model):
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
 
+    manual_question = models.BooleanField(default=False)
+    scan_question = models.BooleanField(default=False)
+
     class Meta:
         ordering = ['order']
+        unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
@@ -272,20 +332,23 @@ class SchemeCredentialQuestion(models.Model):
 
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
-    type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+    question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)
     answer = models.CharField(max_length=250)
 
     def clean_answer(self):
-        if self.type in ENCRYPTED_CREDENTIALS:
+        if self.question.type in ENCRYPTED_CREDENTIALS:
             return "****"
         return self.answer
 
     def __str__(self):
-        return self.answer
+        return self.clean_answer()
+
+    class Meta:
+        unique_together = ("scheme_account", "question")
 
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
-    if instance.type in ENCRYPTED_CREDENTIALS:
+    if instance.question.type in ENCRYPTED_CREDENTIALS:
         encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         instance.answer = encrypted_answer

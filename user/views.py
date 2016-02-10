@@ -10,10 +10,14 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
-from user.models import CustomUser
+
+from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS, \
+    INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE
+from user.models import CustomUser, valid_promo_code
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
-                              SocialRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer)
+                              FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
+                              PromoCodeSerializer, TwitterRegisterSerializer)
 
 
 class ForgottenPassword:
@@ -39,6 +43,20 @@ class Register(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
+
+
+class ValidatePromoCode(CreateAPIView):
+    """
+    Validate promo codes
+    """
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = PromoCodeSerializer
+
+    def post(self, request, *args, **kwargs):
+        promo_code = request.data['promo_code']
+        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(promo_code)})
+        return Response(out_serializer.data)
 
 
 class ResetPassword(UpdateAPIView):
@@ -112,9 +130,9 @@ class Login(GenericAPIView):
         user = authenticate(username=email, password=password)
 
         if not user:
-            return Response({"message": 'Login credentials incorrect.'}, status=403)
+            return error_response(INCORRECT_CREDENTIALS)
         if not user.is_active:
-            return Response({"message": "The account associated with this email address is suspended."}, status=403)
+            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
@@ -144,7 +162,7 @@ class FaceBookLoginWeb(CreateAPIView):
         # Exchange authorization code for access token.
         r = requests.get(access_token_url, params=params)
         if not r.ok:
-            return Response({"error": 'Cannot get facebook user token.'}, status=403)
+            return error_response(FACEBOOK_BAD_TOKEN)
 
         return facebook_login(r.json()['access_token'])
 
@@ -153,19 +171,12 @@ class FaceBookLogin(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
 
-    serializer_class = SocialRegisterSerializer
+    serializer_class = FacebookRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         """
         Login using a Facebook account.
         ---
-        type:
-          access_token:
-            required: true
-            type: json
-          user_id:
-            required: true
-            type: json
         responseMessages:
             - code: 403
               message: Cannot validate user_id & access_token.
@@ -179,23 +190,10 @@ class FaceBookLogin(CreateAPIView):
         user_id = request.data['user_id']
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
-            return Response({"error": "Cannot validate user_id & access_token."}, status=403)
+            return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
-            return Response({"error": "user_id is invalid for given access token"}, status=403)
-        return facebook_login(access_token)
-
-
-def facebook_login(access_token):
-    params = {"access_token": access_token, "fields": "email,name,id"}
-    # Retrieve information about the current user.
-    r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
-    if not r.ok:
-        return Response({"message": 'Can not access facebook social graph.'}, status=403)
-    profile = r.json()
-    status, user = social_login(profile['id'], profile.get('email'), 'facebook')
-
-    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
-    return Response(out_serializer.data, status)
+            return error_response(FACEBOOK_INVALID_USER)
+        return facebook_login(access_token, request.data.get('promo_code'))
 
 
 class TwitterLoginWeb(APIView):
@@ -226,9 +224,11 @@ class TwitterLoginWeb(APIView):
         return Response(request_token)
 
 
-class TwitterLogin(APIView):
+class TwitterLogin(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
+
+    serializer_class = TwitterRegisterSerializer
 
     def post(self, request, *args, **kwargs):
         """
@@ -236,10 +236,21 @@ class TwitterLogin(APIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+        return twitter_login(request.data['access_token'], request.data['access_token_secret'],
+                             request.data.get('promo_code'))
 
 
-def twitter_login(access_token, access_token_secret):
+def facebook_login(access_token, promo_code=None):
+    params = {"access_token": access_token, "fields": "email,name,id"}
+    # Retrieve information about the current user.
+    r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
+    if not r.ok:
+        return error_response(FACEBOOK_GRAPH_ACCESS)
+    profile = r.json()
+    return social_response(profile['id'], profile.get('email'), 'facebook', promo_code)
+
+
+def twitter_login(access_token, access_token_secret, promo_code=None):
     """
     https://dev.twitter.com/web/sign-in/implementing
     https://dev.twitter.com/rest/reference/get/account/verify_credentials
@@ -255,14 +266,19 @@ def twitter_login(access_token, access_token_secret):
     if not request.ok:
         # TODO: add logging
         return Response(request.json()['errors'], status=request.status_code)
-
     profile = request.json()
-    status, user = social_login(profile['id_str'], profile.get('email'), 'twitter')
+    return social_response(profile['id_str'], profile.get('email'), 'twitter', promo_code)
+
+
+def social_response(social_id, email, service, promo_code):
+    if promo_code and not valid_promo_code(promo_code):
+        return error_response(INVALID_PROMO_CODE)
+    status, user = social_login(social_id, email, service, promo_code)
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
 
 
-def social_login(social_id, email, service):
+def social_login(social_id, email, service, promo_code):
     status = 200
     try:
         user = CustomUser.objects.get(**{service: social_id})
@@ -278,7 +294,9 @@ def social_login(social_id, email, service):
             setattr(user, service, social_id)
             user.save()
         except CustomUser.DoesNotExist:
+            # We are creating a new user
             password = get_random_string(length=32)
-            user = CustomUser.objects.create(**{'email': email, 'password': password, service: social_id})
+            user = CustomUser.objects.create_user(**{'email': email, 'password': password, 'promo_code': promo_code,
+                                                     service: social_id})
             status = 201
     return status, user

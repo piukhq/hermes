@@ -1,1972 +1,2522 @@
 [
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 1,
     "fields": {
+      "scheme": 4,
       "order": 1,
       "type": "email",
       "label": "Email",
-      "scheme": 4
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 2,
     "fields": {
+      "scheme": 4,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 4
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 3,
     "fields": {
+      "scheme": 4,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 4
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 4,
     "fields": {
+      "scheme": 2,
       "order": 1,
       "type": "email",
       "label": "Email address",
-      "scheme": 2
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 5,
     "fields": {
+      "scheme": 2,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 2
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 6,
     "fields": {
+      "scheme": 20,
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "scheme": 20
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 7,
     "fields": {
+      "scheme": 20,
       "order": 1,
       "type": "password",
       "label": "PIN or Password",
-      "scheme": 20
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 8,
     "fields": {
+      "scheme": 6,
       "order": 0,
       "type": "card_number",
       "label": "Card Number",
-      "scheme": 6
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 9,
     "fields": {
+      "scheme": 6,
       "order": 1,
       "type": "email",
       "label": "Email",
-      "scheme": 6
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 10,
     "fields": {
+      "scheme": 66,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 66
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 11,
     "fields": {
+      "scheme": 66,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 66
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 12,
     "fields": {
+      "scheme": 12,
       "order": 1,
       "type": "email",
       "label": "Email address",
-      "scheme": 12
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 13,
     "fields": {
+      "scheme": 12,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 12
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 14,
     "fields": {
+      "scheme": 14,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 14
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 15,
     "fields": {
+      "scheme": 14,
       "order": 1,
       "type": "password",
       "label": "Password",
-      "scheme": 14
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 16,
     "fields": {
+      "scheme": 58,
       "order": 1,
       "type": "username",
       "label": "Card no. or Email (If activated)",
-      "scheme": 58
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 17,
     "fields": {
+      "scheme": 58,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 58
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 18,
     "fields": {
+      "scheme": 16,
       "order": 1,
       "type": "email",
       "label": "Email address",
-      "scheme": 16
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 19,
     "fields": {
+      "scheme": 16,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 16
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 20,
     "fields": {
+      "scheme": 17,
       "order": 0,
       "type": "email",
       "label": "Email",
-      "scheme": 17
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 21,
     "fields": {
+      "scheme": 17,
       "order": 1,
       "type": "password",
       "label": "Password",
-      "scheme": 17
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 22,
     "fields": {
+      "scheme": 17,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 17
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 23,
     "fields": {
+      "scheme": 49,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 49
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 24,
     "fields": {
+      "scheme": 49,
       "order": 1,
       "type": "place_of_birth",
       "label": "Place of birth",
-      "scheme": 49
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 25,
     "fields": {
+      "scheme": 49,
       "order": 0,
       "type": "postcode",
       "label": "Postcode",
-      "scheme": 49
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 26,
     "fields": {
+      "scheme": 2,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number (Ignore the QR code)",
-      "scheme": 2
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 27,
     "fields": {
+      "scheme": 16,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 16
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 28,
     "fields": {
+      "scheme": 58,
       "order": 0,
       "type": "card_number",
       "label": "Card Number",
-      "scheme": 58
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 29,
     "fields": {
+      "scheme": 12,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 12
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 30,
     "fields": {
+      "scheme": 66,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 66
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 31,
     "fields": {
+      "scheme": 51,
       "order": 0,
       "type": "username",
       "label": "User Name",
-      "scheme": 51
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 32,
     "fields": {
+      "scheme": 51,
       "order": 2,
       "type": "memorable_date",
       "label": "Memorable Date (DD/MM/YYYY)",
-      "scheme": 51
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 33,
     "fields": {
+      "scheme": 51,
       "order": 1,
       "type": "password",
       "label": "Password",
-      "scheme": 51
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 34,
     "fields": {
+      "scheme": 75,
       "order": 0,
       "type": "email",
       "label": "Email Address",
-      "scheme": 75
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 35,
     "fields": {
+      "scheme": 75,
       "order": 1,
       "type": "username",
       "label": "Gold Plus no. or Email",
-      "scheme": 75
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
-    "pk": 36,
-    "fields": {
-      "order": 0,
-      "type": "email",
-      "label": "email",
-      "scheme": 50
-    },
-    "model": "scheme.schemecredentialquestion"
-  },
-  {
+    "model": "scheme.schemecredentialquestion",
     "pk": 37,
     "fields": {
-      "order": 2,
+      "scheme": 50,
+      "order": 1,
       "type": "password",
       "label": "Password",
-      "scheme": 50
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 38,
     "fields": {
+      "scheme": 51,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 51
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 39,
     "fields": {
+      "scheme": 43,
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "scheme": 43
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 40,
     "fields": {
+      "scheme": 43,
       "order": 1,
       "type": "last_name",
       "label": "Last name",
-      "scheme": 43
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 41,
     "fields": {
+      "scheme": 43,
       "order": 2,
       "type": "pin",
       "label": "Pin",
-      "scheme": 43
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 42,
     "fields": {
+      "scheme": 68,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 68
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 43,
     "fields": {
+      "scheme": 68,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 68
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 44,
     "fields": {
+      "scheme": 68,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 68
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 45,
     "fields": {
+      "scheme": 77,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 77
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 46,
     "fields": {
+      "scheme": 77,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 77
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 47,
     "fields": {
+      "scheme": 77,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 77
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 48,
     "fields": {
+      "scheme": 78,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 78
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 49,
     "fields": {
+      "scheme": 78,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 78
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 50,
     "fields": {
+      "scheme": 78,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 78
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 51,
     "fields": {
+      "scheme": 79,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 79
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 52,
     "fields": {
+      "scheme": 79,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 79
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 53,
     "fields": {
+      "scheme": 79,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 79
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 54,
     "fields": {
+      "scheme": 80,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 80
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 55,
     "fields": {
+      "scheme": 80,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 80
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 56,
     "fields": {
+      "scheme": 80,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 80
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 57,
     "fields": {
+      "scheme": 52,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 52
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 58,
     "fields": {
+      "scheme": 52,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 52
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 59,
     "fields": {
+      "scheme": 52,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 52
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 60,
     "fields": {
+      "scheme": 81,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 81
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 61,
     "fields": {
+      "scheme": 81,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 81
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 62,
     "fields": {
+      "scheme": 81,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 81
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 63,
     "fields": {
+      "scheme": 64,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 64
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 64,
     "fields": {
+      "scheme": 64,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 64
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 65,
     "fields": {
+      "scheme": 64,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 64
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 66,
     "fields": {
+      "scheme": 69,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 69
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 67,
     "fields": {
+      "scheme": 69,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 69
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 68,
     "fields": {
+      "scheme": 69,
       "order": 1,
       "type": "email",
       "label": "Email",
-      "scheme": 69
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 69,
     "fields": {
+      "scheme": 55,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 55
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 70,
     "fields": {
+      "scheme": 55,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 55
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 71,
     "fields": {
+      "scheme": 55,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 55
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 72,
     "fields": {
+      "scheme": 82,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 82
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 73,
     "fields": {
+      "scheme": 82,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 82
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 74,
     "fields": {
+      "scheme": 82,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 82
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 75,
     "fields": {
+      "scheme": 67,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 67
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 76,
     "fields": {
+      "scheme": 67,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 67
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 77,
     "fields": {
+      "scheme": 67,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 67
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 78,
     "fields": {
+      "scheme": 83,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 83
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 79,
     "fields": {
+      "scheme": 83,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 83
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 80,
     "fields": {
+      "scheme": 83,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 83
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 81,
     "fields": {
+      "scheme": 84,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 84
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 82,
     "fields": {
+      "scheme": 84,
       "order": 1,
       "type": "pin",
       "label": "pin",
-      "scheme": 84
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 83,
     "fields": {
+      "scheme": 9,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 9
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 84,
     "fields": {
+      "scheme": 9,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 9
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 85,
     "fields": {
+      "scheme": 71,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 71
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 86,
     "fields": {
+      "scheme": 71,
       "order": 1,
       "type": "username",
       "label": "Email or Loyalty Card no.",
-      "scheme": 71
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 87,
     "fields": {
+      "scheme": 71,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 71
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 88,
     "fields": {
+      "scheme": 53,
       "order": 0,
       "type": "email",
       "label": "email",
-      "scheme": 53
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 89,
     "fields": {
+      "scheme": 53,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 53
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 90,
     "fields": {
+      "scheme": 85,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 85
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 91,
     "fields": {
+      "scheme": 19,
       "order": 0,
       "type": "email",
       "label": "email",
-      "scheme": 19
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 92,
     "fields": {
+      "scheme": 19,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 19
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 93,
     "fields": {
+      "scheme": 56,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 56
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 94,
     "fields": {
+      "scheme": 56,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 56
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 95,
     "fields": {
+      "scheme": 56,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 56
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 96,
     "fields": {
+      "scheme": 59,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 59
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 97,
     "fields": {
+      "scheme": 59,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 59
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 98,
     "fields": {
+      "scheme": 59,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 59
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 99,
     "fields": {
+      "scheme": 72,
       "order": 0,
       "type": "barcode",
       "label": "Barcode / Card Number",
-      "scheme": 72
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 100,
     "fields": {
+      "scheme": 72,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 72
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 101,
     "fields": {
+      "scheme": 72,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 72
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 102,
     "fields": {
+      "scheme": 32,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 32
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 103,
     "fields": {
+      "scheme": 32,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 32
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 104,
     "fields": {
+      "scheme": 32,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 32
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 105,
     "fields": {
+      "scheme": 86,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 86
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 106,
     "fields": {
+      "scheme": 86,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 86
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 107,
     "fields": {
+      "scheme": 86,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 86
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 108,
     "fields": {
+      "scheme": 57,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 57
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 109,
     "fields": {
+      "scheme": 57,
       "order": 1,
       "type": "username",
       "label": "Email or Esprit Friends no.",
-      "scheme": 57
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 110,
     "fields": {
+      "scheme": 57,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 57
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 111,
     "fields": {
+      "scheme": 87,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 87
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 112,
     "fields": {
+      "scheme": 87,
       "order": 1,
       "type": "username",
       "label": "Membership no. or Email",
-      "scheme": 87
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 113,
     "fields": {
+      "scheme": 87,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 87
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 114,
     "fields": {
+      "scheme": 54,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 54
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 115,
     "fields": {
+      "scheme": 54,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 54
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 116,
     "fields": {
+      "scheme": 54,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 54
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 117,
     "fields": {
+      "scheme": 88,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 88
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 118,
     "fields": {
+      "scheme": 88,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 88
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 119,
     "fields": {
+      "scheme": 88,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 88
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 120,
     "fields": {
+      "scheme": 89,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 89
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 121,
     "fields": {
+      "scheme": 89,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 89
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 122,
     "fields": {
+      "scheme": 89,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 89
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 123,
     "fields": {
+      "scheme": 18,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 18
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 124,
     "fields": {
+      "scheme": 18,
       "order": 1,
       "type": "username",
       "label": "user name",
-      "scheme": 18
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 125,
     "fields": {
+      "scheme": 18,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 18
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 126,
     "fields": {
+      "scheme": 23,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 23
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 127,
     "fields": {
+      "scheme": 23,
       "order": 1,
       "type": "username",
       "label": "Email or Member no.",
-      "scheme": 23
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 128,
     "fields": {
+      "scheme": 23,
       "order": 2,
       "type": "pin",
       "label": "pin",
-      "scheme": 23
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 129,
     "fields": {
+      "scheme": 62,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 62
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 130,
     "fields": {
+      "scheme": 62,
       "order": 1,
       "type": "email",
       "label": "Email Address",
-      "scheme": 62
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 131,
     "fields": {
+      "scheme": 62,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 62
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 132,
     "fields": {
+      "scheme": 73,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 73
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 133,
     "fields": {
+      "scheme": 73,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 73
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 134,
     "fields": {
+      "scheme": 73,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 73
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 135,
     "fields": {
+      "scheme": 22,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 22
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 136,
     "fields": {
+      "scheme": 22,
       "order": 1,
       "type": "username",
       "label": "Gold Passport no or Username",
-      "scheme": 22
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 137,
     "fields": {
+      "scheme": 22,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 22
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 138,
     "fields": {
+      "scheme": 90,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 90
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 139,
     "fields": {
+      "scheme": 90,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 90
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 140,
     "fields": {
+      "scheme": 91,
       "order": 0,
       "type": "username",
       "label": "username",
-      "scheme": 91
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 141,
     "fields": {
+      "scheme": 91,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 91
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 142,
     "fields": {
+      "scheme": 92,
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "scheme": 92
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 143,
     "fields": {
+      "scheme": 92,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 92
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 144,
     "fields": {
+      "scheme": 92,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 92
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 145,
     "fields": {
+      "scheme": 93,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 93
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 146,
     "fields": {
+      "scheme": 93,
       "order": 1,
       "type": "username",
       "label": "username",
-      "scheme": 93
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 147,
     "fields": {
+      "scheme": 93,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 93
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 148,
     "fields": {
+      "scheme": 94,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 94
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 149,
     "fields": {
+      "scheme": 94,
       "order": 1,
       "type": "email",
       "label": "email",
-      "scheme": 94
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 150,
     "fields": {
+      "scheme": 94,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 94
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 151,
     "fields": {
+      "scheme": 95,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 95
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 152,
     "fields": {
+      "scheme": 95,
       "order": 1,
       "type": "username",
       "label": "Email or Club Carlson no.",
-      "scheme": 95
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 153,
     "fields": {
+      "scheme": 40,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 40
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 154,
     "fields": {
+      "scheme": 40,
       "order": 1,
       "type": "username",
       "label": "Flying Blue no. or Email",
-      "scheme": 40
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 155,
     "fields": {
+      "scheme": 26,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 26
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 156,
     "fields": {
+      "scheme": 26,
       "order": 1,
       "type": "username",
       "label": "Email or Card no.",
-      "scheme": 26
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 159,
     "fields": {
+      "scheme": 97,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 97
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 160,
     "fields": {
+      "scheme": 97,
       "order": 1,
       "type": "username",
       "label": "user name",
-      "scheme": 97
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 161,
     "fields": {
+      "scheme": 97,
       "order": 2,
       "type": "password",
       "label": "password",
-      "scheme": 97
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 162,
     "fields": {
+      "scheme": 46,
       "order": 0,
       "type": "username",
       "label": "username",
-      "scheme": 46
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 163,
     "fields": {
+      "scheme": 46,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 46
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 164,
     "fields": {
+      "scheme": 98,
       "order": 0,
       "type": "card_number",
       "label": "card number",
-      "scheme": 98
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 165,
     "fields": {
+      "scheme": 98,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 98
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 166,
     "fields": {
-      "order": 1,
+      "scheme": 50,
+      "order": 0,
       "type": "username",
       "label": "Email or Username",
-      "scheme": 50
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 167,
     "fields": {
+      "scheme": 15,
       "order": 0,
       "type": "card_number",
       "label": "card number (or app card)",
-      "scheme": 15
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 168,
     "fields": {
+      "scheme": 15,
       "order": 1,
       "type": "username",
       "label": "Username or Email",
-      "scheme": 15
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 169,
     "fields": {
+      "scheme": 15,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 15
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 170,
     "fields": {
+      "scheme": 24,
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "scheme": 24
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 171,
     "fields": {
+      "scheme": 24,
       "order": 1,
       "type": "username",
       "label": "Username or Starwood no.",
-      "scheme": 24
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 172,
     "fields": {
+      "scheme": 24,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 24
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 173,
     "fields": {
+      "scheme": 21,
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "scheme": 21
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 174,
     "fields": {
+      "scheme": 21,
       "order": 1,
       "type": "username",
       "label": "Username or HHonors no.",
-      "scheme": 21
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 175,
     "fields": {
+      "scheme": 21,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 21
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 176,
     "fields": {
+      "scheme": 40,
       "order": 2,
       "type": "pin",
       "label": "PIN",
-      "scheme": 40
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 177,
     "fields": {
+      "scheme": 26,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 26
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 178,
     "fields": {
+      "scheme": 95,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 95
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 179,
     "fields": {
+      "scheme": 20,
       "order": 2,
       "type": "username",
       "label": "Membership no. or Username",
-      "scheme": 20
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 180,
     "fields": {
+      "scheme": 75,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 75
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 181,
     "fields": {
+      "scheme": 99,
       "order": 0,
       "type": "email",
       "label": "email",
-      "scheme": 99
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 182,
     "fields": {
+      "scheme": 99,
       "order": 1,
       "type": "password",
       "label": "password",
-      "scheme": 99
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 183,
     "fields": {
+      "scheme": 6,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 6
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 184,
     "fields": {
+      "scheme": 10,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 10
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 185,
     "fields": {
+      "scheme": 10,
       "order": 1,
       "type": "email",
       "label": "Email Address",
-      "scheme": 10
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 186,
     "fields": {
+      "scheme": 10,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 10
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 187,
     "fields": {
+      "scheme": 13,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 13
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 188,
     "fields": {
+      "scheme": 13,
       "order": 1,
       "type": "email",
       "label": "Email Address",
-      "scheme": 13
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 189,
     "fields": {
+      "scheme": 13,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 13
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 190,
     "fields": {
+      "scheme": 60,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 60
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 191,
     "fields": {
+      "scheme": 60,
       "order": 1,
       "type": "email",
       "label": "Email Address",
-      "scheme": 60
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 192,
     "fields": {
+      "scheme": 60,
       "order": 2,
       "type": "password",
       "label": "Password",
-      "scheme": 60
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 193,
     "fields": {
+      "scheme": 65,
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "scheme": 65
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 194,
     "fields": {
+      "scheme": 70,
       "order": 0,
       "type": "username",
       "label": "Username",
-      "scheme": 70
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 195,
     "fields": {
+      "scheme": 70,
       "order": 1,
       "type": "password",
       "label": "Password",
-      "scheme": 70
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 196,
     "fields": {
+      "scheme": 100,
       "order": 0,
       "type": "card_number",
       "label": "Membership Number",
-      "scheme": 100
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": false
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 197,
     "fields": {
+      "scheme": 101,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 101
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 198,
     "fields": {
+      "scheme": 102,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 102
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": true,
+      "scan_question": true
+    }
   },
   {
+    "model": "scheme.schemecredentialquestion",
     "pk": 199,
     "fields": {
+      "scheme": 103,
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "scheme": 103
-    },
-    "model": "scheme.schemecredentialquestion"
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 200,
+    "fields": {
+      "scheme": 104,
+      "order": 0,
+      "type": "email",
+      "label": "email",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 201,
+    "fields": {
+      "scheme": 104,
+      "order": 1,
+      "type": "password",
+      "label": "password",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 202,
+    "fields": {
+      "scheme": 61,
+      "order": 0,
+      "type": "barcode",
+      "label": "Barcode Number",
+      "manual_question": true,
+      "scan_question": true
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 203,
+    "fields": {
+      "scheme": 61,
+      "order": 1,
+      "type": "email",
+      "label": "Email",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 204,
+    "fields": {
+      "scheme": 61,
+      "order": 2,
+      "type": "password",
+      "label": "Password",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 205,
+    "fields": {
+      "scheme": 17,
+      "order": 0,
+      "type": "card_number",
+      "label": "card number",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 206,
+    "fields": {
+      "scheme": 14,
+      "order": 0,
+      "type": "card_number",
+      "label": "Card umber",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 207,
+    "fields": {
+      "scheme": 20,
+      "order": 0,
+      "type": "barcode",
+      "label": "Barcode",
+      "manual_question": false,
+      "scan_question": true
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 208,
+    "fields": {
+      "scheme": 4,
+      "order": 3,
+      "type": "card_number",
+      "label": "card number",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 209,
+    "fields": {
+      "scheme": 51,
+      "order": 3,
+      "type": "card_number",
+      "label": "Card number",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 210,
+    "fields": {
+      "scheme": 2,
+      "order": 0,
+      "type": "card_number",
+      "label": "Card number",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 211,
+    "fields": {
+      "scheme": 66,
+      "order": 3,
+      "type": "barcode",
+      "label": "Barcode",
+      "manual_question": false,
+      "scan_question": true
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 212,
+    "fields": {
+      "scheme": 77,
+      "order": 3,
+      "type": "card_number",
+      "label": "Card number",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 213,
+    "fields": {
+      "scheme": 88,
+      "order": 3,
+      "type": "card_number",
+      "label": "Card number",
+      "manual_question": true,
+      "scan_question": false
+    }
   }
 ]

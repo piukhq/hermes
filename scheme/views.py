@@ -7,8 +7,8 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
-                                SchemeAccountSummarySerializer, UpdateLinkSchemeSerializer,
-                                ResponseSchemeAccountAndBalanceSerializer)
+                                SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
+                                SchemeAnswerSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -55,7 +55,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(user=self.request.user)
+        return SchemeAccount.objects.filter(user=self.request.user)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -69,43 +69,22 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
 
 class LinkCredentials(GenericAPIView):
-    serializer_class = UpdateLinkSchemeSerializer
+    serializer_class = SchemeAnswerSerializer
     override_serializer_classes = {
-        'PUT': UpdateLinkSchemeSerializer,
+        'PUT': SchemeAnswerSerializer,
         'POST': LinkSchemeSerializer,
         'OPTIONS': LinkSchemeSerializer,
     }
 
     def put(self, request, *args, **kwargs):
-        """Update Primary Answer or other credentials
+        """Update manual answer or other credentials
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        serializer = UpdateLinkSchemeSerializer(data=request.data,
-                                                context={'pk': self.kwargs['pk'], 'user': self.request.user})
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        scheme_account = data.pop('scheme_account')
-        response_data = {}
-        if 'primary_answer' in data.keys():
-            primary_question_response = SchemeAccountCredentialAnswer.objects.get(
-                scheme_account=scheme_account,
-                type=data['primary_answer_type'],
-            )
-            primary_question_response.answer = data['primary_answer']
-            primary_question_response.save()
-            response_data[data['primary_answer_type']] = primary_question_response.clean_answer()
-            data.pop('primary_answer')
-            data.pop('primary_answer_type')
-
-        for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
-        response_data['balance'] = scheme_account.get_midas_balance()
-        response_data['status'] = scheme_account.status
-        response_data['status_name'] = scheme_account.status_name
-
-        out_serializer = ResponseSchemeAccountAndBalanceSerializer(dict(serializer.validated_data, **response_data))
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        serializer = SchemeAnswerSerializer(data=request.data)
+        response_data = self.link_account(serializer, scheme_account)
+        out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
         return Response(out_serializer.data)
 
     def post(self, request, *args, **kwargs):
@@ -114,21 +93,27 @@ class LinkCredentials(GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        serializer = LinkSchemeSerializer(data=request.data,
-                                          context={'pk': self.kwargs['pk'], 'user': self.request.user})
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+        response_data = self.link_account(serializer, scheme_account)
+        out_serializer = ResponseLinkSerializer(response_data)
+        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+    @staticmethod
+    def link_account(serializer, scheme_account):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        scheme_account = data.pop('scheme_account')
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
-                type=answer_type, scheme_account=scheme_account, defaults={'answer': answer})
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
         response_data = {
             'balance': scheme_account.get_midas_balance(),
             'status': scheme_account.status,
             'status_name': scheme_account.status_name
         }
-        out_serializer = ResponseLinkSerializer(response_data)
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+        response_data.update(serializer.data)
+        return response_data
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
@@ -147,7 +132,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return SchemeAccount.active_objects.filter(user=user)
+        return SchemeAccount.objects.filter(user=user)
 
     def post(self, request, *args, **kwargs):
         """
@@ -162,13 +147,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             scheme_account = SchemeAccount.objects.create(
                 user=request.user,
                 scheme_id=data['scheme'],
-                order=data['order'],
                 status=SchemeAccount.WALLET_ONLY
             )
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                type=data['primary_answer_type'],
-                answer=data['primary_answer'],
+                question=scheme_account.question(serializer.context['answer_type']),
+                answer=data[serializer.context['answer_type']],
             )
         data['id'] = scheme_account.id
         return Response(data, status=status.HTTP_201_CREATED,
@@ -211,7 +195,7 @@ class ActiveSchemeAccountAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(status=SchemeAccount.ACTIVE)
+        return SchemeAccount.objects.filter(status=SchemeAccount.ACTIVE)
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -225,7 +209,7 @@ class SystemActionSchemeAccounts(ListAPIView):
     authentication_classes = (ServiceAuthentication,)
 
     def get_queryset(self):
-        return SchemeAccount.active_objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
+        return SchemeAccount.objects.filter(status__in=SchemeAccount.SYSTEM_ACTION_REQUIRED)
 
     serializer_class = SchemeAccountIdsSerializer
     pagination_class = Pagination
@@ -239,7 +223,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     serializer_class = SchemeAccountCredentialsSerializer
 
     def get_queryset(self):
-        queryset = SchemeAccount.active_objects
+        queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
             queryset = queryset.filter(user=self.request.user)
         return queryset
@@ -258,7 +242,3 @@ class SchemeAccountStatusData(ListAPIView):
         return queryset
 
     serializer_class = SchemeAccountSummarySerializer
-
-
-def json_error_response(message, code):
-    return Response({"message": message, "code": code}, status=code)

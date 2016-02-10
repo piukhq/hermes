@@ -44,6 +44,10 @@ CORS_ORIGIN_WHITELIST = (
     "local.chingweb.chingrewards.com",
     "dev.chingweb.loyaltyangels.local",
     "local.chingweb.chingrewards.com:8000",
+    "dev.api.chingrewards.com",
+    "staging.api.chingrewards.com",
+    "api.chingrewards.com",
+    "dev.docs.loyaltyangels.local",
 )
 
 
@@ -156,6 +160,8 @@ AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 
 SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
 
+HASH_ID_SALT = '95429791eee6a6e12d11a5a23d920969f7b1a94d'
+
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 
 FACEBOOK_CLIENT_SECRET = env_var('FACEBOOK_CLIENT_SECRET', '5da7b80e9e0e25d24097515eb7d506da')
@@ -191,7 +197,7 @@ LOGGING = {
         },
         'gelf': {
             'class': 'graypy.GELFHandler',
-            'host': '192.168.1.53',
+            'host': env_var('GRAYLOG_HOST'),
             'port': 12201,
         },
     },
@@ -248,6 +254,7 @@ SWAGGER_SETTINGS = {
     },
 }
 
+SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
     # from django.test import SimpleTestCase

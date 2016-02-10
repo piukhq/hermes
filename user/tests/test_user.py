@@ -4,14 +4,14 @@ from django.contrib.auth import authenticate
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
-from user.models import CustomUser
+from user.models import CustomUser, Referral, hash_ids, valid_promo_code
 from user.tests.factories import UserFactory, UserProfileFactory, fake
 from rest_framework.test import APITestCase
 from unittest import mock
 from user.views import facebook_login, twitter_login, social_login
 
 
-class TestRegisterNewUser(TestCase):
+class TestRegisterNewUserViews(TestCase):
     def test_register(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password1'})
@@ -45,7 +45,7 @@ class TestRegisterNewUser(TestCase):
 
     def test_no_email(self):
         client = Client()
-        response = client.post('/users/register/', {'password': 'password'})
+        response = client.post('/users/register/', {'password': 'password', 'promo_code': ''})
         self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
         self.assertEqual(list(content.keys()), ['email'])
@@ -81,6 +81,13 @@ class TestRegisterNewUser(TestCase):
         self.assertEqual(content['email'], ['This field is required.'])
         self.assertEqual(content['password'], ['This field is required.'])
 
+    def test_bad_bad_promo_code(self):
+        client = Client()
+        response = client.post('/users/register/', {'email': 't4@example.com', 'password': 'pasd4', 'promo_code': '4'})
+        self.assertEqual(response.status_code, 400)
+        content = json.loads(response.content.decode())
+        self.assertEqual(content['promo_code'], ['Promo code is not valid'])
+
     def test_existing_email(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
@@ -104,22 +111,30 @@ class TestRegisterNewUser(TestCase):
         self.assertIn("api_key", response.data)
 
 
-class TestUserProfile(TestCase):
-    def test_empty_profile(self):
-        client = Client()
-        email = 'empty_profile@example.com'
-        response = client.post('/users/register/', {'email': email, 'password': 'password1'})
-        self.assertEqual(response.status_code, 201)
+class TestPromoCodeViews(TestCase):
+    def test_promo_code(self):
+        user = UserFactory()
+        response = self.client.post('/users/promo_code', {'promo_code': hash_ids.encode(user.id)})
         content = json.loads(response.content.decode())
-        token = content['api_key']
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + token
-        }
+        self.assertTrue(content['valid'])
 
+    def test_promo_code_bad(self):
+        response = self.client.post('/users/promo_code', {'promo_code': 44})
+        content = json.loads(response.content.decode())
+        self.assertFalse(content['valid'])
+
+
+class TestUserProfileViews(TestCase):
+    def test_empty_profile(self):
+        user = UserFactory()
+        client = Client()
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + user.create_token()
+        }
         response = client.get('/users/me', content_type='application/json', **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['email'], email)
+        self.assertEqual(content['email'], user.email)
         self.assertEqual(content['first_name'], None)
         self.assertEqual(content['last_name'], None)
         self.assertEqual(content['date_of_birth'], None)
@@ -132,6 +147,7 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['country'], None)
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content['referral_code'], user.referral_code)
 
     def test_full_update(self):
         # Create User
@@ -179,6 +195,7 @@ class TestUserProfile(TestCase):
             'region': user_profile.region,
             'postcode': user_profile.postcode,
             'country': user_profile.country,
+            'gender': user_profile.gender
         }
         auth_headers = {
             'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
@@ -201,6 +218,7 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content['gender'], user_profile.gender)
 
         # Test that adding a new field does not blank existing fields
         data = {
@@ -377,11 +395,11 @@ class TestUserProfile(TestCase):
         self.assertEqual(content['pass_code'], '')
 
 
-class TestAuthentication(APITestCase):
+class TestAuthenticationViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.user = UserFactory()
-        super(TestAuthentication, cls).setUpClass()
+        super().setUpClass()
 
     def test_local_login_valid(self):
         data = {
@@ -468,7 +486,7 @@ class TestTwitterLogin(APITestCase):
     def test_twitter_login_app(self, twitter_login_mock):
         twitter_login_mock.return_value = HttpResponse()
         self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
-        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234'))
+        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234', None))
 
     @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
@@ -478,7 +496,7 @@ class TestTwitterLogin(APITestCase):
         mock_social_login.return_value = (201, user)
         httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
                                body=json.dumps({'id_str': twitter_id}), content_type="application/json")
-        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
+        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb", None)
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['email'], user.email)
 
@@ -511,7 +529,9 @@ class TestFacebookLogin(APITestCase):
                                body=json.dumps({'id': '1122'}), content_type="application/json")
         response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data, {'error': 'user_id is invalid for given access token'})
+        self.assertEqual(response.data['message'], 'user_id is invalid for given access token')
+        self.assertEqual(response.data['name'], 'FACEBOOK_INVALID_USER')
+        self.assertEqual(response.data['code'], 403)
 
     @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
@@ -530,35 +550,63 @@ class TestSocialLogin(APITestCase):
     def test_social_login_exists(self):
         facebook_id = 'O7bz6vG60Y'
         created_user = UserFactory(facebook=facebook_id)
-        status, user = social_login(facebook_id, None, 'facebook')
+        status, user = social_login(facebook_id, None, 'facebook', None)
         self.assertEqual(status, 200)
         self.assertEqual(created_user, user)
 
     def test_social_login_exists_no_email(self):
         facebook_id = 'O7bz6vG60Y'
         UserFactory(facebook=facebook_id, email=None)
-        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
+        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook', None)
         self.assertEqual(status, 200)
         self.assertEqual(user.email, 'frank@sea.com')
 
     def test_social_login_not_linked(self):
         user = UserFactory()
         twitter_id = '3456bz23466vG'
-        status, user = social_login(twitter_id, user.email, 'twitter')
+        status, user = social_login(twitter_id, user.email, 'twitter', None)
         self.assertEqual(status, 200)
         self.assertEqual(user.twitter, twitter_id)
 
     def test_social_login_no_user(self):
         twitter_id = '6u111bzUNL'
         twitter_email = 'bob@sea.com'
-        status, user = social_login(twitter_id, twitter_email, 'twitter')
+        status, user = social_login(twitter_id, twitter_email, 'twitter', None)
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, twitter_email)
 
     def test_social_login_no_user_no_email(self):
         twitter_id = 'twitter_email'
-        status, user = social_login(twitter_id, None, 'twitter')
+        status, user = social_login(twitter_id, None, 'twitter', None)
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, None)
+
+
+class TestUserModel(TestCase):
+    def test_create_referral(self):
+        user = UserFactory()
+        user_2 = UserFactory()
+        user_2.create_referral(user.referral_code)
+        self.assertTrue(Referral.objects.filter(referrer=user, recipient=user_2).exists())
+
+    def test_valid_promo_code(self):
+        user = UserFactory()
+        self.assertTrue(valid_promo_code(hash_ids.encode(user.id)))
+
+    def test_valid_promo_code_bad(self):
+        self.assertFalse(valid_promo_code(''))
+        self.assertFalse(valid_promo_code(None))
+        self.assertFalse(valid_promo_code(3457987))
+
+
+class TestCustomUserManager(TestCase):
+    @mock.patch.object(CustomUser, 'create_referral', auto_spec=True)
+    def test_create_user(self, mock_create_referral):
+        password = '234'
+        user = CustomUser.objects._create_user('test@sdf.com', password, promo_code='wer',
+                                               is_staff=False, is_superuser=False)
+
+        self.assertTrue(mock_create_referral.called)
+        self.assertNotEqual(user.password, password)

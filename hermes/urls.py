@@ -8,5 +8,5 @@ urlpatterns = [
     url(r'^schemes', include('scheme.urls')),
     url(r'^payment_cards', include('payment_card.urls')),
     url(r'^order', include('order.urls')),
-    url(r'^docs/', include('rest_framework_swagger.urls')),
+    url(r'^docs/hermes/?', include('rest_framework_swagger.urls')),
 ]

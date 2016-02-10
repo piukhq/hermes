@@ -4,10 +4,11 @@ from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail
+from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code
 
 
 class RegisterSerializer(serializers.Serializer):
+    promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
@@ -15,7 +16,9 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         email = validated_data['email']
         password = validated_data['password']
-        return CustomUser.objects.create_user(email, password)
+        promo_code = validated_data.get('promo_code')
+        user = CustomUser.objects.create_user(email, password, promo_code)
+        return user
 
     def validate_email(self, value):
         email = CustomUser.objects.normalize_email(value)
@@ -23,11 +26,21 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("That user already exists")
         return email
 
+    def validate_promo_code(self, value):
+        if value and not valid_promo_code(value):
+            raise serializers.ValidationError("Promo code is not valid")
+        return value
+
     def to_representation(self, instance):
         ret = OrderedDict()
         ret['email'] = instance.email
         ret['api_key'] = instance.create_token()
         return ret
+
+
+class PromoCodeSerializer(serializers.Serializer):
+    promo_code = serializers.CharField(write_only=True)
+    valid = serializers.BooleanField(read_only=True)
 
 
 class LoginSerializer(serializers.Serializer):
@@ -49,7 +62,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserDetail
         date_of_birth = serializers.DateField(required=False, allow_null=True)
         fields = ('first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1', 'address_line_2', 'city',
-                  'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency')
+                  'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency', 'gender')
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -80,17 +93,20 @@ class UserSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source='profile.phone', required=False, allow_blank=True)
     address_line_1 = serializers.CharField(source='profile.address_line_1', required=False, allow_blank=True)
     address_line_2 = serializers.CharField(source='profile.address_line_2', required=False, allow_blank=True)
+    gender = serializers.ChoiceField(source='profile.gender', required=False, allow_blank=True, choices=GENDERS)
     city = serializers.CharField(source='profile.city', required=False, allow_blank=True)
     region = serializers.CharField(source='profile.region', required=False, allow_blank=True)
     postcode = serializers.CharField(source='profile.postcode', required=False, allow_blank=True)
     country = serializers.CharField(source='profile.country', required=False, allow_blank=True)
     notifications = serializers.IntegerField(source='profile.notifications', required=False, allow_null=True)
     pass_code = serializers.CharField(source='profile.pass_code', required=False, allow_blank=True)
+    referral_code = serializers.ReadOnlyField()
 
     class Meta:
         model = CustomUser
         fields = ('uid', 'email', 'first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1',
-                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', )
+                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', 'gender',
+                  'referral_code')
 
 
 class SchemeAccountsSerializer(serializers.ModelSerializer):
@@ -121,9 +137,16 @@ class FaceBookWebRegisterSerializer(serializers.Serializer):
     redirectUri = serializers.CharField(max_length=120)
 
 
-class SocialRegisterSerializer(serializers.Serializer):
+class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
+
+
+class TwitterRegisterSerializer(serializers.Serializer):
+    access_token_secret = serializers.CharField(max_length=600)
+    access_token = serializers.CharField(max_length=120)
+    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
 
 
 class ResponseAuthSerializer(serializers.Serializer):

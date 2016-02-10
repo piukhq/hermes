@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from scheme.credentials import CREDENTIAL_TYPES
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer
 
 
@@ -8,28 +10,34 @@ class SchemeImageSerializer(serializers.ModelSerializer):
         exclude = ('scheme',)
 
 
-class SchemeQuestionSerializer(serializers.ModelSerializer):
+class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme',)
+        exclude = ('scheme', 'manual_question', 'scan_question')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
-    questions = SchemeQuestionSerializer(many=True, read_only=True)
+    link_questions = serializers.SerializerMethodField()
+    manual_question = QuestionSerializer()
+    scan_question = QuestionSerializer()
 
     class Meta:
         model = Scheme
+        exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+
+    def get_link_questions(self, obj):
+        serializer = QuestionSerializer(obj.link_questions, many=True)
+        return serializer.data
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
-    is_barcode = serializers.ReadOnlyField()
-
     class Meta:
         model = Scheme
+        exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
 
-class LinkSchemeSerializer(serializers.Serializer):
+class SchemeAnswerSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=250, required=False)
     card_number = serializers.CharField(max_length=250, required=False)
     barcode = serializers.CharField(max_length=250, required=False)
@@ -42,81 +50,56 @@ class LinkSchemeSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=250, required=False)
     favourite_place = serializers.CharField(max_length=250, required=False)
 
-    def validate(self, data):
-        # Validate scheme account
-        try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        data['scheme_account'] = scheme_account
 
-        # Validate no Primary answer
-        primary_question_type = scheme_account.scheme.primary_question.type
-        if primary_question_type in data:
-            raise serializers.ValidationError("Primary answer cannot be submitted to this endpoint")
+class LinkSchemeSerializer(SchemeAnswerSerializer):
+    def validate(self, data):
+        # Validate no manual answer
+        manual_question_type = self.context['scheme_account'].scheme.manual_question.type
+        if manual_question_type in data:
+            raise serializers.ValidationError("Manual answer cannot be submitted to this endpoint")
 
         # Validate credentials existence
-        question_types = [answer_type for answer_type, value in data.items()] + [primary_question_type, ]
-        missing_credentials = scheme_account.missing_credentials(question_types)
+        question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+        missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
                 "All the required credentials have not been submitted: {0}".format(missing_credentials))
         return data
 
 
-class UpdateLinkSchemeSerializer(LinkSchemeSerializer):
-    primary_answer = serializers.CharField(required=False)
-
-    def validate(self, data):        # Validate scheme account
-        try:
-            scheme_account = SchemeAccount.objects.get(id=self.context['pk'], user=self.context['user'])
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(self.context['pk']))
-        data['scheme_account'] = scheme_account
-
-        # Primary Answer Stuff
-        try:
-            scheme = SchemeAccount.objects.get(id=self.context['pk']).scheme
-            data['primary_answer_type'] = scheme.primary_question.type
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme account '{0}' does not exist".format(data['scheme']))
-
-        primary_question_type = scheme_account.scheme.primary_question.type
-        if primary_question_type in data and data.get('primary_answer'):
-            raise serializers.ValidationError("Primary answer {0} cannot be included twice in one request.")
-
-        return data
-
-
-class SchemeAccountSerializer(serializers.Serializer):
-    order = serializers.IntegerField(default=0, required=False)
-    primary_answer = serializers.CharField()
-
-    @staticmethod
-    def check_unique_scheme(user, scheme):
-        scheme_accounts = SchemeAccount.active_objects.filter(user=user, scheme=scheme).exists()
-        if scheme_accounts:
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
-
-
-class CreateSchemeAccountSerializer(SchemeAccountSerializer):
+class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     scheme = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
-    primary_answer_type = serializers.CharField(read_only=True)
 
     def validate(self, data):
         try:
             scheme = Scheme.objects.get(pk=data['scheme'])
-            data['primary_answer_type'] = scheme.primary_question.type
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        self.check_unique_scheme(self._context['request'].user, scheme)
+        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme).exists()
+        if scheme_accounts:
+            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
+
+        answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
+        if len(answer_types) != 1:
+            raise serializers.ValidationError("You must submit one scan or manual question answer")
+
+        answer_type = answer_types.pop()
+        self.context['answer_type'] = answer_type
+        # only allow one credential
+        if answer_type not in self.allowed_answers(scheme):
+            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
         return data
 
-
-class UpdateSchemeAccountSerializer(SchemeAccountSerializer):
-    primary_answer = serializers.CharField(required=False)
+    @staticmethod
+    def allowed_answers(scheme):
+        allowed_types = []
+        if scheme.manual_question:
+            allowed_types.append(scheme.manual_question.type)
+        if scheme.scan_question:
+            allowed_types.append(scheme.scan_question.type)
+        return allowed_types
 
 
 class BalanceSerializer(serializers.Serializer):
@@ -141,25 +124,24 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
-    primary_answer_id = serializers.IntegerField()
     scheme = SchemeSerializerNoQuestions(read_only=True)
     action_status = serializers.ReadOnlyField()
-    answers = ReadSchemeAccountAnswerSerializer(many=True, read_only=True)
+    barcode = serializers.ReadOnlyField()
+    card_label = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated',)
+        exclude = ('updated', 'is_deleted')
         read_only_fields = ('status', )
 
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
-    primary_answer = ReadSchemeAccountAnswerSerializer(read_only=True)
     status_name = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'primary_answer', 'action_status', 'status_name')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name')
 
 
 class StatusSerializer(serializers.Serializer):
