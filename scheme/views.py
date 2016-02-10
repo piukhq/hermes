@@ -31,6 +31,7 @@ class SchemesList(ListAPIView):
     """
     Retrieve a list of loyalty schemes.
     """
+    authentication_classes = (JwtAuthentication, ServiceAuthentication)
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
