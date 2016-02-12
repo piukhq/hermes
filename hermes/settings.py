@@ -31,6 +31,10 @@ SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_var("HERMES_DEBUG", False)
 
+CSRF_TRUSTED_ORIGINS = [
+    ".chingrewards.com",
+]
+
 ALLOWED_HOSTS = [
     "127.0.0.1",
     ".chingrewards.com"
