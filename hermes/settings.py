@@ -258,6 +258,11 @@ SWAGGER_SETTINGS = {
     },
 }
 
+SWAGGER_BASE_PATH = env_var('SWAGGER_BASE_PATH')
+if SWAGGER_BASE_PATH:
+    SWAGGER_SETTINGS['base_path'] = SWAGGER_BASE_PATH
+
+
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
