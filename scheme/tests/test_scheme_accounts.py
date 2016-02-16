@@ -102,6 +102,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(response.data[0]['scheme']['name'], self.scheme.name)
         self.assertEqual(response.data[0]['status_name'], 'Active')
+        self.assertIn('barcode', response.data[0])
+        self.assertIn('card_label', response.data[0])
         self.assertNotIn('barcode_regex', response.data[0]['scheme'])
 
     def test_wallet_only(self):
