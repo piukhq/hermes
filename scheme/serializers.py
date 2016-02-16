@@ -138,10 +138,12 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions()
     status_name = serializers.ReadOnlyField()
+    barcode = serializers.ReadOnlyField()
+    card_label = serializers.ReadOnlyField()
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name')
+        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name', 'barcode', 'card_label')
 
 
 class StatusSerializer(serializers.Serializer):
