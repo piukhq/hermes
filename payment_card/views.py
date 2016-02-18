@@ -1,3 +1,5 @@
+from django.http import JsonResponse
+from django.views.generic import View
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
@@ -6,6 +8,7 @@ from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSe
     PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
 from rest_framework.response import Response
 from rest_framework import status
+from scheme.models import Scheme, SchemeAccount
 from user.authentication import JwtAuthentication, ServiceAuthentication
 
 
@@ -72,3 +75,21 @@ class RetrievePaymentCardSchemeAccounts(ListAPIView):
         token = self.kwargs.get('token')
         data = payment_card_scheme_accounts(token)
         return data
+
+
+class RetrieveLoyaltyID(View):
+    authentication_classes = ServiceAuthentication,
+
+    def post(self, request):
+        response_data = []
+        payment_card_tokens = request.POST.getlist('payment_cards')
+        scheme_slug = request.POST['scheme']
+        scheme = Scheme.objects.get(slug=scheme_slug)
+        for payment_card_token in payment_card_tokens:
+            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
+            if payment_card:
+                scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                response_data.append({payment_card.token: scheme_account.third_party_identifier})
+            else:
+                response_data.append({payment_card.token: None})
+        return JsonResponse(response_data, safe=False)
