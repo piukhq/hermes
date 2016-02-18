@@ -66,7 +66,7 @@ class PaymentCardAccount(models.Model):
     expiry_year = models.IntegerField()
     currency_code = models.CharField(max_length=3)
     country = models.CharField(max_length=40)
-    token = models.CharField(max_length=255)
+    token = models.CharField(max_length=255, db_index=True)
     pan_start = models.CharField(max_length=6)
     pan_end = models.CharField(max_length=6)
     status = models.IntegerField(default=PENDING, choices=STATUSES)

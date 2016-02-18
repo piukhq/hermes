@@ -77,15 +77,19 @@ class RetrievePaymentCardSchemeAccounts(ListAPIView):
         return data
 
 
-class RetrieveLoyaltyIDs(View):
+class RetrieveLoyaltyID(View):
     authentication_classes = ServiceAuthentication,
 
     def post(self, request):
         response_data = []
-        payment_cards = [PaymentCardAccount.objects.get(token=pc) for pc in request.POST.getlist('payment_cards')]
+        payment_card_tokens = request.POST.getlist('payment_cards')  #[PaymentCardAccount.objects.get(token=pc) for pc in request.POST.getlist('payment_cards')]
         scheme_slug = request.POST['scheme']
         scheme = Scheme.objects.get(slug=scheme_slug)
-        for payment_card in payment_cards:
-            scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
-            response_data.append({payment_card.token: scheme_account.third_party_identifier})
+        for payment_card_token in payment_card_tokens:
+            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
+            if payment_card:
+                scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                response_data.append({payment_card.token: scheme_account.third_party_identifier})
+            else:
+                response_data.append({payment_card.token: None})
         return JsonResponse(response_data, safe=False)

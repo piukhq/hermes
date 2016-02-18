@@ -308,9 +308,12 @@ class SchemeAccount(models.Model):
 
     @property
     def third_party_identifier(self):
-        question = SchemeCredentialQuestion.objects.get(third_party_identifier=True, scheme=self.scheme)
-        answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=self, question=question).answer
-        return answer
+        question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True, scheme=self.scheme).first()
+        if question:
+            answer = SchemeAccountCredentialAnswer.objects.filter(scheme_account=self, question=question).first()
+            if answer:
+                return answer.answer
+        return None
 
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
