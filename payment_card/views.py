@@ -82,7 +82,7 @@ class RetrieveLoyaltyID(View):
 
     def post(self, request):
         response_data = []
-        payment_card_tokens = request.POST.getlist('payment_cards')  #[PaymentCardAccount.objects.get(token=pc) for pc in request.POST.getlist('payment_cards')]
+        payment_card_tokens = request.POST.getlist('payment_cards')
         scheme_slug = request.POST['scheme']
         scheme = Scheme.objects.get(slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
