@@ -306,6 +306,12 @@ class SchemeAccount(models.Model):
         elif self.status == self.PENDING:
             return 'PENDING'
 
+    @property
+    def third_party_identifier(self):
+        question = SchemeCredentialQuestion.objects.get(third_party_identifier=True, scheme=self.scheme)
+        answer = SchemeAccountCredentialAnswer.objects.get(scheme_account=self, question=question).answer
+        return answer
+
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
@@ -318,6 +324,7 @@ class SchemeCredentialQuestion(models.Model):
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
+    third_party_identifier = models.BooleanField(default=False)
 
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
