@@ -1,9 +1,8 @@
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.views.generic import View
-from rest_framework.views import APIView
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, GenericAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
     PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
@@ -90,5 +89,3 @@ class RetrieveLoyaltyIDs(View):
             scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
             response_data.append({payment_card.token: scheme_account.third_party_identifier})
         return JsonResponse(response_data, safe=False)
-
-

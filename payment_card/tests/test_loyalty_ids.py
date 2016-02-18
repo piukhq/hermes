@@ -13,14 +13,13 @@ class TestRetrieveLoyaltyID(APITestCase):
         cls.user_2 = user_factories.UserFactory()
 
         cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_1,
-                                                                                    token='1122**33')
+                                                                                      token='1122**33')
         cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_2,
-                                                                                    token='3322**11')
+                                                                                      token='3322**11')
 
         cls.scheme_account_1 = scheme_factories.SchemeAccountFactory(user=cls.user_1)
         cls.scheme = cls.scheme_account_1.scheme
         cls.scheme_account_2 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme, user=cls.user_2)
-
 
         cls.scheme_question = scheme_factories.SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                                                third_party_identifier=True)
