@@ -30,8 +30,8 @@
       "scheme": 4,
       "order": 0,
       "type": "barcode",
-      "label": "Barcode Number",
-      "manual_question": false,
+      "label": "barcode or card number",
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -76,7 +76,7 @@
     "pk": 7,
     "fields": {
       "scheme": 20,
-      "order": 1,
+      "order": 2,
       "type": "password",
       "label": "PIN or Password",
       "manual_question": false,
@@ -163,7 +163,7 @@
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -259,7 +259,7 @@
       "order": 0,
       "type": "barcode",
       "label": "Barcode Number",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -270,7 +270,7 @@
       "scheme": 49,
       "order": 0,
       "type": "barcode",
-      "label": "Barcode",
+      "label": "Barcode/CardNumber",
       "manual_question": true,
       "scan_question": true
     }
@@ -306,8 +306,8 @@
       "scheme": 2,
       "order": 0,
       "type": "barcode",
-      "label": "Barcode Number (Ignore the QR code)",
-      "manual_question": false,
+      "label": "Barcode Number",
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -353,10 +353,10 @@
     "fields": {
       "scheme": 66,
       "order": 0,
-      "type": "card_number",
-      "label": "card number",
+      "type": "barcode",
+      "label": "Barcode/Card Number",
       "manual_question": true,
-      "scan_question": false
+      "scan_question": true
     }
   },
   {
@@ -439,7 +439,7 @@
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -523,7 +523,7 @@
       "order": 0,
       "type": "barcode",
       "label": "barcode",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -877,25 +877,13 @@
   },
   {
     "model": "scheme.schemecredentialquestion",
-    "pk": 75,
-    "fields": {
-      "scheme": 67,
-      "order": 0,
-      "type": "barcode",
-      "label": "barcode",
-      "manual_question": true,
-      "scan_question": true
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
     "pk": 76,
     "fields": {
       "scheme": 67,
       "order": 1,
       "type": "email",
       "label": "email",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": false
     }
   },
@@ -1386,8 +1374,8 @@
       "scheme": 88,
       "order": 0,
       "type": "barcode",
-      "label": "barcode",
-      "manual_question": false,
+      "label": "Barcode/CardNumberGood",
+      "manual_question": true,
       "scan_question": true
     }
   },
@@ -1861,6 +1849,18 @@
   },
   {
     "model": "scheme.schemecredentialquestion",
+    "pk": 158,
+    "fields": {
+      "scheme": 6,
+      "order": 2,
+      "type": "password",
+      "label": "Password",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
     "pk": 159,
     "fields": {
       "scheme": 97,
@@ -1999,7 +1999,7 @@
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "manual_question": true,
+      "manual_question": false,
       "scan_question": false
     }
   },
@@ -2035,7 +2035,7 @@
       "order": 0,
       "type": "card_number",
       "label": "Card number",
-      "manual_question": false,
+      "manual_question": true,
       "scan_question": false
     }
   },
@@ -2104,7 +2104,7 @@
     "pk": 179,
     "fields": {
       "scheme": 20,
-      "order": 2,
+      "order": 1,
       "type": "username",
       "label": "Membership no. or Username",
       "manual_question": false,
@@ -2143,18 +2143,6 @@
       "order": 1,
       "type": "password",
       "label": "password",
-      "manual_question": false,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 183,
-    "fields": {
-      "scheme": 6,
-      "order": 2,
-      "type": "password",
-      "label": "Password",
       "manual_question": false,
       "scan_question": false
     }
@@ -2238,7 +2226,7 @@
       "scheme": 60,
       "order": 0,
       "type": "barcode",
-      "label": "Barcode",
+      "label": "Barcode/CardNumber",
       "manual_question": true,
       "scan_question": true
     }
@@ -2285,8 +2273,8 @@
     "fields": {
       "scheme": 70,
       "order": 0,
-      "type": "username",
-      "label": "Username",
+      "type": "email",
+      "label": "Email Address",
       "manual_question": true,
       "scan_question": false
     }
@@ -2347,8 +2335,8 @@
       "order": 0,
       "type": "barcode",
       "label": "Barcode",
-      "manual_question": false,
-      "scan_question": false
+      "manual_question": true,
+      "scan_question": true
     }
   },
   {
@@ -2379,17 +2367,65 @@
     "model": "scheme.schemecredentialquestion",
     "pk": 202,
     "fields": {
+      "scheme": 106,
+      "order": 0,
+      "type": "email",
+      "label": "Email",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 203,
+    "fields": {
+      "scheme": 106,
+      "order": 1,
+      "type": "password",
+      "label": "Password",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 204,
+    "fields": {
+      "scheme": 107,
+      "order": 0,
+      "type": "username",
+      "label": "Skymiles number or Username",
+      "manual_question": true,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 205,
+    "fields": {
+      "scheme": 107,
+      "order": 1,
+      "type": "password",
+      "label": "Password",
+      "manual_question": false,
+      "scan_question": false
+    }
+  },
+  {
+    "model": "scheme.schemecredentialquestion",
+    "pk": 206,
+    "fields": {
       "scheme": 61,
       "order": 0,
       "type": "barcode",
-      "label": "Barcode Number",
+      "label": "barcode / card number",
       "manual_question": true,
       "scan_question": true
     }
   },
   {
     "model": "scheme.schemecredentialquestion",
-    "pk": 203,
+    "pk": 207,
     "fields": {
       "scheme": 61,
       "order": 1,
@@ -2401,7 +2437,7 @@
   },
   {
     "model": "scheme.schemecredentialquestion",
-    "pk": 204,
+    "pk": 208,
     "fields": {
       "scheme": 61,
       "order": 2,
@@ -2413,110 +2449,14 @@
   },
   {
     "model": "scheme.schemecredentialquestion",
-    "pk": 205,
-    "fields": {
-      "scheme": 17,
-      "order": 0,
-      "type": "card_number",
-      "label": "card number",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 206,
-    "fields": {
-      "scheme": 14,
-      "order": 0,
-      "type": "card_number",
-      "label": "Card umber",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 207,
-    "fields": {
-      "scheme": 20,
-      "order": 0,
-      "type": "barcode",
-      "label": "Barcode",
-      "manual_question": false,
-      "scan_question": true
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 208,
-    "fields": {
-      "scheme": 4,
-      "order": 3,
-      "type": "card_number",
-      "label": "card number",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
     "pk": 209,
     "fields": {
-      "scheme": 51,
-      "order": 3,
-      "type": "card_number",
-      "label": "Card number",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 210,
-    "fields": {
-      "scheme": 2,
+      "scheme": 5,
       "order": 0,
-      "type": "card_number",
-      "label": "Card number",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 211,
-    "fields": {
-      "scheme": 66,
-      "order": 3,
       "type": "barcode",
-      "label": "Barcode",
-      "manual_question": false,
+      "label": "Barcode Number",
+      "manual_question": true,
       "scan_question": true
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 212,
-    "fields": {
-      "scheme": 77,
-      "order": 3,
-      "type": "card_number",
-      "label": "Card number",
-      "manual_question": true,
-      "scan_question": false
-    }
-  },
-  {
-    "model": "scheme.schemecredentialquestion",
-    "pk": 213,
-    "fields": {
-      "scheme": 88,
-      "order": 3,
-      "type": "card_number",
-      "label": "Card number",
-      "manual_question": true,
-      "scan_question": false
     }
   }
 ]
