@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.views.generic import View
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
 from payment_card.models import PaymentCardAccount, PaymentCard
 from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
     PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
@@ -80,11 +80,10 @@ class RetrievePaymentCardSchemeAccounts(ListAPIView):
 class RetrieveLoyaltyID(View):
     authentication_classes = ServiceAuthentication,
 
-    def post(self, request):
+    def post(self, request, scheme_slug):
         response_data = []
         payment_card_tokens = request.POST.getlist('payment_cards')
-        scheme_slug = request.POST['scheme']
-        scheme = Scheme.objects.get(slug=scheme_slug)
+        scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
             payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
             if payment_card:
