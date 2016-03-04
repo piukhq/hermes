@@ -30,6 +30,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
+    reset_token = models.CharField(max_length=255, null=True, blank=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -48,6 +49,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     @property
     def referral_code(self):
         return hash_ids.encode(self.id)
+
+    def generate_reset_token(self):
+        expiry_date = arrow.utcnow()
+        expiry_date.replace(hours=+3)
+        payload = {
+            'email': self.email,
+            'expiry_data': expiry_date.timestamp
+        }
+        reset_token = jwt.encode(payload, settings.TOKEN_SECRET)
+        self.reset_token = reset_token
+        self.save()
+        return reset_token
 
     def create_referral(self, referral_code):
         referrer_id = hash_ids.decode(referral_code)[0]
@@ -135,3 +148,13 @@ class Referral(models.Model):
 def create_user_detail(sender, instance, created, **kwargs):
     if created:
         UserDetail.objects.create(user=instance)
+
+
+def valid_reset_code(reset_token):
+    try:
+        CustomUser.objects.get(reset_token=reset_token)
+        return True
+    except CustomUser.DoesNotExist:
+        return False
+    except CustomUser.MultipleObjectsReturned:
+        return False

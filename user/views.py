@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from requests_oauthlib import OAuth1Session
 from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
                                      get_object_or_404)
+from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -13,11 +14,12 @@ from rest_framework.authentication import SessionAuthentication
 
 from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS, \
     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE
-from user.models import CustomUser, valid_promo_code
+from user.models import CustomUser, valid_promo_code, valid_reset_code
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
-                              PromoCodeSerializer, TwitterRegisterSerializer)
+                              PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
+                              ResetTokenSerializer)
 
 
 class ForgottenPassword:
@@ -59,12 +61,41 @@ class ValidatePromoCode(CreateAPIView):
         return Response(out_serializer.data)
 
 
+class ValidateResetToken(CreateAPIView):
+    """
+    Validate reset token
+    """
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = ResetTokenSerializer
+
+    def post(self, request, *args, **kwargs):
+        reset_token = request.data['token']
+        if not valid_reset_code(reset_token):
+            return Response(status=404)
+        out_serializer = ResetTokenSerializer({'valid': valid_promo_code(reset_token)})
+        return Response(out_serializer.data)
+
+
 class ResetPassword(UpdateAPIView):
     serializer_class = ResetPasswordSerializer
 
     def get_object(self):
         obj = get_object_or_404(CustomUser, id=self.request.user.id)
         self.check_object_permissions(self.request, obj)
+        return obj
+
+
+class ForgotPassword(CreateAPIView, UpdateModelMixin):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = ForgottenPasswordSerializer
+
+    def post(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def get_object(self):
+        obj = get_object_or_404(CustomUser, email=self.request.data['email'])
         return obj
 
 
@@ -239,6 +270,22 @@ class TwitterLogin(CreateAPIView):
         return twitter_login(request.data['access_token'], request.data['access_token_secret'],
                              request.data.get('promo_code'))
 
+
+class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = ResetTokenSerializer
+
+    def post(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def get_object(self):
+        reset_token = self.request.data['token']
+        obj = get_object_or_404(CustomUser, reset_token=reset_token)
+        if not valid_reset_code(reset_token):
+            return Response(status=404)
+
+        return obj
 
 def facebook_login(access_token, promo_code=None):
     params = {"access_token": access_token, "fields": "email,name,id"}
