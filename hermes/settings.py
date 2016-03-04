@@ -167,6 +167,7 @@ SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
 HASH_ID_SALT = '95429791eee6a6e12d11a5a23d920969f7b1a94d'
 
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
+LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 
 FACEBOOK_CLIENT_SECRET = env_var('FACEBOOK_CLIENT_SECRET', '5da7b80e9e0e25d24097515eb7d506da')
 
