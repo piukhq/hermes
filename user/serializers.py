@@ -50,7 +50,6 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
-    token = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def update(self, instance, validated_data):
