@@ -287,6 +287,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
 
         return obj
 
+
 def facebook_login(access_token, promo_code=None):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
