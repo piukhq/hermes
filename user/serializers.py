@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from django.core.mail import send_mail
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
@@ -49,6 +50,15 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['password'])
+        instance.save()
+        return instance
+
+
+class TokenResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def update(self, instance, validated_data):
@@ -152,3 +162,25 @@ class TwitterRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
+
+
+class ForgottenPasswordSerializer(serializers.Serializer):
+    email = serializers.CharField(max_length=600)
+
+    def update(self, validated_data, instance):
+        validated_data.generate_reset_token()
+        send_mail('Subject i', 'Here is the message.',
+                  'emailservice@loyaltyangels.com',
+                  ['ak@loyaltyangels.com'],
+                  fail_silently=False)
+        return validated_data
+
+
+class ResetTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['password'])
+        instance.save()
+        return instance

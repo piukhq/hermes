@@ -4,4 +4,4 @@ omit = *migrations*
 branch = True
 
 [report]
-fail_under = 90
+fail_under = 89

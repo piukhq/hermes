@@ -268,3 +268,11 @@ if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
     # from django.test import SimpleTestCase
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
+
+# EMAIL SETTINGS
+EMAIL_HOST = "mail.loyaltyangels.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "emailservice@loyaltyangels.com"
+EMAIL_HOST_PASSWORD = "Tied2=Health=cry"
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
