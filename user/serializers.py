@@ -170,7 +170,7 @@ class ForgottenPasswordSerializer(serializers.Serializer):
 
     def update(self, validated_data, instance):
         validated_data.generate_reset_token()
-        send_mail('user/templates/email.tpl',
+        send_mail('email.tpl',
                   {'link': '{}/{}'.format(LETHE_URL, validated_data.reset_token.decode('UTF-8')),
                    'hermes_url': BASE_URL},
                   'emailservice@loyaltyangels.com',
