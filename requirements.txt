@@ -9,6 +9,7 @@ django-colorful==1.1.0
 django-cors-headers==1.1.0
 django-rest-swagger==0.3.5
 djangorestframework==3.2.3
+django-mail-templated==2.6.2
 factory-boy==2.5.2
 fake-factory==0.5.2
 graypy==0.2.12

@@ -1,10 +1,10 @@
 from collections import OrderedDict
-from django.core.mail import send_mail
+from mail_templated import send_mail
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
-from hermes.settings import LETHE_URL
+from hermes.settings import LETHE_URL, BASE_URL
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code
 
@@ -170,7 +170,9 @@ class ForgottenPasswordSerializer(serializers.Serializer):
 
     def update(self, validated_data, instance):
         validated_data.generate_reset_token()
-        send_mail('Reset Bink password', '{}/{}'.format(LETHE_URL, validated_data.reset_token.decode('UTF-8')),
+        send_mail('email.tpl',
+                  {'link': '{}/{}'.format(LETHE_URL, validated_data.reset_token.decode('UTF-8')),
+                   'hermes_url': BASE_URL},
                   'emailservice@loyaltyangels.com',
                   [validated_data.email],
                   fail_silently=False)
