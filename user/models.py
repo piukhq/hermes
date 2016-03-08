@@ -160,6 +160,3 @@ def valid_reset_code(reset_token):
     token_payload = jwt.decode(reset_token, settings.TOKEN_SECRET)
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
-
-
-
