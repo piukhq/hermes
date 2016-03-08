@@ -51,11 +51,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return hash_ids.encode(self.id)
 
     def generate_reset_token(self):
-        expiry_date = arrow.utcnow()
-        expiry_date.replace(hours=+3)
+        expiry_date = arrow.utcnow().replace(hours=+3)
         payload = {
             'email': self.email,
-            'expiry_data': expiry_date.timestamp
+            'expiry_date': expiry_date.timestamp
         }
         reset_token = jwt.encode(payload, settings.TOKEN_SECRET)
         self.reset_token = reset_token
@@ -153,8 +152,14 @@ def create_user_detail(sender, instance, created, **kwargs):
 def valid_reset_code(reset_token):
     try:
         CustomUser.objects.get(reset_token=reset_token)
-        return True
     except CustomUser.DoesNotExist:
         return False
     except CustomUser.MultipleObjectsReturned:
         return False
+
+    token_payload = jwt.decode(reset_token, settings.TOKEN_SECRET)
+    expiry_date = arrow.get(token_payload['expiry_date'])
+    return expiry_date > arrow.utcnow()
+
+
+
