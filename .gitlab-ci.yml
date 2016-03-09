@@ -6,6 +6,10 @@ tests:
   services:
   - postgres:9.4.4
 
+complexity:
+  script:
+    - xenon --max-average A .
+
 flake8:
   script:
     - flake8 *
