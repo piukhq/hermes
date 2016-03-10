@@ -271,6 +271,8 @@ if env_var('HERMES_NO_DB_TEST', False):
     # from django.test import SimpleTestCase
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
 
+FILE_UPLOAD_PERMISSIONS = 0o755
+
 # EMAIL SETTINGS
 EMAIL_HOST = "mail.loyaltyangels.com"
 EMAIL_PORT = 587
