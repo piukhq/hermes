@@ -268,3 +268,5 @@ if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
     # from django.test import SimpleTestCase
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
+
+FILE_UPLOAD_PERMISSIONS = 0o755
