@@ -1,8 +1,10 @@
 from collections import OrderedDict
+from mail_templated import send_mail
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
+from hermes.settings import LETHE_URL, MEDIA_URL
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code
 
@@ -49,6 +51,15 @@ class LoginSerializer(serializers.Serializer):
 
 
 class ResetPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['password'])
+        instance.save()
+        return instance
+
+
+class TokenResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def update(self, instance, validated_data):
@@ -152,3 +163,27 @@ class TwitterRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
+
+
+class ForgottenPasswordSerializer(serializers.Serializer):
+    email = serializers.CharField(max_length=600)
+
+    def update(self, validated_data, instance):
+        validated_data.generate_reset_token()
+        send_mail('email.tpl',
+                  {'link': '{}/{}'.format(LETHE_URL, validated_data.reset_token.decode('UTF-8')),
+                   'hermes_url': MEDIA_URL},
+                  'emailservice@loyaltyangels.com',
+                  [validated_data.email],
+                  fail_silently=False)
+        return validated_data
+
+
+class ResetTokenSerializer(serializers.Serializer):
+    token = serializers.CharField(write_only=True)
+    password = serializers.CharField(write_only=True)
+
+    def update(self, instance, validated_data):
+        instance.set_password(validated_data['password'])
+        instance.save()
+        return instance

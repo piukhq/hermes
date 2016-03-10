@@ -73,6 +73,7 @@ INSTALLED_APPS = (
     'payment_card',
     'order',
     'colorful',
+    'mail_templated',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -167,6 +168,7 @@ SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
 HASH_ID_SALT = '95429791eee6a6e12d11a5a23d920969f7b1a94d'
 
 MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
+LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 
 FACEBOOK_CLIENT_SECRET = env_var('FACEBOOK_CLIENT_SECRET', '5da7b80e9e0e25d24097515eb7d506da')
 
@@ -270,3 +272,11 @@ if env_var('HERMES_NO_DB_TEST', False):
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
 
 FILE_UPLOAD_PERMISSIONS = 0o755
+
+# EMAIL SETTINGS
+EMAIL_HOST = "mail.loyaltyangels.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = "emailservice@loyaltyangels.com"
+EMAIL_HOST_PASSWORD = "Tied2=Health=cry"
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
