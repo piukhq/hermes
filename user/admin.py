@@ -13,7 +13,7 @@ class CustomUserDetail(UserAdmin):
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
-    list_display = ('email', 'uid')
+    list_display = ('email', 'uid', 'first_name', 'last_name', 'gender', 'date_of_birth', 'is_active', 'is_staff')
     list_filter = ('is_staff', )
     filter_horizontal = ()
     search_fields = ('email', 'uid')
