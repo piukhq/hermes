@@ -16,6 +16,7 @@ class TestSchemeViews(APITestCase):
 
     def test_scheme_list(self):
         SchemeCredentialQuestionFactory(manual_question=True)
+        SchemeFactory()
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200,)
@@ -23,6 +24,13 @@ class TestSchemeViews(APITestCase):
         self.assertIn('has_points', response.data[0])
         self.assertIn('has_transactions', response.data[0])
         self.assertIn('link_questions', response.data[0])
+
+        # make sure there are no schemes that don't have questions
+        for row in response.data:
+            self.assertTrue(
+                len(row['link_questions']) > 0 or
+                row['manual_question'] is not None or
+                row['scan_question'] is not None)
 
     def test_scheme_item(self):
         scheme = SchemeFactory()
