@@ -1,8 +1,5 @@
-import socket
-
 from django.conf import settings
 from django.db import models
-from django.db.models import QuerySet
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -14,6 +11,7 @@ import json
 import requests
 import uuid
 import re
+import socket
 
 
 class Category(models.Model):
