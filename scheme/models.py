@@ -1,6 +1,8 @@
 import socket
+
 from django.conf import settings
 from django.db import models
+from django.db.models import QuerySet
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -23,7 +25,12 @@ class Category(models.Model):
 
 class ActiveSchemeManager(models.Manager):
     def get_queryset(self):
-        return super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+        schemes_without_questions = []
+        for scheme in schemes:
+            if len(scheme.questions.all()) == 0:
+                schemes_without_questions.append(scheme.id)
+        return schemes.exclude(id__in=schemes_without_questions)
 
 
 class Scheme(models.Model):
