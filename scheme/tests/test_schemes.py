@@ -27,7 +27,10 @@ class TestSchemeViews(APITestCase):
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
-            self.assertIsNotNone(row['manual_question'])
+            self.assertTrue(
+                len(row['link_questions']) > 0 or
+                row['manual_question'] is not None or
+                row['scan_question'] is not None)
 
     def test_scheme_item(self):
         scheme = SchemeFactory()
