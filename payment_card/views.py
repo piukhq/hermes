@@ -93,5 +93,5 @@ class RetrieveLoyaltyID(View):
                 scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
                 response_data.append({payment_card.token: scheme_account.third_party_identifier})
             else:
-                response_data.append({payment_card.token: None})
+                response_data.append({payment_card_token: None})
         return JsonResponse(response_data, safe=False)

@@ -50,3 +50,13 @@ class TestRetrieveLoyaltyID(APITestCase):
                                     content_type='application/json',
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 404)
+
+    def test_invalid_card_token(self):
+        response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format(self.scheme.slug),
+                                    json.dumps({"payment_cards": [self.payment_card_account_1.token, 99999]}),
+                                    content_type='application/json',
+                                    **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content.decode('utf-8'))
+        self.assertEqual(data, [{self.payment_card_account_1.token: self.scheme_answer_1.answer},
+                                {'99999': None}])
