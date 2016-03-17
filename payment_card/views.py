@@ -1,3 +1,4 @@
+import json
 from django.http import JsonResponse
 from django.views.generic import View
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
@@ -82,7 +83,9 @@ class RetrieveLoyaltyID(View):
 
     def post(self, request, scheme_slug):
         response_data = []
-        payment_card_tokens = request.POST.getlist('payment_cards')
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
             payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
