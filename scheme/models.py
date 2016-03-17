@@ -1,3 +1,4 @@
+import sre_constants
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_save
@@ -268,9 +269,15 @@ class SchemeAccount(models.Model):
             return None
 
         if self.scheme.card_number_regex:
-            regex_match = re.search(self.scheme.card_number_regex, barcode_answer.answer)
+            try:
+                regex_match = re.search(self.scheme.card_number_regex, barcode_answer.answer)
+            except sre_constants.error:
+                return None
             if regex_match:
-                return self.scheme.card_number_prefix + regex_match.group(1)
+                try:
+                    return self.scheme.card_number_prefix + regex_match.group(1)
+                except IndexError:
+                    return None
         return barcode_answer.answer
 
     @property
@@ -281,9 +288,15 @@ class SchemeAccount(models.Model):
 
         card_number = self.card_number_answer
         if card_number and self.scheme.barcode_regex:
-            regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+            try:
+                regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+            except sre_constants.error:
+                return None
             if regex_match:
-                return self.scheme.barcode_prefix + regex_match.group(1)
+                try:
+                    return self.scheme.barcode_prefix + regex_match.group(1)
+                except IndexError:
+                    return None
         return None
 
     @property
