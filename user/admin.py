@@ -29,7 +29,7 @@ class UserDetailInline(admin.StackedInline):
     extra = 0
 
 
-class YourModelForm(forms.ModelForm):
+class CustomUserModelForm(forms.ModelForm):
 
     jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={'readonly': 'readonly'}))
 
@@ -39,7 +39,7 @@ class YourModelForm(forms.ModelForm):
             if not kwargs.get('initial'):
                 kwargs['initial'] = {}
             kwargs['initial'].update({'jwt_token': user.create_token()})
-        super(YourModelForm, self).__init__(*args, **kwargs)
+        super(CustomUserModelForm, self).__init__(*args, **kwargs)
 
     class Meta:
         model = CustomUser
@@ -48,7 +48,7 @@ class YourModelForm(forms.ModelForm):
 
 class CustomUserDetail(UserAdmin):
 
-    form = YourModelForm
+    form = CustomUserModelForm
     inlines = (UserDetailInline, )
     ordering = ()
     fieldsets = ()
