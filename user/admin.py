@@ -33,11 +33,6 @@ class YourModelForm(forms.ModelForm):
 
     jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={'readonly': 'readonly'}))
 
-    def save(self, commit=True):
-        jwt_token = self.cleaned_data.get('extra_field', None)
-        # ...do something with extra_field here...
-        return super(YourModelForm, self).save(commit=commit)
-
     def __init__(self, *args, **kwargs):
         user = kwargs.get('instance')
         if user:
