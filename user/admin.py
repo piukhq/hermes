@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib.auth.admin import UserAdmin
 from user.models import CustomUser, UserDetail, Referral
 from django.contrib import admin
@@ -28,7 +29,31 @@ class UserDetailInline(admin.StackedInline):
     extra = 0
 
 
+class YourModelForm(forms.ModelForm):
+
+    jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={'readonly': 'readonly'}))
+
+    def save(self, commit=True):
+        jwt_token = self.cleaned_data.get('extra_field', None)
+        # ...do something with extra_field here...
+        return super(YourModelForm, self).save(commit=commit)
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.get('instance')
+        if user:
+            if not kwargs.get('initial'):
+                kwargs['initial'] = {}
+            kwargs['initial'].update({'jwt_token': user.create_token()})
+        super(YourModelForm, self).__init__(*args, **kwargs)
+
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
+
+
 class CustomUserDetail(UserAdmin):
+
+    form = YourModelForm
     inlines = (UserDetailInline, )
     ordering = ()
     fieldsets = ()
