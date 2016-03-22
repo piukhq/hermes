@@ -1,4 +1,5 @@
 import arrow
+from django.contrib.auth.password_validation import validate_password, get_password_validators
 import jwt
 from django.test import Client, TestCase
 from hermes import settings
@@ -44,3 +45,10 @@ class TestResetPassword(TestCase):
         self.user.save()
         token_is_valid = valid_reset_code(reset_token)
         self.assertEqual(token_is_valid, False)
+
+
+class TestValidatePassword(TestCase):
+    def test_password_valid(self):
+        validate_password(password='abc')
+        self.assertEqual(True, False)
+
