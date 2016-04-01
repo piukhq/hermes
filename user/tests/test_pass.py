@@ -79,5 +79,3 @@ class TestValidatePassword(TestCase):
                              'This password is invalid. It must contain a numeric character.',
                              'This password is invalid. It must contain a upper case character.']
         self.assertRaisesMessage(ValidationError, str(expected_messages), validate_password, password='abc')
-
-
