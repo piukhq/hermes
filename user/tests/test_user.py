@@ -14,21 +14,31 @@ from user.views import facebook_login, twitter_login, social_login
 class TestRegisterNewUserViews(TestCase):
     def test_register(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password1'})
+        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'Password1'})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
 
+    def test_register_fail(self):
+        client = Client()
+        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password'})
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('password', content.keys())
+        self.assertEqual(content['password'],
+                         ['This password is invalid. It must contain a numeric character.',
+                          'This password is invalid. It must contain an upper case character.'])
+
     def test_uid_is_unique(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_2@example.com', 'password': 'password2'})
+        response = client.post('/users/register/', {'email': 'test_2@example.com', 'password': 'Password2'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid_1 = content['api_key']
 
-        response = client.post('/users/register/', {'email': 'test_3@example.com', 'password': 'password3'})
+        response = client.post('/users/register/', {'email': 'test_3@example.com', 'password': 'Password3'})
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid_2 = content['api_key']
@@ -37,7 +47,7 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_invalid_email(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_4@example', 'password': 'password4'})
+        response = client.post('/users/register/', {'email': 'test_4@example', 'password': 'Password4'})
         self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
         self.assertEqual(list(content.keys()), ['email'])
@@ -45,13 +55,13 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_no_email(self):
         client = Client()
-        response = client.post('/users/register/', {'password': 'password', 'promo_code': ''})
+        response = client.post('/users/register/', {'password': 'Password5', 'promo_code': ''})
         self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
         self.assertEqual(list(content.keys()), ['email'])
         self.assertEqual(content['email'], ['This field is required.'])
 
-        response = client.post('/users/register/', {'email': '', 'password': 'password'})
+        response = client.post('/users/register/', {'email': '', 'password': 'Password5'})
         self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
         self.assertEqual(list(content.keys()), ['email'])
@@ -90,9 +100,9 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_existing_email(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'Password6'})
         self.assertEqual(response.status_code, 201)
-        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'password6'})
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'Password6'})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', content.keys())
@@ -100,13 +110,13 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
-        response = self.client.post('/users/register/', {'email': email, 'password': 'password6'})
+        response = self.client.post('/users/register/', {'email': email, 'password': 'Password6'})
         content = json.loads(response.content.decode())
         user = CustomUser.objects.get(email=content['email'])
         # Test that django lowers the domain of the email address
         self.assertEqual(user.email, 'TEST_12@example.com')
         # Test that we can login with the domain still with upper case letters
-        response = self.client.post('/users/login/', data={"email": email, "password": 'password6'})
+        response = self.client.post('/users/login/', data={"email": email, "password": 'Password6'})
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
 
@@ -153,7 +163,7 @@ class TestUserProfileViews(TestCase):
         # Create User
         client = Client()
         email = 'user_profile@example.com'
-        response = client.post('/users/register/', {'email': email, 'password': 'password1'})
+        response = client.post('/users/register/', {'email': email, 'password': 'Password1'})
         self.assertEqual(response.status_code, 201)
 
         api_key = response.data['api_key']
