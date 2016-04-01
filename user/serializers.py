@@ -7,6 +7,7 @@ from hermes.currencies import CURRENCIES
 from hermes.settings import LETHE_URL, MEDIA_URL
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code
+from django.contrib.auth.password_validation import validate_password as validate_pass
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -27,6 +28,10 @@ class RegisterSerializer(serializers.Serializer):
         if CustomUser.objects.filter(email=email).exists():
             raise serializers.ValidationError("That user already exists")
         return email
+
+    def validate_password(self, value):
+        validate_pass(value)
+        return value
 
     def validate_promo_code(self, value):
         if value and not valid_promo_code(value):

@@ -1,6 +1,7 @@
 import arrow
-from django.contrib.auth.password_validation import validate_password, get_password_validators
+from django.contrib.auth.password_validation import validate_password
 import jwt
+from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from hermes import settings
 from user.models import CustomUser, valid_reset_code
@@ -48,7 +49,35 @@ class TestResetPassword(TestCase):
 
 
 class TestValidatePassword(TestCase):
-    def test_password_valid(self):
-        validate_password(password='abc')
-        self.assertEqual(True, False)
+    def test_password_too_short(self):
+        expected_messages = ['This password is too short. It must contain at least 8 characters.']
+        self.assertRaisesMessage(ValidationError, str(expected_messages), validate_password, password='aBc4')
+
+    def test_password_has_no_numeric(self):
+        expected_messages = ['This password is invalid. It must contain a numeric character.']
+        self.assertRaisesMessage(ValidationError,
+                                 str(expected_messages),
+                                 validate_password,
+                                 password='aBcDefgh')
+
+    def test_password_has_no_upper_case_character(self):
+        expected_messages = ['This password is invalid. It must contain a upper case character.']
+        self.assertRaisesMessage(ValidationError,
+                                 str(expected_messages),
+                                 validate_password,
+                                 password='a1cdefgh')
+
+    def test_password_has_no_lower_case_character(self):
+        expected_messages = ['This password is invalid. It must contain a lower case character.']
+        self.assertRaisesMessage(ValidationError,
+                                 str(expected_messages),
+                                 validate_password,
+                                 password='A123456789')
+
+    def test_validate_message(self):
+        expected_messages = ['This password is too short. It must contain at least 8 characters.',
+                             'This password is invalid. It must contain a numeric character.',
+                             'This password is invalid. It must contain a upper case character.']
+        self.assertRaisesMessage(ValidationError, str(expected_messages), validate_password, password='abc')
+
 
