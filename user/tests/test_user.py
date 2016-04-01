@@ -29,7 +29,7 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('password', content.keys())
         self.assertEqual(content['password'],
                          ['This password is invalid. It must contain a numeric character.',
-                          'This password is invalid. It must contain a upper case character.'])
+                          'This password is invalid. It must contain an upper case character.'])
 
     def test_uid_is_unique(self):
         client = Client()

@@ -17,12 +17,12 @@ class UpperCaseCharacterValidator(object):
     def validate(self, password, user=None):
         if not (any(character.isupper() for character in password)):
             raise ValidationError(
-                "This password is invalid. It must contain a upper case character.",
+                "This password is invalid. It must contain an upper case character.",
                 code='password_has_no_upper_case_character',
             )
 
     def get_help_text(self):
-        return "our password must contain a upper case character."
+        return "our password must contain an upper case character."
 
 
 class LowerCaseCharacterValidator(object):

@@ -61,7 +61,7 @@ class TestValidatePassword(TestCase):
                                  password='aBcDefgh')
 
     def test_password_has_no_upper_case_character(self):
-        expected_messages = ['This password is invalid. It must contain a upper case character.']
+        expected_messages = ['This password is invalid. It must contain an upper case character.']
         self.assertRaisesMessage(ValidationError,
                                  str(expected_messages),
                                  validate_password,
@@ -77,5 +77,5 @@ class TestValidatePassword(TestCase):
     def test_validate_message(self):
         expected_messages = ['This password is too short. It must contain at least 8 characters.',
                              'This password is invalid. It must contain a numeric character.',
-                             'This password is invalid. It must contain a upper case character.']
+                             'This password is invalid. It must contain an upper case character.']
         self.assertRaisesMessage(ValidationError, str(expected_messages), validate_password, password='abc')
