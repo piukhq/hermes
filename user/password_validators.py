@@ -10,7 +10,7 @@ class NumericValidator(object):
             )
 
     def get_help_text(self):
-        return "Your password must contain at least %(min_length)d character."
+        return "Your password must contain at least one numeric character."
 
 
 class UpperCaseCharacterValidator(object):
@@ -22,7 +22,7 @@ class UpperCaseCharacterValidator(object):
             )
 
     def get_help_text(self):
-        return "our password must contain an upper case character."
+        return "Your password must contain an upper case character."
 
 
 class LowerCaseCharacterValidator(object):
