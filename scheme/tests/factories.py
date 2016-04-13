@@ -82,3 +82,27 @@ class SchemeImageFactory(factory.DjangoModelFactory):
     status = 1
     start_date = timezone.now()
     end_date = "2200-1-1"
+
+
+class SchemeAccountImageFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeAccountImage
+
+    image_type_code = 1
+    size_code = fake.word()
+    image = fake.url()
+    strap_line = fake.sentence(nb_words=3)
+    description = fake.sentence(nb_words=3)
+    url = fake.url()
+    call_to_action = fake.sentence(nb_words=3)
+    order = 0
+
+
+class AccountImageCriteriaFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeAccountImageCriteria
+
+    scheme = factory.SubFactory(SchemeFactory)
+    description = fake.sentence(nb_words=3)
+    start_date = timezone.now()
+    end_date = "2200-1-1"

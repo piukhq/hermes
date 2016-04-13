@@ -1,5 +1,7 @@
 from bulk_update.helper import bulk_update
 from django.db import models
+from django.db.models import F
+from django.utils import timezone
 
 
 class Issuer(models.Model):
@@ -84,3 +86,73 @@ class PaymentCardAccount(models.Model):
     @property
     def status_name(self):
         return dict(self.STATUSES).get(self.status)
+
+    @property
+    def images(self):
+        qualifiers = PaymentAccountImageCriteria.objects.filter(payment_card=self.payment_card,
+                                                                payment_card_accounts__id=self.id,
+                                                                payment_image__isnull=False)
+        images = qualifiers.annotate(image_type_code=F('payment_image__image_type_code'),
+                                     image_size_code=F('payment_image__size_code'),
+                                     image=F('payment_image__image'),
+                                     strap_line=F('payment_image__strap_line'),
+                                     image_description=F('payment_image__description'),
+                                     url=F('payment_image__url'),
+                                     call_to_action=F('payment_image__call_to_action'),
+                                     order=F('payment_image__order')) \
+            .values('image_type_code',
+                    'image_size_code',
+                    'image',
+                    'strap_line',
+                    'image_description',
+                    'url',
+                    'call_to_action',
+                    'order',
+                    'status',
+                    'start_date',
+                    'end_date',
+                    'created')
+
+        return images
+
+
+class PaymentCardAccountImage(models.Model):
+    IMAGE_TYPES = (
+        (0, 'hero'),
+        (1, 'banner'),
+        (2, 'offers'),
+        (3, 'icon'),
+        (4, 'asset'),
+        (5, 'reference'),
+    )
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    size_code = models.CharField(max_length=30, null=True, blank=True)
+    image = models.ImageField(upload_to="schemes")
+    strap_line = models.CharField(max_length=50, null=True, blank=True)
+    description = models.CharField(max_length=300, null=True, blank=True)
+    url = models.URLField(null=True, blank=True)
+    call_to_action = models.CharField(max_length=150)
+    order = models.IntegerField()
+    created = models.DateTimeField(default=timezone.now)
+
+
+class PaymentAccountImageCriteria(models.Model):
+    DRAFT = 0
+    PUBLISHED = 1
+
+    STATUSES = (
+        (DRAFT, 'draft'),
+        (PUBLISHED, 'published'),
+    )
+
+    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
+    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
+                                                   related_name='payment_card_accounts_set')
+
+    description = models.CharField(max_length=300, null=True, blank=True)
+    status = models.IntegerField(default=DRAFT, choices=STATUSES)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField(blank=True, null=True)
+    created = models.DateTimeField(default=timezone.now)
+
+    payment_image = models.ForeignKey('payment_card.PaymentCardAccountImage', null=True, blank=True)

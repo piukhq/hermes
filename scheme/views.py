@@ -1,8 +1,15 @@
+import csv
 
+from django.http import HttpResponseBadRequest
+from django.shortcuts import render_to_response, redirect
+from django.template import RequestContext
+from django.utils import timezone
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
+
+from scheme.forms import CSVUploadForm
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -16,6 +23,8 @@ from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
+
+from io import StringIO
 
 
 class SwappableSerializerMixin(object):
@@ -242,3 +251,32 @@ class SchemeAccountStatusData(ListAPIView):
         return queryset
 
     serializer_class = SchemeAccountSummarySerializer
+
+
+# TODO: Make this a class based view
+# TODO: Better handling of incorrect emails
+def csv_upload(request):
+    # If we had a POST then get the request post values.
+    form = CSVUploadForm()
+    if request.method == 'POST':
+
+        form = CSVUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            scheme = Scheme.objects.get(id=int(request.POST['scheme']))
+            uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
+            image_criteria_instance = SchemeAccountImageCriteria(scheme=scheme, start_date=timezone.now())
+            image_criteria_instance.save()
+            csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
+            for row in csvreader:
+                for email in row:
+                    scheme_account = SchemeAccount.objects.filter(user__email=email.lstrip(), scheme=scheme)
+                    if scheme_account:
+                        image_criteria_instance.scheme_accounts.add(scheme_account.first())
+                    else:
+                        image_criteria_instance.delete()
+                        return HttpResponseBadRequest()
+
+            return redirect('/admin/scheme/schemeaccountimagecriteria/{}'.format(image_criteria_instance.id))
+
+    context = {'form': form}
+    return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))

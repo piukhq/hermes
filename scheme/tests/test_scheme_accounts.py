@@ -4,7 +4,7 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -34,6 +34,12 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+
+        cls.scheme_account_image = SchemeAccountImageFactory()
+        cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
+                                                               scheme_image=cls.scheme_account_image)
+        cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
+
         super().setUpClass()
 
     def test_get_scheme_account(self):
@@ -408,3 +414,18 @@ class TestAccessTokens(APITestCase):
         response = self.client.get('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
                                    **self.auth_headers)
         self.assertEqual(response.status_code, 404)
+
+
+class TestSchemeAccountImages(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.scheme_account_image = SchemeAccountImageFactory()
+        cls.scheme_account = SchemeAccountFactory()
+        cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
+                                                               scheme_image=cls.scheme_account_image)
+        cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
+        super().setUpClass()
+
+    def test_image_property(self):
+        self.scheme_account.images
+        self.assertEqual(False, True)

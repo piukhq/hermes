@@ -8,12 +8,28 @@ class PaymentCardSerializer(serializers.ModelSerializer):
         model = PaymentCard
 
 
+class PaymentCardAccountImageSerializer(serializers.Serializer):
+    image_type_code = serializers.CharField()
+    image_size_code = serializers.CharField()
+    image = serializers.CharField()
+    strap_line = serializers.CharField()
+    image_description = serializers.CharField()
+    url = serializers.URLField
+    call_to_action = serializers.CharField()
+    order = serializers.IntegerField()
+    status = serializers.IntegerField()
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField()
+    created = serializers.DateTimeField()
+
+
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
     token = serializers.CharField(
         max_length=255,
         write_only=True,
         validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
+    images = PaymentCardAccountImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = PaymentCardAccount
