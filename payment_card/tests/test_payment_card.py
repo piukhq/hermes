@@ -139,3 +139,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[0], 'scheme_id')
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
+
+    def test_image_property(self):
+        self.payment_card_account.images
