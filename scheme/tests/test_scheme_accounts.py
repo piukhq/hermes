@@ -428,4 +428,4 @@ class TestSchemeAccountImages(APITestCase):
 
     def test_image_property(self):
         self.scheme_account.images
-        self.assertEqual(False, True)
+

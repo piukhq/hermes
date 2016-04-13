@@ -160,7 +160,16 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name', 'barcode', 'card_label')
+        fields = ('id',
+                  'scheme',
+                  'status',
+                  'order',
+                  'created',
+                  'action_status',
+                  'status_name',
+                  'barcode',
+                  'card_label',
+                  'images')
 
 
 class StatusSerializer(serializers.Serializer):
