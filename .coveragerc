@@ -2,6 +2,7 @@
 omit = *migrations*
        *test*
        *templates*
+       *admin.py
 branch = True
 
 [report]

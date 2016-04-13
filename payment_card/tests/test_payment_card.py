@@ -1,3 +1,5 @@
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
     PaymentCardAccountImageCriteriaFactory
 from rest_framework.test import APITestCase
@@ -142,3 +144,27 @@ class TestPaymentCard(APITestCase):
 
     def test_image_property(self):
         self.payment_card_account.images
+
+
+class TestCSVUpload(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
+        cls.payment_card = cls.payment_card_account.payment_card
+        cls.user = cls.payment_card_account.user
+        cls.issuer = cls.payment_card_account.issuer
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+
+        cls.payment_card_image = PaymentCardAccountImageFactory()
+        cls.account_image_criteria = PaymentCardAccountImageCriteriaFactory(
+            payment_card=cls.payment_card_account.payment_card,
+            payment_image=cls.payment_card_image)
+        cls.account_image_criteria.payment_card_accounts.add(cls.payment_card_account)
+
+        super(TestCSVUpload, cls).setUpClass()
+
+    def test_CSV_upload(self):
+        csv_file = SimpleUploadedFile("file.csv", content=b'', content_type="text/csv")
+        response = self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.name, 'emails': csv_file},
+                                    **self.auth_headers)
+        self.assertEqual(response.status_code, 200)

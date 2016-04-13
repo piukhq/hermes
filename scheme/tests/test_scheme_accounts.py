@@ -1,5 +1,7 @@
 from decimal import Decimal
 from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer
@@ -136,7 +138,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], 9)
 
     def test_scheme_account_update_status_bad(self):
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id), data={'status': 112},
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
+                                    data={'status': 112},
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
@@ -424,8 +427,16 @@ class TestSchemeAccountImages(APITestCase):
         cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
                                                                scheme_image=cls.scheme_account_image)
         cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
+        cls.user = cls.scheme_account.user
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super().setUpClass()
 
     def test_image_property(self):
         self.scheme_account.images
 
+    def test_CSV_upload(self):
+        csv_file = SimpleUploadedFile("file.csv", content=b'', content_type="text/csv")
+        response = self.client.post('/schemes/csv_upload', {'scheme': self.scheme_account.scheme.name,
+                                                            'emails': csv_file},
+                                    **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
