@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+{% block object-tools-items %}
+    {{ block.super }}
+    <li>
+        <a href="/payment_cards/csv_upload" class="addlink">
+            Add csv criteria
+        </a>
+    </li>
+
+{% endblock %}

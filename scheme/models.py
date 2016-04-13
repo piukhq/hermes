@@ -1,6 +1,7 @@
 import sre_constants
 from django.conf import settings
 from django.db import models
+from django.db.models import F
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -333,6 +334,34 @@ class SchemeAccount(models.Model):
                 return answer.answer
         return None
 
+    @property
+    def images(self):
+        qualifiers = SchemeAccountImageCriteria.objects.filter(scheme=self.scheme,
+                                                               scheme_accounts__id=self.id,
+                                                               scheme_image__isnull=False)
+        images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
+                                     image_size_code=F('scheme_image__size_code'),
+                                     image=F('scheme_image__image'),
+                                     strap_line=F('scheme_image__strap_line'),
+                                     image_description=F('scheme_image__description'),
+                                     url=F('scheme_image__url'),
+                                     call_to_action=F('scheme_image__call_to_action'),
+                                     order=F('scheme_image__order'))\
+            .values('image_type_code',
+                    'image_size_code',
+                    'image',
+                    'strap_line',
+                    'image_description',
+                    'url',
+                    'call_to_action',
+                    'order',
+                    'status',
+                    'start_date',
+                    'end_date',
+                    'created')
+
+        return images
+
     def __str__(self):
         return "{0} - {1}".format(self.user.email, self.scheme.name)
 
@@ -373,6 +402,47 @@ class SchemeAccountCredentialAnswer(models.Model):
 
     class Meta:
         unique_together = ("scheme_account", "question")
+
+
+class SchemeAccountImage(models.Model):
+    IMAGE_TYPES = (
+        (0, 'hero'),
+        (1, 'banner'),
+        (2, 'offers'),
+        (3, 'icon'),
+        (4, 'asset'),
+        (5, 'reference'),
+    )
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    size_code = models.CharField(max_length=30, null=True, blank=True)
+    image = models.ImageField(upload_to="schemes")
+    strap_line = models.CharField(max_length=50, null=True, blank=True)
+    description = models.CharField(max_length=300, null=True, blank=True)
+    url = models.URLField(null=True, blank=True)
+    call_to_action = models.CharField(max_length=150)
+    order = models.IntegerField()
+    created = models.DateTimeField(default=timezone.now)
+
+
+class SchemeAccountImageCriteria(models.Model):
+    DRAFT = 0
+    PUBLISHED = 1
+
+    STATUSES = (
+        (DRAFT, 'draft'),
+        (PUBLISHED, 'published'),
+    )
+
+    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
+    scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
+
+    description = models.CharField(max_length=300, null=True, blank=True)
+    status = models.IntegerField(default=DRAFT, choices=STATUSES)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField(blank=True, null=True)
+    created = models.DateTimeField(default=timezone.now)
+
+    scheme_image = models.ForeignKey('scheme.SchemeAccountImage', null=True, blank=True)
 
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)

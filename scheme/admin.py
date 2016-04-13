@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet
 
 from scheme.models import (Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion)
+                           SchemeCredentialQuestion, SchemeAccountImageCriteria, SchemeAccountImage)
 
 
 class SchemeImageInline(admin.StackedInline):
@@ -68,3 +68,5 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
+admin.site.register(SchemeAccountImageCriteria)
+admin.site.register(SchemeAccountImage)

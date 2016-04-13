@@ -10,6 +10,21 @@ class SchemeImageSerializer(serializers.ModelSerializer):
         exclude = ('scheme',)
 
 
+class SchemeAccountImageSerializer(serializers.Serializer):
+    image_type_code = serializers.CharField()
+    image_size_code = serializers.CharField()
+    image = serializers.CharField()
+    strap_line = serializers.CharField()
+    image_description = serializers.CharField()
+    url = serializers.URLField
+    call_to_action = serializers.CharField()
+    order = serializers.IntegerField()
+    status = serializers.IntegerField()
+    start_date = serializers.DateTimeField()
+    end_date = serializers.DateTimeField()
+    created = serializers.DateTimeField()
+
+
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeCredentialQuestion
@@ -128,6 +143,7 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
     action_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
+    images = SchemeAccountImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = SchemeAccount
@@ -140,10 +156,20 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
+    images = SchemeAccountImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'status', 'order', 'created', 'action_status', 'status_name', 'barcode', 'card_label')
+        fields = ('id',
+                  'scheme',
+                  'status',
+                  'order',
+                  'created',
+                  'action_status',
+                  'status_name',
+                  'barcode',
+                  'card_label',
+                  'images')
 
 
 class StatusSerializer(serializers.Serializer):

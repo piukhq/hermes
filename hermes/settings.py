@@ -29,7 +29,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_var("HERMES_DEBUG", False)
+DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
     ".chingrewards.com",
