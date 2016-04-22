@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.admin import UserAdmin
-from user.models import CustomUser, UserDetail, Referral
+from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
 from django.contrib import admin
 
 
@@ -67,3 +67,6 @@ class ReferralAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Referral, ReferralAdmin)
+
+admin.site.register(Setting)
+admin.site.register(UserSetting)
