@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from requests_oauthlib import OAuth1Session
 from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
-                                     get_object_or_404, RetrieveUpdateDestroyAPIView, ListAPIView)
+                                     get_object_or_404, ListAPIView)
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -21,7 +21,7 @@ from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer)
+                              ResetTokenSerializer, SettingSerializer)
 
 
 class ForgottenPassword:
