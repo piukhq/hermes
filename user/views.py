@@ -5,21 +5,23 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from requests_oauthlib import OAuth1Session
 from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
-                                     get_object_or_404)
+                                     get_object_or_404, ListAPIView)
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 
 from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS, \
     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE
-from user.models import CustomUser, valid_promo_code, valid_reset_code
+from user.authentication import JwtAuthentication
+from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer)
+                              ResetTokenSerializer, SettingSerializer)
 
 
 class ForgottenPassword:
@@ -348,3 +350,71 @@ def social_login(social_id, email, service, promo_code):
                                                      service: social_id})
             status = 201
     return status, user
+
+
+class Settings(ListAPIView):
+    """
+    View the default app settings.
+    """
+    queryset = Setting.objects.all()
+    serializer_class = SettingSerializer
+    authentication_classes = (JwtAuthentication,)
+
+
+class UserSettings(APIView):
+    authentication_classes = (JwtAuthentication,)
+
+    def get(self, request):
+        """
+        View a user's app settings.
+        """
+        user_settings = UserSetting.objects.filter(user=request.user)
+        settings = Setting.objects.all()
+
+        settings_list = []
+
+        for setting in settings:
+            user_setting = user_settings.filter(setting__slug=setting.slug).first()
+            if user_setting:
+                value = user_setting.value
+            else:
+                value = setting.default_value
+
+            settings_list.append({
+                'slug': setting.slug,
+                'value_type': setting.value_type_name,
+                'value': value
+            })
+
+        return Response(settings_list)
+
+    def delete(self, request):
+        """
+        Reset a user's app settings.
+        """
+        UserSetting.objects.filter(user=request.user).delete()
+        return Response(status=HTTP_204_NO_CONTENT)
+
+    def put(self, request):
+        """
+        Change a user's app settings.
+        """
+        # find all bad setting slugs (if any) for error reporting.
+        bad_settings = []
+        for k, v in request.data.items():
+            user_setting = Setting.objects.filter(slug=k).first()
+            if not user_setting:
+                bad_settings.append(k)
+
+        if len(bad_settings) > 0:
+            return Response({
+                'message': 'Some of the given settings are invalid.',
+                'failures': bad_settings
+            }, HTTP_400_BAD_REQUEST)
+
+        for k, v in request.data.items():
+            user_setting = UserSetting.objects.filter(user=request.user, setting__slug=k).first()
+            user_setting.value = v
+            user_setting.save()
+
+        return Response(status=HTTP_204_NO_CONTENT)

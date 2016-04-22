@@ -160,3 +160,37 @@ def valid_reset_code(reset_token):
     token_payload = jwt.decode(reset_token, settings.TOKEN_SECRET)
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
+
+
+class Setting(models.Model):
+    NUMBER = 0
+    STRING = 1
+    BOOLEAN = 2
+
+    VALUE_TYPES = (
+        (NUMBER, 'number'),
+        (STRING, 'string'),
+        (BOOLEAN, 'boolean'),
+    )
+
+    slug = models.SlugField(unique=True)
+    value_type = models.IntegerField(choices=VALUE_TYPES)
+    default_value = models.CharField(max_length=255)
+
+    @property
+    def value_type_name(self):
+        return dict(self.VALUE_TYPES).get(self.value_type)
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
+
+
+class UserSetting(models.Model):
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(CustomUser, related_name='user')
+    setting = models.ForeignKey(Setting, related_name='setting')
+    value = models.CharField(max_length=255)
+
+    def __str__(self):
+        return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)

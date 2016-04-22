@@ -4,8 +4,10 @@ from django.contrib.auth import authenticate
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
-from user.models import CustomUser, Referral, hash_ids, valid_promo_code
-from user.tests.factories import UserFactory, UserProfileFactory, fake
+from rest_framework.utils.serializer_helpers import ReturnList
+
+from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting
+from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
 from unittest import mock
 from user.views import facebook_login, twitter_login, social_login
@@ -620,3 +622,104 @@ class TestCustomUserManager(TestCase):
 
         self.assertTrue(mock_create_referral.called)
         self.assertNotEqual(user.password, password)
+
+
+class TestSettings(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        user = UserFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        super().setUpClass()
+
+    def test_list_settings(self):
+        SettingFactory()
+        SettingFactory()
+        resp = self.client.get('/users/settings/', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200, )
+        self.assertEqual(type(resp.data), ReturnList)
+        self.assertEqual(len(resp.data), 2)
+        self.assertIn('slug', resp.data[0])
+        self.assertIn('value_type', resp.data[0])
+        self.assertIn('default_value', resp.data[0])
+
+
+class TestUserSettings(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.user = UserFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        super().setUpClass()
+
+    def test_list_user_settings(self):
+        setting = SettingFactory()
+        UserSettingFactory(user=self.user, value='True', setting=setting)
+
+        resp = self.client.get('/users/me/settings', **self.auth_headers)
+        data = resp.json()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(data), 1)
+        self.assertIn('slug', data[0])
+        self.assertIn('value', data[0])
+        self.assertIn('value_type', data[0])
+        self.assertEqual(data[0]['value'], 'True')
+        self.assertEqual(data[0]['value_type'], 'boolean')
+
+    def test_delete_user_settings(self):
+        settings = [SettingFactory(), SettingFactory()]
+        UserSettingFactory(user=self.user, value='True', setting=settings[0])
+        UserSettingFactory(user=self.user, value='False', setting=settings[1])
+
+        user_settings = UserSetting.objects.filter(user=self.user)
+        self.assertEqual(len(user_settings), 2)
+
+        resp = self.client.delete('/users/me/settings', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 204)
+
+        user_settings = UserSetting.objects.filter(user=self.user)
+        self.assertEqual(len(user_settings), 0)
+
+    def test_update_user_settings(self):
+        settings = [SettingFactory(), SettingFactory()]
+        UserSettingFactory(user=self.user, value='True', setting=settings[0])
+        UserSettingFactory(user=self.user, value='False', setting=settings[1])
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
+        self.assertEqual(user_setting.value, 'True')
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
+        self.assertEqual(user_setting.value, 'False')
+
+        data = {
+            settings[0].slug: 'False',
+            settings[1].slug: 'True',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 204)
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
+        self.assertEqual(user_setting.value, 'False')
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
+        self.assertEqual(user_setting.value, 'True')
+
+    def test_update_incorrect_user_settings(self):
+        setting = SettingFactory()
+        data = {
+            'bad-slug-1': '5',
+            setting.slug: 'True',
+            'bad-slug-2': 'bad@bad.com',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        data = resp.json()
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('message', data)
+        self.assertIn('failures', data)
+        self.assertEqual(data['message'], 'Some of the given settings are invalid.')
+        self.assertIn('bad-slug-1', data['failures'])
+        self.assertIn('bad-slug-2', data['failures'])
+        self.assertNotIn(setting.slug, data['failures'])

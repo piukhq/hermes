@@ -36,3 +36,21 @@ class UserProfileFactory(factory.Factory):
     pass_code = '1234'
     currency = 'GBP'
     gender = 'male'
+
+
+class SettingFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.Setting
+
+    slug = FuzzyAttribute(fake.slug)
+    value_type = 2
+    default_value = False
+
+
+class UserSettingFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.UserSetting
+
+    user = factory.SubFactory(UserFactory)
+    setting = factory.SubFactory(SettingFactory)
+    value = fake.text(max_nb_chars=255)
