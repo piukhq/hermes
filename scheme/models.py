@@ -417,14 +417,14 @@ class SchemeAccountImage(models.Model):
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
     strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
+    description = models.CharField(max_length=300)
     url = models.URLField(null=True, blank=True)
     call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     created = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
-        return self.image
+        return self.description
 
 
 class SchemeAccountImageCriteria(models.Model):
