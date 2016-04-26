@@ -195,12 +195,19 @@ class ResetTokenSerializer(serializers.Serializer):
 
 
 class SettingSerializer(serializers.ModelSerializer):
+    value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
     class Meta:
         model = Setting
         fields = ('slug', 'value_type', 'default_value')
 
 
-class UserSettingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserSetting
-        fields = ('user', 'setting', 'value')
+class UserSettingSerializer(serializers.Serializer):
+    slug = serializers.SlugField(required=True)
+    value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
+    value = serializers.CharField(max_length=255, required=True)
+
+
+class UpdateUserSettingSerializer(serializers.Serializer):
+    slug1 = serializers.SlugField(required=True)
+    slug2 = serializers.SlugField(required=False)
+    slug3 = serializers.SlugField(required=False)
