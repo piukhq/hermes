@@ -450,6 +450,7 @@ class SchemeAccountImageCriteria(models.Model):
     def __str__(self):
         return self.description
 
+
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
