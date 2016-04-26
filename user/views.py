@@ -367,6 +367,8 @@ class UserSettings(APIView):
     def get(self, request):
         """
         View a user's app settings.
+        ---
+        response_serializer: user.serializers.UserSettingSerializer
         """
         user_settings = UserSetting.objects.filter(user=request.user)
         settings = Setting.objects.all()
@@ -397,7 +399,12 @@ class UserSettings(APIView):
 
     def put(self, request):
         """
-        Change a user's app settings.
+        Change a user's app settings. Takes one or more slug-value pairs.
+        ---
+        request_serializer: user.serializers.UpdateUserSettingSerializer
+        responseMessages:
+            - code: 400
+              message: Some of the given settings are invalid.
         """
         # find all bad setting slugs (if any) for error reporting.
         bad_settings = []
