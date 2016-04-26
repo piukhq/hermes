@@ -21,7 +21,7 @@ from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer, UpdateUserSettingSerializer)
+                              ResetTokenSerializer, SettingSerializer)
 
 
 class ForgottenPassword:
@@ -368,7 +368,7 @@ class UserSettings(APIView):
         """
         View a user's app settings.
         ---
-        response_serializer: UserSettingSerializer
+        response_serializer: user.serializers.UserSettingSerializer
         """
         user_settings = UserSetting.objects.filter(user=request.user)
         settings = Setting.objects.all()
@@ -401,7 +401,7 @@ class UserSettings(APIView):
         """
         Change a user's app settings. Takes one or more slug-value pairs.
         ---
-        request_serializer: UpdateUserSettingSerializer
+        request_serializer: user.serializers.UpdateUserSettingSerializer
         responseMessages:
             - code: 400
               message: Some of the given settings are invalid.

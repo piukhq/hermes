@@ -6,7 +6,7 @@ from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from hermes.settings import LETHE_URL, MEDIA_URL
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
+from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting
 from django.contrib.auth.password_validation import validate_password as validate_pass
 
 
@@ -196,6 +196,7 @@ class ResetTokenSerializer(serializers.Serializer):
 
 class SettingSerializer(serializers.ModelSerializer):
     value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
+
     class Meta:
         model = Setting
         fields = ('slug', 'value_type', 'default_value')
