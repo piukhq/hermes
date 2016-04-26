@@ -439,7 +439,7 @@ class SchemeAccountImageCriteria(models.Model):
     scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
-    description = models.CharField(max_length=300, null=True, blank=True)
+    description = models.CharField(max_length=300)
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
@@ -447,6 +447,8 @@ class SchemeAccountImageCriteria(models.Model):
 
     scheme_image = models.ForeignKey('scheme.SchemeAccountImage', null=True, blank=True)
 
+    def __str__(self):
+        return self.description
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
