@@ -417,11 +417,14 @@ class SchemeAccountImage(models.Model):
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
     strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
+    description = models.CharField(max_length=300)
     url = models.URLField(null=True, blank=True)
     call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     created = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return self.description
 
 
 class SchemeAccountImageCriteria(models.Model):
@@ -436,13 +439,16 @@ class SchemeAccountImageCriteria(models.Model):
     scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
-    description = models.CharField(max_length=300, null=True, blank=True)
+    description = models.CharField(max_length=300)
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
     scheme_image = models.ForeignKey('scheme.SchemeAccountImage', null=True, blank=True)
+
+    def __str__(self):
+        return self.description
 
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
