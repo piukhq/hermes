@@ -1,5 +1,6 @@
 import requests
 from django.contrib.auth import authenticate, login
+from django.db import IntegrityError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -324,6 +325,10 @@ def social_response(social_id, email, service, promo_code):
     if promo_code and not valid_promo_code(promo_code):
         return error_response(INVALID_PROMO_CODE)
     status, user = social_login(social_id, email, service, promo_code)
+
+    if status == 400:
+        return Response({'message': 'A user associated with that email address already exists.'}, status=400)
+
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
 
@@ -335,6 +340,8 @@ def social_login(social_id, email, service, promo_code):
         if not user.email and email:
             user.email = email
             user.save()
+    except IntegrityError:
+        return 400, None
     except CustomUser.DoesNotExist:
         try:
             if not email:
