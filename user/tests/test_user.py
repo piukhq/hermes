@@ -10,7 +10,7 @@ from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSe
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
 from unittest import mock
-from user.views import facebook_login, twitter_login, social_login
+from user.views import facebook_login, twitter_login, social_login, social_response
 
 
 class TestRegisterNewUserViews(TestCase):
@@ -600,9 +600,9 @@ class TestSocialLogin(APITestCase):
         twitter_email = 'test@test.com'
         UserFactory(email=twitter_email)
         UserFactory(email=None, twitter=twitter_id)
-        status, user = social_login(twitter_id, twitter_email, 'twitter', None)
-        self.assertEqual(status, 400)
-        self.assertEqual(user, None)
+        resp = social_response(twitter_id, twitter_email, 'twitter', None)
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.data['name'], 'DUPLICATE_ACCOUNT_REGISTRATION')
 
 
 class TestUserModel(TestCase):
