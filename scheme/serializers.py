@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
+    SchemeAccountImageCriteria, SchemeAccountImage
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -12,16 +13,13 @@ class SchemeImageSerializer(serializers.ModelSerializer):
 
 class SchemeAccountImageSerializer(serializers.Serializer):
     image_type_code = serializers.CharField()
-    image_size_code = serializers.CharField()
+    size_code = serializers.CharField()
     image = serializers.CharField()
     strap_line = serializers.CharField()
-    image_description = serializers.CharField()
+    description = serializers.CharField()
     url = serializers.URLField
     call_to_action = serializers.CharField()
     order = serializers.IntegerField()
-    status = serializers.IntegerField()
-    start_date = serializers.DateTimeField()
-    end_date = serializers.DateTimeField()
     created = serializers.DateTimeField()
 
 
@@ -156,7 +154,34 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
-    images = SchemeAccountImageSerializer(many=True, read_only=True)
+    images = serializers.SerializerMethodField('get_images')
+
+    @staticmethod
+    def get_images(scheme_account):
+        # account_images = SchemeAccountImageSerializer(scheme_account.images, many=True, read_only=True)
+        account_image_criteria = SchemeAccountImageCriteria.objects.filter(scheme_accounts__id=scheme_account.id)
+        scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
+
+        images = []
+        for image in scheme_images:
+            account_image = account_image_criteria.filter(scheme_image__image_type_code=image.image_type_code).first()
+            if account_image:
+                images.append(account_image.scheme_image)
+            else:
+                # we have to turn the SchemeImage instance into a SchemeAccountImage
+                images.append(SchemeAccountImage(
+                    image_type_code=image.image_type_code,
+                    size_code=image.size_code,
+                    image=image.image,
+                    strap_line=image.strap_line,
+                    description=image.description,
+                    url=image.url,
+                    call_to_action=image.call_to_action,
+                    order=image.order,
+                    created=image.created,
+                ))
+
+        return SchemeAccountImageSerializer(images, many=True, read_only=True)
 
     class Meta:
         model = SchemeAccount
