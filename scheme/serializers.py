@@ -154,7 +154,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
-    images = serializers.SerializerMethodField('get_images')
+    images = serializers.SerializerMethodField()
 
     @staticmethod
     def get_images(scheme_account):
