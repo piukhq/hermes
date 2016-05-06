@@ -136,7 +136,6 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
     action_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
-
     images = serializers.SerializerMethodField()
 
     @staticmethod
