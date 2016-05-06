@@ -18,6 +18,7 @@ class TestSchemeAccountViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
+        cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
@@ -441,7 +442,7 @@ class TestSchemeAccountImages(APITestCase):
     def test_image_property(self):
         serializer = ListSchemeAccountSerializer()
         images = serializer.get_images(self.scheme_account)
-        our_image = next((i for i in images.data if i['image'] == self.scheme_account_image.image.name), None)
+        our_image = next((i for i in images if i['image'] == self.scheme_account_image.image.url), None)
         self.assertIsNotNone(our_image)
 
     def test_CSV_upload(self):
