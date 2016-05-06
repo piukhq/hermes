@@ -136,7 +136,12 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
     action_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
-    images = SchemeAccountImageSerializer(many=True, read_only=True)
+
+    images = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_images(scheme_account):
+        return get_images_for_scheme_account(scheme_account)
 
     class Meta:
         model = SchemeAccount
@@ -153,33 +158,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_images(scheme_account):
-        # account_images = SchemeAccountImageSerializer(scheme_account.images, many=True, read_only=True)
-        account_image_criterias = SchemeAccountImageCriteria.objects.filter(scheme_accounts__id=scheme_account.id)
-        scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
-
-        images = []
-        for image in scheme_images:
-            account_image_criteria = account_image_criterias.filter(scheme_image__image_type_code=image.image_type_code).first()
-            if account_image_criteria:
-                account_image = account_image_criteria.scheme_image
-            else:
-                # we have to turn the SchemeImage instance into a SchemeAccountImage
-                account_image = SchemeAccountImage(
-                    image_type_code=image.image_type_code,
-                    size_code=image.size_code,
-                    image=image.image,
-                    strap_line=image.strap_line,
-                    description=image.description,
-                    url=image.url,
-                    call_to_action=image.call_to_action,
-                    order=image.order,
-                    created=image.created,
-                )
-
-            serializer = SchemeAccountImageSerializer(account_image)
-            images.append(serializer.data)
-
-        return images
+        return get_images_for_scheme_account(scheme_account)
 
     class Meta:
         model = SchemeAccount
@@ -230,3 +209,33 @@ class SchemeAccountSummarySerializer(serializers.Serializer):
 
 class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLinkSerializer):
     pass
+
+
+def get_images_for_scheme_account(scheme_account):
+    account_image_criterias = SchemeAccountImageCriteria.objects.filter(scheme_accounts__id=scheme_account.id)
+    scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
+
+    images = []
+    for image in scheme_images:
+        account_image_criteria = account_image_criterias.filter(
+            scheme_image__image_type_code=image.image_type_code).first()
+        if account_image_criteria:
+            account_image = account_image_criteria.scheme_image
+        else:
+            # we have to turn the SchemeImage instance into a SchemeAccountImage
+            account_image = SchemeAccountImage(
+                image_type_code=image.image_type_code,
+                size_code=image.size_code,
+                image=image.image,
+                strap_line=image.strap_line,
+                description=image.description,
+                url=image.url,
+                call_to_action=image.call_to_action,
+                order=image.order,
+                created=image.created,
+            )
+
+        serializer = SchemeAccountImageSerializer(account_image)
+        images.append(serializer.data)
+
+    return images
