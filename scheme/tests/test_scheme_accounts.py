@@ -4,9 +4,9 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer
+from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -18,6 +18,7 @@ class TestSchemeAccountViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
+        cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
         password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
@@ -422,17 +423,27 @@ class TestAccessTokens(APITestCase):
 class TestSchemeAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account_image = SchemeAccountImageFactory()
+        cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
         cls.scheme_account = SchemeAccountFactory()
         cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
                                                                scheme_image=cls.scheme_account_image)
         cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
+
+        cls.scheme_images = [
+            SchemeImageFactory(image_type_code=1, scheme=cls.scheme_account.scheme),
+            SchemeImageFactory(image_type_code=2, scheme=cls.scheme_account.scheme),
+            SchemeImageFactory(image_type_code=3, scheme=cls.scheme_account.scheme),
+        ]
+
         cls.user = cls.scheme_account.user
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super().setUpClass()
 
     def test_image_property(self):
-        self.scheme_account.images
+        serializer = ListSchemeAccountSerializer()
+        images = serializer.get_images(self.scheme_account)
+        our_image = next((i for i in images if i['image'] == self.scheme_account_image.image.url), None)
+        self.assertIsNotNone(our_image)
 
     def test_CSV_upload(self):
         csv_file = SimpleUploadedFile("file.csv", content=b'', content_type="text/csv")
