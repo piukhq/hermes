@@ -415,8 +415,8 @@ class UserSettings(APIView):
         # find all bad setting slugs (if any) for error reporting.
         bad_settings = []
         for k, v in request.data.items():
-            user_setting = Setting.objects.filter(slug=k).first()
-            if not user_setting:
+            setting = Setting.objects.filter(slug=k).first()
+            if not setting:
                 bad_settings.append(k)
 
         if len(bad_settings) > 0:
@@ -427,7 +427,13 @@ class UserSettings(APIView):
 
         for k, v in request.data.items():
             user_setting = UserSetting.objects.filter(user=request.user, setting__slug=k).first()
-            user_setting.value = v
-            user_setting.save()
+
+            if user_setting:
+                user_setting.value = v
+                user_setting.save()
+            else:
+                setting = Setting.objects.filter(slug=k).first()
+                user_setting = UserSetting(user=request.user, setting=setting, value=v)
+                user_setting.save()
 
         return Response(status=HTTP_204_NO_CONTENT)
