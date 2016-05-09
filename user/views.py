@@ -415,8 +415,8 @@ class UserSettings(APIView):
         # find all bad setting slugs (if any) for error reporting.
         bad_settings = []
         for k, v in request.data.items():
-            user_setting = Setting.objects.filter(slug=k).first()
-            if not user_setting:
+            setting = Setting.objects.filter(slug=k).first()
+            if not setting:
                 bad_settings.append(k)
 
         if len(bad_settings) > 0:
