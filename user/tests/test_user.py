@@ -732,3 +732,16 @@ class TestUserSettings(APITestCase):
         self.assertIn('bad-slug-1', data['failures'])
         self.assertIn('bad-slug-2', data['failures'])
         self.assertNotIn(setting.slug, data['failures'])
+
+    def test_create_new_setting(self):
+        setting = SettingFactory()
+
+        data = {
+            setting.slug: 'True',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 204)
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
+        self.assertEqual(user_setting.value, 'True')
