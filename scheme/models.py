@@ -107,6 +107,7 @@ IMAGE_TYPES = (
     (3, 'icon'),
     (4, 'asset'),
     (5, 'reference'),
+    (6, 'personal offers'),
 )
 
 
