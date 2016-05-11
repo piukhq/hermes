@@ -100,6 +100,17 @@ class ActiveSchemeImageManager(models.Manager):
             .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
 
 
+IMAGE_TYPES = (
+    (0, 'hero'),
+    (1, 'banner'),
+    (2, 'offers'),
+    (3, 'icon'),
+    (4, 'asset'),
+    (5, 'reference'),
+    (6, 'personal offers'),
+)
+
+
 class SchemeImage(models.Model):
     DRAFT = 0
     PUBLISHED = 1
@@ -107,15 +118,6 @@ class SchemeImage(models.Model):
     STATUSES = (
         (DRAFT, 'draft'),
         (PUBLISHED, 'published'),
-    )
-
-    IMAGE_TYPES = (
-        (0, 'hero'),
-        (1, 'banner'),
-        (2, 'offers'),
-        (3, 'icon'),
-        (4, 'asset'),
-        (5, 'reference'),
     )
 
     scheme = models.ForeignKey('scheme.Scheme', related_name='images')
@@ -405,14 +407,6 @@ class SchemeAccountCredentialAnswer(models.Model):
 
 
 class SchemeAccountImage(models.Model):
-    IMAGE_TYPES = (
-        (0, 'hero'),
-        (1, 'banner'),
-        (2, 'offers'),
-        (3, 'icon'),
-        (4, 'asset'),
-        (5, 'reference'),
-    )
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
