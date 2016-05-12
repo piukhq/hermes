@@ -58,10 +58,10 @@ class Scheme(models.Model):
     forgotten_password_url = models.URLField(max_length=500)
     tier = models.IntegerField(choices=TIERS)
 
-    ios_scheme = models.CharField(max_length=255, blank=True, null=True, name='iOS scheme')
-    itunes_url = models.URLField(blank=True, null=True, name='iTunes URL')
-    android_app_id = models.CharField(max_length=255, blank=True, null=True, name='Android app ID')
-    playstore_url = models.URLField(blank=True, null=True, name='Play store URL')
+    ios_scheme = models.CharField(max_length=255, blank=True, null=True, verbose_name='iOS scheme')
+    itunes_url = models.URLField(blank=True, null=True, verbose_name='iTunes URL')
+    android_app_id = models.CharField(max_length=255, blank=True, null=True, verbose_name='Android app ID')
+    play_store_url = models.URLField(blank=True, null=True, verbose_name='Play store URL')
 
     barcode_type = models.IntegerField(choices=BARCODE_TYPES, blank=True, null=True)
     scan_message = models.CharField(max_length=100)
