@@ -48,6 +48,14 @@ class Scheme(models.Model):
         (6, "ITF (Interleaved 2 of 5)"),
         (7, 'Code 39'),
     )
+    MAX_POINTS_VALUE_LENGTHS = (
+        (0, '0 (no numeric points value)'),
+        (1, '1 (0-9)'),
+        (2, '2 (0-99)'),
+        (3, '3 (0-999)'),
+        (4, '4 (0+)'),
+    )
+    MAX_POINTS_VALUE_LENGTH = 11
 
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
@@ -67,8 +75,16 @@ class Scheme(models.Model):
     scan_message = models.CharField(max_length=100)
     has_transactions = models.BooleanField(default=False)
     has_points = models.BooleanField(default=False)
+
+    max_points_value_length = models.IntegerField(choices=MAX_POINTS_VALUE_LENGTHS, default=4,
+                                                  help_text='The maximum number of digits the points value will reach. '
+                                                            'This cannot be higher than four, because any arbitrarily '
+                                                            'large number can be compressed down to four digits.')
+    point_name = models.CharField(max_length=MAX_POINTS_VALUE_LENGTH - 1, default='points', null=True, blank=True,
+                                  help_text='This field must have a length that, when added to the value of the above '
+                                            'field, is less than or equal to {}.'.format(MAX_POINTS_VALUE_LENGTH - 1))
+
     identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
-    point_name = models.CharField(max_length=50, default='points', null=True, blank=True)
     colour = RGBColorField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)

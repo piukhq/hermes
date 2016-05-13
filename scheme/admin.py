@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
-from django.forms import BaseInlineFormSet
+from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.models import (Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImageCriteria, SchemeAccountImage)
@@ -32,11 +32,28 @@ class CredentialQuestionInline(admin.TabularInline):
     extra = 0
 
 
+class SchemeForm(ModelForm):
+    class Meta:
+        model = Scheme
+        fields = '__all__'
+
+    def clean_point_name(self):
+        point_name = self.cleaned_data['point_name']
+        points_value_length = self.cleaned_data['max_points_value_length']
+
+        if len(point_name) + points_value_length + 1 > Scheme.MAX_POINTS_VALUE_LENGTH:
+            raise ValidationError('The length of the point name added to the maximum points value length must not '
+                                  'exceed {}'.format(Scheme.MAX_POINTS_VALUE_LENGTH - 1))
+
+        return point_name
+
+
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company')
     list_filter = ('is_active', )
+    form = SchemeForm
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if not request.user.is_superuser and object_id:
