@@ -1,3 +1,5 @@
+from copy import copy
+
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
@@ -208,6 +210,12 @@ class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLi
     pass
 
 
+def add_object_type_to_image_response(data, type):
+    new_data = copy(data)
+    new_data['object_type'] = type
+    return new_data
+
+
 def get_images_for_scheme_account(scheme_account):
     account_image_criterias = SchemeAccountImageCriteria.objects.filter(scheme_accounts__id=scheme_account.id)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
@@ -216,7 +224,7 @@ def get_images_for_scheme_account(scheme_account):
 
     for criteria in account_image_criterias:
         serializer = SchemeAccountImageSerializer(criteria.scheme_image)
-        images.append(serializer.data)
+        images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
 
     for image in scheme_images:
         account_image_criteria = account_image_criterias.filter(
@@ -224,6 +232,7 @@ def get_images_for_scheme_account(scheme_account):
         if not account_image_criteria:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
+                id=image.id,
                 image_type_code=image.image_type_code,
                 size_code=image.size_code,
                 image=image.image,
@@ -236,6 +245,6 @@ def get_images_for_scheme_account(scheme_account):
             )
 
             serializer = SchemeAccountImageSerializer(account_image)
-            images.append(serializer.data)
+            images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
 
     return images

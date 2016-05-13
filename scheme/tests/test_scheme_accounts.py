@@ -451,3 +451,11 @@ class TestSchemeAccountImages(APITestCase):
                                                             'emails': csv_file},
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
+
+    def test_images_have_object_type_properties(self):
+        serializer = ListSchemeAccountSerializer()
+        images = serializer.get_images(self.scheme_account)
+
+        self.assertEqual(images[0]['object_type'], 'scheme_account_image')
+        self.assertEqual(images[1]['object_type'], 'scheme_image')
+        self.assertEqual(images[2]['object_type'], 'scheme_image')
