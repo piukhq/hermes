@@ -215,12 +215,15 @@ def get_images_for_scheme_account(scheme_account):
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
+
+    for criteria in account_image_criterias:
+        serializer = SchemeAccountImageSerializer(criteria.scheme_image)
+        images.append(serializer.data)
+
     for image in scheme_images:
         account_image_criteria = account_image_criterias.filter(
             scheme_image__image_type_code=image.image_type_code).first()
-        if account_image_criteria:
-            account_image = account_image_criteria.scheme_image
-        else:
+        if not account_image_criteria:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
                 image_type_code=image.image_type_code,
@@ -234,7 +237,7 @@ def get_images_for_scheme_account(scheme_account):
                 created=image.created,
             )
 
-        serializer = SchemeAccountImageSerializer(account_image)
-        images.append(serializer.data)
+            serializer = SchemeAccountImageSerializer(account_image)
+            images.append(serializer.data)
 
     return images
