@@ -14,8 +14,6 @@ class SchemeImageSerializer(serializers.ModelSerializer):
 class SchemeAccountImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccountImage
-        fields = ('image_type_code', 'size_code', 'image', 'strap_line', 'description', 'url', 'call_to_action',
-                  'order', 'created')
 
 
 class QuestionSerializer(serializers.ModelSerializer):
