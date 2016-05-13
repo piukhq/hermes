@@ -35,8 +35,8 @@ class ActiveSchemeManager(models.Manager):
 
 class Scheme(models.Model):
     TIERS = (
-        (1, 'Tier 1'),
-        (2, 'Tier 2'),
+        (1, 'Bink'),
+        (2, 'Show'),
     )
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
