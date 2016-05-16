@@ -161,7 +161,7 @@ class TestCSVUpload(APITestCase):
         csv_file = SimpleUploadedFile("file.csv", content=bytes(self.user.email, 'utf-8'), content_type="text/csv")
 
         self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.id, 'emails': csv_file},
-                                    **self.auth_headers)
+                         **self.auth_headers)
 
         criteria = PaymentAccountImageCriteria.objects.filter(payment_card=self.payment_card).first()
         self.assertIsNotNone(criteria)
