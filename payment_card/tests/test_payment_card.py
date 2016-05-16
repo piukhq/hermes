@@ -5,7 +5,7 @@ from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardA
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, PaymentAccountImageCriteria
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
 
@@ -155,16 +155,16 @@ class TestCSVUpload(APITestCase):
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
 
-        cls.payment_card_image = PaymentCardAccountImageFactory()
-        cls.account_image_criteria = PaymentCardAccountImageCriteriaFactory(
-            payment_card=cls.payment_card_account.payment_card,
-            payment_image=cls.payment_card_image)
-        cls.account_image_criteria.payment_card_accounts.add(cls.payment_card_account)
-
         super(TestCSVUpload, cls).setUpClass()
 
     def test_CSV_upload(self):
-        csv_file = SimpleUploadedFile("file.csv", content=b'', content_type="text/csv")
-        response = self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.name, 'emails': csv_file},
-                                    **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
+        csv_file = SimpleUploadedFile("file.csv", content=bytes(self.user.email, 'utf-8'), content_type="text/csv")
+
+        self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.id, 'emails': csv_file},
+                         **self.auth_headers)
+
+        criteria = PaymentAccountImageCriteria.objects.filter(payment_card=self.payment_card).first()
+        self.assertIsNotNone(criteria)
+
+        account = criteria.payment_card_accounts.filter(pk=self.payment_card_account.id)
+        self.assertIsNotNone(account)

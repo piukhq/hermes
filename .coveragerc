@@ -2,8 +2,11 @@
 omit = *migrations*
        *test*
        *templates*
-       *admin.py
+       user/exceptions.py
+       manage.py
+       hermes/wsgi.py
+       hermes/runners.py
 branch = True
 
 [report]
-fail_under = 89
+fail_under = 90
