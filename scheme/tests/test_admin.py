@@ -1,7 +1,9 @@
 from unittest.mock import MagicMock
 from django.core.exceptions import ValidationError
 from django.test import TestCase
-from scheme.admin import CredentialQuestionFormset
+from scheme.admin import CredentialQuestionFormset, SchemeForm
+from scheme.models import Category
+from scheme.tests.factories import SchemeFactory, CategoryFactory
 
 
 class TestCredentialsAdmin(TestCase):
@@ -35,3 +37,42 @@ class TestCredentialsAdmin(TestCase):
         with self.assertRaises(ValidationError) as e:
             CredentialQuestionFormset.clean(mocked_instance)
         self.assertEqual(e.exception.args[0], 'You must have a manual question when a scheme is set to active')
+
+
+class TestSchemeValidation(TestCase):
+    def setUp(self):
+        self.scheme = SchemeFactory()
+
+    def test_valid_point_name(self):
+        cat = CategoryFactory()
+        form = SchemeForm(instance=self.scheme, data={
+            'category': cat.id,
+            'company': 'test',
+            'forgotten_password_url': 'www.test.com',
+            'name': 'test',
+            'scan_message': 'test',
+            'slug': 'test',
+            'tier': 1,
+            'url': 'www.test.com',
+            'point_name': 'valid',
+            'max_points_value_length': 2
+        })
+        self.assertTrue(form.is_valid())
+
+    def test_invalid_point_name(self):
+        cat = CategoryFactory()
+        form = SchemeForm(instance=self.scheme, data={
+            'category': cat.id,
+            'company': 'test',
+            'forgotten_password_url': 'www.test.com',
+            'name': 'test',
+            'scan_message': 'test',
+            'slug': 'test',
+            'tier': 1,
+            'url': 'www.test.com',
+            'point_name': 'itsinvalid',
+            'max_points_value_length': 2
+        })
+        self.assertFalse(form.is_valid())
+        self.assertEqual(form.errors['point_name'][0], 'The length of the point name added to the maximum points value '
+                                                       'length must not exceed 10')

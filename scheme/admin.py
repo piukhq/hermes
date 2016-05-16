@@ -37,6 +37,10 @@ class SchemeForm(ModelForm):
         model = Scheme
         fields = '__all__'
 
+    def clean(self):
+        cleaned_data = super().clean()
+        return cleaned_data
+
     def clean_point_name(self):
         point_name = self.cleaned_data['point_name']
         points_value_length = self.cleaned_data['max_points_value_length']
