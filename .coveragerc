@@ -2,6 +2,10 @@
 omit = *migrations*
        *test*
        *templates*
+       user/exceptions.py
+       manage.py
+       hermes/wsgi.py
+       hermes/runners.py
 branch = True
 
 [report]
