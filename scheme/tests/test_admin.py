@@ -2,7 +2,6 @@ from unittest.mock import MagicMock
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 from scheme.admin import CredentialQuestionFormset, SchemeForm
-from scheme.models import Category
 from scheme.tests.factories import SchemeFactory, CategoryFactory
 
 
