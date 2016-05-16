@@ -75,6 +75,7 @@ class TestSchemeAccountViews(APITestCase):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
+            'points_label': '100',
             'value_label': "$10",
             'balance': Decimal('20'),
             'is_stale': False
@@ -92,6 +93,7 @@ class TestSchemeAccountViews(APITestCase):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
+            'points_label': '100',
             'value_label': "$10",
             'balance': Decimal('20'),
             'is_stale': False
@@ -375,6 +377,7 @@ class TestAccessTokens(APITestCase):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
+            'points_label': '100',
             'value_label': "$10",
             'balance': Decimal('20'),
             'is_stale': False
