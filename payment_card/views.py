@@ -109,7 +109,6 @@ def csv_upload(request):
     # If we had a POST then get the request post values.
     form = CSVUploadForm()
     if request.method == 'POST':
-
         form = CSVUploadForm(request.POST, request.FILES)
         if form.is_valid():
             payment_card = PaymentCard.objects.get(id=int(request.POST['scheme']))
@@ -126,6 +125,8 @@ def csv_upload(request):
                     else:
                         image_criteria_instance.delete()
                         return HttpResponseBadRequest()
+
+            image_criteria_instance.save()
 
             return redirect('/admin/payment_card/paymentaccountimagecriteria/{}'.format(image_criteria_instance.id))
 
