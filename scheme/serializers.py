@@ -111,11 +111,11 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
 
 
 class BalanceSerializer(serializers.Serializer):
-    points = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    points = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     points_label = serializers.CharField(allow_null=True)
-    value = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    value = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     value_label = serializers.CharField(allow_null=True)
-    balance = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
+    balance = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     is_stale = serializers.BooleanField()
 
 
