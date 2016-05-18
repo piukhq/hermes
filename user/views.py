@@ -385,13 +385,16 @@ class UserSettings(APIView):
             user_setting = user_settings.filter(setting__slug=setting.slug).first()
             if user_setting:
                 value = user_setting.value
+                set = True
             else:
                 value = setting.default_value
+                set = False
 
             settings_list.append({
                 'slug': setting.slug,
                 'value_type': setting.value_type_name,
-                'value': value
+                'value': value,
+                'set': set,
             })
 
         return Response(settings_list)
