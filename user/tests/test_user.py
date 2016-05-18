@@ -664,16 +664,20 @@ class TestUserSettings(APITestCase):
         setting = SettingFactory()
         UserSettingFactory(user=self.user, value='True', setting=setting)
 
+        setting = SettingFactory()
+
         resp = self.client.get('/users/me/settings', **self.auth_headers)
         data = resp.json()
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(data), 1)
+        self.assertEqual(len(data), 2)
         self.assertIn('slug', data[0])
         self.assertIn('value', data[0])
         self.assertIn('value_type', data[0])
         self.assertEqual(data[0]['value'], 'True')
         self.assertEqual(data[0]['value_type'], 'boolean')
+        self.assertEqual(data[0]['set'], True)
+        self.assertEqual(data[1]['set'], False)
 
     def test_delete_user_settings(self):
         settings = [SettingFactory(), SettingFactory()]
