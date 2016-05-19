@@ -385,16 +385,16 @@ class UserSettings(APIView):
             user_setting = user_settings.filter(setting__slug=setting.slug).first()
             if user_setting:
                 value = user_setting.value
-                set = True
+                is_user_defined = True
             else:
                 value = setting.default_value
-                set = False
+                is_user_defined = False
 
             settings_list.append({
                 'slug': setting.slug,
                 'value_type': setting.value_type_name,
                 'value': value,
-                'set': set,
+                'is_user_defined': is_user_defined,
             })
 
         return Response(settings_list)
