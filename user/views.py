@@ -1,5 +1,6 @@
 import requests
 from django.contrib.auth import authenticate, login
+from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
@@ -385,16 +386,16 @@ class UserSettings(APIView):
             user_setting = user_settings.filter(setting__slug=setting.slug).first()
             if user_setting:
                 value = user_setting.value
-                set = True
+                is_user_defined = True
             else:
                 value = setting.default_value
-                set = False
+                is_user_defined = False
 
             settings_list.append({
                 'slug': setting.slug,
                 'value_type': setting.value_type_name,
                 'value': value,
-                'set': set,
+                'is_user_defined': is_user_defined,
             })
 
         return Response(settings_list)
@@ -424,19 +425,32 @@ class UserSettings(APIView):
 
         if len(bad_settings) > 0:
             return Response({
-                'message': 'Some of the given settings are invalid.',
-                'failures': bad_settings
+                'error': 'Some of the given settings are invalid.',
+                'messages': bad_settings
             }, HTTP_400_BAD_REQUEST)
+
+        validation_errors = []
 
         for k, v in request.data.items():
             user_setting = UserSetting.objects.filter(user=request.user, setting__slug=k).first()
 
             if user_setting:
                 user_setting.value = v
-                user_setting.save()
             else:
                 setting = Setting.objects.filter(slug=k).first()
                 user_setting = UserSetting(user=request.user, setting=setting, value=v)
+
+            try:
+                user_setting.full_clean()
+            except ValidationError as e:
+                validation_errors.extend(e.messages)
+            else:
                 user_setting.save()
+
+        if validation_errors:
+            return Response({
+                'error': 'Some of the given settings are invalid.',
+                'messages': validation_errors,
+            }, HTTP_400_BAD_REQUEST)
 
         return Response(status=HTTP_204_NO_CONTENT)

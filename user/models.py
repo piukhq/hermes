@@ -2,14 +2,15 @@ import arrow
 import jwt
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.exceptions import ValidationError
 from hashids import Hashids
 from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
-
+from user.managers import CustomUserManager
+from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
@@ -184,6 +185,14 @@ class Setting(models.Model):
     def __str__(self):
         return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
 
+    def clean(self):
+        validate_setting_value(self.default_value, self)
+
+setting_value_type_validators = {
+    Setting.BOOLEAN: validate_boolean,
+    Setting.NUMBER: validate_number,
+}
+
 
 class UserSetting(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
@@ -194,3 +203,19 @@ class UserSetting(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
+
+    def clean(self):
+        validate_setting_value(self.value, self.setting)
+
+
+def validate_setting_value(value, setting):
+    # not all value_types have a corresponding validator.
+    if setting.value_type in setting_value_type_validators:
+        validate = setting_value_type_validators[setting.value_type]
+        if not validate(value):
+            raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
+                                  code='invalid_value',
+                                  params={
+                                      'value': value,
+                                      'value_type': setting.value_type_name,
+                                  })

@@ -44,7 +44,7 @@ class SettingFactory(factory.DjangoModelFactory):
 
     slug = FuzzyAttribute(fake.slug)
     value_type = 2
-    default_value = False
+    default_value = '0'
 
 
 class UserSettingFactory(factory.DjangoModelFactory):
