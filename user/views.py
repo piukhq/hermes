@@ -23,7 +23,7 @@ from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer)
+                              ResetTokenSerializer, SettingSerializer)
 
 
 class ForgottenPassword:

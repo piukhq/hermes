@@ -760,8 +760,9 @@ class TestUserSettings(APITestCase):
         self.assertIn('error', data)
         self.assertIn('messages', data)
         self.assertEqual(data['error'], 'Some of the given settings are invalid.')
-        self.assertEqual(data['messages'], ["'kitten' is not a valid value for type boolean.",
-                                            "'not even a number' is not a valid value for type number."])
+        self.assertEqual(len(data['messages']), 2)
+        self.assertIn("'kitten' is not a valid value for type boolean.", data['messages'])
+        self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
 
     def test_create_new_setting(self):
         setting = SettingFactory()
