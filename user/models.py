@@ -186,16 +186,7 @@ class Setting(models.Model):
         return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
 
     def clean(self):
-        # not all value_types have a corresponding validator.
-        if self.value_type in setting_value_type_validators:
-            validate = setting_value_type_validators[self.value_type]
-            if not validate(self.default_value):
-                raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
-                                      code='invalid_value',
-                                      params={
-                                          'value': self.default_value,
-                                          'value_type': self.value_type_name,
-                                      })
+        validate_setting_value(self.default_value, self)
 
 setting_value_type_validators = {
     Setting.BOOLEAN: validate_boolean,
@@ -214,13 +205,17 @@ class UserSetting(models.Model):
         return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
 
     def clean(self):
-        # not all value_types have a corresponding validator.
-        if self.setting.value_type in setting_value_type_validators:
-            validate = setting_value_type_validators[self.setting.value_type]
-            if not validate(self.value):
-                raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
-                                      code='invalid_value',
-                                      params={
-                                          'value': self.value,
-                                          'value_type': self.setting.value_type_name,
-                                      })
+        validate_setting_value(self.value, self.setting)
+
+
+def validate_setting_value(value, setting):
+    # not all value_types have a corresponding validator.
+    if setting.value_type in setting_value_type_validators:
+        validate = setting_value_type_validators[setting.value_type]
+        if not validate(value):
+            raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
+                                  code='invalid_value',
+                                  params={
+                                      'value': value,
+                                      'value_type': setting.value_type_name,
+                                  })
