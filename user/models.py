@@ -187,6 +187,17 @@ class Setting(models.Model):
     def __str__(self):
         return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
 
+    def clean(self):
+        # not all value_types have a corresponding validator.
+        if self.value_type in setting_value_type_validators:
+            validate = setting_value_type_validators[self.value_type]
+            if not validate(self.default_value):
+                raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
+                                      code='invalid_value',
+                                      params={
+                                          'value': self.default_value,
+                                          'value_type': self.value_type_name,
+                                      })
 
 setting_value_type_validators = {
     Setting.BOOLEAN: validate_boolean,

@@ -1,12 +1,13 @@
 import json
 import httpretty as httpretty
 from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 
-from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting
+from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting, Setting
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
 from unittest import mock
@@ -651,6 +652,13 @@ class TestSettings(APITestCase):
         self.assertIn('slug', resp.data[0])
         self.assertIn('value_type', resp.data[0])
         self.assertIn('default_value', resp.data[0])
+
+    def test_validate_setting(self):
+        s = Setting(slug='test-setting', value_type=Setting.BOOLEAN, default_value='true')
+        with self.assertRaises(ValidationError) as e:
+            s.full_clean()
+
+        self.assertEqual(e.exception.messages, ["'true' is not a valid value for type boolean."])
 
 
 class TestUserSettings(APITestCase):
