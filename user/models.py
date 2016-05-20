@@ -8,11 +8,9 @@ from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
-
-from user.validators import validate_boolean
-from user.validators import validate_number
+from user.managers import CustomUserManager
+from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
