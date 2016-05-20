@@ -2,6 +2,7 @@ import arrow
 import jwt
 import uuid
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.exceptions import ValidationError
 from hashids import Hashids
 from hermes import settings
 from django.db import models
@@ -10,6 +11,8 @@ from django.dispatch import receiver
 from user.managers import CustomUserManager
 from django.utils.translation import ugettext_lazy as _
 
+from user.validators import validate_boolean
+from user.validators import validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
@@ -185,6 +188,12 @@ class Setting(models.Model):
         return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
 
 
+setting_value_type_validators = {
+    Setting.BOOLEAN: validate_boolean,
+    Setting.NUMBER: validate_number,
+}
+
+
 class UserSetting(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
@@ -194,3 +203,15 @@ class UserSetting(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
+
+    def clean(self):
+        # not all value_types have a corresponding validator.
+        if self.setting.value_type in setting_value_type_validators:
+            validate = setting_value_type_validators[self.setting.value_type]
+            if not validate(self.value):
+                raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
+                                      code='invalid_value',
+                                      params={
+                                          'value': self.value,
+                                          'value_type': self.setting.value_type_name,
+                                      })

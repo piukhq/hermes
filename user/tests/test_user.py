@@ -696,56 +696,74 @@ class TestUserSettings(APITestCase):
 
     def test_update_user_settings(self):
         settings = [SettingFactory(), SettingFactory()]
-        UserSettingFactory(user=self.user, value='True', setting=settings[0])
-        UserSettingFactory(user=self.user, value='False', setting=settings[1])
+        UserSettingFactory(user=self.user, value='1', setting=settings[0])
+        UserSettingFactory(user=self.user, value='0', setting=settings[1])
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, 'True')
+        self.assertEqual(user_setting.value, '1')
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, 'False')
+        self.assertEqual(user_setting.value, '0')
 
         data = {
-            settings[0].slug: 'False',
-            settings[1].slug: 'True',
+            settings[0].slug: '0',
+            settings[1].slug: '1',
         }
         resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, 'False')
+        self.assertEqual(user_setting.value, '0')
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, 'True')
+        self.assertEqual(user_setting.value, '1')
 
     def test_update_incorrect_user_settings(self):
         setting = SettingFactory()
         data = {
             'bad-slug-1': '5',
-            setting.slug: 'True',
+            setting.slug: '1',
             'bad-slug-2': 'bad@bad.com',
         }
         resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
         data = resp.json()
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('message', data)
-        self.assertIn('failures', data)
-        self.assertEqual(data['message'], 'Some of the given settings are invalid.')
-        self.assertIn('bad-slug-1', data['failures'])
-        self.assertIn('bad-slug-2', data['failures'])
-        self.assertNotIn(setting.slug, data['failures'])
+        self.assertIn('error', data)
+        self.assertIn('messages', data)
+        self.assertEqual(data['error'], 'Some of the given settings are invalid.')
+        self.assertIn('bad-slug-1', data['messages'])
+        self.assertIn('bad-slug-2', data['messages'])
+        self.assertNotIn(setting.slug, data['messages'])
+
+    def test_update_user_setting_with_bad_value(self):
+        bool_setting = SettingFactory()
+        num_setting = SettingFactory(value_type=0)
+
+        data = {
+            bool_setting.slug: 'kitten',
+            num_setting.slug: 'not even a number',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        data = resp.json()
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('error', data)
+        self.assertIn('messages', data)
+        self.assertEqual(data['error'], 'Some of the given settings are invalid.')
+        self.assertEqual(data['messages'], ["'kitten' is not a valid value for type boolean.",
+                                            "'not even a number' is not a valid value for type number."])
 
     def test_create_new_setting(self):
         setting = SettingFactory()
 
         data = {
-            setting.slug: 'True',
+            setting.slug: '1',
         }
         resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
-        self.assertEqual(user_setting.value, 'True')
+        self.assertEqual(user_setting.value, '1')
