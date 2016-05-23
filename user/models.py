@@ -179,7 +179,7 @@ class Setting(models.Model):
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
     default_value = models.CharField(max_length=255)
-    scheme = models.ForeignKey(Scheme, null=True)
+    scheme = models.ForeignKey(Scheme, null=True, blank=True)
 
     @property
     def value_type_name(self):
