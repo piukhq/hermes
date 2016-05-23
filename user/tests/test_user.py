@@ -654,7 +654,7 @@ class TestSettings(APITestCase):
         self.assertIn('default_value', resp.data[0])
 
     def test_validate_setting(self):
-        s = Setting(slug='test-setting', value_type=Setting.BOOLEAN, default_value='1')
+        s = Setting(slug='test-setting', value_type=Setting.BOOLEAN, default_value='true')
         with self.assertRaises(ValidationError) as e:
             s.full_clean()
 
