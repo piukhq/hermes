@@ -176,10 +176,22 @@ class Setting(models.Model):
         (BOOLEAN, 'boolean'),
     )
 
+    GENERAL = 0
+    MARKETING = 1
+    SCHEME = 2
+
+    CATEGORIES = (
+        (GENERAL, 'general'),
+        (MARKETING, 'marketing'),
+        (SCHEME, 'scheme'),
+    )
+
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
     default_value = models.CharField(max_length=255)
     scheme = models.ForeignKey(Scheme, null=True, blank=True)
+    label = models.CharField(max_length=255, null=True, blank=True)
+    category = models.CharField(max_length=9, choices=CATEGORIES, null=True, blank=True)
 
     @property
     def value_type_name(self):

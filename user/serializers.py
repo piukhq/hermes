@@ -6,7 +6,7 @@ from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from hermes.settings import LETHE_URL, MEDIA_URL
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting
+from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
 from django.contrib.auth.password_validation import validate_password as validate_pass
 
 
@@ -195,18 +195,21 @@ class ResetTokenSerializer(serializers.Serializer):
 
 
 class SettingSerializer(serializers.ModelSerializer):
-    value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
+    value_type = serializers.SerializerMethodField()
 
     class Meta:
         model = Setting
-        fields = ('slug', 'value_type', 'default_value', 'scheme')
+        fields = ('slug', 'default_value', 'value_type', 'scheme', 'label', 'category')
+
+    @staticmethod
+    def get_value_type(setting):
+        return setting.value_type_name
 
 
-class UserSettingSerializer(serializers.Serializer):
-    slug = serializers.SlugField(required=True)
-    value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
-    value = serializers.CharField(max_length=255, required=True)
-    scheme = serializers.IntegerField()
+class UserSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSetting
+        fields = ('user', 'value')
 
 
 class UpdateUserSettingSerializer(serializers.Serializer):
