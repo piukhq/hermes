@@ -199,13 +199,14 @@ class SettingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Setting
-        fields = ('slug', 'value_type', 'default_value')
+        fields = ('slug', 'value_type', 'default_value', 'scheme')
 
 
 class UserSettingSerializer(serializers.Serializer):
     slug = serializers.SlugField(required=True)
     value_type = serializers.ChoiceField(choices=[s[1] for s in Setting.VALUE_TYPES], required=True)
     value = serializers.CharField(max_length=255, required=True)
+    scheme = serializers.IntegerField()
 
 
 class UpdateUserSettingSerializer(serializers.Serializer):

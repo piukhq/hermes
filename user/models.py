@@ -9,6 +9,8 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
+
+from scheme.models import Scheme
 from user.managers import CustomUserManager
 from user.validators import validate_boolean, validate_number
 
@@ -177,6 +179,7 @@ class Setting(models.Model):
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
     default_value = models.CharField(max_length=255)
+    scheme = models.ForeignKey(Scheme, null=True, blank=True)
 
     @property
     def value_type_name(self):
