@@ -391,11 +391,17 @@ class UserSettings(APIView):
                 value = setting.default_value
                 is_user_defined = False
 
+            try:
+                scheme_id = setting.scheme.id
+            except AttributeError:
+                scheme_id = None
+
             settings_list.append({
                 'slug': setting.slug,
                 'value_type': setting.value_type_name,
                 'value': value,
                 'is_user_defined': is_user_defined,
+                'scheme': scheme_id
             })
 
         return Response(settings_list)
