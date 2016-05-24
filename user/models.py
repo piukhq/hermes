@@ -191,7 +191,7 @@ class Setting(models.Model):
     default_value = models.CharField(max_length=255)
     scheme = models.ForeignKey(Scheme, null=True, blank=True)
     label = models.CharField(max_length=255, null=True, blank=True)
-    category = models.CharField(max_length=9, choices=CATEGORIES, null=True, blank=True)
+    category = models.IntegerField(choices=CATEGORIES, null=True, blank=True)
 
     @property
     def value_type_name(self):
