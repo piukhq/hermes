@@ -23,7 +23,7 @@ from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer, SettingSerializer)
+                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer)
 
 
 class ForgottenPassword:
@@ -383,26 +383,22 @@ class UserSettings(APIView):
         settings_list = []
 
         for setting in settings:
-            user_setting = user_settings.filter(setting__slug=setting.slug).first()
-            if user_setting:
-                value = user_setting.value
-                is_user_defined = True
-            else:
-                value = setting.default_value
+            user_setting = user_settings.filter(setting=setting).first()
+
+            if not user_setting:
+                user_setting = UserSetting(
+                    user=request.user,
+                    setting=setting,
+                    value=setting.default_value,
+                )
                 is_user_defined = False
+            else:
+                is_user_defined = True
 
-            try:
-                scheme_id = setting.scheme.id
-            except AttributeError:
-                scheme_id = None
-
-            settings_list.append({
-                'slug': setting.slug,
-                'value_type': setting.value_type_name,
-                'value': value,
-                'is_user_defined': is_user_defined,
-                'scheme': scheme_id
-            })
+            data = {'is_user_defined': is_user_defined}
+            data.update(UserSettingSerializer(user_setting).data)
+            data.update(SettingSerializer(setting).data)
+            settings_list.append(data)
 
         return Response(settings_list)
 

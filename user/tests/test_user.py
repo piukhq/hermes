@@ -652,6 +652,9 @@ class TestSettings(APITestCase):
         self.assertIn('slug', resp.data[0])
         self.assertIn('value_type', resp.data[0])
         self.assertIn('default_value', resp.data[0])
+        self.assertIn('scheme', resp.data[0])
+        self.assertIn('label', resp.data[0])
+        self.assertIn('category', resp.data[0])
 
     def test_validate_setting(self):
         s = Setting(slug='test-setting', value_type=Setting.BOOLEAN, default_value='true')
@@ -670,7 +673,7 @@ class TestUserSettings(APITestCase):
 
     def test_list_user_settings(self):
         setting = SettingFactory()
-        UserSettingFactory(user=self.user, value='True', setting=setting)
+        UserSettingFactory(user=self.user, value='1', setting=setting)
 
         SettingFactory()
 
@@ -679,18 +682,20 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(data), 2)
-        self.assertIn('slug', data[0])
-        self.assertIn('value', data[0])
-        self.assertIn('value_type', data[0])
-        self.assertEqual(data[0]['value'], 'True')
-        self.assertEqual(data[0]['value_type'], 'boolean')
+        self.assertEqual(data[0]['category'], None)
+        self.assertEqual(data[0]['default_value'], '0')
         self.assertEqual(data[0]['is_user_defined'], True)
-        self.assertEqual(data[1]['is_user_defined'], False)
+        self.assertEqual(data[0]['label'], None)
+        self.assertEqual(data[0]['scheme'], None)
+        self.assertEqual(data[0]['slug'], setting.slug)
+        self.assertEqual(data[0]['user'], self.user.id)
+        self.assertEqual(data[0]['value'], '1')
+        self.assertEqual(data[0]['value_type'], setting.value_type_name)
 
     def test_delete_user_settings(self):
         settings = [SettingFactory(), SettingFactory()]
-        UserSettingFactory(user=self.user, value='True', setting=settings[0])
-        UserSettingFactory(user=self.user, value='False', setting=settings[1])
+        UserSettingFactory(user=self.user, value='1', setting=settings[0])
+        UserSettingFactory(user=self.user, value='0', setting=settings[1])
 
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 2)
