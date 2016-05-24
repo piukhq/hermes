@@ -5,6 +5,7 @@ from django.db import IntegrityError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
                                      get_object_or_404, ListAPIView)
@@ -14,16 +15,17 @@ from rest_framework.response import Response
 from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
-
-from errors import error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS, \
-    INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE, DUPLICATE_ACCOUNT_REGISTRATION
+from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
+                    INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
+                    DUPLICATE_ACCOUNT_REGISTRATION)
+from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
-                              PromoCodeSerializer, TwitterRegisterSerializer, ForgottenPasswordSerializer,
-                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer)
+                              PromoCodeSerializer, TwitterRegisterSerializer, ResetTokenSerializer, SettingSerializer,
+                              UserSettingSerializer)
 
 
 class ForgottenPassword:
@@ -90,17 +92,22 @@ class ResetPassword(UpdateAPIView):
         return obj
 
 
-class ForgotPassword(CreateAPIView, UpdateModelMixin):
+class ForgotPassword(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-    serializer_class = ForgottenPasswordSerializer
 
-    def post(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
+    def post(self, request):
+        user = CustomUser.objects.filter(email=request.data['email']).first()
+        if user:
+            user.generate_reset_token()
+            send_mail('email.tpl',
+                      {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
+                       'hermes_url': MEDIA_URL},
+                      'emailservice@loyaltyangels.com',
+                      [user.email],
+                      fail_silently=False)
 
-    def get_object(self):
-        obj = get_object_or_404(CustomUser, email=self.request.data['email'])
-        return obj
+        return Response('An email has been sent with details of how to reset your password.', 200)
 
 
 class Users(RetrieveUpdateAPIView):
