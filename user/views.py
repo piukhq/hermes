@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
-                    DUPLICATE_ACCOUNT_REGISTRATION)
+                    DUPLICATE_ACCOUNT_REGISTRATION, REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
@@ -44,13 +44,24 @@ class OpenAuthentication(SessionAuthentication):
 # TODO: Could be merged with users
 # Will require research, multiple serializers
 # Password Handling
-class Register(CreateAPIView):
+class Register(APIView):
     """
     Register a new user in the Loyalty Angels App.
     """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-    serializer_class = RegisterSerializer
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, 201)
+        else:
+            if 'promo_code' in serializer.errors:
+                return Response({'promo_code': serializer.errors['promo_code']}, 400)
+            else:
+                return error_response(REGISTRATION_FAILED)
 
 
 class ValidatePromoCode(CreateAPIView):

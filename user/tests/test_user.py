@@ -28,11 +28,9 @@ class TestRegisterNewUserViews(TestCase):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password'})
         content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('password', content.keys())
-        self.assertEqual(content['password'],
-                         ['This password is invalid. It must contain a numeric character.',
-                          'This password is invalid. It must contain an upper case character.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_uid_is_unique(self):
         client = Client()
@@ -51,48 +49,46 @@ class TestRegisterNewUserViews(TestCase):
     def test_invalid_email(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_4@example', 'password': 'Password4'})
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertEqual(list(content.keys()), ['email'])
-        self.assertEqual(content['email'], ['Enter a valid email address.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_no_email(self):
         client = Client()
         response = client.post('/users/register/', {'password': 'Password5', 'promo_code': ''})
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertEqual(list(content.keys()), ['email'])
-        self.assertEqual(content['email'], ['This field is required.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
         response = client.post('/users/register/', {'email': '', 'password': 'Password5'})
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertEqual(list(content.keys()), ['email'])
-        self.assertEqual(content['email'], ['This field may not be blank.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_no_password(self):
         client = Client()
         response = client.post('/users/register/', {'email': 'test_5@example.com'})
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertEqual(list(content.keys()), ['password'])
-        self.assertEqual(content['password'], ['This field is required.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
         response = client.post('/users/register/', {'email': 'test_5@example.com', 'password': ''})
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertEqual(list(content.keys()), ['password'])
-        self.assertEqual(content['password'], ['This field may not be blank.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_no_email_and_no_password(self):
         client = Client()
         response = client.post('/users/register/')
-        self.assertEqual(response.status_code, 400)
         content = json.loads(response.content.decode())
-        self.assertIn('email', content.keys())
-        self.assertIn('password', content.keys())
-        self.assertEqual(content['email'], ['This field is required.'])
-        self.assertEqual(content['password'], ['This field is required.'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_bad_bad_promo_code(self):
         client = Client()
@@ -107,9 +103,9 @@ class TestRegisterNewUserViews(TestCase):
         self.assertEqual(response.status_code, 201)
         response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'Password6'})
         content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 400)
-        self.assertIn('email', content.keys())
-        self.assertEqual(content['email'], ['That user already exists'])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
