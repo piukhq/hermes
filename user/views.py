@@ -395,13 +395,9 @@ class UserSettings(APIView):
             else:
                 is_user_defined = True
 
-            serializer = UserSettingSerializer(user_setting)
-            data = serializer.data
-            data['is_user_defined'] = is_user_defined
-
-            serializer = SettingSerializer(setting)
-            data.update(serializer.data)
-
+            data = {'is_user_defined': is_user_defined}
+            data.update(UserSettingSerializer(user_setting).data)
+            data.update(SettingSerializer(setting).data)
             settings_list.append(data)
 
         return Response(settings_list)
