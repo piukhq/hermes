@@ -1,10 +1,8 @@
 from collections import OrderedDict
-from mail_templated import send_mail
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
-from hermes.settings import LETHE_URL, MEDIA_URL
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
 from django.contrib.auth.password_validation import validate_password as validate_pass
@@ -168,20 +166,6 @@ class TwitterRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
-
-
-class ForgottenPasswordSerializer(serializers.Serializer):
-    email = serializers.CharField(max_length=600)
-
-    def update(self, validated_data, instance):
-        validated_data.generate_reset_token()
-        send_mail('email.tpl',
-                  {'link': '{}/{}'.format(LETHE_URL, validated_data.reset_token.decode('UTF-8')),
-                   'hermes_url': MEDIA_URL},
-                  'emailservice@loyaltyangels.com',
-                  [validated_data.email],
-                  fail_silently=False)
-        return validated_data
 
 
 class ResetTokenSerializer(serializers.Serializer):
