@@ -9,6 +9,7 @@ MEMORABLE_DATE = 'memorable_date'
 PIN = 'pin'
 LAST_NAME = 'last_name'
 FAVOURITE_PLACE = 'favourite_place'
+DATE_OF_BIRTH = 'date_of_birth'
 
 CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
@@ -22,6 +23,7 @@ CREDENTIAL_TYPES = (
     (PIN, 'pin'),
     (LAST_NAME, 'last name'),
     (FAVOURITE_PLACE, 'favourite place'),
+    (DATE_OF_BIRTH, 'date_of_birth'),
 )
 
 ENCRYPTED_CREDENTIALS = (
@@ -32,4 +34,5 @@ ENCRYPTED_CREDENTIALS = (
     PIN,
     LAST_NAME,
     FAVOURITE_PLACE,
+    DATE_OF_BIRTH,
 )
