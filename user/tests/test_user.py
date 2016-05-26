@@ -6,8 +6,6 @@ from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
-
-from scheme.tests.factories import CategoryFactory
 from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting, Setting
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
