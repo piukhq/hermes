@@ -180,6 +180,7 @@ class ResetTokenSerializer(serializers.Serializer):
 
 class SettingSerializer(serializers.ModelSerializer):
     value_type = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
 
     class Meta:
         model = Setting
@@ -188,6 +189,10 @@ class SettingSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_value_type(setting):
         return setting.value_type_name
+
+    @staticmethod
+    def get_category(setting):
+        return setting.category_name
 
 
 class UserSettingSerializer(serializers.ModelSerializer):
