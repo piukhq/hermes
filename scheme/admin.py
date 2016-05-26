@@ -87,7 +87,13 @@ class SchemeAccountAdmin(admin.ModelAdmin):
     list_filter = ('is_deleted', 'status', 'scheme')
     list_display = ('user', 'scheme', 'status', 'is_deleted')
 
+
+class SchemeAccountImageCriteriaAdmin(admin.ModelAdmin):
+    model = SchemeAccountImageCriteria
+    filter_horizontal = ('scheme_accounts',)
+
+
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
-admin.site.register(SchemeAccountImageCriteria)
+admin.site.register(SchemeAccountImageCriteria, SchemeAccountImageCriteriaAdmin)
 admin.site.register(SchemeAccountImage)
