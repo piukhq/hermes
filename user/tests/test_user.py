@@ -7,6 +7,7 @@ from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 
+from scheme.tests.factories import CategoryFactory
 from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting, Setting
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
@@ -668,7 +669,7 @@ class TestUserSettings(APITestCase):
         super().setUpClass()
 
     def test_list_user_settings(self):
-        setting = SettingFactory()
+        setting = SettingFactory(category=Setting.MARKETING)
         UserSettingFactory(user=self.user, value='1', setting=setting)
 
         SettingFactory()
@@ -678,7 +679,7 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]['category'], None)
+        self.assertEqual(data[0]['category'], 'Marketing')
         self.assertEqual(data[0]['default_value'], '0')
         self.assertEqual(data[0]['is_user_defined'], True)
         self.assertEqual(data[0]['label'], None)

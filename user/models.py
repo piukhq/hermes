@@ -181,9 +181,9 @@ class Setting(models.Model):
     SCHEME = 2
 
     CATEGORIES = (
-        (GENERAL, 'general'),
-        (MARKETING, 'marketing'),
-        (SCHEME, 'scheme'),
+        (GENERAL, 'General'),
+        (MARKETING, 'Marketing'),
+        (SCHEME, 'Scheme'),
     )
 
     slug = models.SlugField(unique=True)
@@ -196,6 +196,10 @@ class Setting(models.Model):
     @property
     def value_type_name(self):
         return dict(self.VALUE_TYPES).get(self.value_type)
+
+    @property
+    def category_name(self):
+        return dict(self.CATEGORIES).get(self.category)
 
     def __str__(self):
         return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
