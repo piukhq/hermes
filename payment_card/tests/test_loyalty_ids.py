@@ -40,8 +40,13 @@ class TestRetrieveLoyaltyID(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data, [{self.payment_card_account_1.token: self.scheme_answer_1.answer},
-                                {self.payment_card_account_2.token: self.scheme_answer_2.answer}])
+        self.assertEqual(data, [{
+            self.payment_card_account_1.token: self.scheme_answer_1.answer,
+            'scheme_account_id': 1,
+        }, {
+            self.payment_card_account_2.token: self.scheme_answer_2.answer,
+            'scheme_account_id': 2,
+        }])
 
     def test_404_scheme_unavailable(self):
         response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format("unavailable_scheme"),
