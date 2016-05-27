@@ -58,5 +58,7 @@ class TestRetrieveLoyaltyID(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data, [{self.payment_card_account_1.token: self.scheme_answer_1.answer},
-                                {'99999': None}])
+        self.assertEqual(data, [{
+            'scheme_account_id': 1,
+            self.payment_card_account_1.token: self.scheme_answer_1.answer
+        }, {'99999': None}])

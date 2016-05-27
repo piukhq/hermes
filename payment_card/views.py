@@ -99,7 +99,10 @@ class RetrieveLoyaltyID(View):
             payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
             if payment_card:
                 scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
-                response_data.append({payment_card.token: scheme_account.third_party_identifier})
+                response_data.append({
+                    payment_card.token: scheme_account.third_party_identifier,
+                    'scheme_account_id': scheme_account.id
+                })
             else:
                 response_data.append({payment_card_token: None})
         return JsonResponse(response_data, safe=False)
