@@ -64,6 +64,8 @@ class Scheme(models.Model):
     company = models.CharField(max_length=200)
     company_url = models.URLField(blank=True, null=True)
     forgotten_password_url = models.URLField(max_length=500)
+    join_url = models.URLField(blank=True, null=True)
+
     tier = models.IntegerField(choices=TIERS)
 
     ios_scheme = models.CharField(max_length=255, blank=True, null=True, verbose_name='iOS scheme')
