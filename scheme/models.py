@@ -183,6 +183,7 @@ class SchemeAccount(models.Model):
     AGENT_NOT_FOUND = 404
     WALLET_ONLY = 10
     PASSWORD_EXPIRED = 533
+    JOIN = 900
 
     STATUSES = (
         (PENDING, 'Pending'),
@@ -199,7 +200,8 @@ class SchemeAccount(models.Model):
         (MIDAS_UNREACHEABLE, 'Midas unavailable'),
         (WALLET_ONLY, 'Wallet only card'),
         (AGENT_NOT_FOUND, 'Agent does not exist on midas'),
-        (PASSWORD_EXPIRED, "Password expired")
+        (PASSWORD_EXPIRED, 'Password expired'),
+        (JOIN, 'Join'),
     )
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
