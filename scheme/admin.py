@@ -87,6 +87,11 @@ class SchemeAccountAdmin(admin.ModelAdmin):
     list_filter = ('is_deleted', 'status', 'scheme')
     list_display = ('user', 'scheme', 'status', 'is_deleted')
 
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return self.readonly_fields + ('scheme', 'user',)
+        return self.readonly_fields
+
 
 class SchemeAccountImageCriteriaAdmin(admin.ModelAdmin):
     model = SchemeAccountImageCriteria
