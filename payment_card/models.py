@@ -12,6 +12,50 @@ class Issuer(models.Model):
         return self.name
 
 
+class ActivePaymentCardImageManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset()\
+            .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
+
+
+IMAGE_TYPES = (
+    (0, 'hero'),
+    (1, 'banner'),
+    (2, 'offers'),
+    (3, 'icon'),
+    (4, 'asset'),
+    (5, 'reference'),
+    (6, 'personal offers'),
+)
+
+
+class PaymentCardImage(models.Model):
+    DRAFT = 0
+    PUBLISHED = 1
+
+    STATUSES = (
+        (DRAFT, 'draft'),
+        (PUBLISHED, 'published'),
+    )
+
+    payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images')
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    size_code = models.CharField(max_length=30, null=True, blank=True)
+    image = models.ImageField(upload_to="schemes")
+    strap_line = models.CharField(max_length=50, null=True, blank=True)
+    description = models.CharField(max_length=300, null=True, blank=True)
+    url = models.URLField(null=True, blank=True)
+    call_to_action = models.CharField(max_length=150)
+    order = models.IntegerField()
+    status = models.IntegerField(default=DRAFT, choices=STATUSES)
+    start_date = models.DateTimeField()
+    end_date = models.DateTimeField()
+    created = models.DateTimeField(default=timezone.now)
+
+    all_objects = models.Manager()
+    objects = ActivePaymentCardImageManager()
+
+
 class PaymentCard(models.Model):
     VISA = 'visa'
     MASTERCARD = 'mastercard'
@@ -89,7 +133,7 @@ class PaymentCardAccount(models.Model):
 
     @property
     def images(self):
-        qualifiers = PaymentAccountImageCriteria.objects.filter(payment_card=self.payment_card,
+        qualifiers = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card,
                                                                 payment_card_accounts__id=self.id,
                                                                 payment_image__isnull=False)
         images = qualifiers.annotate(image_type_code=F('payment_image__image_type_code'),
@@ -117,14 +161,6 @@ class PaymentCardAccount(models.Model):
 
 
 class PaymentCardAccountImage(models.Model):
-    IMAGE_TYPES = (
-        (0, 'hero'),
-        (1, 'banner'),
-        (2, 'offers'),
-        (3, 'icon'),
-        (4, 'asset'),
-        (5, 'reference'),
-    )
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
@@ -136,7 +172,7 @@ class PaymentCardAccountImage(models.Model):
     created = models.DateTimeField(default=timezone.now)
 
 
-class PaymentAccountImageCriteria(models.Model):
+class PaymentCardAccountImageCriteria(models.Model):
     DRAFT = 0
     PUBLISHED = 1
 

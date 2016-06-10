@@ -1,6 +1,8 @@
+from copy import copy
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from payment_card.models import PaymentCard, PaymentCardAccount
+from payment_card.models import (PaymentCard, PaymentCardAccount, PaymentCardImage, PaymentCardAccountImage,
+                                 PaymentCardAccountImageCriteria)
 
 
 class PaymentCardSerializer(serializers.ModelSerializer):
@@ -53,3 +55,43 @@ class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
 
     class Meta(PaymentCardAccountSerializer.Meta):
         pass
+
+
+def add_object_type_to_image_response(data, type):
+    new_data = copy(data)
+    new_data['object_type'] = type
+    return new_data
+
+
+def get_images_for_payment_account(payment_card_account):
+    account_image_criterias = PaymentCardAccountImageCriteria.objects.filter(payment_card_accounts__id=payment_card_account.id)
+    scheme_images = PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
+
+    images = []
+
+    for criteria in account_image_criterias:
+        serializer = PaymentCardAccountImageSerializer(criteria.scheme_image)
+        images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
+
+    for image in scheme_images:
+        account_image_criteria = account_image_criterias.filter(
+            payment_card_image__image_type_code=image.image_type_code).first()
+        if not account_image_criteria:
+            # we have to turn the PaymentCardImage instance into a PaymentCardAccountImage
+            account_image = PaymentCardAccountImage(
+                id=image.id,
+                image_type_code=image.image_type_code,
+                size_code=image.size_code,
+                image=image.image,
+                strap_line=image.strap_line,
+                description=image.description,
+                url=image.url,
+                call_to_action=image.call_to_action,
+                order=image.order,
+                created=image.created,
+            )
+
+            serializer = PaymentCardAccountImageSerializer(account_image)
+            images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
+
+    return images
