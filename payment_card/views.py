@@ -11,9 +11,9 @@ from payment_card.forms import CSVUploadForm
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
-from payment_card.models import PaymentCardAccount, PaymentCard, PaymentAccountImageCriteria
-from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardSerializer, \
-    PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer
+from payment_card.models import PaymentCardAccount, PaymentCard, PaymentCardAccountImageCriteria
+from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardSerializer,
+                                      PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer)
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -116,7 +116,8 @@ def csv_upload(request):
         if form.is_valid():
             payment_card = PaymentCard.objects.get(id=int(request.POST['scheme']))
             uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
-            image_criteria_instance = PaymentAccountImageCriteria(payment_card=payment_card, start_date=timezone.now())
+            image_criteria_instance = PaymentCardAccountImageCriteria(payment_card=payment_card,
+                                                                      start_date=timezone.now())
             image_criteria_instance.save()
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
