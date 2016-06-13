@@ -116,7 +116,8 @@ def csv_upload(request):
         if form.is_valid():
             payment_card = PaymentCard.objects.get(id=int(request.POST['scheme']))
             uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
-            image_criteria_instance = PaymentCardAccountImageCriteria(payment_card=payment_card, start_date=timezone.now())
+            image_criteria_instance = PaymentCardAccountImageCriteria(payment_card=payment_card,
+                                                                      start_date=timezone.now())
             image_criteria_instance.save()
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
