@@ -23,7 +23,7 @@ class TestPaymentCard(APITestCase):
         cls.payment_card_image = PaymentCardAccountImageFactory()
         cls.account_image_criteria = PaymentCardAccountImageCriteriaFactory(
             payment_card=cls.payment_card_account.payment_card,
-            payment_image=cls.payment_card_image)
+            payment_card_image=cls.payment_card_image)
         cls.account_image_criteria.payment_card_accounts.add(cls.payment_card_account)
 
         super(TestPaymentCard, cls).setUpClass()

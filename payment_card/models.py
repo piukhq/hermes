@@ -135,15 +135,15 @@ class PaymentCardAccount(models.Model):
     def images(self):
         qualifiers = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card,
                                                                     payment_card_accounts__id=self.id,
-                                                                    payment_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('payment_image__image_type_code'),
-                                     image_size_code=F('payment_image__size_code'),
-                                     image=F('payment_image__image'),
-                                     strap_line=F('payment_image__strap_line'),
-                                     image_description=F('payment_image__description'),
-                                     url=F('payment_image__url'),
-                                     call_to_action=F('payment_image__call_to_action'),
-                                     order=F('payment_image__order')) \
+                                                                    payment_card_image__isnull=False)
+        images = qualifiers.annotate(image_type_code=F('payment_card_image__image_type_code'),
+                                     image_size_code=F('payment_card_image__size_code'),
+                                     image=F('payment_card_image__image'),
+                                     strap_line=F('payment_card_image__strap_line'),
+                                     image_description=F('payment_card_image__description'),
+                                     url=F('payment_card_image__url'),
+                                     call_to_action=F('payment_card_image__call_to_action'),
+                                     order=F('payment_card_image__order')) \
             .values('image_type_code',
                     'image_size_code',
                     'image',
