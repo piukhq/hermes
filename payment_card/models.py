@@ -134,8 +134,8 @@ class PaymentCardAccount(models.Model):
     @property
     def images(self):
         qualifiers = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card,
-                                                                payment_card_accounts__id=self.id,
-                                                                payment_image__isnull=False)
+                                                                    payment_card_accounts__id=self.id,
+                                                                    payment_image__isnull=False)
         images = qualifiers.annotate(image_type_code=F('payment_image__image_type_code'),
                                      image_size_code=F('payment_image__size_code'),
                                      image=F('payment_image__image'),
@@ -191,4 +191,4 @@ class PaymentCardAccountImageCriteria(models.Model):
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
-    payment_image = models.ForeignKey('payment_card.PaymentCardAccountImage', null=True, blank=True)
+    payment_card_image = models.ForeignKey('payment_card.PaymentCardAccountImage', null=True, blank=True)

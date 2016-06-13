@@ -10,19 +10,9 @@ class PaymentCardSerializer(serializers.ModelSerializer):
         model = PaymentCard
 
 
-class PaymentCardAccountImageSerializer(serializers.Serializer):
-    image_type_code = serializers.CharField()
-    image_size_code = serializers.CharField()
-    image = serializers.CharField()
-    strap_line = serializers.CharField()
-    image_description = serializers.CharField()
-    url = serializers.URLField
-    call_to_action = serializers.CharField()
-    order = serializers.IntegerField()
-    status = serializers.IntegerField()
-    start_date = serializers.DateTimeField()
-    end_date = serializers.DateTimeField()
-    created = serializers.DateTimeField()
+class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentCardAccountImage
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -31,7 +21,11 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         max_length=255,
         write_only=True,
         validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
-    images = PaymentCardAccountImageSerializer(many=True, read_only=True)
+    images = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_images(payment_card_account):
+        return get_images_for_payment_card_account(payment_card_account)
 
     class Meta:
         model = PaymentCardAccount
@@ -63,17 +57,18 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_payment_account(payment_card_account):
-    account_image_criterias = PaymentCardAccountImageCriteria.objects.filter(payment_card_accounts__id=payment_card_account.id)
-    scheme_images = PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
+def get_images_for_payment_card_account(payment_card_account):
+    account_image_criterias = PaymentCardAccountImageCriteria.objects.filter(
+        payment_card_accounts__id=payment_card_account.id)
+    payment_card_images = PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
     for criteria in account_image_criterias:
-        serializer = PaymentCardAccountImageSerializer(criteria.scheme_image)
+        serializer = PaymentCardAccountImageSerializer(criteria.payment_card_image)
         images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
 
-    for image in scheme_images:
+    for image in payment_card_images:
         account_image_criteria = account_image_criterias.filter(
             payment_card_image__image_type_code=image.image_type_code).first()
         if not account_image_criteria:

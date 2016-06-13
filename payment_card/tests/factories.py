@@ -44,6 +44,24 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     issuer = factory.SubFactory(IssuerFactory)
 
 
+class PaymentCardImageFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.PaymentCardImage
+
+    payment_card = factory.SubFactory(PaymentCardFactory)
+    image_type_code = 1
+    size_code = fake.word()
+    image = fake.url()
+    strap_line = fake.sentence(nb_words=3)
+    description = fake.sentence(nb_words=3)
+    url = fake.url()
+    call_to_action = fake.sentence(nb_words=3)
+    order = 0
+    status = 1
+    start_date = timezone.now()
+    end_date = "2200-1-1"
+
+
 class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccountImage
@@ -60,7 +78,7 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
 
 class PaymentCardAccountImageCriteriaFactory(factory.DjangoModelFactory):
     class Meta:
-        model = models.PaymentAccountImageCriteria
+        model = models.PaymentCardAccountImageCriteria
 
     payment_card = factory.SubFactory(PaymentCardFactory)
     description = fake.sentence(nb_words=3)
