@@ -175,6 +175,9 @@ class PaymentCardAccountImage(models.Model):
     order = models.IntegerField()
     created = models.DateTimeField(default=timezone.now)
 
+    def __str__(self):
+        return self.description
+
 
 class PaymentCardAccountImageCriteria(models.Model):
     DRAFT = 0
@@ -196,3 +199,6 @@ class PaymentCardAccountImageCriteria(models.Model):
     created = models.DateTimeField(default=timezone.now)
 
     payment_card_image = models.ForeignKey('payment_card.PaymentCardAccountImage', null=True, blank=True)
+
+    def __str__(self):
+        return self.description
