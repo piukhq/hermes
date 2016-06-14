@@ -125,7 +125,11 @@ class PaymentCardAccount(models.Model):
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return "{0}******{1}".format(self.pan_start, self.pan_end)
+        return '({}) {} - {}'.format(
+            self.user.email,
+            self.payment_card.name,
+            self.name_on_card
+        )
 
     @property
     def status_name(self):
