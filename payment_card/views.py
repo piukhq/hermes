@@ -2,6 +2,7 @@ import csv
 import json
 from io import StringIO
 from django.http import JsonResponse, HttpResponseBadRequest
+from django.db.models import Model
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
@@ -98,11 +99,16 @@ class RetrieveLoyaltyID(View):
         for payment_card_token in payment_card_tokens:
             payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
             if payment_card:
-                scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
-                response_data.append({
-                    payment_card.token: scheme_account.third_party_identifier,
-                    'scheme_account_id': scheme_account.id
-                })
+                try:
+                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                except Model.DoesNotExist:
+                    # the user was matched but is not registered in that scheme
+                    response_data.append({payment_card_token: None})
+                else:
+                    response_data.append({
+                        payment_card.token: scheme_account.third_party_identifier,
+                        'scheme_account_id': scheme_account.id
+                    })
             else:
                 response_data.append({payment_card_token: None})
         return JsonResponse(response_data, safe=False)
