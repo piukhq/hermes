@@ -1,4 +1,5 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 
 from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
@@ -143,8 +144,12 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
 
-    def test_image_property(self):
-        self.payment_card_account.images
+    def test_payment_card_account_fingerprint_is_unique(self):
+        with self.assertRaises(IntegrityError) as e:
+            factories.PaymentCardAccountFactory()
+        self.assertEqual(e.exception.args[0], ('duplicate key value violates unique constraint '
+                                               '"payment_card_paymentcardaccount_fingerprint_key"\n'
+                                               'DETAIL:  Key (fingerprint)=(fake-fingerprint) already exists.\n'))
 
 
 class TestCSVUpload(APITestCase):

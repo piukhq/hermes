@@ -42,6 +42,7 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     pan_end = 2222
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
+    fingerprint = 'fake-fingerprint'
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):

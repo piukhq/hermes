@@ -120,6 +120,7 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer)
+    fingerprint = models.CharField(max_length=100, unique=True)
     is_deleted = models.BooleanField(default=False)
 
     objects = PaymentCardAccountManager()
