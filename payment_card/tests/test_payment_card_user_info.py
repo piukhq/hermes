@@ -13,9 +13,9 @@ class TestPaymentCardUserInfo(APITestCase):
         cls.user_2 = user_factories.UserFactory()
 
         cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_1,
-                                                                                      token='1122**33')
+                                                                                      token='1144**33')
         cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_2,
-                                                                                      token='3322**11')
+                                                                                      token='3344**11')
 
         cls.scheme_account_1 = scheme_factories.SchemeAccountFactory(user=cls.user_1)
         cls.scheme = cls.scheme_account_1.scheme
@@ -41,12 +41,12 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data, {
-            '1122**33': {
+            '1144**33': {
                 'user_id': self.user_1.id,
                 'scheme_account_id': self.scheme_account_1.id,
                 'loyalty_id': self.scheme_answer_1.answer
             },
-            '3322**11': {
+            '3344**11': {
                 'user_id': self.user_2.id,
                 'scheme_account_id': self.scheme_account_2.id,
                 'loyalty_id': self.scheme_answer_2.answer
@@ -69,7 +69,7 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
         self.assertEqual(data, {
-            '1122**33': {
+            '1144**33': {
                 'user_id': self.user_1.id,
                 'scheme_account_id': self.scheme_account_1.id,
                 'loyalty_id': self.scheme_answer_1.answer

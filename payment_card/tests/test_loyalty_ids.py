@@ -32,7 +32,7 @@ class TestRetrieveLoyaltyID(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestRetrieveLoyaltyID, cls).setUpClass()
 
-    def _test_retrieve(self):
+    def test_retrieve(self):
         response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format(self.scheme.slug),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.token,
                                                                   self.payment_card_account_2.token]}),
@@ -48,7 +48,7 @@ class TestRetrieveLoyaltyID(APITestCase):
             'scheme_account_id': self.scheme_account_2.id,
         }])
 
-    def _test_404_scheme_unavailable(self):
+    def test_404_scheme_unavailable(self):
         response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format("unavailable_scheme"),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.token,
                                                                   self.payment_card_account_2.token]}),
@@ -56,7 +56,7 @@ class TestRetrieveLoyaltyID(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
-    def _test_invalid_card_token(self):
+    def test_invalid_card_token(self):
         response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format(self.scheme.slug),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.token, 99999]}),
                                     content_type='application/json',
