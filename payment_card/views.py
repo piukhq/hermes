@@ -130,7 +130,7 @@ class RetrievePaymentCardUserInfo(View):
                     scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
                 except ObjectDoesNotExist:
                     # the user was matched but is not registered in that scheme
-                    response_data[payment_card_token]={
+                    response_data[payment_card_token] = {
                         'loyalty_id': None,
                         'scheme_account_id': None,
                         'user_id': payment_card.user_id,
