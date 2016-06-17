@@ -2,6 +2,7 @@ from bulk_update.helper import bulk_update
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
+import uuid
 
 
 class Issuer(models.Model):
@@ -120,7 +121,7 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer)
-    fingerprint = models.CharField(max_length=100, unique=True)
+    fingerprint = models.CharField(max_length=100, unique=True, default=uuid.uuid4)
     is_deleted = models.BooleanField(default=False)
 
     objects = PaymentCardAccountManager()
