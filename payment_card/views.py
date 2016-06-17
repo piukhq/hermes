@@ -114,6 +114,40 @@ class RetrieveLoyaltyID(View):
         return JsonResponse(response_data, safe=False)
 
 
+class RetrievePaymentCardUserInfo(View):
+    authentication_classes = ServiceAuthentication,
+
+    def post(self, request, scheme_slug):
+        response_data = {}
+        body_unicode = request.body.decode('utf-8')
+        body = json.loads(body_unicode)
+        payment_card_tokens = body['payment_cards']
+        scheme = get_object_or_404(Scheme, slug=scheme_slug)
+        for payment_card_token in payment_card_tokens:
+            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
+            if payment_card:
+                try:
+                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                except ObjectDoesNotExist:
+                    # the user was matched but is not registered in that scheme
+                    response_data[payment_card_token]={
+                        'loyalty_id': None,
+                        'scheme_account_id': None,
+                        'user_id': payment_card.user_id,
+                    }
+                else:
+                    response_data[payment_card_token] = {
+                        'loyalty_id': scheme_account.third_party_identifier,
+                        'scheme_account_id': scheme_account.id,
+                        'user_id': payment_card.user_id
+                    }
+            else:
+                # if we don't find a payment_card / user we don't insert the token
+                # in the result to signify that something must be wrong.
+                pass
+        return JsonResponse(response_data, safe=False)
+
+
 def csv_upload(request):
     # If we had a POST then get the request post values.
     form = CSVUploadForm()
