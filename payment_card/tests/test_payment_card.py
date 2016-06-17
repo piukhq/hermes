@@ -53,7 +53,8 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': "some-token"}
+                'token': "some-token",
+                'fingerprint': 'fake-fingerprint'}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('token', response.data)
@@ -107,7 +108,8 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token}
+                'token': self.payment_card_account.token,
+                'fingerprint': 'fake-fingerprint'}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
