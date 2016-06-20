@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+import uuid
 
 
 class Migration(migrations.Migration):
@@ -15,7 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='paymentcardaccount',
             name='fingerprint',
-            field=models.CharField(default='dummy-fingerprint', max_length=100, unique=True),
+            field=models.CharField(default=uuid.uuid4, max_length=100, unique=True),
             preserve_default=False,
         ),
     ]
