@@ -1,9 +1,8 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
-
-from payment_card.serializers import PaymentCardAccountSerializer
-from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
-    PaymentCardAccountImageCriteriaFactory, PaymentCardImageFactory
 from rest_framework.test import APITestCase
+from payment_card.serializers import PaymentCardAccountSerializer
+from payment_card.tests.factories import (PaymentCardAccountFactory, PaymentCardAccountImageFactory,
+                                          PaymentCardAccountImageCriteriaFactory, PaymentCardImageFactory)
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount, PaymentCardAccountImageCriteria
@@ -55,7 +54,8 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': "some-token"}
+                'token': "some-token",
+                'fingerprint': 'test-fingerprint'}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('token', response.data)
@@ -109,7 +109,8 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token}
+                'token': self.payment_card_account.token,
+                'fingerprint': 'test-fingerprint'}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'token': ['This field must be unique.']})

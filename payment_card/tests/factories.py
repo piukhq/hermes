@@ -1,3 +1,4 @@
+import uuid
 import factory
 from factory.fuzzy import FuzzyAttribute
 from faker import Factory
@@ -42,6 +43,7 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     pan_end = 2222
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
+    fingerprint = FuzzyAttribute(uuid.uuid4)
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):
