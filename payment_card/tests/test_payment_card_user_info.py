@@ -1,5 +1,7 @@
 import json
+
 from rest_framework.test import APITestCase
+
 from hermes import settings
 from payment_card.tests import factories as payment_card_factories
 from scheme.tests import factories as scheme_factories
