@@ -1,6 +1,8 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import IntegrityError
+
 from payment_card.serializers import PaymentCardAccountSerializer
+from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
+    PaymentCardAccountImageCriteriaFactory, PaymentCardImageFactory
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
@@ -18,8 +20,8 @@ class TestPaymentCard(APITestCase):
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
 
-        cls.payment_card_image = factories.PaymentCardAccountImageFactory()
-        cls.account_image_criteria = factories.PaymentCardAccountImageCriteriaFactory(
+        cls.payment_card_image = PaymentCardAccountImageFactory()
+        cls.account_image_criteria = PaymentCardAccountImageCriteriaFactory(
             payment_card=cls.payment_card_account.payment_card,
             payment_card_image=cls.payment_card_image)
         cls.account_image_criteria.payment_card_accounts.add(cls.payment_card_account)
@@ -53,8 +55,7 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': "some-token",
-                'fingerprint': 'fake-fingerprint'}
+                'token': "some-token"}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('token', response.data)
@@ -108,8 +109,7 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token,
-                'fingerprint': 'fake-fingerprint'}
+                'token': self.payment_card_account.token}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
@@ -133,7 +133,7 @@ class TestPaymentCard(APITestCase):
         token = 'test_token_123'
         user = UserFactory()
         SchemeAccountFactory(user=user)
-        factories.PaymentCardAccountFactory(user=user, token=token, payment_card=self.payment_card)
+        PaymentCardAccountFactory(user=user, token=token, payment_card=self.payment_card)
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
@@ -143,13 +143,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
 
-    def test_payment_card_account_fingerprint_is_unique(self):
-        with self.assertRaises(IntegrityError) as e:
-            factories.PaymentCardAccountFactory(fingerprint=self.payment_card_account.fingerprint)
-        self.assertEqual(e.exception.args[0], ('duplicate key value violates unique constraint '
-                                               '"payment_card_paymentcardaccount_fingerprint_key"\n'
-                                               'DETAIL:  Key (fingerprint)=({}) already exists.\n')
-                         .format(self.payment_card_account.fingerprint))
+    def test_image_property(self):
+        self.payment_card_account.images
 
 
 class TestCSVUpload(APITestCase):
@@ -179,17 +174,17 @@ class TestCSVUpload(APITestCase):
 class TestPaymentCardAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account_image = factories.PaymentCardAccountImageFactory(image_type_code=2)
-        cls.payment_card_account = factories.PaymentCardAccountFactory()
-        cls.account_image_critia = factories.PaymentCardAccountImageCriteriaFactory(
+        cls.payment_card_account_image = PaymentCardAccountImageFactory(image_type_code=2)
+        cls.payment_card_account = PaymentCardAccountFactory()
+        cls.account_image_critia = PaymentCardAccountImageCriteriaFactory(
             payment_card=cls.payment_card_account.payment_card,
             payment_card_image=cls.payment_card_account_image)
         cls.account_image_critia.payment_card_accounts.add(cls.payment_card_account)
 
         cls.payment_card_images = [
-            factories.PaymentCardImageFactory(image_type_code=1, payment_card=cls.payment_card_account.payment_card),
-            factories.PaymentCardImageFactory(image_type_code=2, payment_card=cls.payment_card_account.payment_card),
-            factories.PaymentCardImageFactory(image_type_code=3, payment_card=cls.payment_card_account.payment_card),
+            PaymentCardImageFactory(image_type_code=1, payment_card=cls.payment_card_account.payment_card),
+            PaymentCardImageFactory(image_type_code=2, payment_card=cls.payment_card_account.payment_card),
+            PaymentCardImageFactory(image_type_code=3, payment_card=cls.payment_card_account.payment_card),
         ]
 
         cls.user = cls.payment_card_account.user
