@@ -78,6 +78,7 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
 class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     scheme = serializers.IntegerField()
+    order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
 
     def validate(self, data):

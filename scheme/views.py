@@ -156,6 +156,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             scheme_account = SchemeAccount.objects.create(
                 user=request.user,
                 scheme_id=data['scheme'],
+                order=data['order'],
                 status=SchemeAccount.WALLET_ONLY
             )
             SchemeAccountCredentialAnswer.objects.create(

@@ -22,6 +22,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         write_only=True,
         validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
     images = serializers.SerializerMethodField()
+    order = serializers.IntegerField()
 
     @staticmethod
     def get_images(payment_card_account):
