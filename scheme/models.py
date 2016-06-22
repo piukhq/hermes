@@ -210,7 +210,7 @@ class SchemeAccount(models.Model):
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
     status = models.IntegerField(default=PENDING, choices=STATUSES)
-    order = models.IntegerField(default=0)
+    order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)

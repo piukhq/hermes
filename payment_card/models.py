@@ -116,7 +116,7 @@ class PaymentCardAccount(models.Model):
     pan_start = models.CharField(max_length=6)
     pan_end = models.CharField(max_length=6)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
-    order = models.IntegerField(default=0)
+    order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer)

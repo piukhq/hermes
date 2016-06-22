@@ -121,7 +121,7 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
 
-        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, CARD_NUMBER: '1234'},
+        response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, CARD_NUMBER: '1234', 'order': 0},
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 201)
         content = response.data
@@ -202,7 +202,7 @@ class TestSchemeAccountViews(APITestCase):
                                                  'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials_bad(self):
-        scheme_account = SchemeAccount(scheme=self.scheme, user=self.user)
+        scheme_account = SchemeAccountFactory(scheme=self.scheme, user=self.user)
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
@@ -215,7 +215,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_unique_scheme_account(self):
         response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
-                                                               USER_NAME: 'sdf'}, **self.auth_headers)
+                                                               USER_NAME: 'sdf', 'order': 0}, **self.auth_headers)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data,
