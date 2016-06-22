@@ -17,7 +17,10 @@ class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
-    token = serializers.CharField(max_length=255, write_only=True)
+    token = serializers.CharField(
+        max_length=255,
+        write_only=True,
+        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
     images = serializers.SerializerMethodField()
     order = serializers.IntegerField()
 
