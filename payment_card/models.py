@@ -125,6 +125,9 @@ class PaymentCardAccount(models.Model):
 
     objects = PaymentCardAccountManager()
 
+    class Meta:
+        unique_together = ('fingerprint', 'expiry_month', 'expiry_year')
+
     def __str__(self):
         return '({}) {} - {}'.format(
             self.user.email,
