@@ -80,7 +80,8 @@ class CreatePaymentCardAccount(APIView):
             account = PaymentCardAccount(**data)
             account.save()
 
-            return Response(data, status=status.HTTP_201_CREATED)
+            response_serializer = PaymentCardAccountSerializer(instance=account)
+            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
