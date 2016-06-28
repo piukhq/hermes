@@ -68,12 +68,14 @@ class CreatePaymentCardAccount(APIView):
             data = serializer.validated_data
 
             # make sure we're not creating a duplicate card
-            account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
-                                                     expiry_month=data['expiry_month'],
-                                                     expiry_year=data['expiry_year']).first()
-            if account:
-                return Response({'error': 'a payment card account by that fingerprint and expiry already exists.',
-                                 'code': '400'}, status=status.HTTP_400_BAD_REQUEST)
+            accounts = PaymentCardAccount.objects.filter(fingerprint=data['fingerprint'],
+                                                         expiry_month=data['expiry_month'],
+                                                         expiry_year=data['expiry_year'])
+
+            for account in accounts:
+                if not account.is_deleted:
+                    return Response({'error': 'a payment card account by that fingerprint and expiry already exists.',
+                                     'code': '400'}, status=status.HTTP_400_BAD_REQUEST)
 
             account = PaymentCardAccount(**data)
             account.save()
