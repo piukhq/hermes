@@ -7,11 +7,11 @@ from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
 from django.views.generic import View
-
+from rest_framework.views import APIView
 from payment_card.forms import CSVUploadForm
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
+from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
 from payment_card.models import PaymentCardAccount, PaymentCard, PaymentCardAccountImageCriteria
 from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardSerializer,
                                       PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer)
@@ -60,19 +60,26 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreatePaymentCardAccount(ListCreateAPIView):
-    """
-    Create and retrieve users payment card information.
-    """
-    serializer_class = PaymentCardAccountSerializer
-
-    def post(self, request, *args, **kwargs):
+class CreatePaymentCardAccount(APIView):
+    def post(self, request):
         request.data['user'] = request.user.id
-        return super(CreatePaymentCardAccount, self).post(request, *args, **kwargs)
+        serializer = PaymentCardAccountSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
 
-    def get_queryset(self):
-        user = self.request.user
-        return PaymentCardAccount.objects.filter(user=user)
+            # make sure we're not creating a duplicate card
+            account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
+                                                     expiry_month=data['expiry_month'],
+                                                     expiry_year=data['expiry_year']).first()
+            if account:
+                return Response({'error': 'a payment card account by that fingerprint and expiry already exists.',
+                                 'code': '400'}, status=status.HTTP_400_BAD_REQUEST)
+
+            account = PaymentCardAccount(**data)
+            account.save()
+
+            return Response(data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RetrievePaymentCardSchemeAccounts(ListAPIView):
