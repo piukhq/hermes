@@ -37,7 +37,7 @@ class TestPaymentCard(APITestCase):
         response = self.client.get('/payment_cards/accounts', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
+        self.assertEqual(type(response.data), list)
 
         account = response.data[0]
         self.assertEqual(account['id'], self.payment_card.id)
