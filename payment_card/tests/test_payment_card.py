@@ -25,12 +25,6 @@ class TestPaymentCard(APITestCase):
 
         super(TestPaymentCard, cls).setUpClass()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.payment_card_account.delete()
-        cls.payment_card_image.delete()
-        cls.account_image_criteria.delete()
-
     def test_payment_card_list(self):
         response = self.client.get('/payment_cards', **self.auth_headers)
         self.assertEqual(response.status_code, 200)
