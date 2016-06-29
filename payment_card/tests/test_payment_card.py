@@ -1,11 +1,9 @@
-from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
-from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import (PaymentCardAccountFactory, PaymentCardAccountImageFactory,
-                                          PaymentCardAccountImageCriteriaFactory, PaymentCardImageFactory)
+                                          PaymentCardAccountImageCriteriaFactory)
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount, PaymentCardAccountImageCriteria
+from payment_card.models import PaymentCardAccount
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
 
@@ -32,6 +30,16 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnList)
         self.assertTrue(response.data)
+
+    def test_list_payment_card_accounts(self):
+        response = self.client.get('/payment_cards/accounts', **self.auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(type(response.data), list)
+
+        self.assertIn('currency_code', response.data[0])
+        self.assertIn('status_name', response.data[0])
+        self.assertNotIn('token', response.data[0])
 
     def test_get_payment_card_account(self):
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card.id), **self.auth_headers)
@@ -145,72 +153,3 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[0], 'scheme_id')
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
-
-    def test_image_property(self):
-        self.payment_card_account.images
-
-
-class TestCSVUpload(APITestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
-        cls.payment_card = cls.payment_card_account.payment_card
-        cls.user = cls.payment_card_account.user
-        cls.issuer = cls.payment_card_account.issuer
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-
-        super(TestCSVUpload, cls).setUpClass()
-
-    def test_CSV_upload(self):
-        csv_file = SimpleUploadedFile("file.csv", content=bytes(self.user.email, 'utf-8'), content_type="text/csv")
-
-        self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.id, 'emails': csv_file},
-                         **self.auth_headers)
-
-        criteria = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card).first()
-        self.assertIsNotNone(criteria)
-
-        account = criteria.payment_card_accounts.filter(pk=self.payment_card_account.id)
-        self.assertIsNotNone(account)
-
-
-class TestPaymentCardAccountImages(APITestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.payment_card_account_image = PaymentCardAccountImageFactory(image_type_code=2)
-        cls.payment_card_account = PaymentCardAccountFactory()
-        cls.account_image_critia = PaymentCardAccountImageCriteriaFactory(
-            payment_card=cls.payment_card_account.payment_card,
-            payment_card_image=cls.payment_card_account_image)
-        cls.account_image_critia.payment_card_accounts.add(cls.payment_card_account)
-
-        cls.payment_card_images = [
-            PaymentCardImageFactory(image_type_code=1, payment_card=cls.payment_card_account.payment_card),
-            PaymentCardImageFactory(image_type_code=2, payment_card=cls.payment_card_account.payment_card),
-            PaymentCardImageFactory(image_type_code=3, payment_card=cls.payment_card_account.payment_card),
-        ]
-
-        cls.user = cls.payment_card_account.user
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
-
-    def test_image_property(self):
-        serializer = PaymentCardAccountSerializer()
-        images = serializer.get_images(self.payment_card_account)
-        our_image = next((i for i in images if i['image'] == self.payment_card_account_image.image.url), None)
-        self.assertIsNotNone(our_image)
-
-    def test_CSV_upload(self):
-        csv_file = SimpleUploadedFile("file.csv", content=b'', content_type="text/csv")
-        response = self.client.post('/payment_cards/csv_upload',
-                                    {'payment_card': self.payment_card_account.payment_card.name, 'emails': csv_file},
-                                    **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-
-    def test_images_have_object_type_properties(self):
-        serializer = PaymentCardAccountSerializer()
-        images = serializer.get_images(self.payment_card_account)
-
-        self.assertEqual(images[0]['object_type'], 'payment_card_account_image')
-        self.assertEqual(images[1]['object_type'], 'payment_card_image')
-        self.assertEqual(images[2]['object_type'], 'payment_card_image')

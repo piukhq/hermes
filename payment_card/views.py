@@ -60,7 +60,12 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class CreatePaymentCardAccount(APIView):
+class ListCreatePaymentCardAccount(APIView):
+    def get(self, request):
+        accounts = [PaymentCardAccountSerializer(instance=account).data for account in
+                    PaymentCardAccount.objects.filter(user=request.user)]
+        return Response(accounts, status=200)
+
     def post(self, request):
         request.data['user'] = request.user.id
         serializer = PaymentCardAccountSerializer(data=request.data)
