@@ -38,7 +38,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(type(response.data), list)
 
         account = response.data[0]
-        self.assertEqual(account['id'], self.payment_card.id)
+        self.assertEqual(account['id'], self.payment_card_account.id)
         self.assertEqual(account['status_name'], 'pending')
         self.assertNotIn('token', account)
 
