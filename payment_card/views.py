@@ -62,7 +62,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
 class ListCreatePaymentCardAccount(APIView):
     def get(self, request):
-        accounts = [PaymentCardAccountSerializer(instance=account).data for account in PaymentCardAccount.objects.all()]
+        accounts = [PaymentCardAccountSerializer(instance=account).data for account in
+                    PaymentCardAccount.objects.filter(user=request.user)]
         return Response(accounts, status=200)
 
     def post(self, request):
