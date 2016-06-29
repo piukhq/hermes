@@ -37,10 +37,9 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), list)
 
-        account = response.data[0]
-        self.assertEqual(account['id'], self.payment_card_account.id)
-        self.assertEqual(account['status_name'], 'pending')
-        self.assertNotIn('token', account)
+        self.assertIn('currency_code', response.data[0])
+        self.assertIn('status_name', response.data[0])
+        self.assertNotIn('token', response.data[0])
 
     def test_get_payment_card_account(self):
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card.id), **self.auth_headers)
