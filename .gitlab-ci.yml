@@ -18,6 +18,7 @@ flake8:
 deploy:
   image: loyaltyangels/ansible
   stage: deploy
+  environment: dev
   script:
   - cd /ansible && ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=dev_web
   only:
