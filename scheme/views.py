@@ -153,12 +153,23 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         data = serializer.validated_data
 
         with transaction.atomic():
-            scheme_account = SchemeAccount.objects.create(
-                user=request.user,
-                scheme_id=data['scheme'],
-                order=data['order'],
-                status=SchemeAccount.WALLET_ONLY
-            )
+            try:
+                scheme_account = SchemeAccount.objects.get(
+                    user=request.user,
+                    scheme_id=data['scheme'],
+                    status=SchemeAccount.JOIN
+                )
+
+                scheme_account.order = data['order']
+                scheme_account.status = SchemeAccount.WALLET_ONLY
+            except SchemeAccount.DoesNotExist:
+                scheme_account = SchemeAccount.objects.create(
+                    user=request.user,
+                    scheme_id=data['scheme'],
+                    order=data['order'],
+                    status=SchemeAccount.WALLET_ONLY
+                )
+
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=scheme_account.question(serializer.context['answer_type']),

@@ -1,7 +1,6 @@
 from decimal import Decimal
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
@@ -44,6 +43,25 @@ class TestSchemeAccountViews(APITestCase):
         cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
 
         super().setUpClass()
+
+    def test_join_account(self):
+        join_scheme = SchemeFactory()
+        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
+        join_account = SchemeAccountFactory(scheme=join_scheme, user=self.user, status=SchemeAccount.JOIN)
+
+        response = self.client.post('/schemes/accounts', data={
+            'scheme': join_scheme.id,
+            'order': 0,
+            question: 'test',
+        }, **self.auth_headers)
+
+        self.assertEqual(response.status_code, 201)
+
+        data = response.json()
+        self.assertEqual(data['id'], join_account.id)
+        self.assertEqual(data['order'], 0)
+        self.assertEqual(data['scheme'], join_scheme.id)
+        self.assertEqual(data['username'], 'test')
 
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
