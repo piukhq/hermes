@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
-                    DUPLICATE_ACCOUNT_REGISTRATION, REGISTRATION_FAILED)
+                    REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
