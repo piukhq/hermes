@@ -344,10 +344,7 @@ def social_response(social_id, email, service, promo_code):
     if promo_code and not valid_promo_code(promo_code):
         return error_response(INVALID_PROMO_CODE)
 
-    try:
-        status, user = social_login(social_id, email, service, promo_code)
-    except IntegrityError:
-        return error_response(DUPLICATE_ACCOUNT_REGISTRATION)
+    status, user = social_login(social_id, email, service, promo_code)
 
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
