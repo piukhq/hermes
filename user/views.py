@@ -1,7 +1,6 @@
 import requests
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -17,7 +16,7 @@ from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
-                    DUPLICATE_ACCOUNT_REGISTRATION, REGISTRATION_FAILED)
+                    REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
@@ -344,10 +343,7 @@ def social_response(social_id, email, service, promo_code):
     if promo_code and not valid_promo_code(promo_code):
         return error_response(INVALID_PROMO_CODE)
 
-    try:
-        status, user = social_login(social_id, email, service, promo_code)
-    except IntegrityError:
-        return error_response(DUPLICATE_ACCOUNT_REGISTRATION)
+    status, user = social_login(social_id, email, service, promo_code)
 
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)

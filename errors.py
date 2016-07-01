@@ -16,7 +16,6 @@ FACEBOOK_CANT_VALIDATE = "FACEBOOK_CANT_VALIDATE"
 FACEBOOK_INVALID_USER = "FACEBOOK_INVALID_USER"
 FACEBOOK_GRAPH_ACCESS = "FACEBOOK_GRAPH_ACCESS"
 INVALID_PROMO_CODE = "INVALID_PROMO_CODE"
-DUPLICATE_ACCOUNT_REGISTRATION = "DUPLICATE_ACCOUNT_REGISTRATION"
 REGISTRATION_FAILED = "REGISTRATION_FAILED"
 
 errors = {
@@ -34,8 +33,6 @@ errors = {
                             "message": "Can not access facebook social graph."},
     INVALID_PROMO_CODE: {"code": 403,
                          "message": "The promotion code provided is invalid."},
-    DUPLICATE_ACCOUNT_REGISTRATION: {"code": 403,
-                                     "message": "There is already a Bink user with that email address."},
     REGISTRATION_FAILED: {"code": 403,
                           "message": "Registration failed."},
 }
