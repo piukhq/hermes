@@ -10,7 +10,7 @@ from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSe
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
 from unittest import mock
-from user.views import facebook_login, twitter_login, social_login, social_response
+from user.views import facebook_login, twitter_login, social_login
 
 
 class TestRegisterNewUserViews(TestCase):

@@ -1,7 +1,6 @@
 import requests
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
