@@ -31,7 +31,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentCardAccount
         extra_kwargs = {'token': {'write_only': True}}
-        read_only_fields = ('status', )
+        read_only_fields = ('status', 'is_deleted', 'user')
 
 
 class PaymentCardSchemeAccountSerializer(serializers.Serializer):
