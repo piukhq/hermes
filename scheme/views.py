@@ -162,6 +162,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.WALLET_ONLY
+                scheme_account.save()
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     user=request.user,
