@@ -51,8 +51,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data['status_name'], 'pending')
 
     def test_post_payment_card_account(self):
-        data = {'user': self.user.id,
-                'issuer': self.issuer.id,
+        data = {'issuer': self.issuer.id,
                 'status': 1,
                 'expiry_month': 4,
                 'expiry_year': 10,
