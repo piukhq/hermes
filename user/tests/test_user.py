@@ -591,15 +591,6 @@ class TestSocialLogin(APITestCase):
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, None)
 
-    def test_duplicate_registration(self):
-        twitter_id = '159t83j9g8j'
-        twitter_email = 'test@test.com'
-        UserFactory(email=twitter_email)
-        UserFactory(email=None, twitter=twitter_id)
-        resp = social_response(twitter_id, twitter_email, 'twitter', None)
-        self.assertEqual(resp.status_code, 403)
-        self.assertEqual(resp.data['name'], 'DUPLICATE_ACCOUNT_REGISTRATION')
-
 
 class TestUserModel(TestCase):
     def test_create_referral(self):
