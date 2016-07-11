@@ -6,8 +6,9 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, UpdateAPIView, GenericAPIView,
-                                     get_object_or_404, ListAPIView)
+from rest_framework import mixins
+from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, GenericAPIView, get_object_or_404,
+                                     ListAPIView)
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -93,13 +94,19 @@ class ValidateResetToken(CreateAPIView):
         return Response(out_serializer.data)
 
 
-class ResetPassword(UpdateAPIView):
+class ResetPassword(mixins.UpdateModelMixin, GenericAPIView):
+    """
+    Reset a user's password
+    """
     serializer_class = ResetPasswordSerializer
 
     def get_object(self):
         obj = get_object_or_404(CustomUser, id=self.request.user.id)
         self.check_object_permissions(self.request, obj)
         return obj
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
 
 
 class ForgotPassword(APIView):
@@ -298,6 +305,14 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
     serializer_class = ResetTokenSerializer
 
     def post(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS.\n
+        Reset a user's password using a reset token obtained via password reset email.
+        ---
+        parameters:
+            - name: token
+              description: password reset token
+        """
         return self.update(request, *args, **kwargs)
 
     def get_object(self):
