@@ -53,6 +53,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         """
         Marks a paymentcardaccount as deleted.
         Responds with a 204 - No content.
+        ---
+        omit_serializer: True
         """
         instance = self.get_object()
         instance.is_deleted = True
@@ -61,12 +63,22 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
 
 class ListCreatePaymentCardAccount(APIView):
+
     def get(self, request):
+        """List payment card accounts
+        ---
+        response_serializer: PaymentCardAccountSerializer
+        """
         accounts = [PaymentCardAccountSerializer(instance=account).data for account in
                     PaymentCardAccount.objects.filter(user=request.user)]
         return Response(accounts, status=200)
 
     def post(self, request):
+        """Add a payment card account
+        ---
+        request_serializer: PaymentCardAccountSerializer
+        response_serializer: PaymentCardAccountSerializer
+        """
         request.data['user'] = request.user.id
         serializer = PaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
