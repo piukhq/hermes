@@ -45,13 +45,16 @@ class OpenAuthentication(SessionAuthentication):
 # Will require research, multiple serializers
 # Password Handling
 class Register(APIView):
-    """
-    Register a new user in the Loyalty Angels App.
-    """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
 
     def post(self, request):
+        """
+        Register a new user in the Loyalty Angels App.
+        ---
+        request_serializer: RegisterSerializer
+        response_serializer: RegisterSerializer
+        """
         serializer = RegisterSerializer(data=request.data)
 
         if serializer.is_valid():
