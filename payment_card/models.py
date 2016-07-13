@@ -123,6 +123,7 @@ class PaymentCardAccount(models.Model):
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
 
+    all_objects = models.Manager()
     objects = PaymentCardAccountManager()
 
     def __str__(self):
