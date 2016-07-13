@@ -14,8 +14,21 @@ class PaymentCardAdmin(admin.ModelAdmin):
     list_filter = ('is_active', )
 
 
+def titled_filter(title):
+    class Wrapper(admin.RelatedFieldListFilter):
+        def __new__(cls, *args, **kwargs):
+            instance = admin.RelatedFieldListFilter.create(*args, **kwargs)
+            instance.title = title
+            return instance
+    return Wrapper
+
+
 class PaymentCardAccountAdmin(admin.ModelAdmin):
     list_display = ('user', 'payment_card', 'pan_start', 'pan_end', 'is_deleted')
+    list_filter = (('payment_card__name', titled_filter('payment card')),
+                   'status',
+                   ('issuer__name', titled_filter('issuer')),
+                   'is_deleted',)
 
 
 class PaymentAccountImageCriteriaAdmin(admin.ModelAdmin):
