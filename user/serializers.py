@@ -23,7 +23,7 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         email = CustomUser.objects.normalize_email(value)
-        if CustomUser.objects.filter(email=email).exists():
+        if CustomUser.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError("That user already exists")
         return email
 
