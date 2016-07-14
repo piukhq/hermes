@@ -117,7 +117,7 @@ class ForgotPassword(APIView):
     permission_classes = (AllowAny,)
 
     def post(self, request):
-        user = CustomUser.objects.filter(email=request.data['email']).first()
+        user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
             send_mail('email.tpl',
@@ -379,7 +379,7 @@ def social_login(social_id, email, service, promo_code):
             if not email:
                 raise CustomUser.DoesNotExist
             # User exists in our system but hasn't been linked
-            user = CustomUser.objects.get(email=email)
+            user = CustomUser.objects.get(email__iexact=email)
             setattr(user, service, social_id)
             user.save()
         except CustomUser.DoesNotExist:

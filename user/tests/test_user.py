@@ -106,6 +106,16 @@ class TestRegisterNewUserViews(TestCase):
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
         self.assertEqual(content['message'], 'Registration failed.')
 
+    def test_existing_email_switch_case(self):
+            client = Client()
+            response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'Password6'})
+            self.assertEqual(response.status_code, 201)
+            response = client.post('/users/register/', {'email': 'TeSt_6@Example.com', 'password': 'Password6'})
+            content = json.loads(response.content.decode())
+            self.assertEqual(response.status_code, 403)
+            self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+            self.assertEqual(content['message'], 'Registration failed.')
+
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
         response = self.client.post('/users/register/', {'email': email, 'password': 'Password6'})
