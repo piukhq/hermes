@@ -118,6 +118,31 @@ class Scheme(models.Model):
         return self.name
 
 
+class Exchange(models.Model):
+    donor_scheme = models.ForeignKey('scheme.Scheme', related_name='donor_in')
+    host_scheme = models.ForeignKey('scheme.Scheme', related_name='host_in')
+
+    exchange_rate_donor = models.IntegerField(default=1)
+    exchange_rate_host = models.IntegerField(default=1)
+
+    transfer_min = models.DecimalField(default=0.0, decimal_places=2, max_digits=12, null=True, blank=True)
+    transfer_max = models.DecimalField(decimal_places=2, max_digits=12, null=True, blank=True)
+    transfer_multiple = models.DecimalField(decimal_places=2, max_digits=12, null=True, blank=True)
+
+    tip_in_url = models.URLField()
+    info_url = models.URLField()
+
+    flag_auto_tip_in = models.IntegerField(choices=((0, 'No'), (1, 'Yes')))
+
+    transaction_reference = models.CharField(max_length=24, default='Convert', editable=False)
+
+    start_date = models.DateField(null=True, blank=True, editable=False)
+    end_date = models.DateField(null=True, blank=True, editable=False)
+
+    def __str__(self):
+        return '{} -> {}'.format(self.donor_scheme.name, self.host_scheme.name)
+
+
 class ActiveSchemeImageManager(models.Manager):
     def get_queryset(self):
         return super(ActiveSchemeImageManager, self).get_queryset()\
