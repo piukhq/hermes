@@ -1,8 +1,7 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
-
-from scheme.models import (Scheme, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
+from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImageCriteria, SchemeAccountImage)
 
 
@@ -102,3 +101,4 @@ admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
 admin.site.register(SchemeAccountImageCriteria, SchemeAccountImageCriteriaAdmin)
 admin.site.register(SchemeAccountImage)
+admin.site.register(Exchange)
