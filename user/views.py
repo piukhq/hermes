@@ -47,13 +47,18 @@ class OpenAuthentication(SessionAuthentication):
 class Register(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-
+    
     def post(self, request):
         """
         Register a new user in the Loyalty Angels App.
         ---
         request_serializer: RegisterSerializer
         response_serializer: RegisterSerializer
+        parameters:
+            - name: password
+              description: >
+                password must be at least 8 characters long and contain at least one lower case character, one upper
+                case character, and one number.
         """
         serializer = RegisterSerializer(data=request.data)
 
