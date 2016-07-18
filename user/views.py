@@ -54,6 +54,11 @@ class Register(APIView):
         ---
         request_serializer: RegisterSerializer
         response_serializer: RegisterSerializer
+        parameters:
+            - name: password
+              description: >
+                password must be at least 8 characters long and contain at least one lower case character, one upper
+                case character, and one number.
         """
         serializer = RegisterSerializer(data=request.data)
 
