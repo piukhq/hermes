@@ -47,7 +47,7 @@ class OpenAuthentication(SessionAuthentication):
 class Register(APIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-    
+
     def post(self, request):
         """
         Register a new user in the Loyalty Angels App.
