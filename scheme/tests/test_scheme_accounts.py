@@ -5,12 +5,14 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
 import json
+
+from user.tests.factories import UserFactory
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -480,3 +482,22 @@ class TestSchemeAccountImages(APITestCase):
         self.assertEqual(images[0]['object_type'], 'scheme_account_image')
         self.assertEqual(images[1]['object_type'], 'scheme_image')
         self.assertEqual(images[2]['object_type'], 'scheme_image')
+
+
+class TestExchange(APITestCase):
+    def test_get_donor_schemes(self):
+        host_scheme = SchemeFactory()
+        donor_scheme_1 = SchemeFactory()
+        donor_scheme_2 = SchemeFactory()
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=host_scheme)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_1)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_2)
+
+        ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_1)
+        ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_2)
+
+        user = UserFactory()
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+
+        resp = self.client.get('/schemes/accounts/donor_schemes/{}'.format(host_scheme.id), **auth_headers)
+        self.assertEqual(resp.status_code, 200)

@@ -107,3 +107,20 @@ class AccountImageCriteriaFactory(factory.DjangoModelFactory):
     description = fake.sentence(nb_words=3)
     start_date = timezone.now()
     end_date = "2200-1-1"
+
+
+class ExchangeFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.Exchange
+
+    exchange_rate_donor = 1
+    exchange_rate_host = 1
+
+    transfer_min = 0
+    transfer_max = 1000
+    transfer_multiple = 100
+
+    tip_in_url = fake.url()
+    info_url = fake.url()
+
+    flag_auto_tip_in = 0

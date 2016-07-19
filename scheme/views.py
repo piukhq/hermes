@@ -9,13 +9,13 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 from rest_framework.pagination import PageNumberPagination
 
 from scheme.forms import CSVUploadForm
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer)
+                                SchemeAnswerSerializer, DonorSchemeSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -293,3 +293,12 @@ def csv_upload(request):
 
     context = {'form': form}
     return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))
+
+
+class DonorSchemes(ListAPIView):
+    authentication_classes = (JwtAuthentication, ServiceAuthentication)
+    serializer_class = DonorSchemeSerializer
+
+    def get_queryset(self):
+        host_scheme = Scheme.objects.get(pk=self.kwargs['host_scheme_id'])
+        return Exchange.objects.filter(host_scheme=host_scheme)
