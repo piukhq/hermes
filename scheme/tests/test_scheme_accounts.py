@@ -499,5 +499,21 @@ class TestExchange(APITestCase):
         user = UserFactory()
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
 
-        resp = self.client.get('/schemes/accounts/donor_schemes/{}'.format(host_scheme.id), **auth_headers)
+        resp = self.client.get('/schemes/donor_schemes/{}'.format(host_scheme.id), **auth_headers)
         self.assertEqual(resp.status_code, 200)
+
+        json = resp.json()
+        self.assertEqual(type(json), list)
+        self.assertIn('donor_scheme', json[0])
+        self.assertIn('exchange_rate_donor', json[0])
+        self.assertIn('exchange_rate_host', json[0])
+        self.assertIn('host_scheme', json[0])
+        self.assertIn('info_url', json[0])
+        self.assertIn('tip_in_url', json[0])
+        self.assertIn('transfer_max', json[0])
+        self.assertIn('transfer_min', json[0])
+        self.assertIn('transfer_multiple', json[0])
+        self.assertIn('name', json[0]['donor_scheme'])
+        self.assertIn('point_name', json[0]['donor_scheme'])
+        self.assertIn('name', json[0]['host_scheme'])
+        self.assertIn('point_name', json[0]['host_scheme'])

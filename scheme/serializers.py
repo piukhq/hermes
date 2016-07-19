@@ -254,16 +254,23 @@ def get_images_for_scheme_account(scheme_account):
     return images
 
 
-class SchemeNameSerializer(serializers.ModelSerializer):
+class DonorSchemeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
-        fields = ('name',)
+        fields = ('name', 'point_name',)
+
+
+class HostSchemeInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Scheme
+        fields = ('name', 'point_name',)
 
 
 class DonorSchemeSerializer(serializers.ModelSerializer):
-    donor_scheme = SchemeNameSerializer()
+    donor_scheme = DonorSchemeInfoSerializer()
+    host_scheme = HostSchemeInfoSerializer()
 
     class Meta:
         model = Exchange
-        fields = ('donor_scheme', 'exchange_rate_donor', 'exchange_rate_host', 'transfer_min', 'transfer_max',
-                  'transfer_multiple',)
+        fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host', 'transfer_min', 'transfer_max',
+                  'transfer_multiple', 'tip_in_url', 'info_url',)
