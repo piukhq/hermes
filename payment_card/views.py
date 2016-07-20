@@ -78,6 +78,11 @@ class ListCreatePaymentCardAccount(APIView):
         ---
         request_serializer: PaymentCardAccountSerializer
         response_serializer: PaymentCardAccountSerializer
+        responseMessages:
+            - code: 400
+              message: Error code 400 is indicative of serializer errors. The error response will show more information.
+            - code: 403
+              message: A payment card account by that fingerprint and expiry already exists.
         """
         request.data['user'] = request.user.id
         serializer = PaymentCardAccountSerializer(data=request.data)
@@ -91,8 +96,8 @@ class ListCreatePaymentCardAccount(APIView):
 
             for account in accounts:
                 if not account.is_deleted:
-                    return Response({'error': 'a payment card account by that fingerprint and expiry already exists.',
-                                     'code': '400'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
+                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
             account = PaymentCardAccount(**data)
             account.save()
