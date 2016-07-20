@@ -7,15 +7,16 @@ from django.utils import timezone
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
 
 from scheme.forms import CSVUploadForm
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer)
+                                SchemeAnswerSerializer, DonorSchemeSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -293,3 +294,29 @@ def csv_upload(request):
 
     context = {'form': form}
     return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))
+
+
+class DonorSchemes(APIView):
+    authentication_classes = (ServiceAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        scheme_id = kwargs['scheme_id']
+        user_id = kwargs['user_id']
+
+        host_scheme_account = SchemeAccount.objects.get(scheme__id=scheme_id, user__id=user_id)
+        scheme_accounts = SchemeAccount.objects.filter(user=host_scheme_account.user)
+
+        exchanges = Exchange.objects.filter(host_scheme=host_scheme_account.scheme,
+                                            donor_scheme__in=scheme_accounts.values('scheme'))
+
+        scheme_accounts_serializer = ListSchemeAccountSerializer(scheme_accounts, many=True)
+        exchange_serializer = DonorSchemeSerializer(exchanges, many=True)
+
+        return_data = []
+
+        for (s, e) in zip(scheme_accounts_serializer.data, exchange_serializer.data):
+            data = e
+            data['scheme_account_id'] = s['id']
+            return_data.append(data)
+
+        return Response(return_data, status=200)

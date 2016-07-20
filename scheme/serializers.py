@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImageCriteria, SchemeAccountImage
+    SchemeAccountImageCriteria, SchemeAccountImage, Exchange
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -252,3 +252,25 @@ def get_images_for_scheme_account(scheme_account):
             images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
 
     return images
+
+
+class DonorSchemeInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Scheme
+        fields = ('name', 'point_name',)
+
+
+class HostSchemeInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Scheme
+        fields = ('name', 'point_name',)
+
+
+class DonorSchemeSerializer(serializers.ModelSerializer):
+    donor_scheme = DonorSchemeInfoSerializer()
+    host_scheme = HostSchemeInfoSerializer()
+
+    class Meta:
+        model = Exchange
+        fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host',
+                  'transfer_min', 'transfer_max', 'transfer_multiple', 'tip_in_url', 'info_url',)

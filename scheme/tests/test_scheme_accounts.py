@@ -5,12 +5,14 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
 import json
+
+from user.tests.factories import UserFactory
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -480,3 +482,47 @@ class TestSchemeAccountImages(APITestCase):
         self.assertEqual(images[0]['object_type'], 'scheme_account_image')
         self.assertEqual(images[1]['object_type'], 'scheme_image')
         self.assertEqual(images[2]['object_type'], 'scheme_image')
+
+
+class TestExchange(APITestCase):
+    def test_get_donor_schemes(self):
+        host_scheme = SchemeFactory()
+        donor_scheme_1 = SchemeFactory()
+        donor_scheme_2 = SchemeFactory()
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=host_scheme, scan_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_1, scan_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_2, scan_question=True)
+
+        user = UserFactory()
+
+        host_scheme_account = SchemeAccountFactory(user=user, scheme=host_scheme)
+        donor_scheme_account_1 = SchemeAccountFactory(user=user, scheme=donor_scheme_1)
+        donor_scheme_account_2 = SchemeAccountFactory(user=user, scheme=donor_scheme_2)
+        SchemeCredentialAnswerFactory(scheme_account=host_scheme_account)
+        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_1)
+        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_2)
+
+        ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_1)
+        ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_2)
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+
+        resp = self.client.get('/schemes/accounts/donor_schemes/{}/{}'.format(host_scheme.id, user.id), **auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+        json = resp.json()
+        self.assertEqual(type(json), list)
+        self.assertIn('donor_scheme', json[0])
+        self.assertIn('exchange_rate_donor', json[0])
+        self.assertIn('exchange_rate_host', json[0])
+        self.assertIn('host_scheme', json[0])
+        self.assertIn('info_url', json[0])
+        self.assertIn('tip_in_url', json[0])
+        self.assertIn('transfer_max', json[0])
+        self.assertIn('transfer_min', json[0])
+        self.assertIn('transfer_multiple', json[0])
+        self.assertIn('scheme_account_id', json[0])
+        self.assertIn('name', json[0]['donor_scheme'])
+        self.assertIn('point_name', json[0]['donor_scheme'])
+        self.assertIn('name', json[0]['host_scheme'])
+        self.assertIn('point_name', json[0]['host_scheme'])
