@@ -489,17 +489,25 @@ class TestExchange(APITestCase):
         host_scheme = SchemeFactory()
         donor_scheme_1 = SchemeFactory()
         donor_scheme_2 = SchemeFactory()
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=host_scheme)
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_1)
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_2)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=host_scheme, scan_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_1, scan_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_2, scan_question=True)
+
+        user = UserFactory()
+
+        host_scheme_account = SchemeAccountFactory(user=user, scheme=host_scheme)
+        donor_scheme_account_1 = SchemeAccountFactory(user=user, scheme=donor_scheme_1)
+        donor_scheme_account_2 = SchemeAccountFactory(user=user, scheme=donor_scheme_2)
+        SchemeCredentialAnswerFactory(scheme_account=host_scheme_account)
+        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_1)
+        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_2)
 
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_1)
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_2)
 
-        user = UserFactory()
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
-        resp = self.client.get('/schemes/donor_schemes/{}'.format(host_scheme.id), **auth_headers)
+        resp = self.client.get('/schemes/accounts/donor_schemes/{}/{}'.format(host_scheme.id, user.id), **auth_headers)
         self.assertEqual(resp.status_code, 200)
 
         json = resp.json()
@@ -513,6 +521,7 @@ class TestExchange(APITestCase):
         self.assertIn('transfer_max', json[0])
         self.assertIn('transfer_min', json[0])
         self.assertIn('transfer_multiple', json[0])
+        self.assertIn('scheme_account_id', json[0])
         self.assertIn('name', json[0]['donor_scheme'])
         self.assertIn('point_name', json[0]['donor_scheme'])
         self.assertIn('name', json[0]['host_scheme'])

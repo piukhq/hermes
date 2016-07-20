@@ -272,5 +272,5 @@ class DonorSchemeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exchange
-        fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host', 'transfer_min', 'transfer_max',
-                  'transfer_multiple', 'tip_in_url', 'info_url',)
+        fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host',
+                  'transfer_min', 'transfer_max', 'transfer_multiple', 'tip_in_url', 'info_url',)
