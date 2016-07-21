@@ -303,8 +303,7 @@ class DonorSchemes(APIView):
 
     def get(self, request, *args, **kwargs):
         host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
-        user = CustomUser.objects.filter(pk=kwargs['user_id'])
-        scheme_accounts = SchemeAccount.objects.filter(user=user)
+        scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'])
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         donor_scheme_accounts = scheme_accounts.filter(scheme__in=exchanges.values('donor_scheme'))
 
