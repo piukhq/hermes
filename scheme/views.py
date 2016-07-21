@@ -1,5 +1,4 @@
 import csv
-
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
@@ -8,7 +7,6 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
-
 from scheme.forms import CSVUploadForm
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
@@ -24,10 +22,7 @@ from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
-
 from io import StringIO
-
-from user.models import CustomUser
 
 
 class SwappableSerializerMixin(object):
