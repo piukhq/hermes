@@ -21,7 +21,6 @@ class PaymentCardFactory(factory.DjangoModelFactory):
     name = fake.word()
     slug = FuzzyAttribute(fake.slug)
     url = fake.url()
-    image = fake.image_url()
     scan_message = fake.bs()
     input_label = fake.bs()
     system = models.PaymentCard.MASTERCARD
