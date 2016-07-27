@@ -24,6 +24,8 @@ from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 
+from user.models import CustomUser
+
 
 class SwappableSerializerMixin(object):
     serializer_class = None
@@ -177,6 +179,45 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         data['id'] = scheme_account.id
         return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
+
+
+class CreateJoinSchemeAccount(APIView):
+    authentication_classes = (ServiceAuthentication,)
+
+    def post(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        ---
+        response_serializer: GetSchemeAccountSerializer
+        """
+        try:
+            scheme = Scheme.objects.get(slug=kwargs['scheme_slug'])
+        except Scheme.DoesNotExist:
+            return Response({'code': 400, 'message': 'Scheme does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = CustomUser.objects.get(id=kwargs['user_id'])
+        except CustomUser.DoesNotExist:
+            return Response({'code': 400, 'message': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # does the user have an account with the scheme already?
+        account = SchemeAccount.objects.filter(scheme=scheme, user=user)
+        if account.exists():
+            return Response({'code': 400, 'message': 'User already has an account with this scheme.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # create a join account.
+        account = SchemeAccount(
+            user=user,
+            scheme=scheme,
+            status=SchemeAccount.JOIN,
+            order=0,
+        )
+        account.save()
+
+        # serialize the account for the response.
+        serializer = GetSchemeAccountSerializer(instance=account)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class UpdateSchemeAccountStatus(GenericAPIView):
