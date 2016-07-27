@@ -262,8 +262,8 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
         resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
                                 **self.auth_service_headers)
