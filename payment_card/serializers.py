@@ -12,6 +12,7 @@ class PaymentCardImageSerializer(serializers.ModelSerializer):
 
 class PaymentCardSerializer(serializers.ModelSerializer):
     images = PaymentCardImageSerializer(many=True)
+
     class Meta:
         model = PaymentCard
         fields = ('id', 'image', 'images', 'input_label', 'is_active', 'name', 'scan_message', 'slug', 'system', 'type',
