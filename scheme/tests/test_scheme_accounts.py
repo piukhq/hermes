@@ -258,6 +258,31 @@ class TestSchemeAccountViews(APITestCase):
                     return False
         return True
 
+    def test_create_join_account(self):
+        scheme = SchemeFactory()
+
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        password_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+
+        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
+                                **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+
+        json = resp.json()
+        self.assertIsInstance(json, dict)
+        self.assertIn('action_status', json)
+        self.assertIn('barcode', json)
+        self.assertIn('card_label', json)
+        self.assertIn('created', json)
+        self.assertIn('id', json)
+        self.assertIn('images', json)
+        self.assertIn('order', json)
+        self.assertIn('scheme', json)
+        self.assertIn('status', json)
+        self.assertIn('user', json)
+
 
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
