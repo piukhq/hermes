@@ -74,7 +74,6 @@ class PaymentCard(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     url = models.URLField()
-    image = models.ImageField(upload_to="payment_cards")
     scan_message = models.CharField(max_length=100)
     input_label = models.CharField(max_length=150)  # CARD PREFIX
     is_active = models.BooleanField(default=True)
