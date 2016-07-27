@@ -45,3 +45,10 @@ class TestPaymentCardAccountImages(APITestCase):
         self.assertEqual(images[0]['object_type'], 'payment_card_account_image')
         self.assertEqual(images[1]['object_type'], 'payment_card_image')
         self.assertEqual(images[2]['object_type'], 'payment_card_image')
+
+    def test_images_in_payment_card_response(self):
+        resp = self.client.get('/payment_cards', **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        json = resp.json()
+        self.assertIn('images', json[0])
+        self.assertIsInstance(json[0]['images'], list)

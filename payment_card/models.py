@@ -84,6 +84,10 @@ class PaymentCard(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def images(self):
+        return PaymentCardImage.objects.filter(payment_card=self.id)
+
 
 class PaymentCardAccountManager(models.Manager):
     def get_queryset(self):

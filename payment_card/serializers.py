@@ -5,9 +5,18 @@ from payment_card.models import (PaymentCard, PaymentCardAccount, PaymentCardIma
                                  PaymentCardAccountImageCriteria)
 
 
+class PaymentCardImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentCardImage
+
+
 class PaymentCardSerializer(serializers.ModelSerializer):
+    images = PaymentCardImageSerializer(many=True)
+
     class Meta:
         model = PaymentCard
+        fields = ('id', 'image', 'images', 'input_label', 'is_active', 'name', 'scan_message', 'slug', 'system', 'type',
+                  'url',)
 
 
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
