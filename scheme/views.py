@@ -187,6 +187,8 @@ class CreateJoinSchemeAccount(APIView):
     def post(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
+        ---
+        response_serializer: GetSchemeAccountSerializer
         """
         try:
             scheme = Scheme.objects.get(slug=kwargs['scheme_slug'])
