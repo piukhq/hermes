@@ -15,6 +15,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer)
+from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -200,11 +201,18 @@ class CreateJoinSchemeAccount(APIView):
         except CustomUser.DoesNotExist:
             return Response({'code': 400, 'message': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # has the user disabled join cards for this scheme?
+        setting = UserSetting.objects.filter(user=user, setting__scheme=scheme,
+                                             setting__slug='join-{}'.format(scheme.slug))
+        if setting.exists() and setting.first().value == '0':
+            return Response({'code': 200, 'message': 'User has disabled join cards for this scheme'},
+                            status=status.HTTP_200_OK)
+
         # does the user have an account with the scheme already?
         account = SchemeAccount.objects.filter(scheme=scheme, user=user)
         if account.exists():
-            return Response({'code': 400, 'message': 'User already has an account with this scheme.'},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'code': 200, 'message': 'User already has an account with this scheme.'},
+                            status=status.HTTP_200_OK)
 
         # create a join account.
         account = SchemeAccount(

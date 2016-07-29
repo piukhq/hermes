@@ -7,6 +7,8 @@ from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, Lis
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
+from user.models import Setting
+from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
@@ -282,6 +284,25 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('scheme', json)
         self.assertIn('status', json)
         self.assertIn('user', json)
+
+    def test_create_join_account_against_user_setting(self):
+        scheme = SchemeFactory()
+
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+
+        setting = SettingFactory(scheme=scheme, slug='join-{}'.format(scheme.slug), value_type=Setting.BOOLEAN)
+        UserSettingFactory(setting=setting, user=self.user, value='0')
+
+        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
+                                **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        json = resp.json()
+        self.assertEqual(json['code'], 200)
+        self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
 
 
 class TestSchemeAccountModel(APITestCase):
