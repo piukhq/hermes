@@ -202,7 +202,8 @@ class CreateJoinSchemeAccount(APIView):
             return Response({'code': 400, 'message': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # has the user disabled join cards for this scheme?
-        setting = UserSetting.objects.filter(user=user, setting__scheme=scheme, setting__slug='join-{}'.format(scheme.slug))
+        setting = UserSetting.objects.filter(user=user, setting__scheme=scheme,
+                                             setting__slug='join-{}'.format(scheme.slug))
         if setting.exists() and setting.first().value == '0':
             return Response({'code': 200, 'message': 'User has disabled join cards for this scheme'},
                             status=status.HTTP_200_OK)
