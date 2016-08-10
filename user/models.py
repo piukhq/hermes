@@ -183,7 +183,7 @@ class Setting(models.Model):
     CATEGORIES = (
         (GENERAL, 'General'),
         (MARKETING, 'Marketing'),
-        (SCHEME, 'Scheme'),
+        (SCHEME, 'Loyalty Scheme'),
     )
 
     slug = models.SlugField(unique=True)
