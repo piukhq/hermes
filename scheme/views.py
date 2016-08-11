@@ -375,10 +375,9 @@ class ReferenceImages(APIView):
         # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
         images = SchemeImage.objects.filter(image_type_code=5)
 
-        return_data = []
-        for image in images:
-            return_data.append({
-                'file': image.image.url,
-                'scheme_id': image.scheme.id,
-            })
+        return_data = [{
+            'file': image.image.url,
+            'scheme_id': image.scheme.id
+        } for image in images]
+
         return Response(return_data, status=200)
