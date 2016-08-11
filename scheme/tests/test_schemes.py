@@ -72,7 +72,7 @@ class TestSchemeViews(APITestCase):
         }
 
         response = self.client.post('/schemes/identify', data={'base64img': 'test'},
-                                   **self.auth_headers)
+                                    **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['scheme_id'], 5)
