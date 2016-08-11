@@ -8,7 +8,8 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.forms import CSVUploadForm
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange
+from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange,
+                           SchemeImage)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -360,5 +361,23 @@ class DonorSchemes(APIView):
             data = e
             data['scheme_account_id'] = s['id']
             return_data.append(data)
+
+        return Response(return_data, status=200)
+
+
+class ReferenceImages(APIView):
+    authentication_classes = (ServiceAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
+        images = SchemeImage.objects.filter(image_type_code=5)
+
+        return_data = [{
+            'file': image.image.url,
+            'scheme_id': image.scheme.id
+        } for image in images]
 
         return Response(return_data, status=200)
