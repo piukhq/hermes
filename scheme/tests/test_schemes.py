@@ -3,7 +3,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE
 from django.test import TestCase
-
+from django.conf import settings
 from user.tests.factories import UserFactory
 
 
@@ -45,6 +45,18 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['id'], scheme.id)
         self.assertEqual(len(response.data['images']), 1)
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
+
+    def test_get_reference_images(self):
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme, image_type_code=5)
+
+        response = self.client.get('/schemes/images/reference', HTTP_AUTHORIZATION='Token {}'.format(settings.SERVICE_API_KEY))
+        self.assertEqual(response.status_code, 200)
+
+        json = response.json()
+        self.assertEqual(type(json), list)
+        self.assertIn('file', json[0])
+        self.assertIn('scheme_id', json[0])
 
 
 class TestSchemeModel(TestCase):
