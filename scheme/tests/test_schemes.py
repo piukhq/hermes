@@ -50,7 +50,8 @@ class TestSchemeViews(APITestCase):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme, image_type_code=5)
 
-        response = self.client.get('/schemes/images/reference', HTTP_AUTHORIZATION='Token {}'.format(settings.SERVICE_API_KEY))
+        response = self.client.get('/schemes/images/reference',
+                                   HTTP_AUTHORIZATION='Token {}'.format(settings.SERVICE_API_KEY))
         self.assertEqual(response.status_code, 200)
 
         json = response.json()
