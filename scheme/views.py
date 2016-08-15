@@ -399,12 +399,13 @@ class IdentifyCard(APIView):
         headers = {
             'Content-Type': 'application/json'
         }
-        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers).json()
+        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers)
+        json = resp.json()
 
         if resp['status'] != 'success':
-            return Response({'status': resp['status'], 'message': resp['reason']},
+            return Response({'status': json['status'], 'message': json['reason']},
                             status=400)
 
         return Response({
-            'scheme_id': int(resp['scheme_id'])
+            'scheme_id': int(json['scheme_id'])
         }, status=200)
