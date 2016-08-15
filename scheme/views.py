@@ -392,12 +392,14 @@ class IdentifyCard(APIView):
         """
         Identifies and associates a given card image with a scheme ID.
         """
-        resp = requests.post(settings.HECATE_URL + '/classify', data={
-            'uuid': uuid.uuid4(),
+        data = {
+            'uuid': str(uuid.uuid4()),
             'base64img': request.data['base64img']
-        }, headers={
-            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
-        }).json()
+        }
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers).json()
 
         if resp['status'] != 'success':
             return Response({'status': resp['status'], 'message': resp['reason']},
