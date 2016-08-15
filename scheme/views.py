@@ -401,7 +401,7 @@ class IdentifyCard(APIView):
 
         if resp['status'] != 'success':
             return Response({'status': resp['status'], 'message': resp['reason']},
-                            400)
+                            status=400)
 
         return Response({
             'scheme_id': int(resp['scheme_id'])
