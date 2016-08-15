@@ -2,7 +2,7 @@ from django.conf.urls import patterns, url
 from scheme.views import (CreateAccount, SchemesList, RetrieveDeleteAccount, RetrieveScheme,
                           LinkCredentials, SchemeAccountsCredentials, UpdateSchemeAccountStatus,
                           ActiveSchemeAccountAccounts, SystemActionSchemeAccounts, SchemeAccountStatusData, csv_upload,
-                          DonorSchemes, CreateJoinSchemeAccount, ReferenceImages)
+                          DonorSchemes, CreateJoinSchemeAccount, ReferenceImages, IdentifyCard)
 
 urlpatterns = patterns('schemes',
                        url(r'^/accounts/?$', CreateAccount.as_view(), name='create_scheme_account'),
@@ -24,5 +24,6 @@ urlpatterns = patterns('schemes',
                        url(r'^/accounts/(?P<pk>[0-9]+)/link', LinkCredentials.as_view(), name='create_question'),
                        url(r'^/accounts/summary', SchemeAccountStatusData.as_view(), name='schemes_status_summary'),
                        url(r'^/images/reference', ReferenceImages.as_view()),
+                       url(r'^/identify', IdentifyCard.as_view()),
                        # TODO: Better URL
                        url(r'^/csv_upload', csv_upload, name='csv_upload'),)

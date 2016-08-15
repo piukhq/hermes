@@ -1,4 +1,6 @@
 import csv
+import uuid
+import requests
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
@@ -25,7 +27,7 @@ from user.authentication import ServiceAuthentication, AllowService, JwtAuthenti
 from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
-
+from django.conf import settings
 from user.models import CustomUser
 
 
@@ -381,3 +383,26 @@ class ReferenceImages(APIView):
         } for image in images]
 
         return Response(return_data, status=200)
+
+
+class IdentifyCard(APIView):
+    authentication_classes = (JwtAuthentication,)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Identifies and associates a given card image with a scheme ID.
+        """
+        resp = requests.post(settings.HECATE_URL + '/classify', data={
+            'uuid': uuid.uuid4(),
+            'base64img': request.data['base64img']
+        }, headers={
+            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
+        }).json()
+
+        if resp['status'] != 'success':
+            return Response({'status': resp['status'], 'message': resp['reason']},
+                            status=400)
+
+        return Response({
+            'scheme_id': int(resp['scheme_id'])
+        }, status=200)

@@ -5,6 +5,7 @@ from scheme.credentials import EMAIL, BARCODE
 from django.test import TestCase
 from django.conf import settings
 from user.tests.factories import UserFactory
+from unittest.mock import patch
 
 
 class TestSchemeViews(APITestCase):
@@ -58,6 +59,23 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(type(json), list)
         self.assertIn('file', json[0])
         self.assertIn('scheme_id', json[0])
+
+    @patch('scheme.views.requests.post')
+    def test_identify_image(self, mock_post):
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme, image_type_code=5)
+
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {
+            'status': 'success',
+            'scheme_id': '5'
+        }
+
+        response = self.client.post('/schemes/identify', data={'base64img': 'test'},
+                                    **self.auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['scheme_id'], 5)
 
 
 class TestSchemeModel(TestCase):
