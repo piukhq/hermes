@@ -68,6 +68,7 @@ class TestSchemeViews(APITestCase):
         mock_post.return_value.status_code = 200
         mock_post.return_value.json.return_value = {
             'status': 'success',
+            'reason': '',
             'scheme_id': '5'
         }
 
