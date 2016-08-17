@@ -65,6 +65,7 @@ class Scheme(models.Model):
     company_url = models.URLField(blank=True, null=True)
     forgotten_password_url = models.URLField(max_length=500)
     join_url = models.URLField(blank=True, null=True)
+    link_account_text = models.CharField(max_length=200, blank=True, null=True)
 
     tier = models.IntegerField(choices=TIERS)
 
