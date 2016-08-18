@@ -274,3 +274,7 @@ class DonorSchemeSerializer(serializers.ModelSerializer):
         model = Exchange
         fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host',
                   'transfer_min', 'transfer_max', 'transfer_multiple', 'tip_in_url', 'info_url',)
+
+
+class IdentifyCardSerializer(serializers.Serializer):
+    scheme_id = serializers.IntegerField()

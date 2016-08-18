@@ -391,6 +391,15 @@ class IdentifyCard(APIView):
     def post(self, request, *args, **kwargs):
         """
         Identifies and associates a given card image with a scheme ID.
+        ---
+        parameters:
+          - name: base64img
+            required: true
+            description: the base64 encoded image to identify
+        response_serializer: scheme.serializers.IdentifyCardSerializer
+        responseMessages:
+          - code: 400
+            message: no match
         """
         data = {
             'uuid': str(uuid.uuid4()),
@@ -403,7 +412,7 @@ class IdentifyCard(APIView):
         json = resp.json()
 
         if json['status'] != 'success' or json['reason'] == 'no match':
-            return Response({'status': json['status'], 'message': json['reason']},
+            return Response({'status': 'failure', 'message': json['reason']},
                             status=400)
 
         return Response({
