@@ -63,7 +63,7 @@ class Scheme(models.Model):
     url = models.URLField()
     company = models.CharField(max_length=200)
     company_url = models.URLField(blank=True, null=True)
-    forgotten_password_url = models.URLField(max_length=500)
+    forgotten_password_url = models.URLField(max_length=500, blank=True, null=True)
     join_url = models.URLField(blank=True, null=True)
     link_account_text = models.CharField(max_length=200, blank=True, null=True)
 
