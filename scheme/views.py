@@ -17,7 +17,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer, DonorSchemeSerializer, IdentifyCardSerializer)
+                                SchemeAnswerSerializer, DonorSchemeSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -396,7 +396,7 @@ class IdentifyCard(APIView):
           - name: base64img
             required: true
             description: the base64 encoded image to identify
-        response_serializer: IdentifyCardSerializer
+        response_serializer: scheme.serializers.IdentifyCardSerializer
         responseMessages:
           - code: 400
             message: no match
