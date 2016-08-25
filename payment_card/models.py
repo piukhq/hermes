@@ -142,9 +142,9 @@ class PaymentCardAccount(models.Model):
 
     @property
     def images(self):
-        qualifiers = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card,
-                                                                    payment_card_accounts__id=self.id,
-                                                                    payment_card_image__isnull=False)
+        qualifiers = PaymentCardAccountImage.objects.filter(payment_card=self.payment_card,
+                                                            payment_card_accounts__id=self.id,
+                                                            payment_card_image__isnull=False)
         images = qualifiers.annotate(image_type_code=F('payment_card_image__image_type_code'),
                                      image_size_code=F('payment_card_image__size_code'),
                                      image=F('payment_card_image__image'),

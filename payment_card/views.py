@@ -205,7 +205,7 @@ def csv_upload(request):
 
             image_instance.save()
 
-            return redirect('/admin/payment_card/paymentaccountimagecriteria/{}'.format(image_instance.id))
+            return redirect('/admin/payment_card/paymentaccountimage/{}'.format(image_instance.id))
 
     context = {'form': form}
     return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))

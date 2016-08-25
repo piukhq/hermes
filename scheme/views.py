@@ -10,7 +10,8 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.forms import CSVUploadForm
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage, \
+    SchemeAccountImage
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -326,7 +327,7 @@ def csv_upload(request):
         if form.is_valid():
             scheme = Scheme.objects.get(id=int(request.POST['scheme']))
             uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
-            image_criteria_instance = SchemeAccountImageCriteria(scheme=scheme, start_date=timezone.now())
+            image_criteria_instance = SchemeAccountImage(scheme=scheme, start_date=timezone.now())
             image_criteria_instance.save()
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
@@ -338,7 +339,7 @@ def csv_upload(request):
                         image_criteria_instance.delete()
                         return HttpResponseBadRequest()
 
-            return redirect('/admin/scheme/schemeaccountimagecriteria/{}'.format(image_criteria_instance.id))
+            return redirect('/admin/scheme/schemeaccountimage/{}'.format(image_criteria_instance.id))
 
     context = {'form': form}
     return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))
