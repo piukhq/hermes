@@ -1,6 +1,5 @@
 from rest_framework.test import APITestCase
-from payment_card.tests.factories import (PaymentCardAccountFactory, PaymentCardAccountImageFactory,
-                                          PaymentCardAccountImageCriteriaFactory)
+from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
@@ -18,10 +17,6 @@ class TestPaymentCard(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
 
         cls.payment_card_image = PaymentCardAccountImageFactory()
-        cls.account_image_criteria = PaymentCardAccountImageCriteriaFactory(
-            payment_card=cls.payment_card_account.payment_card,
-            payment_card_image=cls.payment_card_image)
-        cls.account_image_criteria.payment_card_accounts.add(cls.payment_card_account)
 
         super(TestPaymentCard, cls).setUpClass()
 

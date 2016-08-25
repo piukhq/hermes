@@ -1,8 +1,7 @@
 from copy import copy
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from payment_card.models import (PaymentCard, PaymentCardAccount, PaymentCardImage, PaymentCardAccountImage,
-                                 PaymentCardAccountImageCriteria)
+from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardImage, PaymentCardAccountImage
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
@@ -68,20 +67,18 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_payment_card_account(payment_card_account):
-    account_image_criterias = PaymentCardAccountImageCriteria.objects.filter(
-        payment_card_accounts__id=payment_card_account.id)
+    account_images = PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
     payment_card_images = PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
-    for criteria in account_image_criterias:
-        serializer = PaymentCardAccountImageSerializer(criteria.payment_card_image)
+    for image in account_images:
+        serializer = PaymentCardAccountImageSerializer(image)
         images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
 
     for image in payment_card_images:
-        account_image_criteria = account_image_criterias.filter(
-            payment_card_image__image_type_code=image.image_type_code).first()
-        if not account_image_criteria:
+        account_image = account_images.filter(image_type_code=image.image_type_code).first()
+        if not account_image:
             # we have to turn the PaymentCardImage instance into a PaymentCardAccountImage
             account_image = PaymentCardAccountImage(
                 id=image.id,

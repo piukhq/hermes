@@ -12,7 +12,7 @@ from payment_card.forms import CSVUploadForm
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from rest_framework import generics
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
-from payment_card.models import PaymentCardAccount, PaymentCard, PaymentCardAccountImageCriteria
+from payment_card.models import PaymentCardAccount, PaymentCard, PaymentCardAccountImage
 from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardSerializer,
                                       PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer)
 from rest_framework.response import Response
@@ -188,23 +188,24 @@ def csv_upload(request):
         if form.is_valid():
             payment_card = PaymentCard.objects.get(id=int(request.POST['scheme']))
             uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
-            image_criteria_instance = PaymentCardAccountImageCriteria(payment_card=payment_card,
-                                                                      start_date=timezone.now())
-            image_criteria_instance.save()
+            # 6 = magic number for personal offers
+            image_instance = PaymentCardAccountImage(payment_card=payment_card, start_date=timezone.now(),
+                                                     image_type_code=6, order=0)
+            image_instance.save()
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
                 for email in row:
                     payment_card_account = PaymentCardAccount.objects.filter(user__email=email.lstrip(),
                                                                              payment_card=payment_card)
                     if payment_card_account:
-                        image_criteria_instance.payment_card_accounts.add(payment_card_account.first())
+                        image_instance.payment_card_accounts.add(payment_card_account.first())
                     else:
-                        image_criteria_instance.delete()
+                        image_instance.delete()
                         return HttpResponseBadRequest()
 
-            image_criteria_instance.save()
+            image_instance.save()
 
-            return redirect('/admin/payment_card/paymentaccountimagecriteria/{}'.format(image_criteria_instance.id))
+            return redirect('/admin/payment_card/paymentaccountimage/{}'.format(image_instance.id))
 
     context = {'form': form}
     return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))

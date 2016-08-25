@@ -1,6 +1,6 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
-from payment_card.models import PaymentCardAccountImageCriteria
+from payment_card.models import PaymentCardAccountImage
 from payment_card.tests import factories
 
 
@@ -21,8 +21,8 @@ class TestCSVUpload(APITestCase):
         self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.id, 'emails': csv_file},
                          **self.auth_headers)
 
-        criteria = PaymentCardAccountImageCriteria.objects.filter(payment_card=self.payment_card).first()
-        self.assertIsNotNone(criteria)
+        image = PaymentCardAccountImage.objects.filter(payment_card=self.payment_card).first()
+        self.assertIsNotNone(image)
 
-        account = criteria.payment_card_accounts.filter(pk=self.payment_card_account.id)
+        account = image.payment_card_accounts.filter(pk=self.payment_card_account.id)
         self.assertIsNotNone(account)
