@@ -2,18 +2,15 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardAccountFactory,
-                                          PaymentCardAccountImageCriteriaFactory, PaymentCardImageFactory)
+                                          PaymentCardImageFactory)
 
 
 class TestPaymentCardAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account_image = PaymentCardAccountImageFactory(image_type_code=2)
         cls.payment_card_account = PaymentCardAccountFactory()
-        cls.account_image_critia = PaymentCardAccountImageCriteriaFactory(
-            payment_card=cls.payment_card_account.payment_card,
-            payment_card_image=cls.payment_card_account_image)
-        cls.account_image_critia.payment_card_accounts.add(cls.payment_card_account)
+        cls.payment_card_account_image = PaymentCardAccountImageFactory(image_type_code=2)
+        cls.payment_card_account_image.payment_card_accounts.add(cls.payment_card_account)
 
         cls.payment_card_images = [
             PaymentCardImageFactory(image_type_code=1, payment_card=cls.payment_card_account.payment_card),

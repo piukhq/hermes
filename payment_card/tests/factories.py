@@ -70,18 +70,14 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     image_type_code = 1
     size_code = fake.word()
     image = fake.url()
+
     strap_line = fake.sentence(nb_words=3)
     description = fake.sentence(nb_words=3)
     url = fake.url()
     call_to_action = fake.sentence(nb_words=3)
+
     order = 0
 
-
-class PaymentCardAccountImageCriteriaFactory(factory.DjangoModelFactory):
-    class Meta:
-        model = models.PaymentCardAccountImageCriteria
-
     payment_card = factory.SubFactory(PaymentCardFactory)
-    description = fake.sentence(nb_words=3)
+
     start_date = timezone.now()
-    end_date = "2200-1-1"

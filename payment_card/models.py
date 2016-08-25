@@ -170,21 +170,6 @@ class PaymentCardAccount(models.Model):
 
 
 class PaymentCardAccountImage(models.Model):
-    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
-    image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
-    url = models.URLField(null=True, blank=True)
-    call_to_action = models.CharField(max_length=150)
-    order = models.IntegerField()
-    created = models.DateTimeField(default=timezone.now)
-
-    def __str__(self):
-        return self.description
-
-
-class PaymentCardAccountImageCriteria(models.Model):
     DRAFT = 0
     PUBLISHED = 1
 
@@ -193,17 +178,28 @@ class PaymentCardAccountImageCriteria(models.Model):
         (PUBLISHED, 'published'),
     )
 
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    size_code = models.CharField(max_length=30, null=True, blank=True)
+    image = models.ImageField(upload_to="schemes")
+
+    strap_line = models.CharField(max_length=50, null=True, blank=True)
+    description = models.CharField(max_length=300, null=True, blank=True)
+    url = models.URLField(null=True, blank=True)
+    call_to_action = models.CharField(max_length=150)
+
+    order = models.IntegerField()
+
     payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
+
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
                                                    related_name='payment_card_accounts_set')
 
-    description = models.CharField(max_length=300, null=True, blank=True)
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
+
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(default=timezone.now)
 
-    payment_card_image = models.ForeignKey('payment_card.PaymentCardAccountImage', null=True, blank=True)
+    created = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.description

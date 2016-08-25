@@ -1,6 +1,5 @@
 from django.contrib import admin
-from payment_card.models import (Issuer, PaymentCardAccount, PaymentCard, PaymentCardAccountImage, PaymentCardImage,
-                                 PaymentCardAccountImageCriteria)
+from payment_card.models import Issuer, PaymentCardAccount, PaymentCard, PaymentCardAccountImage, PaymentCardImage
 
 
 class PaymentCardImageInline(admin.StackedInline):
@@ -30,14 +29,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
 
-
-class PaymentAccountImageCriteriaAdmin(admin.ModelAdmin):
-    model = PaymentCardAccountImageCriteria
-    filter_horizontal = ('payment_card_accounts',)
-
-
 admin.site.register(Issuer)
 admin.site.register(PaymentCardAccount, PaymentCardAccountAdmin)
 admin.site.register(PaymentCard, PaymentCardAdmin)
 admin.site.register(PaymentCardAccountImage)
-admin.site.register(PaymentCardAccountImageCriteria, PaymentAccountImageCriteriaAdmin)
