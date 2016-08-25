@@ -10,8 +10,7 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.forms import CSVUploadForm
-from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImageCriteria, Exchange,
-                           SchemeImage)
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,

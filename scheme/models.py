@@ -391,9 +391,9 @@ class SchemeAccount(models.Model):
 
     @property
     def images(self):
-        qualifiers = SchemeAccountImageCriteria.objects.filter(scheme=self.scheme,
-                                                               scheme_accounts__id=self.id,
-                                                               scheme_image__isnull=False)
+        qualifiers = SchemeAccountImage.objects.filter(scheme=self.scheme,
+                                                       scheme_accounts__id=self.id,
+                                                       scheme_image__isnull=False)
         images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
                                      image_size_code=F('scheme_image__size_code'),
                                      image=F('scheme_image__image'),
@@ -460,21 +460,6 @@ class SchemeAccountCredentialAnswer(models.Model):
 
 
 class SchemeAccountImage(models.Model):
-    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
-    image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300)
-    url = models.URLField(null=True, blank=True)
-    call_to_action = models.CharField(max_length=150)
-    order = models.IntegerField()
-    created = models.DateTimeField(default=timezone.now)
-
-    def __str__(self):
-        return self.description
-
-
-class SchemeAccountImageCriteria(models.Model):
     DRAFT = 0
     PUBLISHED = 1
 
@@ -483,16 +468,26 @@ class SchemeAccountImageCriteria(models.Model):
         (PUBLISHED, 'published'),
     )
 
+    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    size_code = models.CharField(max_length=30, null=True, blank=True)
+    image = models.ImageField(upload_to="schemes")
+
+    strap_line = models.CharField(max_length=50, null=True, blank=True)
+    description = models.CharField(max_length=300)
+    url = models.URLField(null=True, blank=True)
+    call_to_action = models.CharField(max_length=150)
+
+    order = models.IntegerField()
+
     scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
-    description = models.CharField(max_length=300)
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
+
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(default=timezone.now)
 
-    scheme_image = models.ForeignKey('scheme.SchemeAccountImage', null=True, blank=True)
+    created = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return self.description

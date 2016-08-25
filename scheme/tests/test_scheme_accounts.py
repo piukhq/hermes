@@ -5,7 +5,7 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, AccountImageCriteriaFactory, SchemeImageFactory, ExchangeFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserSettingFactory
@@ -42,9 +42,6 @@ class TestSchemeAccountViews(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.scheme_account_image = SchemeAccountImageFactory()
-        cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
-                                                               scheme_image=cls.scheme_account_image)
-        cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
 
         super().setUpClass()
 
@@ -492,11 +489,9 @@ class TestAccessTokens(APITestCase):
 class TestSchemeAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
         cls.scheme_account = SchemeAccountFactory()
-        cls.account_image_critia = AccountImageCriteriaFactory(scheme=cls.scheme_account.scheme,
-                                                               scheme_image=cls.scheme_account_image)
-        cls.account_image_critia.scheme_accounts.add(cls.scheme_account)
+        cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
+        cls.scheme_account_image.scheme_accounts.add(cls.scheme_account)
 
         cls.scheme_images = [
             SchemeImageFactory(image_type_code=1, scheme=cls.scheme_account.scheme),

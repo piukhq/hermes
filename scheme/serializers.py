@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImageCriteria, SchemeAccountImage, Exchange
+    SchemeAccountImage, Exchange
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -221,19 +221,18 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_scheme_account(scheme_account):
-    account_image_criterias = SchemeAccountImageCriteria.objects.filter(scheme_accounts__id=scheme_account.id)
+    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
 
-    for criteria in account_image_criterias:
-        serializer = SchemeAccountImageSerializer(criteria.scheme_image)
+    for image in account_images:
+        serializer = SchemeAccountImageSerializer(image)
         images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
 
     for image in scheme_images:
-        account_image_criteria = account_image_criterias.filter(
-            scheme_image__image_type_code=image.image_type_code).first()
-        if not account_image_criteria:
+        account_image = account_images.filter(image_type_code=image.image_type_code).first()
+        if not account_image:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
                 id=image.id,
