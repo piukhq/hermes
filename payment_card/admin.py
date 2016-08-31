@@ -29,7 +29,15 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
 
+
+class PaymentCardAccountImageAdmin(admin.ModelAdmin):
+    list_display = ('description', 'status', 'payment_card', 'start_date', 'end_date')
+    list_filter = ('status', 'start_date', 'end_date', 'payment_card')
+    date_hierarchy = 'start_date'
+    filter_horizontal = ('payment_card_accounts',)
+
+
 admin.site.register(Issuer)
 admin.site.register(PaymentCardAccount, PaymentCardAccountAdmin)
 admin.site.register(PaymentCard, PaymentCardAdmin)
-admin.site.register(PaymentCardAccountImage)
+admin.site.register(PaymentCardAccountImage, PaymentCardAccountImageAdmin)

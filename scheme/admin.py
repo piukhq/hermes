@@ -92,7 +92,14 @@ class SchemeAccountAdmin(admin.ModelAdmin):
         return self.readonly_fields
 
 
+class SchemeAccountImageAdmin(admin.ModelAdmin):
+    list_display = ('description', 'status', 'scheme', 'start_date', 'end_date')
+    list_filter = ('status', 'start_date', 'end_date', 'scheme')
+    date_hierarchy = 'start_date'
+    filter_horizontal = ('scheme_accounts',)
+
+
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
-admin.site.register(SchemeAccountImage)
+admin.site.register(SchemeAccountImage, SchemeAccountImageAdmin)
 admin.site.register(Exchange)

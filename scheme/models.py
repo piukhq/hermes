@@ -469,18 +469,18 @@ class SchemeAccountImage(models.Model):
     )
 
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
+    size_code = models.CharField(max_length=30, blank=True)
     image = models.ImageField(upload_to="schemes")
-
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300)
-    url = models.URLField(null=True, blank=True)
-    call_to_action = models.CharField(max_length=150)
-
-    order = models.IntegerField()
 
     scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
+
+    strap_line = models.CharField(max_length=50, blank=True)
+    description = models.CharField(max_length=300)
+    url = models.URLField(blank=True)
+    call_to_action = models.CharField(max_length=150)
+
+    order = models.IntegerField()
 
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
 
