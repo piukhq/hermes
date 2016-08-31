@@ -179,20 +179,19 @@ class PaymentCardAccountImage(models.Model):
     )
 
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
+    size_code = models.CharField(max_length=30, blank=True)
     image = models.ImageField(upload_to="schemes")
 
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
-    url = models.URLField(null=True, blank=True)
+    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
+    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
+                                                   related_name='payment_card_accounts_set')
+
+    strap_line = models.CharField(max_length=50, blank=True)
+    description = models.CharField(max_length=300)
+    url = models.URLField(blank=True)
     call_to_action = models.CharField(max_length=150)
 
     order = models.IntegerField()
-
-    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
-
-    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='payment_card_accounts_set')
 
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
 
