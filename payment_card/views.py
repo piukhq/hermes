@@ -1,25 +1,25 @@
 import csv
 import json
+from django.http import HttpResponseBadRequest, JsonResponse
 from io import StringIO
-from django.http import JsonResponse, HttpResponseBadRequest
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import render_to_response, redirect
+from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
 from django.utils import timezone
 from django.views.generic import View
+from rest_framework import generics, status
+from rest_framework import serializers
+from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
 from rest_framework.views import APIView
 from payment_card.forms import CSVUploadForm
+from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
-from rest_framework import generics
-from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView, get_object_or_404
-from payment_card.models import PaymentCardAccount, PaymentCard, PaymentCardAccountImage
-from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardSerializer,
-                                      PaymentCardSchemeAccountSerializer, UpdatePaymentCardAccountSerializer)
-from rest_framework.response import Response
-from rest_framework import status
-
+from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardAccountStatusSerializer,
+                                      PaymentCardSchemeAccountSerializer, PaymentCardSerializer,
+                                      UpdatePaymentCardAccountSerializer)
 from scheme.models import Scheme, SchemeAccount
-from user.authentication import JwtAuthentication, ServiceAuthentication
+from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -178,6 +178,30 @@ class RetrievePaymentCardUserInfo(View):
                 # in the result to signify that something must be wrong.
                 pass
         return JsonResponse(response_data, safe=False)
+
+
+class UpdatePaymentCardAccountStatusSerializer(GenericAPIView):
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+    serializer_class = PaymentCardAccountStatusSerializer
+
+    def put(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        new_status_code = int(request.data['status'])
+        if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
+            raise serializers.ValidationError('Invalid status code sent.')
+
+        payment_card_account = get_object_or_404(PaymentCardAccount, id=int(kwargs['pk']))
+        if new_status_code != payment_card_account.status:
+            payment_card_account.status = new_status_code
+            payment_card_account.save()
+
+        return Response({
+            'id': payment_card_account.id,
+            'status': new_status_code
+        })
 
 
 def csv_upload(request):
