@@ -128,7 +128,7 @@ class ForgotPassword(APIView):
             send_mail('email.tpl',
                       {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
                        'hermes_url': MEDIA_URL},
-                      'emailservice@loyaltyangels.com',
+                      'noreply@bink.com',
                       [user.email],
                       fail_silently=False)
 
