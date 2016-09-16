@@ -5,6 +5,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardImag
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PaymentCardImage
 
@@ -19,6 +20,7 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 
 
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PaymentCardAccountImage
 
@@ -40,6 +42,13 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         model = PaymentCardAccount
         extra_kwargs = {'token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
+
+
+class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = PaymentCardAccount
+        fields = ('status',)
 
 
 class PaymentCardSchemeAccountSerializer(serializers.Serializer):

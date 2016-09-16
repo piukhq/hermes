@@ -5,9 +5,11 @@ from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
+from django.conf import settings
 
 
 class TestPaymentCard(APITestCase):
+
     @classmethod
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
@@ -15,6 +17,7 @@ class TestPaymentCard(APITestCase):
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.payment_card_image = PaymentCardAccountImageFactory()
 
@@ -99,6 +102,21 @@ class TestPaymentCard(APITestCase):
                                          'payment_card': payment_card_2.id}, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'payment_card': ['Cannot change payment card for payment card account.']})
+
+    def test_put_payment_card_account_status(self):
+        response = self.client.put('/payment_cards/accounts/status/{0}'.format(self.payment_card_account.id),
+                                   data={'status': 1}, **self.auth_service_headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.payment_card_account.id)
+        self.assertEqual(response.data['status'], 1)
+
+    def test_put_invalid_payment_card_account_status(self):
+        response = self.client.put('/payment_cards/accounts/status/{0}'.format(self.payment_card_account.id),
+                                   data={'status': 9999}, **self.auth_service_headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
         data = {'user': self.user.id,
