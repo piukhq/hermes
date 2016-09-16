@@ -180,7 +180,7 @@ class RetrievePaymentCardUserInfo(View):
         return JsonResponse(response_data, safe=False)
 
 
-class UpdatePaymentCardAccountStatusSerializer(GenericAPIView):
+class UpdatePaymentCardAccountStatus(GenericAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
     serializer_class = PaymentCardAccountStatusSerializer

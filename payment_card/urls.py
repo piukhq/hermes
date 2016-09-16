@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, url
 from payment_card.views import (RetrievePaymentCardAccount, RetrievePaymentCardSchemeAccounts,
                                 ListPaymentCard, ListCreatePaymentCardAccount, RetrieveLoyaltyID,
-                                RetrievePaymentCardUserInfo, UpdatePaymentCardAccountStatusSerializer, csv_upload)
+                                RetrievePaymentCardUserInfo, UpdatePaymentCardAccountStatus, csv_upload)
 
 urlpatterns = patterns('payment_card',
                        url(r'^/?$', ListPaymentCard.as_view(), name='payment_card_list'),
@@ -16,7 +16,7 @@ urlpatterns = patterns('payment_card',
                            name='retrieve_payment_card_account'),
                        url(r'^/scheme_accounts/(?P<token>.+)$', RetrievePaymentCardSchemeAccounts.as_view(),
                            name='retrieve_payment_card_scheme_accounts'),
-                       url(r'^/accounts/status/(?P<pk>[0-9]+)$', UpdatePaymentCardAccountStatusSerializer.as_view(),
+                       url(r'^/accounts/status/(?P<pk>[0-9]+)$', UpdatePaymentCardAccountStatus.as_view(),
                            name='update_payment_card_account_status'),
                        # TODO: Better URL
                        url(r'^/csv_upload', csv_upload, name='csv_upload'),
