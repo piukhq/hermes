@@ -2,6 +2,8 @@ from bulk_update.helper import bulk_update
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
+import base64
+import uuid
 
 
 class Issuer(models.Model):
@@ -13,6 +15,7 @@ class Issuer(models.Model):
 
 
 class ActivePaymentCardImageManager(models.Manager):
+
     def get_queryset(self):
         return super().get_queryset()\
             .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
@@ -71,6 +74,21 @@ class PaymentCard(models.Model):
         (DEBIT, 'Debit Card'),
         (CREDIT, 'Credit Card'),
     )
+
+    class TokenMethod(object):
+        COPY = 0
+        LEN_24 = 1
+
+        CHOICES = (
+            (COPY, 'Use PSP token'),
+            (LEN_24, 'Generate length-24 token'),
+        )
+
+        METHODS = {
+            COPY: lambda psp_token: psp_token,
+            LEN_24: lambda psp_token: base64.b64encode(uuid.uuid4().bytes),
+        }
+
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
     url = models.URLField()
@@ -79,6 +97,7 @@ class PaymentCard(models.Model):
     is_active = models.BooleanField(default=True)
     system = models.CharField(max_length=40, choices=SYSTEMS)
     type = models.CharField(max_length=40, choices=TYPES)
+    token_method = models.IntegerField(default=TokenMethod.COPY, choices=TokenMethod.CHOICES)
 
     def __str__(self):
         return self.name
@@ -89,8 +108,9 @@ class PaymentCard(models.Model):
 
 
 class PaymentCardAccountManager(models.Manager):
+
     def get_queryset(self):
-            return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
+        return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
 
     def bulk_update(self, objs, update_fields=None, exclude_fields=None):
         bulk_update(objs, update_fields=update_fields,
@@ -116,6 +136,7 @@ class PaymentCardAccount(models.Model):
     currency_code = models.CharField(max_length=3)
     country = models.CharField(max_length=40)
     token = models.CharField(max_length=255, db_index=True)
+    psp_token = models.CharField(max_length=255, verbose_name='PSP Token')
     pan_start = models.CharField(max_length=6)
     pan_end = models.CharField(max_length=6)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
@@ -135,6 +156,11 @@ class PaymentCardAccount(models.Model):
             self.payment_card.name,
             self.name_on_card
         )
+
+    def save(self, *args, **kwargs):
+        method = PaymentCard.TokenMethod.METHODS[self.payment_card.token_method]
+        self.token = method(self.psp_token)
+        super().save(*args, **kwargs)
 
     @property
     def status_name(self):

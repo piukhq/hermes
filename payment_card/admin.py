@@ -28,6 +28,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
                    'status',
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
+    readonly_fields = ('token',)
 
 
 class PaymentCardAccountImageAdmin(admin.ModelAdmin):
