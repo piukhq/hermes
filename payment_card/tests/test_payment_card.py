@@ -12,7 +12,7 @@ class TestPaymentCard(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
@@ -37,6 +37,7 @@ class TestPaymentCard(APITestCase):
 
         self.assertIn('currency_code', response.data[0])
         self.assertIn('status_name', response.data[0])
+        self.assertNotIn('psp_token', response.data[0])
         self.assertNotIn('token', response.data[0])
 
     def test_get_payment_card_account(self):
@@ -45,6 +46,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.payment_card.id)
+        self.assertNotIn('psp_token', response.data)
         self.assertNotIn('token', response.data)
         self.assertEqual(response.data['status_name'], 'pending')
 
@@ -59,14 +61,15 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': "some-token",
+                'psp_token': "some-token",
                 'fingerprint': 'test-fingerprint',
                 'order': 0}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
+        self.assertNotIn('psp_token', response.data)
         self.assertNotIn('token', response.data)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(payment_card_account.token, "some-token")
+        self.assertEqual(payment_card_account.psp_token, "some-token")
         self.assertEqual(payment_card_account.status, 0)
 
     def test_patch_payment_card_account(self):
@@ -130,12 +133,12 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token,
+                'psp_token': self.payment_card_account.token,
                 'fingerprint': 'test-fingerprint',
                 'order': 0}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data, {'token': ['This field must be unique.']})
+        self.assertEqual(response.data, {'psp_token': ['This field must be unique.']})
 
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
@@ -156,7 +159,7 @@ class TestPaymentCard(APITestCase):
         token = 'test_token_123'
         user = UserFactory()
         SchemeAccountFactory(user=user)
-        PaymentCardAccountFactory(user=user, token=token, payment_card=self.payment_card)
+        PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)

@@ -13,9 +13,9 @@ class TestPaymentCardUserInfo(APITestCase):
         cls.user_2 = user_factories.UserFactory()
 
         cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_1,
-                                                                                      token='1144**33')
+                                                                                      psp_token='1144**33')
         cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_2,
-                                                                                      token='3344**11')
+                                                                                      psp_token='3344**11')
 
         cls.scheme_account_1 = scheme_factories.SchemeAccountFactory(user=cls.user_1)
         cls.scheme = cls.scheme_account_1.scheme
@@ -34,8 +34,8 @@ class TestPaymentCardUserInfo(APITestCase):
 
     def test_retrieve(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
-                                    json.dumps({"payment_cards": [self.payment_card_account_1.token,
-                                                                  self.payment_card_account_2.token]}),
+                                    json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
+                                                                  self.payment_card_account_2.psp_token]}),
                                     content_type='application/json',
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
@@ -55,15 +55,15 @@ class TestPaymentCardUserInfo(APITestCase):
 
     def test_404_scheme_unavailable(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format("unavailable_scheme"),
-                                    json.dumps({"payment_cards": [self.payment_card_account_1.token,
-                                                                  self.payment_card_account_2.token]}),
+                                    json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
+                                                                  self.payment_card_account_2.psp_token]}),
                                     content_type='application/json',
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     def test_invalid_card_token(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
-                                    json.dumps({"payment_cards": [self.payment_card_account_1.token, 99999]}),
+                                    json.dumps({"payment_cards": [self.payment_card_account_1.psp_token, 99999]}),
                                     content_type='application/json',
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
