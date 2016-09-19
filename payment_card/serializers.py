@@ -27,12 +27,20 @@ class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
-    psp_token = serializers.CharField(
-        max_length=255,
-        write_only=True,
-        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
+    # psp_token = serializers.CharField(
+    #     max_length=255,
+    #     write_only=True,
+    #     validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
     images = serializers.SerializerMethodField()
     order = serializers.IntegerField()
+
+    # TODO(cl): this should be removed in favour of the commented-out block above.
+    # we can't do this until the front-end is ready for an update.
+    token = serializers.CharField(
+        max_length=255,
+        write_only=True,
+        source='psp_token',
+        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
 
     @staticmethod
     def get_images(payment_card_account):
@@ -42,7 +50,8 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         model = PaymentCardAccount
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
-        exclude = ('token',)
+        # TODO(cl): when fixing the above TODO, remove psp_token from here.
+        exclude = ('token', 'psp_token')
 
 
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
