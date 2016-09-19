@@ -25,7 +25,7 @@ class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
-    token = serializers.CharField(
+    psp_token = serializers.CharField(
         max_length=255,
         write_only=True,
         validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
@@ -38,8 +38,9 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PaymentCardAccount
-        extra_kwargs = {'token': {'write_only': True}}
+        extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
+        exclude = ('token',)
 
 
 class PaymentCardSchemeAccountSerializer(serializers.Serializer):
