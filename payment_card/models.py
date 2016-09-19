@@ -178,19 +178,19 @@ class PaymentCardAccount(models.Model):
                                      image_description=F('payment_card_image__description'),
                                      url=F('payment_card_image__url'),
                                      call_to_action=F('payment_card_image__call_to_action'),
-                                     order=F('payment_card_image__order')) \
-            .values('image_type_code',
-                    'image_size_code',
-                    'image',
-                    'strap_line',
-                    'image_description',
-                    'url',
-                    'call_to_action',
-                    'order',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created')
+                                     order=F('payment_card_image__order')).values(
+                                         'image_type_code',
+                                         'image_size_code',
+                                         'image',
+                                         'strap_line',
+                                         'image_description',
+                                         'url',
+                                         'call_to_action',
+                                         'order',
+                                         'status',
+                                         'start_date',
+                                         'end_date',
+                                         'created')
 
         return images
 

@@ -61,7 +61,7 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'psp_token': "some-token",
+                'token': "some-token",
                 'fingerprint': 'test-fingerprint',
                 'order': 0}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
@@ -133,12 +133,12 @@ class TestPaymentCard(APITestCase):
                 'country': 'New Zealand',
                 'currency_code': 'GBP',
                 'name_on_card': 'Aron Stokes',
-                'psp_token': self.payment_card_account.token,
+                'token': self.payment_card_account.token,
                 'fingerprint': 'test-fingerprint',
                 'order': 0}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data, {'psp_token': ['This field must be unique.']})
+        self.assertEqual(response.data, {'token': ['This field must be unique.']})
 
     def test_delete_payment_card_accounts(self):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
