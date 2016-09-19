@@ -7,7 +7,7 @@ from payment_card.tests import factories
 class TestCSVUpload(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account = factories.PaymentCardAccountFactory(token='token')
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account.user
         cls.issuer = cls.payment_card_account.issuer
