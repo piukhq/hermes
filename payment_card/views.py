@@ -62,11 +62,13 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         instance.is_deleted = True
         instance.save()
 
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', data={
+        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
             'payment_token': instance.psp_token,
             'card_token': instance.token,
             'partner_slug': instance.payment_card,
-            'id': instance.id}, headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)})
+            'id': instance.id}, headers={
+                'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                'Content-Type': 'application/json'})
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -111,11 +113,13 @@ class ListCreatePaymentCardAccount(APIView):
             account = PaymentCardAccount(**data)
             account.save()
 
-            requests.post(settings.METIS_URL + '/payment_service/payment_card', data={
+            requests.post(settings.METIS_URL + '/payment_service/payment_card', json={
                 'payment_token': account.psp_token,
                 'card_token': account.token,
                 'partner_slug': account.payment_card,
-                'id': account.id}, headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)})
+                'id': account.id}, headers={
+                    'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                    'Content-Type': 'application/json'})
 
             response_serializer = PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
