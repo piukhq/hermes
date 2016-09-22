@@ -58,10 +58,10 @@ class SchemeAdmin(admin.ModelAdmin):
     list_filter = ('is_active', )
     form = SchemeForm
 
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        if not request.user.is_superuser and object_id:
-            self.exclude.append('slug')
-        return super().change_view(request, object_id, form_url='', extra_context=None)
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # editing an existing object
+            return self.readonly_fields + ('slug',)
+        return self.readonly_fields
 
 admin.site.register(Scheme, SchemeAdmin)
 
