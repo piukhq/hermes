@@ -158,8 +158,9 @@ class PaymentCardAccount(models.Model):
         )
 
     def save(self, *args, **kwargs):
-        method = PaymentCard.TokenMethod.METHODS[self.payment_card.token_method]
-        self.token = method(self.psp_token)
+        if not self.token:
+            method = PaymentCard.TokenMethod.METHODS[self.payment_card.token_method]
+            self.token = method(self.psp_token)
         super().save(*args, **kwargs)
 
     @property
