@@ -78,16 +78,37 @@ class PaymentCard(models.Model):
     class TokenMethod(object):
         COPY = 0
         LEN_24 = 1
+        LEN_25 = 2
 
         CHOICES = (
             (COPY, 'Use PSP token'),
             (LEN_24, 'Generate length-24 token'),
+            (LEN_25, 'Generate length-25 token'),
         )
 
-        METHODS = {
-            COPY: lambda psp_token: psp_token,
-            LEN_24: lambda psp_token: base64.b64encode(uuid.uuid4().bytes),
-        }
+        @classmethod
+        def copy(cls, psp_token):
+            return psp_token
+
+        @classmethod
+        def len24(cls, psp_token):
+            return base64.b64encode(uuid.uuid4().bytes).decode('utf-8')
+
+        @classmethod
+        def len25(cls, psp_token):
+            # calculate UPC check digit
+            odds = sum(ord(c) for c in psp_token[::2]) * 3
+            evens = sum(ord(c) for c in psp_token[1::2])
+            check_digit = (odds + evens) % 10
+            if check_digit != 0:
+                check_digit = 10 - check_digit
+            return '{}{}'.format(cls.len24(psp_token), check_digit)
+
+        @classmethod
+        def dispatch(cls, method, psp_token):
+            return {cls.COPY:   cls.copy,
+                    cls.LEN_24: cls.len24,
+                    cls.LEN_25: cls.len25}[method](psp_token)
 
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -159,8 +180,7 @@ class PaymentCardAccount(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.token:
-            method = PaymentCard.TokenMethod.METHODS[self.payment_card.token_method]
-            self.token = method(self.psp_token)
+            self.token = PaymentCard.TokenMethod.dispatch(self.payment_card.token_method, self.psp_token)
         super().save(*args, **kwargs)
 
     @property
