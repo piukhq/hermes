@@ -162,7 +162,7 @@ IMAGE_TYPES = (
 )
 
 
-class SchemeImage(models.Model):
+class Image(models.Model):
     DRAFT = 0
     PUBLISHED = 1
 
@@ -171,7 +171,6 @@ class SchemeImage(models.Model):
         (PUBLISHED, 'published'),
     )
 
-    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
     size_code = models.CharField(max_length=30, null=True, blank=True)
     image = models.ImageField(upload_to="schemes")
@@ -187,6 +186,13 @@ class SchemeImage(models.Model):
 
     all_objects = models.Manager()
     objects = ActiveSchemeImageManager()
+
+    class Meta:
+        abstract = True
+
+
+class SchemeImage(Image):
+    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
 
 
 class ActiveManager(BulkUpdateManager):
@@ -459,38 +465,9 @@ class SchemeAccountCredentialAnswer(models.Model):
         unique_together = ("scheme_account", "question")
 
 
-class SchemeAccountImage(models.Model):
-    DRAFT = 0
-    PUBLISHED = 1
-
-    STATUSES = (
-        (DRAFT, 'draft'),
-        (PUBLISHED, 'published'),
-    )
-
-    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, blank=True)
-    image = models.ImageField(upload_to="schemes")
-
-    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
+class SchemeAccountImage(Image):
+    scheme = models.ForeignKey('scheme.Scheme')
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
-
-    strap_line = models.CharField(max_length=50, blank=True)
-    description = models.CharField(max_length=300)
-    url = models.URLField(blank=True)
-    call_to_action = models.CharField(max_length=150)
-
-    order = models.IntegerField()
-
-    status = models.IntegerField(default=DRAFT, choices=STATUSES)
-
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField(blank=True, null=True)
-
-    created = models.DateTimeField(default=timezone.now)
-
-    all_objects = models.Manager()
-    objects = ActiveSchemeImageManager()
 
     def __str__(self):
         return self.description
