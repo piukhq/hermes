@@ -294,9 +294,9 @@ if env_var('HERMES_NO_DB_TEST', False):
 FILE_UPLOAD_PERMISSIONS = 0o755
 
 # EMAIL SETTINGS
-EMAIL_HOST = "mail.loyaltyangels.com"
+EMAIL_HOST = "mail.bink.com"
 EMAIL_PORT = 587
-EMAIL_HOST_USER = "emailservice@loyaltyangels.com"
-EMAIL_HOST_PASSWORD = "Tied2=Health=cry"
+EMAIL_HOST_USER = "noreply@bink.com"
+EMAIL_HOST_PASSWORD = "Gibbon^egg^Change^^"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
