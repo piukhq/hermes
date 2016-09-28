@@ -100,9 +100,12 @@ class SchemeAccountImageFactory(factory.DjangoModelFactory):
 
     order = 0
 
+    status = 1
+
     scheme = factory.SubFactory(SchemeFactory)
 
     start_date = timezone.now()
+    end_date = timezone.now() + timezone.timedelta(days=1)
 
 
 class ExchangeFactory(factory.DjangoModelFactory):
