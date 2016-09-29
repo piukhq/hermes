@@ -24,6 +24,7 @@ class Category(models.Model):
 
 
 class ActiveSchemeManager(models.Manager):
+
     def get_queryset(self):
         schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
         schemes_without_questions = []
@@ -146,6 +147,7 @@ class Exchange(models.Model):
 
 
 class ActiveSchemeImageManager(models.Manager):
+
     def get_queryset(self):
         return super(ActiveSchemeImageManager, self).get_queryset()\
             .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
@@ -196,8 +198,9 @@ class SchemeImage(Image):
 
 
 class ActiveManager(BulkUpdateManager):
+
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
+        return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):
@@ -337,7 +340,12 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    return self.scheme.card_number_prefix + regex_match.group(1)
+                    card_number = self.scheme.card_number_prefix + regex_match.group(1)
+                    self.schemeaccountcredentialanswer_set.add(
+                        question=self.question(CARD_NUMBER),
+                        answer=card_number)
+                    self.save()
+                    return card_number
                 except IndexError:
                     return None
         return barcode_answer.answer
@@ -356,7 +364,12 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    return self.scheme.barcode_prefix + regex_match.group(1)
+                    barcode = self.scheme.barcode_prefix + regex_match.group(1)
+                    self.schemeaccountcredentialanswer_set.add(
+                        question=self.question(BARCODE),
+                        answer=barcode)
+                    self.save()
+                    return barcode
                 except IndexError:
                     return None
         return None
