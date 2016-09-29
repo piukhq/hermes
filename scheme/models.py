@@ -337,7 +337,12 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    return self.scheme.card_number_prefix + regex_match.group(1)
+                    card_number = self.scheme.card_number_prefix + regex_match.group(1)
+                    self.schemeaccountcredentialanswer_set.add(
+                        question=self.question(CARD_NUMBER),
+                        answer=card_number)
+                    self.save()
+                    return card_number
                 except IndexError:
                     return None
         return barcode_answer.answer
@@ -356,7 +361,12 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    return self.scheme.barcode_prefix + regex_match.group(1)
+                    barcode = self.scheme.barcode_prefix + regex_match.group(1)
+                    self.schemeaccountcredentialanswer_set.add(
+                        question=self.question(BARCODE),
+                        answer=barcode)
+                    self.save()
+                    return barcode
                 except IndexError:
                     return None
         return None
