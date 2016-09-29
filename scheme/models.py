@@ -24,6 +24,7 @@ class Category(models.Model):
 
 
 class ActiveSchemeManager(models.Manager):
+
     def get_queryset(self):
         schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
         schemes_without_questions = []
@@ -146,6 +147,7 @@ class Exchange(models.Model):
 
 
 class ActiveSchemeImageManager(models.Manager):
+
     def get_queryset(self):
         return super(ActiveSchemeImageManager, self).get_queryset()\
             .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
@@ -196,8 +198,9 @@ class SchemeImage(Image):
 
 
 class ActiveManager(BulkUpdateManager):
+
     def get_queryset(self):
-            return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
+        return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):
