@@ -37,6 +37,7 @@ class OpenAuthentication(SessionAuthentication):
     We need to disable csrf as we are running hermes on production through a proxy.
     Also we don't need csrf as we are using jwt tokens.
     """
+
     def enforce_csrf(self, request):
         return
 
@@ -150,6 +151,7 @@ class Users(RetrieveUpdateAPIView):
 
 
 class Authenticate(APIView):
+
     @method_decorator(csrf_exempt)
     def get(self, request):
         """
