@@ -67,7 +67,7 @@ class Scheme(models.Model):
     forgotten_password_url = models.URLField(max_length=500, blank=True, null=True)
     join_url = models.URLField(blank=True, null=True)
     join_t_and_c = models.TextField(blank=True, verbose_name="Join terms & conditions")
-    link_account_text = models.CharField(max_length=200, blank=True, null=True)
+    link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
 
@@ -479,7 +479,7 @@ class SchemeAccountCredentialAnswer(models.Model):
 
 
 class SchemeAccountImage(Image):
-    scheme = models.ForeignKey('scheme.Scheme')
+    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
     def __str__(self):
