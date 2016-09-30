@@ -67,7 +67,7 @@ class Scheme(models.Model):
     forgotten_password_url = models.URLField(max_length=500, blank=True, null=True)
     join_url = models.URLField(blank=True, null=True)
     join_t_and_c = models.TextField(blank=True, verbose_name="Join terms & conditions")
-    link_account_text = models.TextField(blank=True)
+    link_account_text = models.TextField(blank=True, null=True)
 
     tier = models.IntegerField(choices=TIERS)
 
@@ -174,16 +174,16 @@ class Image(models.Model):
     )
 
     image_type_code = models.IntegerField(choices=IMAGE_TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
+    size_code = models.CharField(max_length=30, blank=True, null=True)
     image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
-    url = models.URLField(null=True, blank=True)
+    strap_line = models.CharField(max_length=50, blank=True, null=True)
+    description = models.CharField(max_length=300, blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
     call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
-    end_date = models.DateTimeField()
+    end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
     all_objects = models.Manager()
