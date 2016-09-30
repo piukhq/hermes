@@ -33,9 +33,9 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_type = 1
     scan_message = fake.sentence()
     category = factory.SubFactory(CategoryFactory)
-    identifier = None
-    card_number_regex = None
-    barcode_prefix = None
+    identifier = ''
+    card_number_regex = ''
+    barcode_prefix = ''
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
