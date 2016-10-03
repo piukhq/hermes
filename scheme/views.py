@@ -387,7 +387,7 @@ class ReferenceImages(APIView):
         ---
         response_serializer: ReferenceImageSerializer
         """
-        # # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
+        # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
         images = SchemeImage.objects.filter(image_type_code=5)
         reference_image_serializer = ReferenceImageSerializer(images, many=True)
 
