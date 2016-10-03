@@ -28,10 +28,6 @@ from user.serializers import (UserSerializer, RegisterSerializer, LoginSerialize
                               UserSettingSerializer)
 
 
-class ForgottenPassword:
-    pass
-
-
 class OpenAuthentication(SessionAuthentication):
     """
     We need to disable csrf as we are running hermes on production through a proxy.
@@ -122,6 +118,10 @@ class ForgotPassword(APIView):
     permission_classes = (AllowAny,)
 
     def post(self, request):
+        """
+        Sends email with reset token to user. Responds: 'An email has been sent with details of how to reset\
+         your password.'
+        """
         user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
@@ -208,7 +208,7 @@ class Login(GenericAPIView):
 
 class FaceBookLoginWeb(CreateAPIView):
     """
-    This is only used by ching web
+    This is only used by web app
     """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
@@ -216,6 +216,7 @@ class FaceBookLoginWeb(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         """
+        Login using a Facebook account from web app
         ---
         response_serializer: ResponseAuthSerializer
         """
@@ -315,7 +316,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
     def post(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS.\n
-        Reset a user's password using a reset token obtained via password reset email.
+        Reset a user's password using a reset token obtained via password reset email. Returns empty object.
         ---
         parameters:
             - name: token
@@ -442,6 +443,7 @@ class UserSettings(APIView):
     def delete(self, request):
         """
         Reset a user's app settings.
+        Responds with a 204 - No Content.
         """
         UserSetting.objects.filter(user=request.user).delete()
         return Response(status=HTTP_204_NO_CONTENT)
@@ -449,6 +451,7 @@ class UserSettings(APIView):
     def put(self, request):
         """
         Change a user's app settings. Takes one or more slug-value pairs.
+        Responds with a 204 - No Content.
         ---
         request_serializer: user.serializers.UpdateUserSettingSerializer
         responseMessages:

@@ -17,7 +17,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer, DonorSchemeSerializer)
+                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -346,9 +346,16 @@ def csv_upload(request):
 
 
 class DonorSchemes(APIView):
+
     authentication_classes = (ServiceAuthentication,)
 
     def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - SERVICE NOT FOR PUBLIC ACCESS
+        ---
+        response_serializer: scheme.serializers.DonorSchemeAccountSerializer
+
+        """
         host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
         scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'])
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
@@ -370,17 +377,24 @@ class DonorSchemes(APIView):
 class ReferenceImages(APIView):
     authentication_classes = (ServiceAuthentication,)
 
+    override_serializer_classes = {
+        'GET': ReferenceImageSerializer,
+    }
+
     def get(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
+        ---
+        response_serializer: ReferenceImageSerializer
         """
-        # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
+        # # TODO: refactor image types to allow SchemeImage.REFERENCE instead of magic number 5.
         images = SchemeImage.objects.filter(image_type_code=5)
+        reference_image_serializer = ReferenceImageSerializer(images, many=True)
 
         return_data = [{
-            'file': image.image.url,
-            'scheme_id': image.scheme.id
-        } for image in images]
+            'file': data["image"],
+            'scheme_id': data["scheme"]
+        } for data in reference_image_serializer.data]
 
         return Response(return_data, status=200)
 
