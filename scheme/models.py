@@ -260,11 +260,23 @@ class SchemeAccount(models.Model):
 
     def _collect_credentials(self):
         credentials = {}
-        for answer in self.schemeaccountcredentialanswer_set.all():
-            if answer.question.type in ENCRYPTED_CREDENTIALS:
-                credentials[answer.question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer.answer)
+        for question in self.scheme.questions.all():
+            # attempt to get the answer from the database.
+            answer_instance = self.schemeaccountcredentialanswer_set.filter(question__type=question.type).first()
+            if answer_instance:
+                answer = answer_instance.answer
             else:
-                credentials[answer.question.type] = answer.answer
+                # see if we have a property that will give us the answer.
+                try:
+                    answer = getattr(self, question.type)
+                except AttributeError:
+                    # we can't get an answer to this question, so skip it.
+                    continue
+
+            if question.type in ENCRYPTED_CREDENTIALS:
+                credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+            else:
+                credentials[question.type] = answer
         return credentials
 
     def missing_credentials(self, credential_types):
@@ -340,15 +352,29 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    card_number = self.scheme.card_number_prefix + regex_match.group(1)
-                    self.schemeaccountcredentialanswer_set.add(
-                        question=self.question(CARD_NUMBER),
-                        answer=card_number)
-                    self.save()
-                    return card_number
+                    return self.scheme.card_number_prefix + regex_match.group(1)
                 except IndexError:
                     return None
         return barcode_answer.answer
+
+    @property
+    def card_number(self):
+        card_number_answer = self.card_number_answer
+        if card_number_answer:
+            return card_number_answer.answer
+
+        barcode = self.barcode_answer
+        if barcode and self.scheme.card_number_regex:
+            try:
+                regex_match = re.search(self.scheme.card_number_regex, barcode.answer)
+            except sre_constants.error:
+                return None
+            if regex_match:
+                try:
+                    return self.scheme.card_number_prefix + regex_match.group(1)
+                except IndexError:
+                    return None
+        return None
 
     @property
     def barcode(self):
@@ -364,12 +390,7 @@ class SchemeAccount(models.Model):
                 return None
             if regex_match:
                 try:
-                    barcode = self.scheme.barcode_prefix + regex_match.group(1)
-                    self.schemeaccountcredentialanswer_set.add(
-                        question=self.question(BARCODE),
-                        answer=barcode)
-                    self.save()
-                    return barcode
+                    return self.scheme.barcode_prefix + regex_match.group(1)
                 except IndexError:
                     return None
         return None
