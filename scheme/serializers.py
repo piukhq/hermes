@@ -177,6 +177,16 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
                   'images')
 
 
+class ReferenceImageSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SchemeImage
+        fields = (
+            'image',
+            'scheme',
+        )
+
+
 class StatusSerializer(serializers.Serializer):
     status = serializers.IntegerField()
 
@@ -273,6 +283,22 @@ class DonorSchemeSerializer(serializers.ModelSerializer):
         model = Exchange
         fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host',
                   'transfer_min', 'transfer_max', 'transfer_multiple', 'tip_in_url', 'info_url',)
+
+
+class DonorSchemeAccountSerializer(serializers.Serializer):
+    donor_scheme = DonorSchemeInfoSerializer()
+    host_scheme = HostSchemeInfoSerializer()
+    exchange_rate_donor = serializers.IntegerField()
+    exchange_rate_host = serializers.IntegerField()
+
+    transfer_min = serializers.DecimalField(decimal_places=2, max_digits=12)
+    transfer_max = serializers.DecimalField(decimal_places=2, max_digits=12)
+    transfer_multiple = serializers.DecimalField(decimal_places=2, max_digits=12)
+
+    tip_in_url = serializers.URLField()
+    info_url = serializers.URLField()
+
+    scheme_account_id = serializers.IntegerField()
 
 
 class IdentifyCardSerializer(serializers.Serializer):
