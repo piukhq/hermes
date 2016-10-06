@@ -269,6 +269,8 @@ class SchemeAccount(models.Model):
                 # see if we have a property that will give us the answer.
                 try:
                     answer = getattr(self, question.type)
+                    if not answer:
+                        continue
                 except AttributeError:
                     # we can't get an answer to this question, so skip it.
                     continue
