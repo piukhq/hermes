@@ -187,11 +187,12 @@ class RetrievePaymentCardUserInfo(View):
                         'user_id': payment_card.user_id,
                     }
                 else:
-                    response_data[payment_card_token] = {
-                        'loyalty_id': scheme_account.third_party_identifier,
-                        'scheme_account_id': scheme_account.id,
-                        'user_id': payment_card.user_id
-                    }
+                    if scheme_account.status == SchemeAccount.ACTIVE:
+                        response_data[payment_card_token] = {
+                            'loyalty_id': scheme_account.third_party_identifier,
+                            'scheme_account_id': scheme_account.id,
+                            'user_id': payment_card.user_id
+                        }
             else:
                 # if we don't find a payment_card / user we don't insert the token
                 # in the result to signify that something must be wrong.
