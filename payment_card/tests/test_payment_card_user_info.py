@@ -7,6 +7,7 @@ from user.tests import factories as user_factories
 
 
 class TestPaymentCardUserInfo(APITestCase):
+
     @classmethod
     def setUpClass(cls):
         cls.user_1 = user_factories.UserFactory()
@@ -40,18 +41,16 @@ class TestPaymentCardUserInfo(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data, {
-            '1144**33': {
-                'user_id': self.user_1.id,
-                'scheme_account_id': self.scheme_account_1.id,
-                'loyalty_id': self.scheme_answer_1.answer
-            },
-            '3344**11': {
-                'user_id': self.user_2.id,
-                'scheme_account_id': self.scheme_account_2.id,
-                'loyalty_id': self.scheme_answer_2.answer
-            }
-        })
+
+        self.assertIn('1144**33', data)
+        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
+        self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
+        self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
+
+        self.assertIn('3344**11', data)
+        self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
+        self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
+        self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
 
     def test_404_scheme_unavailable(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format("unavailable_scheme"),
@@ -68,10 +67,8 @@ class TestPaymentCardUserInfo(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        self.assertEqual(data, {
-            '1144**33': {
-                'user_id': self.user_1.id,
-                'scheme_account_id': self.scheme_account_1.id,
-                'loyalty_id': self.scheme_answer_1.answer
-            }
-        })
+
+        self.assertIn('1144**33', data)
+        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
+        self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
+        self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
