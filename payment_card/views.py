@@ -191,7 +191,8 @@ class RetrievePaymentCardUserInfo(View):
                         response_data[payment_card_token] = {
                             'loyalty_id': scheme_account.third_party_identifier,
                             'scheme_account_id': scheme_account.id,
-                            'user_id': payment_card.user_id
+                            'user_id': payment_card.user_id,
+                            'credentials': scheme_account.credentials()
                         }
             else:
                 # if we don't find a payment_card / user we don't insert the token
