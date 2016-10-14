@@ -185,6 +185,7 @@ class RetrievePaymentCardUserInfo(View):
                         'loyalty_id': None,
                         'scheme_account_id': None,
                         'user_id': payment_card.user_id,
+                        'credentials': ''
                     }
                 else:
                     if scheme_account.status == SchemeAccount.ACTIVE:
