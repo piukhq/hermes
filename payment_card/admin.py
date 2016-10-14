@@ -32,7 +32,6 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
     search_fields = ['user__email', 'pan_start', 'pan_end']
 
 
-
 class PaymentCardAccountImageAdmin(admin.ModelAdmin):
     list_display = ('description', 'status', 'payment_card', 'start_date', 'end_date')
     list_filter = ('status', 'start_date', 'end_date', 'payment_card')
