@@ -1,7 +1,5 @@
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-
-from scheme.serializers import SchemeImageSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE
 from scheme.models import Image

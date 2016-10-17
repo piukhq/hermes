@@ -17,8 +17,8 @@ class TestPaymentCardImages(APITestCase):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = PaymentCardImageFactory(status=Image.DRAFT,
-                                       start_date=arrow.now().replace(hours=-1).datetime,
-                                       end_date=arrow.now().replace(hours=1).datetime)
+                                            start_date=arrow.now().replace(hours=-1).datetime,
+                                            end_date=arrow.now().replace(hours=1).datetime)
 
         super().setUpClass()
 
