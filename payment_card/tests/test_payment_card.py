@@ -1,11 +1,38 @@
+import arrow
 from rest_framework.test import APITestCase
-from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory
+from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
+    PaymentCardImageFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, Image
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
 from django.conf import settings
+
+
+class TestPaymentCardImages(APITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        user = UserFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        cls.image = PaymentCardImageFactory(status=Image.DRAFT,
+                                       start_date=arrow.now().replace(hours=-1).datetime,
+                                       end_date=arrow.now().replace(hours=1).datetime)
+
+        super().setUpClass()
+
+    def test_no_draft_images_in_payment_cards_list(self):
+        resp = self.client.get('/payment_cards', **self.auth_headers)
+        our_payment_card = [s for s in resp.json() if s['slug'] == self.image.payment_card.slug][0]
+        self.assertEqual(0, len(our_payment_card['images']))
+
+        self.image.status = Image.PUBLISHED
+        self.image.save()
+
+        resp = self.client.get('/payment_cards', **self.auth_headers)
+        our_payment_card = [s for s in resp.json() if s['slug'] == self.image.payment_card.slug][0]
+        self.assertEqual(1, len(our_payment_card['images']))
 
 
 class TestPaymentCard(APITestCase):

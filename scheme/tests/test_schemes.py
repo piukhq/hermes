@@ -1,14 +1,46 @@
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+
+from scheme.serializers import SchemeImageSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE
+from scheme.models import Image
 from django.test import TestCase
 from django.conf import settings
 from user.tests.factories import UserFactory
 from unittest.mock import patch
+import arrow
+
+
+class TestSchemeImages(APITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        user = UserFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        cls.image = SchemeImageFactory(status=Image.DRAFT,
+                                       start_date=arrow.now().replace(hours=-1).datetime,
+                                       end_date=arrow.now().replace(hours=1).datetime)
+
+        SchemeCredentialQuestionFactory(scheme=cls.image.scheme)
+
+        super().setUpClass()
+
+    def test_no_draft_images_in_schemes_list(self):
+        resp = self.client.get('/schemes', **self.auth_headers)
+        our_scheme = [s for s in resp.json() if s['slug'] == self.image.scheme.slug][0]
+        self.assertEqual(0, len(our_scheme['images']))
+
+        self.image.status = Image.PUBLISHED
+        self.image.save()
+
+        resp = self.client.get('/schemes', **self.auth_headers)
+        our_scheme = [s for s in resp.json() if s['slug'] == self.image.scheme.slug][0]
+        self.assertEqual(1, len(our_scheme['images']))
 
 
 class TestSchemeViews(APITestCase):
+
     @classmethod
     def setUpClass(cls):
         user = UserFactory()
@@ -80,6 +112,7 @@ class TestSchemeViews(APITestCase):
 
 
 class TestSchemeModel(TestCase):
+
     def test_link_questions(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True)
