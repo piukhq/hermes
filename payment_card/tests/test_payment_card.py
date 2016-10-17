@@ -68,11 +68,12 @@ class TestPaymentCard(APITestCase):
         self.assertNotIn('token', response.data[0])
 
     def test_get_payment_card_account(self):
-        response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card.id), **self.auth_headers)
+        response = self.client.get(
+            '/payment_cards/accounts/{0}'.format(self.payment_card_account.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
-        self.assertEqual(response.data['id'], self.payment_card.id)
+        self.assertEqual(response.data['id'], self.payment_card_account.id)
         self.assertNotIn('psp_token', response.data)
         self.assertNotIn('token', response.data)
         self.assertEqual(response.data['status_name'], 'pending')
