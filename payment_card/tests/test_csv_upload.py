@@ -21,7 +21,7 @@ class TestCSVUpload(APITestCase):
         self.client.post('/payment_cards/csv_upload', {'scheme': self.payment_card.id, 'emails': csv_file},
                          **self.auth_headers)
 
-        image = PaymentCardAccountImage.objects.filter(payment_card=self.payment_card).first()
+        image = PaymentCardAccountImage.all_objects.filter(payment_card=self.payment_card).first()
         self.assertIsNotNone(image)
 
         account = image.payment_card_accounts.filter(pk=self.payment_card_account.id)

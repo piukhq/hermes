@@ -149,19 +149,8 @@ class Exchange(models.Model):
 class ActiveSchemeImageManager(models.Manager):
 
     def get_queryset(self):
-        return super(ActiveSchemeImageManager, self).get_queryset()\
-            .filter(start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=0)
-
-
-IMAGE_TYPES = (
-    (0, 'hero'),
-    (1, 'banner'),
-    (2, 'offers'),
-    (3, 'icon'),
-    (4, 'asset'),
-    (5, 'reference'),
-    (6, 'personal offers'),
-)
+        return super().get_queryset().filter(start_date__lt=timezone.now(),
+                                             end_date__gte=timezone.now()).exclude(status=Image.DRAFT)
 
 
 class Image(models.Model):
@@ -173,7 +162,17 @@ class Image(models.Model):
         (PUBLISHED, 'published'),
     )
 
-    image_type_code = models.IntegerField(choices=IMAGE_TYPES)
+    TYPES = (
+        (0, 'hero'),
+        (1, 'banner'),
+        (2, 'offers'),
+        (3, 'icon'),
+        (4, 'asset'),
+        (5, 'reference'),
+        (6, 'personal offers'),
+    )
+
+    image_type_code = models.IntegerField(choices=TYPES)
     size_code = models.CharField(max_length=30, blank=True, null=True)
     image = models.ImageField(upload_to="schemes")
     strap_line = models.CharField(max_length=50, blank=True, null=True)
@@ -186,8 +185,11 @@ class Image(models.Model):
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
-    all_objects = models.Manager()
     objects = ActiveSchemeImageManager()
+    all_objects = models.Manager()
+
+    def __str__(self):
+        return self.description
 
     class Meta:
         abstract = True
