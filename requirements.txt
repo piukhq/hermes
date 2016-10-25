@@ -14,7 +14,7 @@ factory-boy==2.5.2
 fake-factory==0.5.9
 graypy==0.2.12
 hashids==1.1.0
-httpretty==0.8.10
+httpretty==0.8.14
 ipdb==0.8.1
 ipython==4.0.0
 ipython-genutils==0.1.0
