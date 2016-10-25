@@ -1,4 +1,5 @@
 import arrow
+import httpretty
 from rest_framework.test import APITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
     PaymentCardImageFactory
@@ -78,7 +79,12 @@ class TestPaymentCard(APITestCase):
         self.assertNotIn('token', response.data)
         self.assertEqual(response.data['status_name'], 'pending')
 
+    @httpretty.activate
     def test_post_payment_card_account(self):
+
+        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
+        httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
+
         data = {'issuer': self.issuer.id,
                 'status': 1,
                 'expiry_month': 4,
@@ -92,7 +98,10 @@ class TestPaymentCard(APITestCase):
                 'token': "some-token",
                 'fingerprint': 'test-fingerprint',
                 'order': 0}
+
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
+        # The stub is called indirectly via the View so we can only verify the stub has been called
+        self.assertTrue(httpretty.has_request())
         self.assertEqual(response.status_code, 201)
         self.assertNotIn('psp_token', response.data)
         self.assertNotIn('token', response.data)
@@ -150,6 +159,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
+
         data = {'user': self.user.id,
                 'issuer': self.issuer.id,
                 'status': 1,
@@ -168,13 +178,20 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
 
+    @httpretty.activate
     def test_delete_payment_card_accounts(self):
+
+        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
+        httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
+
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                    **self.auth_headers)
         self.assertEqual(response.status_code, 404)
+        # The stub is called indirectly via the View so we can only verify the stub has been called
+        self.assertTrue(httpretty.has_request())
 
     def test_cant_delete_other_payment_card_account(self):
         payment_card = factories.PaymentCardAccountFactory(payment_card=self.payment_card)
