@@ -1,21 +1,12 @@
 from django import forms
 from django.contrib.admin import StackedInline
 from django.contrib.auth.admin import UserAdmin
+from django.contrib import admin
 
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
-from django.contrib import admin
 
-
-def first_name(obj):
-    user = UserDetail.objects.get(user=obj)
-    return user.first_name
-
-
-def last_name(obj):
-    user = UserDetail.objects.get(user=obj)
-    return user.last_name
 
 
 def gender(obj):
@@ -68,6 +59,12 @@ class CustomUserDetail(UserAdmin):
     def last_name(self, obj):
         return obj.profile.last_name
 
+    def gender(self, obj):
+        return obj.profile.gender
+
+    def date_of_birth(self, obj):
+        return obj.profile.date_of_birth
+
     first_name.admin_order_field = 'profile__first_name'
     last_name.admin_order_field = 'profile__last_name'
 
@@ -76,17 +73,17 @@ class CustomUserDetail(UserAdmin):
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
-    list_display = ('email', 'uid', 'first_name', 'last_name', gender, date_of_birth, 'is_active', 'is_staff')
+    list_display = ('email', 'uid', 'first_name', 'last_name', 'gender', 'date_of_birth', 'is_active', 'is_staff',)
     list_filter = ('is_staff',)
     filter_horizontal = ()
-    search_fields = ('email', 'uid', first_name, last_name)
+    search_fields = ('email', 'uid', 'profile__first_name', 'profile__last_name',)
 
 
 admin.site.register(CustomUser, CustomUserDetail)
 
 
 class ReferralAdmin(admin.ModelAdmin):
-    list_display = ('referrer', 'recipient', 'date')
+    list_display = ('referrer', 'recipient', 'date',)
 
 
 admin.site.register(Referral, ReferralAdmin)
