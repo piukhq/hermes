@@ -1,5 +1,9 @@
 from django import forms
+from django.contrib.admin import StackedInline
 from django.contrib.auth.admin import UserAdmin
+
+from payment_card.models import PaymentCardAccount
+from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
 from django.contrib import admin
 
@@ -29,6 +33,16 @@ class UserDetailInline(admin.StackedInline):
     extra = 0
 
 
+class UserSchemeAccountsInline(StackedInline):
+    model = SchemeAccount
+    extra = 0
+
+
+class UserPaymentCardAccountInline(StackedInline):
+    model = PaymentCardAccount
+    extra = 0
+
+
 class CustomUserModelForm(forms.ModelForm):
 
     jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={'readonly': 'readonly'}))
@@ -48,15 +62,24 @@ class CustomUserModelForm(forms.ModelForm):
 
 class CustomUserDetail(UserAdmin):
 
+    def first_name(self, obj):
+        return obj.profile.first_name
+
+    def last_name(self, obj):
+        return obj.profile.last_name
+
+    first_name.admin_order_field = 'profile__first_name'
+    last_name.admin_order_field = 'profile__last_name'
+
     form = CustomUserModelForm
-    inlines = (UserDetailInline, )
+    inlines = (UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
-    list_display = ('email', 'uid', first_name, last_name, gender, date_of_birth, 'is_active', 'is_staff')
-    list_filter = ('is_staff', )
+    list_display = ('email', 'uid', 'first_name', 'last_name', gender, date_of_birth, 'is_active', 'is_staff')
+    list_filter = ('is_staff',)
     filter_horizontal = ()
-    search_fields = ('email', 'uid')
+    search_fields = ('email', 'uid', first_name, last_name)
 
 
 admin.site.register(CustomUser, CustomUserDetail)

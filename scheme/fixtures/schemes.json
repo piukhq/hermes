@@ -275,7 +275,7 @@
       "has_transactions": false,
       "has_points": false,
       "identifier": "",
-      "point_name": "Flying Points ",
+      "point_name": "pts",
       "colour": "#000000",
       "is_active": true,
       "category": 2,
