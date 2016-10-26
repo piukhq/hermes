@@ -8,7 +8,6 @@ from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
 
 
-
 def gender(obj):
     user = UserDetail.objects.get(user=obj)
     return user.gender
@@ -87,6 +86,5 @@ class ReferralAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Referral, ReferralAdmin)
-
 admin.site.register(Setting)
 admin.site.register(UserSetting)
