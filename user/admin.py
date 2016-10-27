@@ -8,16 +8,6 @@ from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
 
 
-def gender(obj):
-    user = UserDetail.objects.get(user=obj)
-    return user.gender
-
-
-def date_of_birth(obj):
-    user = UserDetail.objects.get(user=obj)
-    return user.date_of_birth
-
-
 class UserDetailInline(admin.StackedInline):
     model = UserDetail
     extra = 0
@@ -78,13 +68,11 @@ class CustomUserDetail(UserAdmin):
     search_fields = ('email', 'uid', 'profile__first_name', 'profile__last_name',)
 
 
-admin.site.register(CustomUser, CustomUserDetail)
-
-
 class ReferralAdmin(admin.ModelAdmin):
     list_display = ('referrer', 'recipient', 'date',)
 
 
+admin.site.register(CustomUser, CustomUserDetail)
 admin.site.register(Referral, ReferralAdmin)
 admin.site.register(Setting)
 admin.site.register(UserSetting)
