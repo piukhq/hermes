@@ -22,3 +22,21 @@ deploy:
   - cd /ansible && ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=dev_web
   only:
   - master
+
+deploy-staging:
+    stage: deploy-staging
+    when: manual
+    script:
+    - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=staging_web'
+    environment: staging
+    only:
+    - master
+
+deploy-production:
+    stage: deploy-production
+    when: manual
+    script:
+    - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=prod_web -e jump=your_otp_user'
+    environment: production
+    only:
+    - master
