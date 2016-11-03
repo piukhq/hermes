@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
+
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage)
 
@@ -54,9 +55,10 @@ class SchemeForm(ModelForm):
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeImageInline, CredentialQuestionInline)
     exclude = []
-    list_display = ('name', 'id', 'category', 'is_active', 'company')
+    list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active', )
     form = SchemeForm
+    search_fields = ['name']
 
     def get_readonly_fields(self, request, obj=None):
         if obj:  # editing an existing object
@@ -83,8 +85,9 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
-    list_filter = ('is_deleted', 'status', 'scheme')
-    list_display = ('user', 'scheme', 'status', 'is_deleted')
+    list_filter = ('is_deleted', 'status', 'scheme',)
+    list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
+    search_fields = ['user__email']
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -93,13 +96,28 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
 
 class SchemeAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('description', 'status', 'scheme', 'start_date', 'end_date')
-    list_filter = ('status', 'start_date', 'end_date', 'scheme')
+    list_display = ('description', 'status', 'scheme', 'start_date', 'end_date', 'created',)
+    list_filter = ('status', 'start_date', 'end_date', 'scheme',)
     date_hierarchy = 'start_date'
     filter_horizontal = ('scheme_accounts',)
 
 
+class ExchangeAdmin(admin.ModelAdmin):
+    search_fields = ["host_scheme__name", "donor_scheme__name"]
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super(ExchangeAdmin, self).get_search_results(request, queryset, search_term)
+        try:
+            if search_term.startswith("host:"):
+                queryset |= self.model.objects.filter(host_scheme__name__contains=search_term.replace("host:", ""))
+            elif search_term.startswith("donor:"):
+                queryset |= self.model.objects.filter(donor_scheme__name__contains=search_term.replace("donor:", ""))
+
+            return queryset, use_distinct
+        except:
+            return queryset, use_distinct
+
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
 admin.site.register(SchemeAccountImage, SchemeAccountImageAdmin)
-admin.site.register(Exchange)
+admin.site.register(Exchange, ExchangeAdmin)
