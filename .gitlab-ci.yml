@@ -14,7 +14,7 @@ flake8:
   script:
     - flake8 *
 
-deploy:
+deploy-dev:
   image: loyaltyangels/ansible
   stage: deploy
   environment: dev
@@ -24,7 +24,7 @@ deploy:
   - master
 
 deploy-staging:
-    stage: deploy-staging
+    stage: deploy
     when: manual
     script:
     - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=staging_web'
@@ -33,7 +33,7 @@ deploy-staging:
     - master
 
 deploy-production:
-    stage: deploy-production
+    stage: deploy
     when: manual
     script:
     - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=prod_web -e jump=your_otp_user'
