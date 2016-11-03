@@ -264,18 +264,9 @@ class SchemeAccount(models.Model):
         credentials = {}
         for question in self.scheme.questions.all():
             # attempt to get the answer from the database.
-            answer_instance = self.schemeaccountcredentialanswer_set.filter(question__type=question.type).first()
-            if answer_instance:
-                answer = answer_instance.answer
-            else:
-                # see if we have a property that will give us the answer.
-                try:
-                    answer = getattr(self, question.type)
-                    if not answer:
-                        continue
-                except AttributeError:
-                    # we can't get an answer to this question, so skip it.
-                    continue
+            answer = self._find_answer(question.type)
+            if not answer:
+                continue
 
             if question.type in ENCRYPTED_CREDENTIALS:
                 credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
@@ -428,10 +419,24 @@ class SchemeAccount(models.Model):
     def third_party_identifier(self):
         question = SchemeCredentialQuestion.objects.filter(third_party_identifier=True, scheme=self.scheme).first()
         if question:
-            answer = SchemeAccountCredentialAnswer.objects.filter(scheme_account=self, question=question).first()
-            if answer:
-                return answer.answer
+            return self._find_answer(question.type)
+
         return None
+
+    def _find_answer(self, question_type):
+        # attempt to get the answer from the database.
+        answer = None
+        answer_instance = self.schemeaccountcredentialanswer_set.filter(question__type=question_type).first()
+        if answer_instance:
+            answer = answer_instance.answer
+        else:
+            # see if we have a property that will give us the answer.
+            try:
+                answer = getattr(self, question_type)
+            except AttributeError:
+                # we can't get an answer to this question, so skip it.
+                pass
+        return answer
 
     @property
     def images(self):

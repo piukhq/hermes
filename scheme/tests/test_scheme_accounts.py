@@ -22,8 +22,12 @@ class TestSchemeAccountViews(APITestCase):
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
         cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
-        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme,
+                                        type=USER_NAME,
+                                        manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
+                                                             type=CARD_NUMBER,
+                                                             third_party_identifier=True)
         password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
@@ -35,6 +39,13 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password",
                                                                            question=password_question,
                                                                            scheme_account=cls.scheme_account)
+        cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
+        cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
+        barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=BARCODE)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
+        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(answer="9999888877776666",
+                                                                          question=barcode_question,
+                                                                          scheme_account=cls.scheme_account1)
         cls.user = cls.scheme_account.user
 
         cls.scheme.save()
@@ -211,6 +222,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(self.scheme_account._collect_credentials(), {
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
             'username': self.scheme_account_answer.answer})
+
+    def test_scheme_account_third_party_identifier(self):
+        self.assertEqual(self.scheme_account.third_party_identifier, self.second_scheme_account_answer.answer)
+        self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
