@@ -68,7 +68,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             'card_token': instance.token,
             'partner_slug': instance.payment_card.slug,
             'id': instance.id,
-            'date': arrow.now().timestamp}, headers={
+            'date': arrow.get(instance.created).timestamp}, headers={
                 'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                 'Content-Type': 'application/json'})
 
@@ -120,7 +120,7 @@ class ListCreatePaymentCardAccount(APIView):
                 'card_token': account.token,
                 'partner_slug': account.payment_card.slug,
                 'id': account.id,
-                'date': arrow.now().timestamp}, headers={
+                'date': arrow.get(account.created).timestamp}, headers={
                     'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                     'Content-Type': 'application/json'})
 
