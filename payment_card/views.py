@@ -67,7 +67,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             'payment_token': instance.psp_token,
             'card_token': instance.token,
             'partner_slug': instance.payment_card.slug,
-            'id': instance.id}, headers={
+            'id': instance.id,
+            'date': arrow.now().timestamp}, headers={
                 'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                 'Content-Type': 'application/json'})
 
