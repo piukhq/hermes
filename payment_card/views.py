@@ -22,6 +22,7 @@ from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardA
                                       UpdatePaymentCardAccountSerializer)
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
+import arrow
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -117,7 +118,8 @@ class ListCreatePaymentCardAccount(APIView):
                 'payment_token': account.psp_token,
                 'card_token': account.token,
                 'partner_slug': account.payment_card.slug,
-                'id': account.id}, headers={
+                'id': account.id,
+                'date': arrow.now().timestamp}, headers={
                     'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                     'Content-Type': 'application/json'})
 
