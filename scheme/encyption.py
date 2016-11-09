@@ -3,7 +3,7 @@ import hashlib
 from Crypto import Random
 from Crypto.Cipher import AES
 
-# TODO : ths should be come its own library
+# TODO : this should become its own library
 
 
 class AESCipher(object):
@@ -16,7 +16,7 @@ class AESCipher(object):
             raise TypeError('Cannot encrypt nothing')
         raw = self._pad(raw)
         iv = Random.new().read(AES.block_size)
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        cipher = AES.new(self.key, AES.MODE_CFB, iv)
         return base64.b64encode(iv + cipher.encrypt(raw))
 
     def decrypt(self, enc):
@@ -24,11 +24,11 @@ class AESCipher(object):
             raise TypeError('Cannot decrypt nothing')
         enc = base64.b64decode(enc)
         iv = enc[:AES.block_size]
-        cipher = AES.new(self.key, AES.MODE_CBC, iv)
+        cipher = AES.new(self.key, AES.MODE_CFB, iv)
         return self._unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
 
     def _pad(self, s):
-        return s + (self.bs - len(s) % self.bs) * chr(self.bs - len(s) % self.bs)
+        return s + (self.bs - (len(s) % self.bs)) * chr(self.bs - (len(s) % self.bs))
 
     @staticmethod
     def _unpad(s):
