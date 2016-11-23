@@ -7,8 +7,8 @@ from django.db.models.functions import Length
 
 
 def update_pan_end(apps, schema_editor):
-    accounts = apps.get_model('payment_card', 'PaymentCardAccount').objects.annotate(
-        text_len=Length('text_field_name')).filter(text_len__gt=4)
+    accounts = apps.get_model('payment_card', 'PaymentCardAccount').all_objects.annotate(
+        text_len=Length('pan_end')).filter(text_len__gt=4)
     for account in accounts:
         original_pan_end = list(str(account.pan_end))
         original_pan_end[0] = "•"
