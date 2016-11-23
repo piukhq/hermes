@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 
-def update_pan_end(apps):
+def update_pan_end(apps, schema_editor):
     accounts = apps.get_model('payment_card', 'PaymentCardAccount').all_objects.all()
     for account in accounts:
         original_pan_end = list(str(account.pan_end))
