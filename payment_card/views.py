@@ -19,7 +19,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAcco
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardAccountStatusSerializer,
                                       PaymentCardSchemeAccountSerializer, PaymentCardSerializer,
-                                      UpdatePaymentCardAccountSerializer)
+                                      UpdatePaymentCardAccountSerializer, CreatePaymentCardAccountSerializer)
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 import arrow
@@ -98,7 +98,11 @@ class ListCreatePaymentCardAccount(APIView):
               message: A payment card account by that fingerprint and expiry already exists.
         """
         request.data['user'] = request.user.id
-        serializer = PaymentCardAccountSerializer(data=request.data)
+
+        # iOS bug fix: only capture the last four digits of the pan_end (they send us five.)
+        request.data['pan_end'] = request.data['pan_end'][-4:]
+
+        serializer = CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
 

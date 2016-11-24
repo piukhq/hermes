@@ -167,7 +167,7 @@ class PaymentCardAccount(models.Model):
     token = models.CharField(max_length=255, db_index=True)
     psp_token = models.CharField(max_length=255, verbose_name='PSP Token')
     pan_start = models.CharField(max_length=6)
-    pan_end = models.CharField(max_length=6)
+    pan_end = models.CharField(max_length=4)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
