@@ -106,17 +106,18 @@ def create_export(spec):
     return rows
 
 
-def write_csv(rows, f):
+def write_csv(rows, filename):
     """
     writes a given list of dicts to a csv file, using dict keys as headings.
     :param rows: a list of dicts to write.
-    :param f: a file-like object to write the csv data to.
+    :param filename: the file to write the csv data to.
     """
     fieldnames = rows[0].keys()
 
-    writer = csv.DictWriter(f, fieldnames=fieldnames)
-    writer.writeheader()
-    writer.writerows(rows)
+    with open('{}.csv'.format(filename), 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 class Command(BaseCommand):
@@ -125,7 +126,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         for filename, spec in exports.items():
             self.stdout.write(self.style.MIGRATE_LABEL('processing {}.csv'.format(filename)))
-            with open('{}.csv'.format(filename), 'w') as f:
-                rows = create_export(spec)
-                write_csv(rows, f)
+            rows = create_export(spec)
+            write_csv(rows, filename)
         self.stdout.write(self.style.SUCCESS('data export successful.'))
