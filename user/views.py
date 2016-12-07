@@ -66,7 +66,7 @@ class Register(APIView):
             if user:
                 send_mail('register_email.tpl',
                       {'user': user},
-                      'noreply@bink.com',
+                      'Bink HQ <noreply@bink.com>',
                       [user.email],
                       fail_silently=False)
 
