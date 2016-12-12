@@ -61,6 +61,14 @@ class Register(APIView):
 
         if serializer.is_valid():
             serializer.save()
+
+            user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
+            if user:
+                send_mail('register_email.tpl',
+                          {'user': user},
+                          'Bink HQ <noreply@bink.com>',
+                          [user.email],
+                          fail_silently=False)
             return Response(serializer.data, 201)
         else:
             if 'promo_code' in serializer.errors:
@@ -132,7 +140,6 @@ class ForgotPassword(APIView):
                       'noreply@bink.com',
                       [user.email],
                       fail_silently=False)
-
         return Response('An email has been sent with details of how to reset your password.', 200)
 
 
