@@ -69,7 +69,6 @@ class Register(APIView):
                       'Bink HQ <noreply@bink.com>',
                       [user.email],
                       fail_silently=False)
-
             return Response(serializer.data, 201)
         else:
             if 'promo_code' in serializer.errors:
@@ -141,7 +140,6 @@ class ForgotPassword(APIView):
                        'noreply@bink.com',
                        [user.email],
                        fail_silently=False)
-
         return Response('An email has been sent with details of how to reset your password.', 200)
 
 
