@@ -136,7 +136,7 @@ class ForgotPassword(APIView):
             user.generate_reset_token()
             send_mail('email.tpl',
                       {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
-                      'hermes_url': MEDIA_URL},
+                       'hermes_url': MEDIA_URL},
                       'noreply@bink.com',
                       [user.email],
                       fail_silently=False)
