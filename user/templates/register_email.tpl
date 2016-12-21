@@ -663,7 +663,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                 0;padding-bottom:
                                                 0;text-align:
                                                 center;mso-line-height-rule:
-exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to#add-loyalty-card" title="" class="" target="_blank" style="mso-line-height-rule:
+exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to-add-loyalty-card" title="" class="" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"> <img moz-do-not-send="true" alt="" src="https://gallery.mailchimp.com/ec044a65c525952557abbcb26/images/53ddcd72-6b57-456d-8969-f38cdea0ca9b.jpg" style="max-width:
                                                     1800px;padding-bottom:
                                                     0;display: inline
@@ -726,7 +726,7 @@ none;-ms-interpolation-mode: bicubic;" class="mcnImage" align="middle" width="16
                                                 0;padding-bottom:
                                                 0;text-align:
                                                 center;mso-line-height-rule:
-exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to#link-loyalty-card" title="" class="" target="_blank" style="mso-line-height-rule:
+exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to-link-loyalty-card" title="" class="" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"> <img moz-do-not-send="true" alt="" src="https://gallery.mailchimp.com/ec044a65c525952557abbcb26/images/33918eb8-da22-4e0b-bf28-99747f2fbf7b.jpg" style="max-width:
                                                     1800px;padding-bottom:
                                                     0;display: inline
@@ -789,7 +789,7 @@ none;-ms-interpolation-mode: bicubic;" class="mcnImage" align="middle" width="16
                                                 0;padding-bottom:
                                                 0;text-align:
                                                 center;mso-line-height-rule:
-exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to#add-payment-card" title="" class="" target="_blank" style="mso-line-height-rule:
+exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="http://www.bink.com/how-to-add-payment-card" title="" class="" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"> <img moz-do-not-send="true" alt="" src="https://gallery.mailchimp.com/ec044a65c525952557abbcb26/images/91c714d0-02df-401f-b430-e28195eb3983.jpg" style="max-width:
                                                     1800px;padding-bottom:
                                                     0;display: inline
