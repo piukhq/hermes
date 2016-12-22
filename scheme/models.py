@@ -202,7 +202,7 @@ class SchemeImage(Image):
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestion, self).get_queryset().exclude(is_deleted=True).\
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True).\
             exclude(scheme__is_active=False)
 
 
