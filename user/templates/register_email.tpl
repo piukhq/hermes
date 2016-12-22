@@ -533,9 +533,8 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                               none;-ms-interpolation-mode:
                                               bicubic;" align="none" height="50" width="97"></a>&nbsp;<br>
                                           <span style="font-family:arial,helvetica
-                                            neue,helvetica,sans-serif"><span style="color:#f20060"><strong>Thanks
-                                                for&nbsp;joining us!</strong></span></span><br>
-                                          &nbsp;</div>
+                                            neue,helvetica,sans-serif"><span style="color:#f20060"><strong>Thanks&nbsp;for&nbsp;joining&nbsp;us!</strong></span></span><br>&nbsp;
+                                        </div>
                                       </td>
                                     </tr>
                                   </tbody>
