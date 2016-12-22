@@ -199,10 +199,10 @@ class SchemeImage(Image):
     scheme = models.ForeignKey('scheme.Scheme', related_name='images')
 
 
-class ActiveManager(BulkUpdateManager):
+class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
     def get_queryset(self):
-        return super(ActiveManager, self).get_queryset().exclude(is_deleted=True)
+        return super(ActiveSchemeIgnoreQuestion, self).get_queryset().exclude(is_deleted=True).exclude(scheme__is_active=False)
 
 
 class SchemeAccount(models.Model):
@@ -254,7 +254,7 @@ class SchemeAccount(models.Model):
     is_deleted = models.BooleanField(default=False)
 
     all_objects = models.Manager()
-    objects = ActiveManager()
+    objects = ActiveSchemeIgnoreQuestionManager()
 
     @property
     def status_name(self):
