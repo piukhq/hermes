@@ -38,7 +38,7 @@ class PaymentCardAccountImageAdmin(admin.ModelAdmin):
     list_display = ('description', 'status', 'payment_card', 'start_date', 'end_date', 'created',)
     list_filter = ('status', 'start_date', 'end_date', 'payment_card',)
     date_hierarchy = 'start_date'
-    filter_horizontal = ('payment_card_accounts',)
+    raw_id_fields = ('payment_card_accounts',)
 
 
 admin.site.register(Issuer)

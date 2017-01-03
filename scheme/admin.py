@@ -12,6 +12,7 @@ class SchemeImageInline(admin.StackedInline):
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
+
     def clean(self):
         super().clean()
         manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
@@ -33,6 +34,7 @@ class CredentialQuestionInline(admin.TabularInline):
 
 
 class SchemeForm(ModelForm):
+
     class Meta:
         model = Scheme
         fields = '__all__'
@@ -99,7 +101,7 @@ class SchemeAccountImageAdmin(admin.ModelAdmin):
     list_display = ('description', 'status', 'scheme', 'start_date', 'end_date', 'created',)
     list_filter = ('status', 'start_date', 'end_date', 'scheme',)
     date_hierarchy = 'start_date'
-    filter_horizontal = ('scheme_accounts',)
+    raw_id_fields = ('scheme_accounts',)
 
 
 class ExchangeAdmin(admin.ModelAdmin):
