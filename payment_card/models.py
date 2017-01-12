@@ -53,10 +53,8 @@ class Image(models.Model):
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
-    # order of these managers is significant when it comes to django admin.
-    # it will filter the listing based on which manager it finds first.
-    all_objects = models.Manager()
     objects = ActivePaymentCardImageManager()
+    all_objects = models.Manager()
 
     def __str__(self):
         return self.description

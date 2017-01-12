@@ -40,6 +40,13 @@ class PaymentCardAccountImageAdmin(admin.ModelAdmin):
     date_hierarchy = 'start_date'
     raw_id_fields = ('payment_card_accounts',)
 
+    def get_queryset(self, request):
+        qs = self.model.all_objects.get_queryset()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
+
 
 admin.site.register(Issuer)
 admin.site.register(PaymentCardAccount, PaymentCardAccountAdmin)
