@@ -227,4 +227,5 @@ class PaymentCardAccount(models.Model):
 class PaymentCardAccountImage(Image):
     payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='payment_card_accounts_set')
+                                                   related_name='payment_card_accounts_set',
+                                                   blank=True)
