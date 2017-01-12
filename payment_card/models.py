@@ -53,8 +53,10 @@ class Image(models.Model):
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(default=timezone.now)
 
-    objects = ActivePaymentCardImageManager()
+    # order of these managers is significant when it comes to django admin.
+    # it will filter the listing based on which manager it finds first.
     all_objects = models.Manager()
+    objects = ActivePaymentCardImageManager()
 
     def __str__(self):
         return self.description
@@ -227,4 +229,5 @@ class PaymentCardAccount(models.Model):
 class PaymentCardAccountImage(Image):
     payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='payment_card_accounts_set')
+                                                   related_name='payment_card_accounts_set',
+                                                   blank=True)

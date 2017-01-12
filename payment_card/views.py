@@ -128,6 +128,22 @@ class ListCreatePaymentCardAccount(APIView):
                     'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                     'Content-Type': 'application/json'})
 
+            # if the card is a barclaycard, attach relevant placeholder images to signify that we can't auto-collect.
+            if account.pan_start in settings.BARCLAYS_BINS:
+                barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
+                                                                           image_type_code=2)
+                barclays_offer_image.payment_card_accounts.add(account)
+
+                try:
+                    barclays_hero_image = PaymentCardAccountImage.objects.get(description='barclays',
+                                                                              image_type_code=0,
+                                                                              payment_card=account.payment_card)
+                except PaymentCardAccountImage.DoesNotExist:
+                    # not a barclays card that we have an image for, so don't add it.
+                    pass
+                else:
+                    barclays_hero_image.payment_card_accounts.add(account)
+
             response_serializer = PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

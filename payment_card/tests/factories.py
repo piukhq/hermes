@@ -81,3 +81,6 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     payment_card = factory.SubFactory(PaymentCardFactory)
 
     start_date = timezone.now()
+    end_date = '2200-1-1'
+
+    status = models.PaymentCardAccountImage.PUBLISHED
