@@ -147,7 +147,8 @@ class TestPaymentCard(APITestCase):
         offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=2)
 
         # add hero image
-        hero_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=0, payment_card=self.payment_card)
+        hero_image = PaymentCardAccountImageFactory(
+            description='barclays', image_type_code=0, payment_card=self.payment_card)
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)

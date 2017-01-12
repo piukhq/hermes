@@ -103,6 +103,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # def is_superuser(self):
     #     return self.is_superuser
 
+
 NOTIFICATIONS_SETTING = (
     (0, False),
     (1, True),
@@ -207,6 +208,7 @@ class Setting(models.Model):
     def clean(self):
         validate_setting_value(self.default_value, self)
 
+
 setting_value_type_validators = {
     Setting.BOOLEAN: validate_boolean,
     Setting.NUMBER: validate_number,
@@ -237,4 +239,4 @@ def validate_setting_value(value, setting):
                                   params={
                                       'value': value,
                                       'value_type': setting.value_type_name,
-                                  })
+            })

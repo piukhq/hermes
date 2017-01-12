@@ -67,6 +67,7 @@ class SchemeAdmin(admin.ModelAdmin):
             return self.readonly_fields + ('slug',)
         return self.readonly_fields
 
+
 admin.site.register(Scheme, SchemeAdmin)
 
 
@@ -118,6 +119,7 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
         except:
             return queryset, use_distinct
+
 
 admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
