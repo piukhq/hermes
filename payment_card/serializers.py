@@ -1,20 +1,20 @@
 from copy import copy
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardImage, PaymentCardAccountImage
+from payment_card import models
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = PaymentCardImage
+        model = models.PaymentCardImage
 
 
 class PaymentCardSerializer(serializers.ModelSerializer):
     images = PaymentCardImageSerializer(many=True)
 
     class Meta:
-        model = PaymentCard
+        model = models.PaymentCard
         fields = ('id', 'images', 'input_label', 'is_active', 'name', 'scan_message', 'slug', 'system',
                   'type', 'url',)
 
@@ -22,7 +22,7 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = PaymentCardAccountImage
+        model = models.PaymentCardAccountImage
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -41,7 +41,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         max_length=255,
         write_only=True,
         source='psp_token',
-        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
+        validators=[UniqueValidator(queryset=models.PaymentCardAccount.objects.filter(is_deleted=False))])
 
     @staticmethod
     def get_images(payment_card_account):
@@ -53,7 +53,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         return '•{}'.format(payment_card_account.pan_end)
 
     class Meta:
-        model = PaymentCardAccount
+        model = models.PaymentCardAccount
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
@@ -74,14 +74,14 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
         max_length=255,
         write_only=True,
         source='psp_token',
-        validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
+        validators=[UniqueValidator(queryset=models.PaymentCardAccount.objects.filter(is_deleted=False))])
 
     @staticmethod
     def get_images(payment_card_account):
         return get_images_for_payment_card_account(payment_card_account)
 
     class Meta:
-        model = PaymentCardAccount
+        model = models.PaymentCardAccount
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
@@ -91,7 +91,7 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = PaymentCardAccount
+        model = models.PaymentCardAccount
         fields = ('status',)
 
 
@@ -113,6 +113,13 @@ class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
         pass
 
 
+class ProviderStatusMappingSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = models.ProviderStatusMapping
+        fields = ('provider_status_code', 'bink_status_code')
+
+
 def add_object_type_to_image_response(data, type):
     new_data = copy(data)
     new_data['object_type'] = type
@@ -120,8 +127,8 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_payment_card_account(payment_card_account):
-    account_images = PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
-    payment_card_images = PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
+    account_images = models.PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
+    payment_card_images = models.PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
@@ -133,7 +140,7 @@ def get_images_for_payment_card_account(payment_card_account):
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
         if not account_image:
             # we have to turn the PaymentCardImage instance into a PaymentCardAccountImage
-            account_image = PaymentCardAccountImage(
+            account_image = models.PaymentCardAccountImage(
                 id=image.id,
                 image_type_code=image.image_type_code,
                 size_code=image.size_code,

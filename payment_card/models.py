@@ -149,10 +149,20 @@ class PaymentCardAccountManager(models.Manager):
 class PaymentCardAccount(models.Model):
     PENDING = 0
     ACTIVE = 1
+    DUPLICATE_CARD = 2
+    NOT_PROVIDER_CARD = 3
+    INVALID_CARD_DETAILS = 4
+    PROVIDER_SERVER_DOWN = 5
+    UNKNOWN = 6
 
     STATUSES = (
         (PENDING, 'pending'),
         (ACTIVE, 'active'),
+        (DUPLICATE_CARD, 'duplicate card'),
+        (NOT_PROVIDER_CARD, 'not provider card'),
+        (INVALID_CARD_DETAILS, 'invalid card details'),
+        (PROVIDER_SERVER_DOWN, 'provider server down'),
+        (UNKNOWN, 'unknown')
     )
 
     user = models.ForeignKey('user.CustomUser')
@@ -229,3 +239,9 @@ class PaymentCardAccountImage(Image):
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
                                                    related_name='payment_card_accounts_set',
                                                    blank=True)
+
+
+class ProviderStatusMapping(models.Model):
+    provider = models.ForeignKey('payment_card.PaymentCard')
+    provider_status_code = models.CharField(max_length=24)
+    bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)

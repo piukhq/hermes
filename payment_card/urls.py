@@ -1,23 +1,39 @@
 from django.conf.urls import patterns, url
-from payment_card.views import (RetrievePaymentCardAccount, RetrievePaymentCardSchemeAccounts,
-                                ListPaymentCard, ListCreatePaymentCardAccount, RetrieveLoyaltyID,
-                                RetrievePaymentCardUserInfo, UpdatePaymentCardAccountStatus, csv_upload)
+from payment_card import views
 
 urlpatterns = patterns('payment_card',
-                       url(r'^/?$', ListPaymentCard.as_view(), name='payment_card_list'),
-                       url(r'^/accounts$', ListCreatePaymentCardAccount.as_view(),
+                       url(r'^/?$',
+                           views.ListPaymentCard.as_view(),
+                           name='payment_card_list'),
+
+                       url(r'^/accounts$',
+                           views.ListCreatePaymentCardAccount.as_view(),
                            name='create_payment_card_account'),
-                       url(r'^/accounts/loyalty_id/(?P<scheme_slug>.+)$',  RetrieveLoyaltyID.as_view(),
+
+                       url(r'^/accounts/loyalty_id/(?P<scheme_slug>.+)$',
+                           views.RetrieveLoyaltyID.as_view(),
                            name='retrieve_loyalty_ids'),
+
                        url(r'^/accounts/payment_card_user_info/(?P<scheme_slug>.+)$',
-                           RetrievePaymentCardUserInfo.as_view(),
+                           views.RetrievePaymentCardUserInfo.as_view(),
                            name='retrieve_payment_card_user_info'),
-                       url(r'^/accounts/(?P<pk>[0-9]+)$', RetrievePaymentCardAccount.as_view(),
+
+                       url(r'^/accounts/(?P<pk>[0-9]+)$',
+                           views.RetrievePaymentCardAccount.as_view(),
                            name='retrieve_payment_card_account'),
-                       url(r'^/scheme_accounts/(?P<token>.+)$', RetrievePaymentCardSchemeAccounts.as_view(),
+
+                       url(r'^/scheme_accounts/(?P<token>.+)$',
+                           views.RetrievePaymentCardSchemeAccounts.as_view(),
                            name='retrieve_payment_card_scheme_accounts'),
-                       url(r'^/accounts/status/(?P<pk>[0-9]+)$', UpdatePaymentCardAccountStatus.as_view(),
+
+                       url(r'^/accounts/status/(?P<pk>[0-9]+)$',
+                           views.UpdatePaymentCardAccountStatus.as_view(),
                            name='update_payment_card_account_status'),
+
+                       url(r'^/provider_status_mappings/(?P<slug>.+)$',
+                           views.ListProviderStatusMappings.as_view(),
+                           name='list_provider_status_mappings'),
+
                        # TODO: Better URL
-                       url(r'^/csv_upload', csv_upload, name='csv_upload'),
+                       url(r'^/csv_upload', views.csv_upload, name='csv_upload'),
                        )
