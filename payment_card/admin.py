@@ -53,6 +53,7 @@ class ProviderStatusMappingAdmin(admin.ModelAdmin):
     list_filter = ('provider', 'bink_status_code')
     search_fields = ('provider_status_code', 'bink_status_code')
 
+
 admin.site.register(models.Issuer)
 admin.site.register(models.PaymentCardAccount, PaymentCardAccountAdmin)
 admin.site.register(models.PaymentCard, PaymentCardAdmin)
