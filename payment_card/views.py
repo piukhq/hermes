@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.generic import View
 from django.conf import settings
 from rest_framework import generics, status
-# from rest_framework import serializers
+from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -234,7 +234,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         """
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
-            raise serializers.ValidationError('Invalid status code sent.')
+            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         payment_card_account = get_object_or_404(PaymentCardAccount, id=int(kwargs['pk']))
         if new_status_code != payment_card_account.status:
