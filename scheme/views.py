@@ -1,6 +1,7 @@
 import csv
 import uuid
 import requests
+from decimal import Decimal
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
@@ -372,7 +373,10 @@ class DonorSchemes(APIView):
 
         points = []
         for dsa in donor_scheme_accounts:
-            points.append(dsa.get_midas_balance()['points'])
+            try:
+                points.append(dsa.get_midas_balance()['points'])
+            except TypeError:
+                points.append(Decimal(0))
 
         i = 0
         for (s, e) in zip(scheme_accounts_serializer.data, exchange_serializer.data):
