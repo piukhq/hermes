@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from payment_card.models import Issuer, PaymentCardAccount, PaymentCard, PaymentCardAccountImage, PaymentCardImage
+from payment_card import models
 
 
 class PaymentCardImageInline(admin.StackedInline):
-    model = PaymentCardImage
+    model = models.PaymentCardImage
     extra = 0
 
 
@@ -48,7 +48,14 @@ class PaymentCardAccountImageAdmin(admin.ModelAdmin):
         return qs
 
 
-admin.site.register(Issuer)
-admin.site.register(PaymentCardAccount, PaymentCardAccountAdmin)
-admin.site.register(PaymentCard, PaymentCardAdmin)
-admin.site.register(PaymentCardAccountImage, PaymentCardAccountImageAdmin)
+class ProviderStatusMappingAdmin(admin.ModelAdmin):
+    list_display = ('provider', 'provider_status_code', 'bink_status_code')
+    list_filter = ('provider', 'bink_status_code')
+    search_fields = ('provider_status_code', 'bink_status_code')
+
+
+admin.site.register(models.Issuer)
+admin.site.register(models.PaymentCardAccount, PaymentCardAccountAdmin)
+admin.site.register(models.PaymentCard, PaymentCardAdmin)
+admin.site.register(models.PaymentCardAccountImage, PaymentCardAccountImageAdmin)
+admin.site.register(models.ProviderStatusMapping, ProviderStatusMappingAdmin)

@@ -10,16 +10,14 @@ from django.utils import timezone
 from django.views.generic import View
 from django.conf import settings
 from rest_framework import generics, status
-from rest_framework import serializers
-from rest_framework.generics import GenericAPIView, ListAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework import serializers as rest_framework_serializers
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from payment_card.forms import CSVUploadForm
-from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage
+from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
-from payment_card.serializers import (PaymentCardAccountSerializer, PaymentCardAccountStatusSerializer,
-                                      PaymentCardSchemeAccountSerializer, PaymentCardSerializer,
-                                      UpdatePaymentCardAccountSerializer, CreatePaymentCardAccountSerializer)
+from payment_card import serializers
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 import arrow
@@ -30,7 +28,7 @@ class ListPaymentCard(generics.ListAPIView):
     List of supported payment cards.
     """
     queryset = PaymentCard.objects
-    serializer_class = PaymentCardSerializer
+    serializer_class = serializers.PaymentCardSerializer
 
 
 class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
@@ -38,7 +36,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     Retrieve and update payment card information.
     """
     queryset = PaymentCardAccount.objects
-    serializer_class = PaymentCardAccountSerializer
+    serializer_class = serializers.PaymentCardAccountSerializer
 
     def get_queryset(self):
         user = self.request.user
@@ -47,7 +45,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
-        serializer = UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
+        serializer = serializers.UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
@@ -82,7 +80,7 @@ class ListCreatePaymentCardAccount(APIView):
         ---
         response_serializer: PaymentCardAccountSerializer
         """
-        accounts = [PaymentCardAccountSerializer(instance=account).data for account in
+        accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
                     PaymentCardAccount.objects.filter(user=request.user)]
         return Response(accounts, status=200)
 
@@ -102,7 +100,7 @@ class ListCreatePaymentCardAccount(APIView):
         # iOS bug fix: only capture the last four digits of the pan_end (they send us five.)
         request.data['pan_end'] = request.data['pan_end'][-4:]
 
-        serializer = CreatePaymentCardAccountSerializer(data=request.data)
+        serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
 
@@ -144,13 +142,13 @@ class ListCreatePaymentCardAccount(APIView):
                 else:
                     barclays_hero_image.payment_card_accounts.add(account)
 
-            response_serializer = PaymentCardAccountSerializer(instance=account)
+            response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class RetrievePaymentCardSchemeAccounts(ListAPIView):
-    serializer_class = PaymentCardSchemeAccountSerializer
+class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
+    serializer_class = serializers.PaymentCardSchemeAccountSerializer
 
     # TODO: Remove JwtAuthentication before pushing to production.
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
@@ -228,7 +226,7 @@ class RetrievePaymentCardUserInfo(View):
 class UpdatePaymentCardAccountStatus(GenericAPIView):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
-    serializer_class = PaymentCardAccountStatusSerializer
+    serializer_class = serializers.PaymentCardAccountStatusSerializer
 
     def put(self, request, *args, **kwargs):
         """
@@ -236,7 +234,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         """
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
-            raise serializers.ValidationError('Invalid status code sent.')
+            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         payment_card_account = get_object_or_404(PaymentCardAccount, id=int(kwargs['pk']))
         if new_status_code != payment_card_account.status:
@@ -247,6 +245,28 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             'id': payment_card_account.id,
             'status': new_status_code
         })
+
+
+class ListProviderStatusMappings(generics.ListAPIView):
+    """
+    List available provider-bink status mappings.
+    """
+    authentication_classes = (ServiceAuthentication,)
+    serializer_class = serializers.ProviderStatusMappingSerializer
+
+    def get_queryset(self):
+        slug = self.kwargs['slug']
+
+        # we need to provide callers with the UNKNOWN error code for any error not in the returned dictionary.
+        # look for an UNKNOWN status card for this provider...
+        if not ProviderStatusMapping.objects.filter(provider__slug=slug,
+                                                    bink_status_code=PaymentCardAccount.UNKNOWN).exists():
+            # there isn't one yet, so add it.
+            ProviderStatusMapping(provider=PaymentCard.objects.get(slug=slug),
+                                  provider_status_code='BINK_UNKNOWN',
+                                  bink_status_code=PaymentCardAccount.UNKNOWN).save()
+
+        return ProviderStatusMapping.objects.filter(provider__slug=slug)
 
 
 def csv_upload(request):
