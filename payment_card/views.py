@@ -78,7 +78,7 @@ class ListCreatePaymentCardAccount(APIView):
     def get(self, request):
         """List payment card accounts
         ---
-        response_serializer: PaymentCardAccountSerializer
+        response_serializer: serializers.PaymentCardAccountSerializer
         """
         accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
                     PaymentCardAccount.objects.filter(user=request.user)]
@@ -87,8 +87,8 @@ class ListCreatePaymentCardAccount(APIView):
     def post(self, request):
         """Add a payment card account
         ---
-        request_serializer: PaymentCardAccountSerializer
-        response_serializer: PaymentCardAccountSerializer
+        request_serializer: serializers.PaymentCardAccountSerializer
+        response_serializer: serializers.PaymentCardAccountSerializer
         responseMessages:
             - code: 400
               message: Error code 400 is indicative of serializer errors. The error response will show more information.
