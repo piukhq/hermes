@@ -1,7 +1,6 @@
 import csv
 import uuid
 import requests
-from decimal import Decimal
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
