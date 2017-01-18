@@ -367,26 +367,15 @@ class DonorSchemes(APIView):
 
         return_data = []
 
-        ex_data = []
+        ds_ids = []
         for e in exchanges:
-            ex_data.append([e.donor_scheme_id, e.transfer_min])
-
-        points = []
-        for dsa in donor_scheme_accounts:
-            try:
-                points.append(dsa.get_midas_balance()['points'])
-            except TypeError:
-                points.append(Decimal(0))
+            ds_ids.append(e.donor_scheme_id)
 
         i = 0
         for (s, e) in zip(scheme_accounts_serializer.data, exchange_serializer.data):
             data = e
             data['scheme_account_id'] = s['id']
-            data['donor_scheme_id'] = ex_data[i][0]
-            if points[i] >= ex_data[i][1]:
-                data['min_points_met'] = True
-            else:
-                data['min_points_met'] = False
+            data['donor_scheme_id'] = ds_ids[i]
             return_data.append(data)
             i += 1
 
