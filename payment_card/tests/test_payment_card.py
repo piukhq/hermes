@@ -220,7 +220,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data['status'], 1)
 
     def test_put_invalid_payment_card_account_status(self):
-        response = self.client.put('/payment_cards/accounts/status/',
+        response = self.client.put('/payment_cards/accounts/status',
                                    data={'status': 9999, 'id': self.payment_card_account.id},
                                    **self.auth_service_headers)
 
