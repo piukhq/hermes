@@ -211,16 +211,18 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data, {'payment_card': ['Cannot change payment card for payment card account.']})
 
     def test_put_payment_card_account_status(self):
-        response = self.client.put('/payment_cards/accounts/status/{0}'.format(self.payment_card_account.id),
-                                   data={'status': 1}, **self.auth_service_headers)
+        response = self.client.put('/payment_cards/accounts/status',
+                                   data={'status': 1, 'id': self.payment_card_account.id},
+                                   **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.payment_card_account.id)
         self.assertEqual(response.data['status'], 1)
 
     def test_put_invalid_payment_card_account_status(self):
-        response = self.client.put('/payment_cards/accounts/status/{0}'.format(self.payment_card_account.id),
-                                   data={'status': 9999}, **self.auth_service_headers)
+        response = self.client.put('/payment_cards/accounts/status/',
+                                   data={'status': 9999, 'id': self.payment_card_account.id},
+                                   **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data[0], 'Invalid status code sent.')
