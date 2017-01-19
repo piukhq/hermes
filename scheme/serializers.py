@@ -266,13 +266,13 @@ def get_images_for_scheme_account(scheme_account):
 class DonorSchemeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
-        fields = ('name', 'point_name',)
+        fields = ('name', 'point_name', 'id')
 
 
 class HostSchemeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
-        fields = ('name', 'point_name',)
+        fields = ('name', 'point_name', 'id')
 
 
 class DonorSchemeSerializer(serializers.ModelSerializer):

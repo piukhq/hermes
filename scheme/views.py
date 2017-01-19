@@ -366,17 +366,10 @@ class DonorSchemes(APIView):
 
         return_data = []
 
-        ds_ids = []
-        for e in exchanges:
-            ds_ids.append(e.donor_scheme_id)
-
-        i = 0
         for (s, e) in zip(scheme_accounts_serializer.data, exchange_serializer.data):
             data = e
             data['scheme_account_id'] = s['id']
-            data['donor_scheme_id'] = ds_ids[i]
             return_data.append(data)
-            i += 1
 
         return Response(return_data, status=200)
 
