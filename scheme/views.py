@@ -357,7 +357,7 @@ class DonorSchemes(APIView):
 
         """
         host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
-        scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'])
+        scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         donor_scheme_accounts = scheme_accounts.filter(scheme__in=exchanges.values('donor_scheme'))
 
