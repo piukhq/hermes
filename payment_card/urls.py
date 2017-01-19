@@ -26,7 +26,7 @@ urlpatterns = patterns('payment_card',
                            views.RetrievePaymentCardSchemeAccounts.as_view(),
                            name='retrieve_payment_card_scheme_accounts'),
 
-                       url(r'^/accounts/status/(?P<pk>[0-9]+)$',
+                       url(r'^/accounts/status$',
                            views.UpdatePaymentCardAccountStatus.as_view(),
                            name='update_payment_card_account_status'),
 
