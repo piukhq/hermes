@@ -25,4 +25,6 @@
    * docker-compose up
  * Run DB Migrations - ./manage.py migrate
  * Run application - ./manage.py runserver
- 
+ * To create an entity relationship diagram png, complete the following steps:
+   * sudo apt-get install graphviz libgraphviz-dev pkg-config
+   * Run python manage.py graph_models -a -o hermes_models.png

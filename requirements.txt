@@ -38,3 +38,6 @@ requests-oauthlib==0.5.0
 simplegeneric==0.8.1
 six==1.10.0
 traitlets==4.0.0
+django-extensions==1.7.5
+pydotplus==2.0.2
+pygraphviz==1.0.1
