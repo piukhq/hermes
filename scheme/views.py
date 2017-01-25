@@ -25,7 +25,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
-from scheme.account_status_summary import scheme_account_status_data
+from scheme.account_status_summary import scheme_account_status_data, scheme_account_registration_dates
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
@@ -127,6 +127,18 @@ class LinkCredentials(GenericAPIView):
         }
         response_data.update(serializer.data)
         return response_data
+
+
+class RetrieveRegistrationDates(RetrieveAPIView):
+
+    authentication_classes = (ServiceAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        return_data = scheme_account_registration_dates()
+        return Response(return_data, status=200)
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
