@@ -48,10 +48,6 @@ urlpatterns = patterns('schemes',
                            views.LinkCredentials.as_view(),
                            name='create_question'),
 
-                       url(r'^/accounts/created',
-                           views.RetrieveRegistrationDates.as_view(),
-                           name='retrieve_registration_dates'),
-
                        url(r'^/accounts/summary',
                            views.SchemeAccountStatusData.as_view(),
                            name='schemes_status_summary'),
