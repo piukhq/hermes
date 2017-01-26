@@ -147,30 +147,6 @@ class LinkCredentials(GenericAPIView):
         return response_data
 
 
-class RetrieveRegistrationDates(RetrieveAPIView):
-
-    authentication_classes = (ServiceAuthentication,)
-
-    def get(self, request, *args, **kwargs):
-        """
-        DO NOT USE - NOT FOR APP ACCESS
-        """
-        scheme_slug = 'avios'
-        return_data = {}
-
-        scheme = get_object_or_404(Scheme, slug=scheme_slug)
-        try:
-            scheme_accounts = SchemeAccount.objects.filter(scheme=scheme)
-        except ObjectDoesNotExist:
-            pass
-        else:
-            for sa in scheme_accounts:
-                if sa.status == SchemeAccount.ACTIVE:
-                    return_data[sa.third_party_identifier] = str(sa.created)
-
-        return Response(return_data, status=200)
-
-
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
     override_serializer_classes = {
