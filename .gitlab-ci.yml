@@ -15,7 +15,7 @@ flake8:
     - flake8 *
 
 deploy-dev:
-  image: loyaltyangels/ansible
+  image: hellobink/ansible
   stage: deploy
   environment: dev
   script:
