@@ -25,4 +25,9 @@
    * docker-compose up
  * Run DB Migrations - ./manage.py migrate
  * Run application - ./manage.py runserver
- 
+ * __Creating an entity relationship diagram__
+   * Note: Do not check any of these changes in please; this is a guide only.
+   * sudo apt-get install graphviz libgraphviz-dev pkg-config
+   * Add 'django_extensions' to INSTALLED_APPS in settings.py.
+   * pip install django-extensions pydotplus pygraphviz
+   * Run python manage.py graph_models -a -o hermes_models.png
