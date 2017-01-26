@@ -6,6 +6,10 @@ urlpatterns = patterns('payment_card',
                            views.ListPaymentCard.as_view(),
                            name='payment_card_list'),
 
+                       url(r'^/accounts/query$',
+                           views.PaymentCardAccountQuery.as_view(),
+                           name='query_payment_card_accounts'),
+
                        url(r'^/accounts$',
                            views.ListCreatePaymentCardAccount.as_view(),
                            name='create_payment_card_account'),

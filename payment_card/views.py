@@ -31,6 +31,23 @@ class ListPaymentCard(generics.ListAPIView):
     serializer_class = serializers.PaymentCardSerializer
 
 
+class PaymentCardAccountQuery(APIView):
+
+    authentication_classes = (ServiceAuthentication,)
+
+    def get(self, request):
+        try:
+            queryset = PaymentCardAccount.objects.filter(**dict(request.query_params.items()))
+        except Exception as e:
+            response = {
+                'exception_class': e.__class__.__name__,
+                'exception_args': e.args
+            }
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        serializer = serializers.PaymentCardAccountSerializer(instance=queryset, many=True)
+        return Response(serializer.data)
+
+
 class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     """
     Retrieve and update payment card information.

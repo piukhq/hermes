@@ -51,6 +51,27 @@ class TestPaymentCard(APITestCase):
 
         super(TestPaymentCard, cls).setUpClass()
 
+    def test_payment_card_account_query(self):
+        resp = self.client.get('/payment_cards/accounts/query'
+                               '?payment_card__slug={}&user__id={}'.format(self.payment_card.slug,
+                                                                           self.user.id),
+                               **self.auth_service_headers)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(resp.json()[0]['id'], self.payment_card_account.id)
+
+    def test_payment_card_account_bad_query(self):
+        resp = self.client.get('/payment_cards/accounts/query'
+                               '?payment_card=what&user=no',
+                               **self.auth_service_headers)
+        self.assertEqual(400, resp.status_code)
+
+    def test_payment_card_account_query_no_results(self):
+        resp = self.client.get('/payment_cards/accounts/query'
+                               '?payment_card__slug=scheme-that-doesnt-exist',
+                               **self.auth_service_headers)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(0, len(resp.json()))
+
     def test_payment_card_list(self):
         response = self.client.get('/payment_cards', **self.auth_headers)
         self.assertEqual(response.status_code, 200)

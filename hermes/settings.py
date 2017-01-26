@@ -147,7 +147,7 @@ WSGI_APPLICATION = 'hermes.wsgi.application'
 
 DATABASES = {
     'default': dj_database_url.parse(
-        env_var("HERMES_DATABASE_URL", "postgres://postgres@10.0.104.15:5432/hermes"))
+        env_var("HERMES_DATABASE_URL", "postgres://postgres@localhost:5432/hermes"))
 }
 
 
