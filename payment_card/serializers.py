@@ -23,6 +23,7 @@ class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.PaymentCardAccountImage
+        exclude = ('payment_card_accounts',)
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
