@@ -74,7 +74,6 @@ INSTALLED_APPS = (
     'order',
     'colorful',
     'mail_templated',
-    'django_extensions',
 )
 
 MIDDLEWARE_CLASSES = (
