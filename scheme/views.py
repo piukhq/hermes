@@ -10,8 +10,8 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.forms import CSVUploadForm
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage, \
-    SchemeAccountImage
+from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
+                           SchemeAccountImage)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -38,6 +38,23 @@ class SwappableSerializerMixin(object):
 
     def get_serializer_class(self):
         return self.override_serializer_classes[self.request.method]
+
+
+class SchemeAccountQuery(APIView):
+
+    authentication_classes = (ServiceAuthentication,)
+
+    def get(self, request):
+        try:
+            queryset = SchemeAccount.objects.filter(**dict(request.query_params.items()))
+        except Exception as e:
+            response = {
+                'exception_class': e.__class__.__name__,
+                'exception_args': e.args
+            }
+            return Response(response, status=status.HTTP_400_BAD_REQUEST)
+        serializer = ListSchemeAccountSerializer(instance=queryset, many=True)
+        return Response(serializer.data)
 
 
 class SchemesList(ListAPIView):

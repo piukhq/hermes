@@ -56,6 +56,23 @@ class TestSchemeAccountViews(APITestCase):
 
         super().setUpClass()
 
+    def test_scheme_account_query(self):
+        resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user__id={}'.format(self.scheme.slug,
+                                                                                            self.user.id),
+                               **self.auth_service_headers)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(resp.json()[0]['id'], self.scheme_account.id)
+
+    def test_scheme_account_bad_query(self):
+        resp = self.client.get('/schemes/accounts/query?scheme=what&user=no', **self.auth_service_headers)
+        self.assertEqual(400, resp.status_code)
+
+    def test_scheme_account_query_no_results(self):
+        resp = self.client.get('/schemes/accounts/query?scheme__slug=scheme-that-doesnt-exist',
+                               **self.auth_service_headers)
+        self.assertEqual(200, resp.status_code)
+        self.assertEqual(0, len(resp.json()))
+
     def test_join_account(self):
         join_scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
