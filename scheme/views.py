@@ -5,6 +5,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
@@ -25,7 +26,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
-from scheme.account_status_summary import scheme_account_status_data, scheme_account_registration_dates
+from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
@@ -137,7 +138,19 @@ class RetrieveRegistrationDates(RetrieveAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-        return_data = scheme_account_registration_dates()
+        scheme_slug = 'avios'
+        return_data = {}
+
+        scheme = get_object_or_404(Scheme, slug=scheme_slug)
+        try:
+            scheme_accounts = SchemeAccount.objects.filter(scheme=scheme)
+        except ObjectDoesNotExist:
+            pass
+        else:
+            for sa in scheme_accounts:
+                if sa.status == SchemeAccount.ACTIVE:
+                    return_data[sa.third_party_identifier] = str(sa.created)
+
         return Response(return_data, status=200)
 
 

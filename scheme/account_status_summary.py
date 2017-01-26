@@ -3,25 +3,6 @@ from django.db import connection
 from scheme.models import SchemeAccount
 
 
-def scheme_account_registration_dates():
-    db_data = registration_dates_from_db()
-
-    # Create a new list to hold the dictionaries containing all scheme account registration dates and account ids.
-    schemes_output = scheme_registration_date_info(db_data)
-    return schemes_output
-
-
-def registration_dates_from_db():
-    cursor = connection.cursor()
-
-    sql = "SELECT sa.scheme_id, sa.created " \
-          "FROM scheme_schemeaccount AS sa " \
-          "ORDER BY sa.scheme_id"
-
-    cursor.execute(sql)
-    return convert_to_dictionary(cursor)
-
-
 def scheme_account_status_data():
     db_data = status_summary_from_db()
 
@@ -48,15 +29,6 @@ def convert_to_dictionary(cursor):
     """Return all rows from a cursor as a dict"""
     columns = [col[0] for col in cursor.description]
     return [dict(zip(columns, row)) for row in cursor.fetchall()]
-
-
-def scheme_registration_date_info(db_data):
-    schemes = {}
-    # Put the schemes into a dict format
-    for scheme_reg_dates in db_data:
-        schemes[scheme_reg_dates['scheme_id']] = scheme_reg_dates['created']
-
-    return schemes
 
 
 def scheme_summary_list(db_data):
