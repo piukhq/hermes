@@ -183,6 +183,15 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
 
 class QuerySchemeAccountSerializer(serializers.ModelSerializer):
+    scheme = SchemeSerializerNoQuestions()
+    status_name = serializers.ReadOnlyField()
+    barcode = serializers.ReadOnlyField()
+    card_label = serializers.ReadOnlyField()
+    images = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_images(scheme_account):
+        return get_images_for_scheme_account(scheme_account)
 
     class Meta:
         model = SchemeAccount
