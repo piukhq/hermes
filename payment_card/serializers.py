@@ -61,6 +61,12 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         exclude = ('token', 'psp_token')
 
 
+class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = models.PaymentCardAccount
+
+
 class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
     # psp_token = serializers.CharField(
     #     max_length=255,

@@ -17,7 +17,8 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer)
+                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
+                                QuerySchemeAccountSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -53,7 +54,7 @@ class SchemeAccountQuery(APIView):
                 'exception_args': e.args
             }
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
-        serializer = ListSchemeAccountSerializer(instance=queryset, many=True)
+        serializer = QuerySchemeAccountSerializer(instance=queryset, many=True)
         return Response(serializer.data)
 
 

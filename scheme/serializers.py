@@ -8,17 +8,20 @@ from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, Schem
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = SchemeImage
         exclude = ('scheme',)
 
 
 class SchemeAccountImageSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = SchemeAccountImage
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = SchemeCredentialQuestion
         exclude = ('scheme', 'manual_question', 'scan_question')
@@ -40,6 +43,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
+
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
@@ -61,6 +65,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
+
     def validate(self, data):
         # Validate no manual answer
         manual_question_type = self.context['scheme_account'].scheme.manual_question.type
@@ -177,6 +182,12 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
                   'images')
 
 
+class QuerySchemeAccountSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = SchemeAccount
+
+
 class ReferenceImageSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -192,6 +203,7 @@ class StatusSerializer(serializers.Serializer):
 
 
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = SchemeAccount
         fields = ('id', )
@@ -264,12 +276,14 @@ def get_images_for_scheme_account(scheme_account):
 
 
 class DonorSchemeInfoSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
 
 
 class HostSchemeInfoSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
