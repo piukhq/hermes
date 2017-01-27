@@ -44,7 +44,7 @@ class PaymentCardAccountQuery(APIView):
                 'exception_args': e.args
             }
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
-        serializer = serializers.PaymentCardAccountSerializer(instance=queryset, many=True)
+        serializer = serializers.QueryPaymentCardAccountSerializer(instance=queryset, many=True)
         return Response(serializer.data)
 
 
