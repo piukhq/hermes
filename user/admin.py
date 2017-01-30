@@ -40,6 +40,7 @@ class CustomUserModelForm(forms.ModelForm):
         fields = '__all__'
 
 
+@admin.register(CustomUser)
 class CustomUserDetail(UserAdmin):
 
     def first_name(self, obj):
@@ -68,11 +69,14 @@ class CustomUserDetail(UserAdmin):
     search_fields = ('email', 'uid', 'profile__first_name', 'profile__last_name',)
 
 
+@admin.register(Referral)
 class ReferralAdmin(admin.ModelAdmin):
     list_display = ('referrer', 'recipient', 'date',)
 
 
-admin.site.register(CustomUser, CustomUserDetail)
-admin.site.register(Referral, ReferralAdmin)
+@admin.register(UserSetting)
+class UserSettingAdmin(admin.ModelAdmin):
+    search_fields = ('user__email', 'setting__slug', 'value')
+
+
 admin.site.register(Setting)
-admin.site.register(UserSetting)

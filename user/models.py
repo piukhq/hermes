@@ -44,10 +44,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         db_table = 'user'
 
     def get_full_name(self):
-        return self.uid
+        return self.email
 
     def get_short_name(self):
-        return self.uid
+        return self.email
 
     @property
     def referral_code(self):
