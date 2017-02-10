@@ -377,16 +377,12 @@ class DonorSchemes(APIView):
         host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
         scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
-        donor_scheme_accounts = scheme_accounts.filter(scheme__in=exchanges.values('donor_scheme'))
-
-        scheme_accounts_serializer = ListSchemeAccountSerializer(donor_scheme_accounts, many=True)
-        exchange_serializer = DonorSchemeSerializer(exchanges, many=True)
-
         return_data = []
 
-        for (s, e) in zip(scheme_accounts_serializer.data, exchange_serializer.data):
-            data = e
-            data['scheme_account_id'] = s['id']
+        for e in exchanges:
+            scheme_account = scheme_accounts.get(scheme=e.donor_scheme)
+            data = DonorSchemeSerializer(e).data
+            data['scheme_account_id'] = scheme_account.id
             return_data.append(data)
 
         return Response(return_data, status=200)
