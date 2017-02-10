@@ -559,21 +559,15 @@ class TestSchemeAccountImages(APITestCase):
 
 class TestExchange(APITestCase):
     def test_get_donor_schemes(self):
-        host_scheme = SchemeFactory()
-        donor_scheme_1 = SchemeFactory()
-        donor_scheme_2 = SchemeFactory()
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=host_scheme, scan_question=True)
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_1, scan_question=True)
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=donor_scheme_2, scan_question=True)
+        host_scheme = self.create_scheme()
+        donor_scheme_1 = self.create_scheme()
+        donor_scheme_2 = self.create_scheme()
 
         user = UserFactory()
 
-        host_scheme_account = SchemeAccountFactory(user=user, scheme=host_scheme)
-        donor_scheme_account_1 = SchemeAccountFactory(user=user, scheme=donor_scheme_1)
-        donor_scheme_account_2 = SchemeAccountFactory(user=user, scheme=donor_scheme_2)
-        SchemeCredentialAnswerFactory(scheme_account=host_scheme_account)
-        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_1)
-        SchemeCredentialAnswerFactory(scheme_account=donor_scheme_account_2)
+        self.create_scheme_account(host_scheme, user)
+        self.create_scheme_account(donor_scheme_2, user)
+        self.create_scheme_account(donor_scheme_1, user)
 
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_1)
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_2)
@@ -599,3 +593,15 @@ class TestExchange(APITestCase):
         self.assertIn('point_name', json[0]['donor_scheme'])
         self.assertIn('name', json[0]['host_scheme'])
         self.assertIn('point_name', json[0]['host_scheme'])
+
+    @staticmethod
+    def create_scheme_account(host_scheme, user):
+        scheme_account = SchemeAccountFactory(user=user, scheme=host_scheme)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account)
+        return scheme_account
+
+    @staticmethod
+    def create_scheme():
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, scan_question=True)
+        return scheme
