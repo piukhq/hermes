@@ -10,10 +10,11 @@ def apply_barclays_images(apps, schema_editor):
     PaymentCardAccount = apps.get_model('payment_card', 'PaymentCardAccount')
     PaymentCardAccountImage = apps.get_model('payment_card', 'PaymentCardAccountImage')
 
-    barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                               image_type_code=2)
+    barclays_offer_image = None
     for account in PaymentCardAccount.all_objects.all():
         if account.pan_start in settings.BARCLAYS_BINS:
+            if barclays_offer_image is None:
+                barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays', image_type_code=2)
             barclays_offer_image.payment_card_accounts.add(account)
 
             try:
