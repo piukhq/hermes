@@ -93,6 +93,7 @@ class ValidatePromoCode(CreateAPIView):
 
 class ValidateResetToken(CreateAPIView):
     """
+    DO NOT USE - NOT FOR APP ACCESS
     Validate a password reset token. Used internally by the password reset/password change functionality.
     """
     authentication_classes = (OpenAuthentication,)
