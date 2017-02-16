@@ -474,11 +474,11 @@ class TestAuthenticationViews(APITestCase):
 
     def test_change_password(self):
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-        response = self.client.put('/users/me/password', {'password': 'test'}, **auth_headers)
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='test')
+        user = authenticate(username=user.email, password='Test1234')
         self.assertTrue(user.password)
 
 
