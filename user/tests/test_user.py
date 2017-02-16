@@ -11,7 +11,7 @@ from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingF
 from rest_framework.test import APITestCase
 from unittest import mock
 from user.views import facebook_login, twitter_login, social_login
-
+from hermes import settings
 
 class TestRegisterNewUserViews(TestCase):
     def test_register(self):
@@ -419,6 +419,8 @@ class TestAuthenticationViews(APITestCase):
         cls.user = UserFactory()
         super().setUpClass()
 
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+
     def test_local_login_valid(self):
         data = {
             "email": self.user.email,
@@ -480,6 +482,35 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         user = authenticate(username=user.email, password='Test1234')
         self.assertTrue(user.password)
+
+    def test_change_password_once(self):
+        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='Test1234')
+        self.assertTrue(user.password)
+
+        token = user.generate_reset_token()
+        user.reset_token = token
+        user.save()
+        response = self.client.post('/users/reset_password', {'password': 'Test1234', "token": token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='Test1234')
+        self.assertTrue(user.password)
+
+        # Now try again to ensure we can't do it twice
+        response = self.client.post('/users/reset_password', {'password': '2ndpassword', "token": token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 404)
+        user = authenticate(username=user.email, password='2ndpassword')
+        self.assertFalse(user)
 
 
 class TestTwitterLogin(APITestCase):

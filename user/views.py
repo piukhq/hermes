@@ -25,7 +25,7 @@ from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer, ResetTokenSerializer, SettingSerializer,
-                              UserSettingSerializer)
+                              UserSettingSerializer, TokenResetPasswordSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -323,7 +323,7 @@ class TwitterLogin(CreateAPIView):
 class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
-    serializer_class = ResetTokenSerializer
+    serializer_class = TokenResetPasswordSerializer #  ResetTokenSerializer
 
     def post(self, request, *args, **kwargs):
         """
