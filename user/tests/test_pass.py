@@ -25,14 +25,15 @@ class TestResetPassword(TestCase):
         response = client.post('/users/validate_reset_token', data={'token': user_instance.reset_token})
         self.assertEqual(response.status_code, 200)
 
-    def test_reset_password(self):
-        client = Client()
-        self.user.generate_reset_token()
-        response = client.post('/users/reset_password', data={'token': self.user.reset_token.decode("utf-8"),
-                                                              'password': '1234'})
-        self.assertEqual(response.status_code, 200)
-        user_instance = CustomUser.objects.get(email=self.user.email)
-        self.assertEqual(user_instance.check_password('1234'), True)
+    # This test case has been replaced by test_user.py's test_change_password_once().  Remove?
+    # def test_reset_password(self):
+    #    client = Client()
+    #    self.user.generate_reset_token()
+    #    response = client.post('/users/reset_password', data={'token': self.user.reset_token.decode("utf-8"),
+    #                                                          'password': '1234'})
+    #    self.assertEqual(response.status_code, 200)
+    #    user_instance = CustomUser.objects.get(email=self.user.email)
+    #    self.assertEqual(user_instance.check_password('1234'), True)
 
     def test_rest_token_expiry(self):
         expiry_date = arrow.utcnow()
