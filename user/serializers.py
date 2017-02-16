@@ -62,6 +62,7 @@ class ResetPasswordSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         instance.set_password(validated_data['password'])
+        instance.set_reset_token(None)
         instance.save()
         return instance
 
@@ -74,9 +75,13 @@ class TokenResetPasswordSerializer(serializers.Serializer):
         return value
 
     def update(self, instance, validated_data):
-        instance.set_password(validated_data['password'])
-        instance.save()
-        return instance
+        if instance.reset_token is None:
+            return None
+        else:
+            instance.set_password(validated_data['password'])
+            instance.reset_token = None
+            instance.save()
+            return instance
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
