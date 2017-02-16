@@ -13,6 +13,7 @@ from unittest import mock
 from user.views import facebook_login, twitter_login, social_login
 from hermes import settings
 
+
 class TestRegisterNewUserViews(TestCase):
     def test_register(self):
         client = Client()
@@ -504,7 +505,9 @@ class TestAuthenticationViews(APITestCase):
         self.assertTrue(user.password)
 
         # Now try again to ensure we can't do it twice
-        response = self.client.post('/users/reset_password', {'password': '2ndpassword', "token": token.decode('UTF-8'), },
+        response = self.client.post('/users/reset_password',
+                                    {'password': '2ndpassword',
+                                     'token': token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
