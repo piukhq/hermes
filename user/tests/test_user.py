@@ -1,5 +1,5 @@
 import json
-import time
+# import time
 import httpretty as httpretty
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
