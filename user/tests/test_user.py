@@ -1,4 +1,5 @@
 import json
+import time
 import httpretty as httpretty
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
@@ -494,6 +495,12 @@ class TestAuthenticationViews(APITestCase):
         self.assertTrue(user.password)
 
         token = user.generate_reset_token()
+
+        # To test the time limit on the password reset, re-instate the time.sleep() line.
+        # You will also need to ensure the number of seconds is greater than the expiry date delta time in
+        # the generate_reset_token() method.
+        # time.sleep(80)
+
         response = self.client.post('/users/reset_password', {'password': 'Test1234', "token": token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
@@ -509,7 +516,7 @@ class TestAuthenticationViews(APITestCase):
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
-        self.assertEqual(response.status_code, 404)
+        self.assertGreaterEqual(response.status_code, 400)
         user = authenticate(username=user.email, password='2ndpassword')
         self.assertFalse(user)
 
