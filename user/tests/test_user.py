@@ -501,23 +501,25 @@ class TestAuthenticationViews(APITestCase):
         # the generate_reset_token() method.
         # time.sleep(80)
 
-        response = self.client.post('/users/reset_password', {'password': 'Test1234', "token": token.decode('UTF-8'), },
+        response = self.client.post('/users/reset_password', {'password': '1stPassword', "token": token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='Test1234')
+        user = authenticate(username=user.email, password='1stPassword')
+
+        # If testing the time limit, replace this with self.assertFalse(user) and comment out the rest of the test.
         self.assertTrue(user.password)
 
         # Now try again to ensure we can't do it twice
         response = self.client.post('/users/reset_password',
-                                    {'password': '2ndpassword',
+                                    {'password': '2ndPassword',
                                      'token': token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertGreaterEqual(response.status_code, 400)
-        user = authenticate(username=user.email, password='2ndpassword')
+        user = authenticate(username=user.email, password='2ndPassword')
         self.assertFalse(user)
 
 
