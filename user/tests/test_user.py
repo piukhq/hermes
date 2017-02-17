@@ -501,7 +501,8 @@ class TestAuthenticationViews(APITestCase):
         # the generate_reset_token() method.
         # time.sleep(80)
 
-        response = self.client.post('/users/reset_password', {'password': '1stPassword', "token": token.decode('UTF-8'), },
+        response = self.client.post('/users/reset_password',
+                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
