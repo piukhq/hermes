@@ -76,6 +76,7 @@ class PaymentCard(models.Model):
         (MASTERCARD, 'Master Card'),
         (AMEX, 'American Express‎'),
     )
+
     DEBIT = 'debit'
     CREDIT = 'credit'
     TYPES = (
