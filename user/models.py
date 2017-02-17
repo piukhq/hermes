@@ -53,11 +53,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def referral_code(self):
         return hash_ids.encode(self.id)
 
-    def set_expiry_date(self):
+    def get_expiry_date(self):
         return arrow.utcnow().replace(hours=+3)
 
     def generate_reset_token(self):
-        expiry_date = self.set_expiry_date()
+        expiry_date = self.get_expiry_date()
         payload = {
             'email': self.email,
             'expiry_date': expiry_date.timestamp
