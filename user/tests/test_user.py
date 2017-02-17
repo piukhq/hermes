@@ -1,5 +1,6 @@
 import json
-# import time
+import time
+import arrow
 import httpretty as httpretty
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
@@ -496,11 +497,6 @@ class TestAuthenticationViews(APITestCase):
 
         token = user.generate_reset_token()
 
-        # To test the time limit on the password reset, re-instate the time.sleep() line.
-        # You will also need to ensure the number of seconds is greater than the expiry date delta time in
-        # the generate_reset_token() method.
-        # time.sleep(80)
-
         response = self.client.post('/users/reset_password',
                                     {'password': '1stPassword', "token": token.decode('UTF-8'), },
                                     **self.auth_service_headers)
@@ -509,7 +505,6 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         user = authenticate(username=user.email, password='1stPassword')
 
-        # If testing the time limit, replace this with self.assertFalse(user) and comment out the rest of the test.
         self.assertTrue(user.password)
 
         # Now try again to ensure we can't do it twice
@@ -521,6 +516,31 @@ class TestAuthenticationViews(APITestCase):
 
         self.assertGreaterEqual(response.status_code, 400)
         user = authenticate(username=user.email, password='2ndPassword')
+        self.assertFalse(user)
+
+    @mock.patch('user.models.CustomUser.set_expiry_date')
+    def test_change_password_once_timeout(self, mock_set_expiry_date):
+        mock_set_expiry_date.return_value = arrow.utcnow().replace(minutes=+1)
+
+        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='Test1234')
+        self.assertTrue(user.password)
+
+        token = user.generate_reset_token()
+
+        time.sleep(80)
+
+        response = self.client.post('/users/reset_password',
+                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='1stPassword')
         self.assertFalse(user)
 
 
