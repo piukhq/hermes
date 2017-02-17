@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.http import Http404
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
@@ -340,7 +341,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         reset_token = self.request.data['token']
         obj = get_object_or_404(CustomUser, reset_token=reset_token)
         if not valid_reset_code(reset_token):
-            return Response(status=404)
+            raise Http404
 
         return obj
 

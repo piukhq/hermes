@@ -74,11 +74,8 @@ class TokenResetPasswordSerializer(serializers.Serializer):
         return value
 
     def update(self, instance, validated_data):
-        if type(instance) is not CustomUser:
-            return instance
-
         if instance.reset_token is None:
-            return instance
+            raise ValueError
         else:
             instance.set_password(validated_data['password'])
             instance.reset_token = None

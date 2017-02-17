@@ -520,7 +520,7 @@ class TestAuthenticationViews(APITestCase):
 
     @mock.patch('user.models.CustomUser.get_expiry_date')
     def test_change_password_once_timeout(self, mock_get_expiry_date):
-        mock_get_expiry_date.return_value = arrow.utcnow().replace(minutes=+1)
+        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+10)
 
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
         response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
@@ -532,14 +532,14 @@ class TestAuthenticationViews(APITestCase):
 
         token = user.generate_reset_token()
 
-        time.sleep(80)
+        time.sleep(12)
 
         response = self.client.post('/users/reset_password',
                                     {'password': '1stPassword', "token": token.decode('UTF-8'), },
                                     **self.auth_service_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
-        self.assertEqual(response.status_code, 200)
+        self.assertGreaterEqual(response.status_code, 400)
         user = authenticate(username=user.email, password='1stPassword')
         self.assertFalse(user)
 
