@@ -92,7 +92,7 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('token', 'psp_token')
+        exclude = ('token', 'psp_token', 'user')
 
 
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):

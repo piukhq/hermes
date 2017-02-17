@@ -84,6 +84,13 @@ class PaymentCard(models.Model):
         (CREDIT, 'Credit Card'),
     )
 
+    # ENROL = 'enrol'
+    # ACTIVATE = 'activate'
+    # UPDATE_MODES = (
+    #     (ENROL, 'Re-enrol'),
+    #     (ACTIVATE, 'Re-activate')
+    # )
+
     class TokenMethod(object):
         COPY = 0
         LEN_24 = 1
@@ -128,6 +135,7 @@ class PaymentCard(models.Model):
     system = models.CharField(max_length=40, choices=SYSTEMS)
     type = models.CharField(max_length=40, choices=TYPES)
     token_method = models.IntegerField(default=TokenMethod.COPY, choices=TokenMethod.CHOICES)
+    # update_mode = models.CharField(max_length=20, choices=UPDATE_MODES, default=ENROL)
 
     def __str__(self):
         return self.name

@@ -121,6 +121,7 @@ class ListCreatePaymentCardAccount(APIView):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
+            data['user'] = request.user
 
             # make sure we're not creating a duplicate card
             accounts = PaymentCardAccount.objects.filter(fingerprint=data['fingerprint'],
