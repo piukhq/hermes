@@ -1,4 +1,6 @@
 import json
+import time
+import arrow
 import httpretty as httpretty
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
@@ -11,6 +13,7 @@ from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingF
 from rest_framework.test import APITestCase
 from unittest import mock
 from user.views import facebook_login, twitter_login, social_login
+from hermes import settings
 
 
 class TestRegisterNewUserViews(TestCase):
@@ -419,6 +422,8 @@ class TestAuthenticationViews(APITestCase):
         cls.user = UserFactory()
         super().setUpClass()
 
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+
     def test_local_login_valid(self):
         data = {
             "email": self.user.email,
@@ -474,12 +479,69 @@ class TestAuthenticationViews(APITestCase):
 
     def test_change_password(self):
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-        response = self.client.put('/users/me/password', {'password': 'test'}, **auth_headers)
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='test')
+        user = authenticate(username=user.email, password='Test1234')
         self.assertTrue(user.password)
+
+    def test_change_password_once(self):
+        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='Test1234')
+        self.assertTrue(user.password)
+
+        token = user.generate_reset_token()
+
+        response = self.client.post('/users/reset_password',
+                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='1stPassword')
+
+        self.assertTrue(user.password)
+
+        # Now try again to ensure we can't do it twice
+        response = self.client.post('/users/reset_password',
+                                    {'password': '2ndPassword',
+                                     'token': token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertGreaterEqual(response.status_code, 400)
+        user = authenticate(username=user.email, password='2ndPassword')
+        self.assertFalse(user)
+
+    @mock.patch('user.models.CustomUser.get_expiry_date')
+    def test_change_password_once_timeout(self, mock_get_expiry_date):
+        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+10)
+
+        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
+        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertEqual(response.status_code, 200)
+        user = authenticate(username=user.email, password='Test1234')
+        self.assertTrue(user.password)
+
+        token = user.generate_reset_token()
+
+        time.sleep(12)
+
+        response = self.client.post('/users/reset_password',
+                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
+                                    **self.auth_service_headers)
+        user = CustomUser.objects.get(id=self.user.id)
+
+        self.assertGreaterEqual(response.status_code, 400)
+        user = authenticate(username=user.email, password='1stPassword')
+        self.assertFalse(user)
 
 
 class TestTwitterLogin(APITestCase):

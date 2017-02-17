@@ -56,6 +56,10 @@ class LoginSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
+    def validate_password(self, value):
+        validate_pass(value)
+        return value
+
     def update(self, instance, validated_data):
         instance.set_password(validated_data['password'])
         instance.save()
@@ -65,10 +69,18 @@ class ResetPasswordSerializer(serializers.Serializer):
 class TokenResetPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
+    def validate_password(self, value):
+        validate_pass(value)
+        return value
+
     def update(self, instance, validated_data):
-        instance.set_password(validated_data['password'])
-        instance.save()
-        return instance
+        if instance.reset_token is None:
+            raise ValueError
+        else:
+            instance.set_password(validated_data['password'])
+            instance.reset_token = None
+            instance.save()
+            return instance
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
