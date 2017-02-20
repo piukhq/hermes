@@ -1,8 +1,8 @@
+from io import StringIO
 import csv
 import json
-import requests
+
 from django.http import HttpResponseBadRequest, JsonResponse
-from io import StringIO
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render_to_response
 from django.template import RequestContext
@@ -14,13 +14,16 @@ from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
+import requests
+import arrow
+
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from payment_card import serializers
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
-import arrow
+from payment_card import metis
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -112,14 +115,13 @@ class ListCreatePaymentCardAccount(APIView):
             - code: 403
               message: A payment card account by that fingerprint and expiry already exists.
         """
-        request.data['user'] = request.user.id
-
         # iOS bug fix: only capture the last four digits of the pan_end (they send us five.)
         request.data['pan_end'] = request.data['pan_end'][-4:]
 
         serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
+            data['user'] = request.user
 
             # make sure we're not creating a duplicate card
             accounts = PaymentCardAccount.objects.filter(fingerprint=data['fingerprint'],
@@ -134,34 +136,31 @@ class ListCreatePaymentCardAccount(APIView):
             account = PaymentCardAccount(**data)
             account.save()
 
-            requests.post(settings.METIS_URL + '/payment_service/payment_card', json={
-                'payment_token': account.psp_token,
-                'card_token': account.token,
-                'partner_slug': account.payment_card.slug,
-                'id': account.id,
-                'date': arrow.get(account.created).timestamp}, headers={
-                    'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                    'Content-Type': 'application/json'})
+            metis.enrol_payment_card(account)
 
-            # if the card is a barclaycard, attach relevant placeholder images to signify that we can't auto-collect.
-            if account.pan_start in settings.BARCLAYS_BINS:
-                barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                                           image_type_code=2)
-                barclays_offer_image.payment_card_accounts.add(account)
-
-                try:
-                    barclays_hero_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                                              image_type_code=0,
-                                                                              payment_card=account.payment_card)
-                except PaymentCardAccountImage.DoesNotExist:
-                    # not a barclays card that we have an image for, so don't add it.
-                    pass
-                else:
-                    barclays_hero_image.payment_card_accounts.add(account)
+            self.apply_barclays_images(account)
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def apply_barclays_images(account):
+        # if the card is a barclaycard, attach relevant placeholder images to signify that we can't auto-collect.
+        if account.pan_start in settings.BARCLAYS_BINS:
+            barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
+                                                                       image_type_code=2)
+            barclays_offer_image.payment_card_accounts.add(account)
+
+            try:
+                barclays_hero_image = PaymentCardAccountImage.objects.get(description='barclays',
+                                                                          image_type_code=0,
+                                                                          payment_card=account.payment_card)
+            except PaymentCardAccountImage.DoesNotExist:
+                # not a barclays card that we have an image for, so don't add it.
+                pass
+            else:
+                barclays_hero_image.payment_card_accounts.add(account)
 
 
 class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
