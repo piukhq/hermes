@@ -104,6 +104,13 @@ class SchemeAccountImageAdmin(admin.ModelAdmin):
     date_hierarchy = 'start_date'
     raw_id_fields = ('scheme_accounts',)
 
+    def get_queryset(self, request):
+        qs = self.model.all_objects.get_queryset()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
+
 
 class ExchangeAdmin(admin.ModelAdmin):
     search_fields = ["host_scheme__name", "donor_scheme__name"]
