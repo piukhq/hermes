@@ -144,7 +144,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(payment_card_account.status, 0)
         self.assertEqual(payment_card_account.pan_end, '9820')
 
-
     @httpretty.activate
     def test_post_long_pan_end(self):
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
