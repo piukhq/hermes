@@ -131,6 +131,19 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(payment_card_account.status, 0)
         self.assertEqual(payment_card_account.pan_end, '9820')
 
+        # send again and confirm that the old one is taken over.
+        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
+        # The stub is called indirectly via the View so we can only verify the stub has been called
+        self.assertTrue(httpretty.has_request())
+        self.assertEqual(response.status_code, 201)
+        self.assertNotIn('psp_token', response.data)
+        self.assertNotIn('token', response.data)
+        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
+        self.assertEqual(payment_card_account.psp_token, "some-token")
+        self.assertEqual(payment_card_account.status, 0)
+        self.assertEqual(payment_card_account.pan_end, '9820')
+
+
     @httpretty.activate
     def test_post_long_pan_end(self):
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
