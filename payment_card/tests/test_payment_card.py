@@ -1,8 +1,8 @@
 import arrow
 import httpretty
 from rest_framework.test import APITestCase
-from payment_card.tests.factories import PaymentCardAccountFactory, PaymentCardAccountImageFactory, \
-    PaymentCardImageFactory
+from payment_card.tests.factories import (PaymentCardAccountFactory, PaymentCardAccountImageFactory,
+                                          PaymentCardImageFactory)
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount, Image
@@ -132,6 +132,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(payment_card_account.pan_end, '9820')
 
         # send again and confirm that the old one is taken over.
+        data['token'] = 'some-other-token'
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         # The stub is called indirectly via the View so we can only verify the stub has been called
         self.assertTrue(httpretty.has_request())
@@ -262,7 +263,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
-
         data = {'user': self.user.id,
                 'issuer': self.issuer.id,
                 'status': 1,
