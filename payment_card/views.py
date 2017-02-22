@@ -123,31 +123,42 @@ class ListCreatePaymentCardAccount(APIView):
             data = serializer.validated_data
             data['user'] = request.user
 
-            new_account = PaymentCardAccount(**data)
-
-            if new_account.payment_card.system == PaymentCard.MASTERCARD:
-                try:
-                    account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'])
-                except PaymentCardAccount.DoesNotExist:
-                    new_account.save()
-                    metis.enrol_new_payment_card(account)
-                else:
-                    # is the card owned by this user?
-                    if account.user != request.user:
-                        return Response({'error': 'Fingerprint is already in use by another user.',
-                                         'code': '403'}, status=status.HTTP_403_FORBIDDEN)
-                    new_account.token = account.token
-                    new_account.psp_token = account.psp_token
-                    account.is_deleted = True
-                    account.save()
-                    new_account.save()
-                    metis.enrol_existing_payment_card(account)
+            account = self.create_payment_card_account(data, request.user)
 
             self.apply_barclays_images(account)
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def create_payment_card_account(data, user):
+        account = PaymentCardAccount(**data)
+        if account.payment_card.system == PaymentCard.MASTERCARD:
+            try:
+                old_account = PaymentCardAccount.all_objects.get(fingerprint=data['fingerprint'])
+            except PaymentCardAccount.DoesNotExist:
+                pass
+            else:
+                # is the card owned by this user?
+                if old_account.user != user:
+                    return Response({'error': 'Fingerprint is already in use by another user.',
+                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+
+                account.token = old_account.token
+                account.psp_token = old_account.psp_token
+
+                if old_account.is_deleted:
+                    metis.enrol_existing_payment_card(account)
+                else:
+                    old_account.is_deleted = True
+                    old_account.save()
+                account.save()
+                return account
+
+        account.save()
+        metis.enrol_new_payment_card(account)
+        return account
 
     @staticmethod
     def apply_barclays_images(account):
