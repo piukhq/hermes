@@ -123,7 +123,17 @@ class ListCreatePaymentCardAccount(APIView):
             data = serializer.validated_data
             data['user'] = request.user
 
-            account = self.create_payment_card_account(data, request.user)
+            account = PaymentCardAccount(**data)
+
+            if account.payment_card.system != PaymentCard.MASTERCARD:
+                accounts = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
+                                                             expiry_month=account.expiry_month,
+                                                             expiry_year=account.expiry_year)
+                if accounts.exists():
+                    return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
+                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+
+            account = self.create_payment_card_account(account, request.user)
 
             self.apply_barclays_images(account)
 
@@ -132,11 +142,10 @@ class ListCreatePaymentCardAccount(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def create_payment_card_account(data, user):
-        account = PaymentCardAccount(**data)
+    def create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
             try:
-                old_account = PaymentCardAccount.all_objects.get(fingerprint=data['fingerprint'])
+                old_account = PaymentCardAccount.all_objects.get(fingerprint=account.fingerprint)
             except PaymentCardAccount.DoesNotExist:
                 pass
             else:
@@ -151,6 +160,7 @@ class ListCreatePaymentCardAccount(APIView):
                 if old_account.is_deleted:
                     metis.enrol_existing_payment_card(account)
                 else:
+                    account.status = old_account.status
                     old_account.is_deleted = True
                     old_account.save()
                 account.save()
