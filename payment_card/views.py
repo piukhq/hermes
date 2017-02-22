@@ -133,7 +133,10 @@ class ListCreatePaymentCardAccount(APIView):
                     return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
                                      'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
-            account = self.create_payment_card_account(account, request.user)
+            # create_payment_card_account either returns the created account, or an error response.
+            result = self.create_payment_card_account(account, request.user)
+            if not isinstance(result, PaymentCardAccount):
+                return result
 
             self.apply_barclays_images(account)
 
@@ -149,25 +152,28 @@ class ListCreatePaymentCardAccount(APIView):
             except PaymentCardAccount.DoesNotExist:
                 pass
             else:
-                # is the card owned by this user?
-                if old_account.user != user:
-                    return Response({'error': 'Fingerprint is already in use by another user.',
-                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
-
-                account.token = old_account.token
-                account.psp_token = old_account.psp_token
-
-                if old_account.is_deleted:
-                    metis.enrol_existing_payment_card(account)
-                else:
-                    account.status = old_account.status
-                    old_account.is_deleted = True
-                    old_account.save()
-                account.save()
-                return account
-
+                return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
         metis.enrol_new_payment_card(account)
+        return account
+
+    @staticmethod
+    def supercede_old_card(account, old_account, user):
+        # is the card owned by this user?
+        if old_account.user != user:
+            return Response({'error': 'Fingerprint is already in use by another user.',
+                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+
+        account.token = old_account.token
+        account.psp_token = old_account.psp_token
+
+        if old_account.is_deleted:
+            metis.enrol_existing_payment_card(account)
+        else:
+            account.status = old_account.status
+            old_account.is_deleted = True
+            old_account.save()
+        account.save()
         return account
 
     @staticmethod
