@@ -123,20 +123,25 @@ class ListCreatePaymentCardAccount(APIView):
             data = serializer.validated_data
             data['user'] = request.user
 
-            # make sure we're not creating a duplicate card
-            accounts = PaymentCardAccount.objects.filter(fingerprint=data['fingerprint'],
-                                                         expiry_month=data['expiry_month'],
-                                                         expiry_year=data['expiry_year'])
+            new_account = PaymentCardAccount(**data)
 
-            for account in accounts:
-                if not account.is_deleted:
-                    return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
-                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
-
-            account = PaymentCardAccount(**data)
-            account.save()
-
-            metis.enrol_payment_card(account)
+            if new_account.payment_card.system == PaymentCard.MASTERCARD:
+                try:
+                    account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'])
+                except PaymentCardAccount.DoesNotExist:
+                    new_account.save()
+                    metis.enrol_new_payment_card(account)
+                else:
+                    # is the card owned by this user?
+                    if account.user != request.user:
+                        return Response({'error': 'Fingerprint is already in use by another user.',
+                                         'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+                    new_account.token = account.token
+                    new_account.psp_token = account.psp_token
+                    account.is_deleted = True
+                    account.save()
+                    new_account.save()
+                    metis.enrol_existing_payment_card(account)
 
             self.apply_barclays_images(account)
 
