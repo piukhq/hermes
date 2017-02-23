@@ -1,0 +1,3 @@
+#!/bin/sh
+cd /usr/local/src/hermes
+/usr/bin/python3 manage.py migrate
