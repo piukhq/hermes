@@ -118,7 +118,7 @@ class Scheme(models.Model):
         return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 
     def __str__(self):
-        return self.name
+        return '{} ({})'.format(self.name, self.company)
 
 
 class Exchange(models.Model):

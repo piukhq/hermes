@@ -271,7 +271,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data,
                          {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
-                             self.scheme_account.scheme.name)]})
+                             str(self.scheme_account.scheme))]})
 
     def test_scheme_account_summary(self):
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)

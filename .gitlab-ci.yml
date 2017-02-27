@@ -7,6 +7,8 @@ tests:
     - docker
   services:
     - postgres:9.4.4
+  tags:
+    - docker
 
 complexity:
   script:

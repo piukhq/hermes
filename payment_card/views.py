@@ -123,26 +123,58 @@ class ListCreatePaymentCardAccount(APIView):
             data = serializer.validated_data
             data['user'] = request.user
 
-            # make sure we're not creating a duplicate card
-            accounts = PaymentCardAccount.objects.filter(fingerprint=data['fingerprint'],
-                                                         expiry_month=data['expiry_month'],
-                                                         expiry_year=data['expiry_year'])
+            account = PaymentCardAccount(**data)
 
-            for account in accounts:
-                if not account.is_deleted:
+            if account.payment_card.system != PaymentCard.MASTERCARD:
+                accounts = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
+                                                             expiry_month=account.expiry_month,
+                                                             expiry_year=account.expiry_year)
+                if accounts.exists():
                     return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
                                      'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
-            account = PaymentCardAccount(**data)
-            account.save()
-
-            metis.enrol_payment_card(account)
+            # create_payment_card_account either returns the created account, or an error response.
+            result = self.create_payment_card_account(account, request.user)
+            if not isinstance(result, PaymentCardAccount):
+                return result
 
             self.apply_barclays_images(account)
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def create_payment_card_account(account, user):
+        if account.payment_card.system == PaymentCard.MASTERCARD:
+            try:
+                old_account = PaymentCardAccount.all_objects.get(fingerprint=account.fingerprint)
+            except PaymentCardAccount.DoesNotExist:
+                pass
+            else:
+                return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
+        account.save()
+        metis.enrol_new_payment_card(account)
+        return account
+
+    @staticmethod
+    def supercede_old_card(account, old_account, user):
+        # is the card owned by this user?
+        if old_account.user != user:
+            return Response({'error': 'Fingerprint is already in use by another user.',
+                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+
+        account.token = old_account.token
+        account.psp_token = old_account.psp_token
+
+        if old_account.is_deleted:
+            metis.enrol_existing_payment_card(account)
+        else:
+            account.status = old_account.status
+            old_account.is_deleted = True
+            old_account.save()
+        account.save()
+        return account
 
     @staticmethod
     def apply_barclays_images(account):
