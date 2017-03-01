@@ -565,7 +565,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                 <div style="text-align:
                                                   left;"><a
                                                     moz-do-not-send="true"
-href="http://www.bink.com" target="_blank" style="mso-line-height-rule:
+href="https://www.bink.com" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                     #656565;font-weight:
 normal;text-decoration: underline;"><img moz-do-not-send="true"
