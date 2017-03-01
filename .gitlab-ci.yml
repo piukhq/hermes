@@ -3,40 +3,57 @@ tests:
     - pip3 install -r requirements.txt
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - py.test --cov=.
+  tags:
+    - docker
   services:
-  - postgres:9.4.4
+    - postgres:9.4.4
+  tags:
+    - docker
 
 complexity:
   script:
     - xenon --max-average A --max-modules B --max-absolute B .
+  tags:
+    - docker
 
 flake8:
   script:
     - flake8 *
+  tags:
+    - docker
 
-deploy-dev:
-  image: hellobink/ansible
+deploy_dev:
   stage: deploy
   environment: dev
   script:
-  - cd /ansible && ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=dev_web
+    - docker build -t hellobink/hermes:dev .
+    - docker login -u binkautomation -p epitome-generic-basilisk
+    - docker push hellobink/hermes:dev
   only:
-  - master
-
-deploy-staging:
-    stage: deploy
-    when: manual
-    script:
-    - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=staging_web'
-    environment: staging
-    only:
     - master
+  tags:
+    - shell
 
-deploy-production:
-    stage: deploy
-    when: manual
-    script:
-    - echo 'ansible-playbook playbooks/deploy/django.yml -e project=hermes -e hosts=prod_web -e jump=your_otp_user'
-    environment: production
-    only:
-    - master
+deploy_staging:
+  stage: deploy
+  environment: staging
+  script:
+    - docker build -t hellobink/hermes:staging .
+    - docker login -u binkautomation -p epitome-generic-basilisk
+    - docker push hellobink/hermes:staging
+  only:
+    - staging
+  tags:
+    - shell
+
+deploy_production:
+  stage: deploy
+  environment: production
+  script:
+    - docker build -t hellobink/hermes:production .
+    - docker login -u binkautomation -p epitome-generic-basilisk
+    - docker push hellobink/hermes:production
+  only:
+    - production
+  tags:
+    - shell
