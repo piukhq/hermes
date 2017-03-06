@@ -74,6 +74,7 @@ INSTALLED_APPS = (
     'order',
     'colorful',
     'mail_templated',
+    'oauth2_provider',
 )
 
 MIDDLEWARE_CLASSES = (
