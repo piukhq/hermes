@@ -147,6 +147,7 @@ class ListCreatePaymentCardAccount(APIView):
     @staticmethod
     def create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
+            # get the oldest matching account
             old_account = PaymentCardAccount.all_objects.filter(
                 fingerprint=account.fingerprint).order_by('created').first()
 
