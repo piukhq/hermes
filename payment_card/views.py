@@ -168,12 +168,13 @@ class ListCreatePaymentCardAccount(APIView):
         account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
+            account.save()
             metis.enrol_existing_payment_card(account)
         else:
             account.status = old_account.status
             old_account.is_deleted = True
             old_account.save()
-        account.save()
+            account.save()
         return account
 
     @staticmethod
