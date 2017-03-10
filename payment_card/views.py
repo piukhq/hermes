@@ -149,7 +149,7 @@ class ListCreatePaymentCardAccount(APIView):
         if account.payment_card.system == PaymentCard.MASTERCARD:
             # get the oldest matching account
             old_account = PaymentCardAccount.all_objects.filter(
-                fingerprint=account.fingerprint).order_by('created').first()
+                fingerprint=account.fingerprint).order_by('-created').first()
 
             if old_account:
                 return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
