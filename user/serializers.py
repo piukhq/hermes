@@ -1,11 +1,14 @@
 from collections import OrderedDict
+
+from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
+from oauth2_provider.models import Application as ClientApplication
+
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
-from django.contrib.auth.password_validation import validate_password as validate_pass
 
 
 class RegisterSerializer(serializers.Serializer):
