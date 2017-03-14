@@ -203,11 +203,12 @@ class Login(GenericAPIView):
               message: The account associated with this email address is suspended.
         response_serializer: ResponseAuthSerializer
         """
-        if 'email' not in request.data:
+        serializer = self.serializer_class(data=request.data)
+        if not serializer.is_valid():
             return error_response(INCORRECT_CREDENTIALS)
 
-        email = CustomUser.objects.normalize_email(request.data['email'])
-        password = request.data['password']
+        email = CustomUser.objects.normalize_email(serializer.data['email'])
+        password = serializer.data['password']
         user = authenticate(username=email, password=password)
 
         if not user:
