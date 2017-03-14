@@ -11,7 +11,21 @@ from scheme.models import SchemeAccount
 from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
 
 
-class RegisterSerializer(serializers.Serializer):
+class ClientAppSerializerMixin(serializers.Serializer):
+    client_id = serializers.CharField(write_only=True)
+
+    def __init__(self, *args, **kwargs):
+        self.client_app = None
+        super(ClientAppSerializerMixin, self).__init__(*args, **kwargs)
+
+    def validate_client_id(self, client_id):
+        try:
+            self.client_app = ClientApplication.objects.get(client_id=client_id)
+        except ClientApplication.DoesNotExist:
+            raise serializers.ValidationError('client_id not found ({})'.format(client_id))
+
+
+class RegisterSerializer(ClientAppSerializerMixin, serializers.Serializer):
     promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
