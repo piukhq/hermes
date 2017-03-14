@@ -147,11 +147,11 @@ class ListCreatePaymentCardAccount(APIView):
     @staticmethod
     def create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
-            try:
-                old_account = PaymentCardAccount.all_objects.get(fingerprint=account.fingerprint)
-            except PaymentCardAccount.DoesNotExist:
-                pass
-            else:
+            # get the oldest matching account
+            old_account = PaymentCardAccount.all_objects.filter(
+                fingerprint=account.fingerprint).order_by('-created').first()
+
+            if old_account:
                 return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
         metis.enrol_new_payment_card(account)
@@ -168,12 +168,13 @@ class ListCreatePaymentCardAccount(APIView):
         account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
+            account.save()
             metis.enrol_existing_payment_card(account)
         else:
             account.status = old_account.status
             old_account.is_deleted = True
             old_account.save()
-        account.save()
+            account.save()
         return account
 
     @staticmethod

@@ -375,7 +375,12 @@ def twitter_login(access_token, access_token_secret, promo_code=None):
         # TODO: add logging
         return Response(request.json()['errors'], status=request.status_code)
     profile = request.json()
-    return social_response(profile['id_str'], profile.get('email'), 'twitter', promo_code)
+
+    # twitter can send back an empty string, and we need a None
+    email = profile.get('email')
+    if not email:
+        email = None
+    return social_response(profile['id_str'], email, 'twitter', promo_code)
 
 
 def social_response(social_id, email, service, promo_code):
