@@ -92,6 +92,18 @@ class TestRegisterNewUserViews(TestCase):
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
         self.assertEqual(content['message'], 'Registration failed.')
 
+    def test_good_promo_code(self):
+        client = Client()
+        # Register a user
+        response = client.post('/users/register/', {'email': 'test_6@Example.com', 'password': 'Password6'})
+        self.assertEqual(response.status_code, 201)
+        # get the corresponding promo code for that user
+        u = CustomUser.objects.all().filter(email='test_6@example.com')
+        rc = u[0].referral_code
+        # Apply the promo code for that user with a new user registration
+        response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc})
+        self.assertEqual(response.status_code, 201)
+
     def test_bad_bad_promo_code(self):
         client = Client()
         response = client.post('/users/register/', {'email': 't4@example.com', 'password': 'pasd4', 'promo_code': '4'})
