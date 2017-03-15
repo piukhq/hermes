@@ -12,7 +12,11 @@ from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setti
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
-    client_id = serializers.CharField(write_only=True)
+    """
+    A mixin for the register and login serializer. Provides a client_id field,
+    where the value must match that of a known ClientApplication.
+    """
+    client_id = serializers.CharField(required=False, write_only=True)  # Can be required after frontend upgrade.
 
     def __init__(self, *args, **kwargs):
         self.client_app = None
