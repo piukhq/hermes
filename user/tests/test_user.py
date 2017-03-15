@@ -101,7 +101,8 @@ class TestRegisterNewUserViews(TestCase):
         u = CustomUser.objects.all().filter(email='test_6@example.com')
         rc = u[0].referral_code
         # Apply the promo code for that user with a new user registration
-        response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc})
+        response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10',
+                                                    'promo_code': rc})
         self.assertEqual(response.status_code, 201)
 
     def test_bad_bad_promo_code(self):
