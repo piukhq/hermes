@@ -101,14 +101,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
 
     def apply_marketing(self, marketing_code):
-        valid = False
         try:
             self.marketing_code = MarketingCode.objects.get(code=marketing_code)
-            valid = True
-        except:
-            valid = False
-
-        return valid
+        except MarketingCode.DoesNotExist:
+            return False
+        return True
 
     def __unicode__(self):
         return self.email or str(self.uid)
