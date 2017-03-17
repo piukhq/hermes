@@ -1,6 +1,7 @@
 import arrow
 import jwt
 import uuid
+from django.db.models.fields import CharField
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
 from hashids import Hashids
@@ -41,8 +42,31 @@ def valid_marketing_code(marketing_code):
     return valid
 
 
+class ModifyingFieldDescriptor(object):
+    """ Modifies a field when set using the field's (overriden) .to_python() method. """
+    def __init__(self, field):
+        self.field = field
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            raise AttributeError('Can only be accessed via an instance.')
+        return instance.__dict__[self.field.name]
+    def __set__(self, instance, value):
+        instance.__dict__[self.field.name] = self.field.to_python(value)
+
+
+class LowerCaseCharField(CharField):
+    def to_python(self, value):
+        value = super(LowerCaseCharField, self).to_python(value)
+        if isinstance(value, str):
+            return value.lower()
+        return value
+    def contribute_to_class(self, cls, name):
+        super(LowerCaseCharField, self).contribute_to_class(cls, name)
+        setattr(cls, self.name, ModifyingFieldDescriptor(self))
+
+
 class MarketingCode(models.Model):
-    code = models.CharField(max_length=100, null=True, blank=True)
+    code = LowerCaseCharField(max_length=100, null=True, blank=True)
     date_from = models.DateTimeField()
     date_to = models.DateTimeField()
     description = models.CharField(max_length=300, null=True, blank=True)
