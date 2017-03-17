@@ -8,7 +8,7 @@ from django.http import HttpResponse
 from django.test import Client, TestCase
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
-from user.models import CustomUser, Referral, hash_ids, valid_promo_code, UserSetting, Setting
+from user.models import CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from rest_framework.test import APITestCase
 from unittest import mock
@@ -105,7 +105,81 @@ class TestRegisterNewUserViews(TestCase):
                                                     'promo_code': rc})
         self.assertEqual(response.status_code, 201)
 
-    def test_bad_bad_promo_code(self):
+    def test_good_marketing_code_without_registration(self):
+        client = Client()
+        # create a marketing code
+        mc = MarketingCode()
+        code = "SALE123".lower()
+        mc.code = code
+        mc.date_from = arrow.utcnow().datetime
+        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
+        mc.description = ''
+        mc.partner = 'Dixons Travel'
+        mc.save()
+
+        # Apply the marketing code for this user
+        response = client.post('/users/promo_code/', {'promo_code': code})
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertTrue(content['valid'])
+
+    def test_bad_marketing_code_without_registration(self):
+        client = Client()
+        # create a marketing code
+        mc = MarketingCode()
+        code = "SALE123".lower()
+        mc.code = code
+        mc.date_from = arrow.utcnow().datetime
+        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
+        mc.description = ''
+        mc.partner = 'Dixons Travel'
+        mc.save()
+
+        # Apply the marketing code for this user
+        response = client.post('/users/promo_code/', {'promo_code': "SALE987"})
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertFalse(content['valid'])
+
+    def test_good_marketing_code(self):
+        client = Client()
+        # create a marketing code
+        mc = MarketingCode()
+        code = "SALE123".lower()
+        mc.code = code
+        mc.date_from = arrow.utcnow().datetime
+        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
+        mc.description = ''
+        mc.partner = 'Dixons Travel'
+        mc.save()
+
+        u = CustomUser.objects.all().filter(email='test_6@example.com')
+        # Apply the marketing code for this user with a new user registration
+        response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10',
+                                                    'promo_code': code})
+        self.assertEqual(response.status_code, 201)
+
+    def test_bad_marketing_code(self):
+        client = Client()
+        # create a marketing code
+        mc = MarketingCode()
+        code = "SALE987".lower()
+        mc.code = code
+        mc.date_from = arrow.utcnow().datetime
+        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
+        mc.description = ''
+        mc.partner = 'Dixons Travel'
+        mc.save()
+
+        u = CustomUser.objects.all().filter(email='test_6@example.com')
+        # Apply the marketing code for this user with a new user registration
+        response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10',
+                                                    'promo_code': "SALE"})
+        self.assertEqual(response.status_code, 400)
+        content = json.loads(response.content.decode())
+        self.assertEqual(content['promo_code'], ['Promo code is not valid'])
+
+    def test_bad_promo_code(self):
         client = Client()
         response = client.post('/users/register/', {'email': 't4@example.com', 'password': 'pasd4', 'promo_code': '4'})
         self.assertEqual(response.status_code, 400)

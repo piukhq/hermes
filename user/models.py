@@ -18,11 +18,37 @@ hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4
 
 
 def valid_promo_code(promo_code):
-    pk = hash_ids.decode(promo_code)
     valid = False
+
+    if valid_marketing_code(promo_code):
+        return True
+
+    pk = hash_ids.decode(promo_code)
     if pk and CustomUser.objects.filter(id=pk[0], is_active=True).exists():
         valid = True
     return valid
+
+def valid_marketing_code(marketing_code):
+    valid = True
+
+    try:
+        mc = MarketingCode.objects.get(code=marketing_code)
+    except:
+        # not found
+        valid = False
+
+    return valid
+
+
+class MarketingCode(models.Model):
+    code = models.CharField(max_length=100, null=True, blank=True)
+    date_from = models.DateTimeField()
+    date_to = models.DateTimeField()
+    description = models.CharField(max_length=300, null=True, blank=True)
+    partner = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return "{0} code for partner {1}".format(self.code, self.partner)
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -34,6 +60,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
+
+    marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -70,6 +98,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def create_referral(self, referral_code):
         referrer_id = hash_ids.decode(referral_code)[0]
         Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
+
+    def apply_marketing(self, marketing_code):
+        valid = False
+        try:
+            mc = MarketingCode.objects.get(code=marketing_code)
+            self.marketing_code = mc
+            valid = True
+        except:
+            valid = False
+
+        return valid
 
     def __unicode__(self):
         return self.email or str(self.uid)

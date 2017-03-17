@@ -2,10 +2,11 @@ from django import forms
 from django.contrib.admin import StackedInline
 from django.contrib.auth.admin import UserAdmin
 from django.contrib import admin
+from django.contrib.admin.widgets import AdminDateWidget
 
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
+from user.models import CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting
 
 
 class UserDetailInline(admin.StackedInline):
@@ -79,4 +80,26 @@ class UserSettingAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'setting__slug', 'value')
 
 
+class MarketingCodeAdminForm(forms.ModelForm):
+    code = forms.CharField(max_length=100, required=True)
+    date_from = forms.DateTimeField(widget=AdminDateWidget(), required=True)
+    date_to = forms.DateTimeField(widget=AdminDateWidget(), required=True)
+    description = forms.CharField(max_length=300)
+    partner = forms.CharField(max_length=100, required=True)
+
+
+class MarketingCodeAdmin(admin.ModelAdmin):
+    form = MarketingCodeAdminForm
+    fields = ['code', 'date_from', 'date_to', 'description', 'partner',]
+    def save_model(self, request, obj, form, change):
+        obj.code = request.POST.get('code', '').lower()
+        obj.date_from = request.POST.get('date_from', '')
+        obj.date_to = request.POST.get('date_to', '')
+        obj.description = request.POST.get('description', '')
+        obj.partner = request.POST.get('partner', '')
+        obj.save()
+
+
 admin.site.register(Setting)
+admin.site.register(MarketingCode, MarketingCodeAdmin)
+
