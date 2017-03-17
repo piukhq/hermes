@@ -31,15 +31,12 @@ def valid_promo_code(promo_code):
 
 
 def valid_marketing_code(marketing_code):
-    valid = True
-
     try:
         MarketingCode.objects.get(code=marketing_code)
-    except:
+    except MarketingCode.DoesNotExist:
         # not found
-        valid = False
-
-    return valid
+        return False
+    return True
 
 
 class ModifyingFieldDescriptor(object):
