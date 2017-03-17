@@ -105,6 +105,24 @@ class TestRegisterNewUserViews(TestCase):
                                                     'promo_code': rc})
         self.assertEqual(response.status_code, 201)
 
+    def test_timedout_marketing_code_without_registration(self):
+        client = Client()
+        # create a marketing code
+        mc = MarketingCode()
+        code = "SALE123".lower()
+        mc.code = code
+        mc.date_from = arrow.utcnow().replace(hours=-12).datetime
+        mc.date_to = arrow.utcnow().replace(hours=-6).datetime
+        mc.description = ''
+        mc.partner = 'Dixons Travel'
+        mc.save()
+
+        # Apply the marketing code for this user
+        response = client.post('/users/promo_code/', {'promo_code': code})
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertFalse(content['valid'])
+
     def test_good_marketing_code_without_registration(self):
         client = Client()
         # create a marketing code
