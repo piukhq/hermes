@@ -5,7 +5,7 @@ from django.contrib import admin
 
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, Referral, UserSetting, Setting
+from user.models import CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting
 
 
 class UserDetailInline(admin.StackedInline):
@@ -80,3 +80,4 @@ class UserSettingAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Setting)
+admin.site.register(MarketingCode)

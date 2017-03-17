@@ -12,7 +12,9 @@ class CustomUserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         if promo_code:
-            user.create_referral(promo_code)
+            # if it's a marketing code then treat it as such, else do the promo/referral thing...
+            if not user.apply_marketing(promo_code.lower()):
+                user.create_referral(promo_code)
         return user
 
     def create_user(self, email=None, password=None, promo_code=None, **extra_fields):

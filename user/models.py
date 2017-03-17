@@ -1,6 +1,7 @@
 import arrow
 import jwt
 import uuid
+from django.db.models.fields import CharField
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
 from hashids import Hashids
@@ -18,11 +19,61 @@ hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4
 
 
 def valid_promo_code(promo_code):
-    pk = hash_ids.decode(promo_code)
     valid = False
+
+    if valid_marketing_code(promo_code):
+        return True
+
+    pk = hash_ids.decode(promo_code)
     if pk and CustomUser.objects.filter(id=pk[0], is_active=True).exists():
         valid = True
     return valid
+
+
+def valid_marketing_code(marketing_code):
+    try:
+        MarketingCode.objects.get(code=marketing_code)
+    except MarketingCode.DoesNotExist:
+        # not found
+        return False
+    return True
+
+
+class ModifyingFieldDescriptor(object):
+    """ Modifies a field when set using the field's (overriden) .to_python() method. """
+    def __init__(self, field):
+        self.field = field
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            raise AttributeError('Can only be accessed via an instance.')
+        return instance.__dict__[self.field.name]
+
+    def __set__(self, instance, value):
+        instance.__dict__[self.field.name] = self.field.to_python(value)
+
+
+class LowerCaseCharField(CharField):
+    def to_python(self, value):
+        value = super(LowerCaseCharField, self).to_python(value)
+        if isinstance(value, str):
+            return value.lower()
+        return value
+
+    def contribute_to_class(self, cls, name):
+        super(LowerCaseCharField, self).contribute_to_class(cls, name)
+        setattr(cls, self.name, ModifyingFieldDescriptor(self))
+
+
+class MarketingCode(models.Model):
+    code = LowerCaseCharField(max_length=100, null=True, blank=True)
+    date_from = models.DateTimeField()
+    date_to = models.DateTimeField()
+    description = models.CharField(max_length=300, null=True, blank=True)
+    partner = models.CharField(max_length=100, null=True, blank=True)
+
+    def __str__(self):
+        return "{0} code for partner {1}".format(self.code, self.partner)
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
@@ -34,6 +85,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
+
+    marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -70,6 +123,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def create_referral(self, referral_code):
         referrer_id = hash_ids.decode(referral_code)[0]
         Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
+
+    def apply_marketing(self, marketing_code):
+        try:
+            self.marketing_code = MarketingCode.objects.get(code=marketing_code)
+        except MarketingCode.DoesNotExist:
+            return False
+        return True
 
     def __unicode__(self):
         return self.email or str(self.uid)

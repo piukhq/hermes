@@ -25,8 +25,9 @@ from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting,
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
-                              PromoCodeSerializer, TwitterRegisterSerializer, ResetTokenSerializer, SettingSerializer,
-                              UserSettingSerializer, TokenResetPasswordSerializer)
+                              PromoCodeSerializer, TwitterRegisterSerializer,
+                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer,
+                              TokenResetPasswordSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -87,8 +88,8 @@ class ValidatePromoCode(CreateAPIView):
     serializer_class = PromoCodeSerializer
 
     def post(self, request, *args, **kwargs):
-        promo_code = request.data['promo_code']
-        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(promo_code)})
+        code = request.data['promo_code']
+        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
         return Response(out_serializer.data)
 
 

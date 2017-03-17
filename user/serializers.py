@@ -48,6 +48,11 @@ class PromoCodeSerializer(serializers.Serializer):
     valid = serializers.BooleanField(read_only=True)
 
 
+class MarketingCodeSerializer(serializers.Serializer):
+    marketing_code = serializers.CharField(write_only=True)
+    valid = serializers.BooleanField(read_only=True)
+
+
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
