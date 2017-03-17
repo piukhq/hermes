@@ -31,12 +31,16 @@ def valid_promo_code(promo_code):
 
 
 def valid_marketing_code(marketing_code):
+    valid = False
     try:
-        MarketingCode.objects.get(code=marketing_code)
+        mc = MarketingCode.objects.get(code=marketing_code)
+        now = arrow.utcnow().datetime
+        if mc.date_from <= now < mc.date_to:
+            valid = True
     except MarketingCode.DoesNotExist:
         # not found
-        return False
-    return True
+        valid = False
+    return valid
 
 
 class ModifyingFieldDescriptor(object):
@@ -126,7 +130,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def apply_marketing(self, marketing_code):
         try:
-            self.marketing_code = MarketingCode.objects.get(code=marketing_code)
+            mc = MarketingCode.objects.get(code=marketing_code)
+            if valid_marketing_code(mc.code):
+                self.marketing_code = mc
+            else:
+                return False
         except MarketingCode.DoesNotExist:
             return False
         return True
