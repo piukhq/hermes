@@ -103,8 +103,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def apply_marketing(self, marketing_code):
         valid = False
         try:
-            mc = MarketingCode.objects.get(code=marketing_code)
-            self.marketing_code = mc
+            self.marketing_code = MarketingCode.objects.get(code=marketing_code)
             valid = True
         except:
             valid = False
