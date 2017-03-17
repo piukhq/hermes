@@ -28,11 +28,12 @@ def valid_promo_code(promo_code):
         valid = True
     return valid
 
+
 def valid_marketing_code(marketing_code):
     valid = True
 
     try:
-        mc = MarketingCode.objects.get(code=marketing_code)
+        MarketingCode.objects.get(code=marketing_code)
     except:
         # not found
         valid = False

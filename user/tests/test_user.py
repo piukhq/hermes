@@ -153,7 +153,6 @@ class TestRegisterNewUserViews(TestCase):
         mc.partner = 'Dixons Travel'
         mc.save()
 
-        u = CustomUser.objects.all().filter(email='test_6@example.com')
         # Apply the marketing code for this user with a new user registration
         response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10',
                                                     'promo_code': code})
@@ -171,7 +170,6 @@ class TestRegisterNewUserViews(TestCase):
         mc.partner = 'Dixons Travel'
         mc.save()
 
-        u = CustomUser.objects.all().filter(email='test_6@example.com')
         # Apply the marketing code for this user with a new user registration
         response = client.post('/users/register/', {'email': 'oe42@example.com', 'password': 'Asdfpass10',
                                                     'promo_code': "SALE"})

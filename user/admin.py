@@ -90,7 +90,8 @@ class MarketingCodeAdminForm(forms.ModelForm):
 
 class MarketingCodeAdmin(admin.ModelAdmin):
     form = MarketingCodeAdminForm
-    fields = ['code', 'date_from', 'date_to', 'description', 'partner',]
+    fields = ['code', 'date_from', 'date_to', 'description', 'partner', ]
+
     def save_model(self, request, obj, form, change):
         obj.code = request.POST.get('code', '').lower()
         obj.date_from = request.POST.get('date_from', '')
@@ -102,4 +103,3 @@ class MarketingCodeAdmin(admin.ModelAdmin):
 
 admin.site.register(Setting)
 admin.site.register(MarketingCode, MarketingCodeAdmin)
-
