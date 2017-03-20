@@ -9,5 +9,4 @@ urlpatterns = [
     url(r'^payment_cards', include('payment_card.urls')),
     url(r'^order', include('order.urls')),
     url(r'^docs/hermes/?', include('rest_framework_swagger.urls')),
-    url(r'^o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
 ]
