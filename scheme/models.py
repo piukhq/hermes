@@ -1,19 +1,21 @@
+import json
+import re
+import socket
 import sre_constants
+import uuid
+import requests
+
+from bulk_update.manager import BulkUpdateManager
+from colorful.fields import RGBColorField
 from django.conf import settings
 from django.db import models
 from django.db.models import F
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
-from bulk_update.manager import BulkUpdateManager
 from scheme.encyption import AESCipher
-from colorful.fields import RGBColorField
-import json
-import requests
-import uuid
-import re
-import socket
 
 
 class Category(models.Model):

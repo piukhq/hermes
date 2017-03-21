@@ -1,16 +1,19 @@
 import arrow
 import jwt
 import uuid
+import random
+from string import printable
+
+from hashids import Hashids
 from django.db.models.fields import CharField
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
-from hashids import Hashids
-from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 
+from hermes import settings
 from scheme.models import Scheme
 from user.managers import CustomUserManager
 from user.validators import validate_boolean, validate_number
