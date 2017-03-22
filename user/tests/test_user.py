@@ -2,6 +2,7 @@ import json
 import time
 import arrow
 import httpretty as httpretty
+from string import ascii_letters, digits
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 from rest_framework.test import APITestCase
@@ -1007,3 +1008,21 @@ class TestUserSettings(APITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
+
+
+class TestClientApplication(TestCase):
+    """Tests specific to ClientApplications.
+    """
+    valid_chars = set(ascii_letters + digits)
+
+    def test_client_id_chars(self):
+        """Check output of the randomly generated client_id field.
+        """
+        app = ClientApplication.objects.create()
+        self.assertTrue(set(app.client_id) <= self.valid_chars)
+
+    def test_secret_chars(self):
+        """Check output of secret field.
+        """
+        app = ClientApplication.objects.create()
+        self.assertTrue(set(app.secret) <= self.valid_chars)

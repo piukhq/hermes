@@ -2,7 +2,7 @@ import arrow
 import jwt
 import uuid
 import random
-from string import printable
+from string import ascii_letters, digits
 
 from hashids import Hashids
 from django.db.models.fields import CharField
@@ -316,7 +316,7 @@ def validate_setting_value(value, setting):
             })
 
 
-def _get_random_string(length=40, chars=printable):
+def _get_random_string(length=50, chars=(ascii_letters + digits)):
     rand = random.SystemRandom()
     return ''.join(rand.choice(chars) for x in range(length))
 
