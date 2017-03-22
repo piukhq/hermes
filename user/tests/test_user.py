@@ -2,16 +2,20 @@ import json
 import time
 import arrow
 import httpretty as httpretty
+from requests_oauthlib import OAuth1Session
+from rest_framework.utils.serializer_helpers import ReturnList
+from rest_framework.test import APITestCase
+
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.test import Client, TestCase
-from requests_oauthlib import OAuth1Session
-from rest_framework.utils.serializer_helpers import ReturnList
-from user.models import CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting
+
+from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
+                         ClientApplication)
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
-from rest_framework.test import APITestCase
 from unittest import mock
+
 from user.views import facebook_login, twitter_login, social_login
 from hermes import settings
 
@@ -26,13 +30,47 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
 
-    def test_register_fail(self):
+    def test_register_with_client_id(self):
         client = Client()
-        response = client.post('/users/register/', {'email': 'test_1@example.com', 'password': 'password'})
+        app = ClientApplication.objects.create()
+        data = {
+            'email': 'test_1@example.com',
+            'password': 'Password1',
+            'client_id': app.client_id,
+        }
+
+        response = client.post('/users/register/', data)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('email', content.keys())
+        self.assertIn('api_key', content.keys())
+        self.assertEqual(content['email'], 'test_1@example.com')
+
+    def test_register_fail_invalid_client_id(self):
+        client = Client()
+        data = {
+            'email': 'test_1@example.com',
+            'password': 'Password1',
+            'client_id': 'foo',
+        }
+
+        response = client.post('/users/register/', data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
         self.assertEqual(content['message'], 'Registration failed.')
+
+    def test_register_fail_email_not_unique(self):
+        client = Client()
+        data = {
+            'email': 'test_1@example.com',
+            'password': 'Password1',
+        }
+
+        register_url = '/users/register/'
+        response = client.post(register_url, data)
+        self.assertEqual(response.status_code, 201)
+        response = client.post(register_url, data)
+        self.assertEqual(response.status_code, 403)
 
     def test_uid_is_unique(self):
         client = Client()

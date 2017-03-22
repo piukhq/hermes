@@ -314,3 +314,16 @@ def validate_setting_value(value, setting):
                                       'value': value,
                                       'value_type': setting.value_type_name,
             })
+
+
+def _get_random_string(length=40, chars=printable):
+    rand = random.SystemRandom()
+    return ''.join(rand.choice(chars) for x in range(length))
+
+
+class ClientApplication(models.Model):
+    """A registered API app consumer. Randomly generated client_id and secret fields.
+    """
+    client_id = models.CharField(max_length=128, unique=True, default=_get_random_string, db_index=True)
+    secret = models.CharField(max_length=255, unique=True, blank=True, default=_get_random_string, db_index=True)
+    name = models.CharField(max_length=100, unique=True)
