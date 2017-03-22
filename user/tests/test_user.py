@@ -597,6 +597,33 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
 
+    def test_login_with_client_id(self):
+        client = Client()
+        app = ClientApplication.objects.create()
+        data = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+            'client_id': app.client_id,
+        }
+
+        response = client.post('/users/login/', data)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('email', content.keys())
+        self.assertIn('api_key', content.keys())
+        self.assertEqual(content['email'], self.user.email)
+
+    def test_login_fail_invalid_client_id(self):
+        client = Client()
+        data = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+            'client_id': 'foo',
+        }
+
+        response = client.post('/users/login/', data)
+        self.assertEqual(response.status_code, 403)
+
     def test_remote_authentication_valid(self):
         client = Client()
         auth_headers = {
