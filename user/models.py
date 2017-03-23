@@ -326,3 +326,9 @@ class ClientApplication(models.Model):
     """
     client_id = models.CharField(max_length=128, unique=True, default=_get_random_string, db_index=True)
     name = models.CharField(max_length=100, unique=True)
+
+
+class Organisation(models.Model):
+    """A partner organisation wishing access the Bink API.
+    """
+    name = models.CharField(max_length=100, unique=True)
