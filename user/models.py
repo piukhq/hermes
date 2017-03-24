@@ -321,6 +321,12 @@ def _get_random_string(length=50, chars=(ascii_letters + digits)):
     return ''.join(rand.choice(chars) for x in range(length))
 
 
+class Organisation(models.Model):
+    """A partner organisation wishing access the Bink API.
+    """
+    name = models.CharField(max_length=100, unique=True)
+
+
 class ClientApplication(models.Model):
     """A registered API app consumer. Randomly generated client_id and secret fields.
     """
@@ -328,7 +334,8 @@ class ClientApplication(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
 
-class Organisation(models.Model):
-    """A partner organisation wishing access the Bink API.
+class ClientApplicationBundle(models.Model):
+    """Links a ClientApplication to one or more native app 'bundles'.
     """
-    name = models.CharField(max_length=100, unique=True)
+    client_application = models.ForeignKey(ClientApplication)
+    bundle_id = models.CharField(max_length=200)
