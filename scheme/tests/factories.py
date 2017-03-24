@@ -20,6 +20,7 @@ class CategoryFactory(factory.DjangoModelFactory):
 class SchemeFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.Scheme
+        django_get_or_create = ('slug',)
 
     name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
