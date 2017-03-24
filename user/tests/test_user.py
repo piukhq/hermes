@@ -2,7 +2,6 @@ import json
 import time
 import arrow
 import httpretty as httpretty
-from string import ascii_letters, digits
 from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 from rest_framework.test import APITestCase
