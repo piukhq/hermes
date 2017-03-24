@@ -326,12 +326,19 @@ class Organisation(models.Model):
     """
     name = models.CharField(max_length=100, unique=True)
 
+    def __str__(self):
+        return '{}'.format(self.name)
+
 
 class ClientApplication(models.Model):
     """A registered API app consumer. Randomly generated client_id and secret fields.
     """
-    client_id = models.CharField(max_length=128, unique=True, default=_get_random_string, db_index=True)
+    client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
+    organisation = models.ForeignKey(Organisation)
     name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return '{} by {}'.format(self.name, self.organisation.name)
 
 
 class ClientApplicationBundle(models.Model):
@@ -339,3 +346,6 @@ class ClientApplicationBundle(models.Model):
     """
     client_application = models.ForeignKey(ClientApplication)
     bundle_id = models.CharField(max_length=200)
+
+    def __str__(self):
+        return '{} ({})'.format(self.bundle_id, str(self.client_application))
