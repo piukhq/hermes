@@ -33,7 +33,7 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_register_with_client_id(self):
         client = Client()
-        app = ClientApplication.objects.create()
+        app = ClientApplication.objects.first()
         data = {
             'email': 'test_1@example.com',
             'password': 'Password1',
@@ -600,7 +600,7 @@ class TestAuthenticationViews(APITestCase):
 
     def test_login_with_client_id(self):
         client = Client()
-        app = ClientApplication.objects.create()
+        app = ClientApplication.objects.first()
         data = {
             'email': self.user.email,
             'password': 'defaultpassword',
@@ -1008,21 +1008,3 @@ class TestUserSettings(APITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
-
-
-class TestClientApplication(TestCase):
-    """Tests specific to ClientApplications.
-    """
-    valid_chars = set(ascii_letters + digits)
-
-    def test_client_id_chars(self):
-        """Check output of the randomly generated client_id field.
-        """
-        app = ClientApplication.objects.create()
-        self.assertTrue(set(app.client_id) <= self.valid_chars)
-
-    def test_secret_chars(self):
-        """Check output of secret field.
-        """
-        app = ClientApplication.objects.create()
-        self.assertTrue(set(app.secret) <= self.valid_chars)
