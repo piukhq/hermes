@@ -21,6 +21,9 @@ from user.validators import validate_boolean, validate_number
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
 
+BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+
+
 def valid_promo_code(promo_code):
     valid = False
 
@@ -112,7 +115,7 @@ class ClientApplication(models.Model):
     @classmethod
     def get_bink_app(cls):
         if not cls.bink_app:
-            cls.bink_app = cls.objects.get(name='Bink')
+            cls.bink_app = cls.objects.get(client_id=BINK_APP_ID)
         return cls.bink_app
 
 
@@ -128,7 +131,7 @@ class ClientApplicationBundle(models.Model):
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
-    client = models.ForeignKey('user.ClientApplication', default=ClientApplication.get_bink_app().client_id)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
