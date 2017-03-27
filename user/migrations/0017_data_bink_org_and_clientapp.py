@@ -5,12 +5,15 @@ from __future__ import unicode_literals
 from django.db import migrations
 
 
+BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+
+
 def create_bink_models(apps, schema_editor):
     Organisation = apps.get_model('user', 'Organisation')
     org = Organisation.objects.create(name='Loyalty Angels')
     ClientApplication = apps.get_model('user', 'ClientApplication')
     ClientApplication.objects.create(
-        client_id='MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd',
+        client_id=BINK_APP_ID,
         organisation=org,
         name='Bink')
 

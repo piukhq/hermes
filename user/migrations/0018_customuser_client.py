@@ -6,6 +6,9 @@ from django.db import migrations, models
 import django.db.models.deletion
 
 
+BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -16,6 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='customuser',
             name='client',
-            field=models.ForeignKey(default='MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd', on_delete=django.db.models.deletion.CASCADE, to='user.ClientApplication'),
+            field=models.ForeignKey(default=BINK_APP_ID, on_delete=django.db.models.deletion.CASCADE, to='user.ClientApplication'),
         ),
     ]
