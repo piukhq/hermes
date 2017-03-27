@@ -17,6 +17,7 @@ class IssuerFactory(factory.DjangoModelFactory):
 class PaymentCardFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.PaymentCard
+        django_get_or_create = ('slug',)
 
     name = fake.word()
     slug = FuzzyAttribute(fake.slug)
