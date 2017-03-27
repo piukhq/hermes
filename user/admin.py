@@ -6,7 +6,7 @@ from django.contrib import admin
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
 from user.models import (CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting,
-    Organisation, ClientApplication, ClientApplicationBundle)
+                         Organisation, ClientApplication, ClientApplicationBundle)
 
 
 class UserDetailInline(admin.StackedInline):
