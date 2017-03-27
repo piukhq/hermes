@@ -5,7 +5,8 @@ from django.contrib import admin
 
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting
+from user.models import (CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting,
+    Organisation, ClientApplication, ClientApplicationBundle)
 
 
 class UserDetailInline(admin.StackedInline):
@@ -79,5 +80,6 @@ class UserSettingAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'setting__slug', 'value')
 
 
+admin.site.register([Organisation, ClientApplication, ClientApplicationBundle])
 admin.site.register(Setting)
 admin.site.register(MarketingCode)
