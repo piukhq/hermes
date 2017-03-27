@@ -83,8 +83,52 @@ class MarketingCode(models.Model):
         return "{0} code for partner {1}".format(self.code, self.partner)
 
 
+class Organisation(models.Model):
+    """A partner organisation wishing access the Bink API.
+    """
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return '{}'.format(self.name)
+
+
+def _get_random_string(length=50, chars=(ascii_letters + digits)):
+    rand = random.SystemRandom()
+    return ''.join(rand.choice(chars) for x in range(length))
+
+
+class ClientApplication(models.Model):
+    """A registered API app consumer. Randomly generated client_id and secret fields.
+    """
+    client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
+    organisation = models.ForeignKey(Organisation)
+    name = models.CharField(max_length=100, unique=True)
+
+    bink_app = None
+
+    def __str__(self):
+        return '{} by {}'.format(self.name, self.organisation.name)
+
+    @classmethod
+    def get_bink_app(cls):
+        if not cls.bink_app:
+            cls.bink_app = cls.objects.get(name='Bink')
+        return cls.bink_app
+
+
+class ClientApplicationBundle(models.Model):
+    """Links a ClientApplication to one or more native app 'bundles'.
+    """
+    client_application = models.ForeignKey(ClientApplication)
+    bundle_id = models.CharField(max_length=200)
+
+    def __str__(self):
+        return '{} ({})'.format(self.bundle_id, str(self.client_application))
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
+    client = models.ForeignKey('user.ClientApplication', default=ClientApplication.get_bink_app().client_id)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
@@ -314,38 +358,3 @@ def validate_setting_value(value, setting):
                                       'value': value,
                                       'value_type': setting.value_type_name,
             })
-
-
-def _get_random_string(length=50, chars=(ascii_letters + digits)):
-    rand = random.SystemRandom()
-    return ''.join(rand.choice(chars) for x in range(length))
-
-
-class Organisation(models.Model):
-    """A partner organisation wishing access the Bink API.
-    """
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return '{}'.format(self.name)
-
-
-class ClientApplication(models.Model):
-    """A registered API app consumer. Randomly generated client_id and secret fields.
-    """
-    client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
-    organisation = models.ForeignKey(Organisation)
-    name = models.CharField(max_length=100, unique=True)
-
-    def __str__(self):
-        return '{} by {}'.format(self.name, self.organisation.name)
-
-
-class ClientApplicationBundle(models.Model):
-    """Links a ClientApplication to one or more native app 'bundles'.
-    """
-    client_application = models.ForeignKey(ClientApplication)
-    bundle_id = models.CharField(max_length=200)
-
-    def __str__(self):
-        return '{} ({})'.format(self.bundle_id, str(self.client_application))
