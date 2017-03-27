@@ -149,6 +149,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
+        unique_together = ('client', 'email',)
 
     def get_full_name(self):
         return self.email
