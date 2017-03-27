@@ -9,7 +9,17 @@ def create_bink_models(apps, schema_editor):
     Organisation = apps.get_model('user', 'Organisation')
     org = Organisation.objects.create(name='Loyalty Angels')
     ClientApplication = apps.get_model('user', 'ClientApplication')
-    ClientApplication.objects.create(organisation=org, name='Bink')
+    ClientApplication.objects.create(
+        client_id='MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd',
+        organisation=org,
+        name='Bink')
+
+
+def uncreate_bink_models(apps, schema_editor):
+    Organisation = apps.get_model('user', 'Organisation')
+    Organisation.objects.filter(name='Loyalty Angels').delete()
+    ClientApplication = apps.get_model('user', 'ClientApplication')
+    ClientApplication.objects.filter(name='Bink').delete()
 
 
 class Migration(migrations.Migration):
@@ -19,5 +29,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(create_bink_models),
+        migrations.RunPython(create_bink_models, uncreate_bink_models),
     ]
