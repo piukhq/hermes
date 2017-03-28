@@ -126,6 +126,10 @@ class ClientApplicationBundle(models.Model):
     client = models.ForeignKey(ClientApplication)
     bundle_id = models.CharField(max_length=200)
 
+    @classmethod
+    def get_bink_bundles(cls):
+        return cls.objects.filter(client_id=BINK_APP_ID)
+
     def __str__(self):
         return '{} ({})'.format(self.bundle_id, str(self.client_application))
 

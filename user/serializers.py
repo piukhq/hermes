@@ -7,25 +7,32 @@ from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting, ClientApplication
+from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
+                         ClientApplicationBundle)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
     """
-    A mixin for the register and login serializer. Provides a client_id field,
-    where the value must match that of a known ClientApplication.
+    Mixin for the register and login serializer.
+    Field values must match that of a known ClientApplication and one of its Bundles.
     """
-    client_id = serializers.CharField(required=False, write_only=True)  # Can be required after frontend upgrade.
+    client_id = serializers.CharField(required=False, write_only=True)
+    bundle_id = serializers.CharField(required=False, write_only=True)
 
-    def __init__(self, *args, **kwargs):
-        self.client_app = None
-        super(ClientAppSerializerMixin, self).__init__(*args, **kwargs)
+    def validate(self, attrs):
+        data = super(ClientAppSerializerMixin, self).validate(attrs)
+        client_id = data.get('client_id')
+        bundle_id = data.get('bundle_id')
+        if client_id or bundle_id:
+            self._check_client_app_bundle(client_id, bundle_id)
+        return data
 
-    def validate_client_id(self, client_id):
-        try:
-            self.client_app = ClientApplication.objects.get(client_id=client_id)
-        except ClientApplication.DoesNotExist:
-            raise serializers.ValidationError('client_id not found ({})'.format(client_id))
+    def _check_client_app_bundle(self, client_id, bundle_id):
+        if not ClientApplicationBundle.objects.filter(
+                bundle_id=bundle_id,
+                client_id=client_id).exists():
+            raise serializers.ValidationError(
+                'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
 
 
 class RegisterSerializer(ClientAppSerializerMixin, serializers.Serializer):

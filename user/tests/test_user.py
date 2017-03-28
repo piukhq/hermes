@@ -11,13 +11,16 @@ from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.test import Client, TestCase
 
-from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
-                         ClientApplication)
+from user.models import CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from unittest import mock
 
 from user.views import facebook_login, twitter_login, social_login
 from hermes import settings
+
+
+BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+BINK_BUNDLE_ID = 'com.bink.wallet'
 
 
 class TestRegisterNewUserViews(TestCase):
@@ -30,13 +33,13 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
 
-    def test_register_with_client_id(self):
+    def test_register_with_client_and_bundle(self):
         client = Client()
-        app = ClientApplication.objects.first()
         data = {
             'email': 'test_1@example.com',
             'password': 'Password1',
-            'client_id': app.client_id,
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID,
         }
 
         response = client.post('/users/register/', data)
@@ -52,6 +55,19 @@ class TestRegisterNewUserViews(TestCase):
             'email': 'test_1@example.com',
             'password': 'Password1',
             'client_id': 'foo',
+            'bundle_id': BINK_BUNDLE_ID,
+        }
+
+        response = client.post('/users/register/', data)
+        self.assertEqual(response.status_code, 403)
+
+    def test_register_fail_invalid_bundle(self):
+        client = Client()
+        data = {
+            'email': 'test_1@example.com',
+            'password': 'Password1',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': 'foo',
         }
 
         response = client.post('/users/register/', data)
@@ -599,11 +615,11 @@ class TestAuthenticationViews(APITestCase):
 
     def test_login_with_client_id(self):
         client = Client()
-        app = ClientApplication.objects.first()
         data = {
             'email': self.user.email,
             'password': 'defaultpassword',
-            'client_id': app.client_id,
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID,
         }
 
         response = client.post('/users/login/', data)
@@ -619,6 +635,19 @@ class TestAuthenticationViews(APITestCase):
             'email': self.user.email,
             'password': 'defaultpassword',
             'client_id': 'foo',
+            'bundle_id': BINK_BUNDLE_ID,
+        }
+
+        response = client.post('/users/login/', data)
+        self.assertEqual(response.status_code, 403)
+
+    def test_login_fail_invalid_bundle(self):
+        client = Client()
+        data = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': 'foo',
         }
 
         response = client.post('/users/login/', data)
