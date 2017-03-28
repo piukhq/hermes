@@ -123,7 +123,7 @@ class ClientApplication(models.Model):
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
-    client_application = models.ForeignKey(ClientApplication)
+    client = models.ForeignKey(ClientApplication)
     bundle_id = models.CharField(max_length=200)
 
     def __str__(self):
