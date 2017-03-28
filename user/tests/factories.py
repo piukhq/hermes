@@ -41,6 +41,7 @@ class UserProfileFactory(factory.Factory):
 class SettingFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.Setting
+        django_get_or_create = ('slug',)
 
     slug = FuzzyAttribute(fake.slug)
     value_type = 2
