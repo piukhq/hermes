@@ -54,8 +54,14 @@ class JwtAuthentication(BaseAuthentication):
         return self.authenticate_credentials(token)
 
     def authenticate_credentials(self, key):
+        """
+        Verify the JWT by first extracting the User ID, then obtaining
+        the corresponding ClientApplication secret value.
+
+        Returns CustomUser instance.
+        """
         try:
-            token_contents = jwt.decode(key, settings.TOKEN_SECRET)
+            token_contents = jwt.decode(key, verify=False)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
@@ -64,6 +70,10 @@ class JwtAuthentication(BaseAuthentication):
         except self.model.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
+        try:
+            token_contents = jwt.decode(key, user.client.secret, verify=True)
+        except jwt.DecodeError:
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
         return user, None
 
     def authenticate_header(self, request):

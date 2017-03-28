@@ -1,9 +1,10 @@
 import arrow
-from django.contrib.auth.password_validation import validate_password
 import jwt
+
+from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
-from hermes import settings
+
 from user.models import CustomUser, valid_reset_code
 from user.tests.factories import UserFactory
 
@@ -29,10 +30,10 @@ class TestResetPassword(TestCase):
         expiry_date = arrow.utcnow()
         expiry_date.replace(hours=-1)
         payload = {
-            'email': 'ak@loyaltyangels.com',
+            'email': self.user.email,
             'expiry_date': expiry_date.timestamp
         }
-        reset_token = jwt.encode(payload, settings.TOKEN_SECRET)
+        reset_token = jwt.encode(payload, self.user.client.secret)
         self.user.reset_token = reset_token
         self.user.save()
         token_is_valid = valid_reset_code(reset_token)

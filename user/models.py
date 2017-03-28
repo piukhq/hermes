@@ -171,7 +171,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'email': self.email,
             'expiry_date': expiry_date.timestamp
         }
-        reset_token = jwt.encode(payload, settings.TOKEN_SECRET)
+        reset_token = jwt.encode(payload, self.client.secret)
         self.reset_token = reset_token
         self.save()
         return reset_token
@@ -218,7 +218,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, settings.TOKEN_SECRET)
+        token = jwt.encode(payload, self.client.secret)
         return token.decode('unicode_escape')
 
     # Admin required fields
@@ -278,13 +278,13 @@ def create_user_detail(sender, instance, created, **kwargs):
 
 def valid_reset_code(reset_token):
     try:
-        CustomUser.objects.get(reset_token=reset_token)
+        user = CustomUser.objects.get(reset_token=reset_token)
     except CustomUser.DoesNotExist:
         return False
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, settings.TOKEN_SECRET)
+    token_payload = jwt.decode(reset_token, user.client.secret)
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
 
