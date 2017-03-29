@@ -134,6 +134,17 @@ class ClientApplicationBundle(models.Model):
         return '{} ({})'.format(self.bundle_id, str(self.client))
 
 
+class ClientApplicationKit(models.Model):
+    """Link a ClientApplication to known SDK kit names for usage tracking.
+    """
+    client = models.ForeignKey(ClientApplication)
+    kit_name = models.CharField(max_length=50)
+    is_valid = models.BooleanField(default=True)
+
+    def __str__(self):
+        return 'ClientApplication: {} - kit: {}'.format(self.client, self.kit_name)
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
     client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
