@@ -23,7 +23,8 @@ from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
 from django.conf import settings
-from user.serializers import (UserSerializer, RegisterSerializer, LoginSerializer, FaceBookWebRegisterSerializer,
+from user.serializers import (UserSerializer, RegisterSerializer, NewRegisterSerializer, LoginSerializer,
+                              NewLoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer,
                               ResetTokenSerializer, SettingSerializer, UserSettingSerializer,
@@ -40,27 +41,9 @@ class OpenAuthentication(SessionAuthentication):
         return
 
 
-# TODO: Could be merged with users
-# Will require research, multiple serializers
-# Password Handling
-class Register(APIView):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-
-    def post(self, request):
-        """
-        Register a new user in the Loyalty Angels App.
-        ---
-        request_serializer: RegisterSerializer
-        response_serializer: RegisterSerializer
-        parameters:
-            - name: password
-              description: >
-                password must be at least 8 characters long and contain at least one lower case character, one upper
-                case character, and one number.
-        """
-        serializer = RegisterSerializer(data=request.data)
-
+class CustomRegisterMixin(object):
+    def register_user(self, request, serializer_class):
+        serializer = serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
 
@@ -77,6 +60,35 @@ class Register(APIView):
                 return Response({'promo_code': serializer.errors['promo_code']}, 400)
             else:
                 return error_response(REGISTRATION_FAILED)
+
+
+# TODO: Could be merged with users
+# Will require research, multiple serializers
+# Password Handling
+class Register(CustomRegisterMixin, APIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = RegisterSerializer
+
+    def post(self, request):
+        """
+        Register a new user in the Loyalty Angels App.
+        ---
+        request_serializer: RegisterSerializer
+        response_serializer: RegisterSerializer
+        parameters:
+            - name: password
+              description: >
+                password must be at least 8 characters long and contain at least one lower case character, one upper
+                case character, and one number.
+        """
+        return self.register_user(request, self.serializer_class)
+
+
+class NewRegister(Register):
+    """New Register for authorised app users.
+    """
+    serializer_class = NewRegisterSerializer
 
 
 class ValidatePromoCode(CreateAPIView):
@@ -220,6 +232,12 @@ class Login(GenericAPIView):
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
         return Response(out_serializer.data)
+
+
+class NewLogin(Login):
+    """New login view for users of an authorised app.
+    """
+    serializer_class = NewLoginSerializer
 
 
 class FaceBookLoginWeb(CreateAPIView):

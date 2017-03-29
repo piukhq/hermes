@@ -42,7 +42,7 @@ class TestRegisterNewUserViews(TestCase):
             'client_id': BINK_CLIENT_ID,
         }
 
-        response = client.post('/users/register/', data)
+        response = client.post(reverse('new_register_user'), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
@@ -58,7 +58,7 @@ class TestRegisterNewUserViews(TestCase):
             'bundle_id': BINK_BUNDLE_ID,
         }
 
-        response = client.post('/users/register/', data)
+        response = client.post(reverse('new_register_user'), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
@@ -74,7 +74,7 @@ class TestRegisterNewUserViews(TestCase):
             'bundle_id': BINK_BUNDLE_ID,
         }
 
-        response = client.post('/users/register/', data)
+        response = client.post(reverse('new_register_user'), data)
         self.assertEqual(response.status_code, 403)
 
     def test_register_fail_invalid_bundle(self):
@@ -86,7 +86,7 @@ class TestRegisterNewUserViews(TestCase):
             'bundle_id': 'foo',
         }
 
-        response = client.post('/users/register/', data)
+        response = client.post(reverse('new_register_user'), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['message'], 'Registration failed.')
@@ -305,7 +305,7 @@ class TestRegisterNewUserViews(TestCase):
         # Test that django lowers the domain of the email address
         self.assertEqual(user.email, 'TEST_12@example.com')
         # Test that we can login with the domain still with upper case letters
-        response = self.client.post('/users/login/', data={"email": email, "password": 'Password6'})
+        response = self.client.post(reverse('login'), data={"email": email, "password": 'Password6'})
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
 
@@ -607,7 +607,7 @@ class TestAuthenticationViews(APITestCase):
             "email": self.user.email,
             "password": 'defaultpassword'
         }
-        response = self.client.post('/users/login/', data=data)
+        response = self.client.post(reverse('login'), data=data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
@@ -617,7 +617,7 @@ class TestAuthenticationViews(APITestCase):
             "email": self.user.email,
             "password": 'badpassword'
         }
-        response = self.client.post('/users/login/', data=data)
+        response = self.client.post(reverse('login'), data=data)
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], 'Login credentials incorrect.')
@@ -629,7 +629,7 @@ class TestAuthenticationViews(APITestCase):
             "email": self.user.email,
             "password": 'defaultpassword'
         }
-        response = self.client.post('/users/login/', data=data)
+        response = self.client.post(reverse('login'), data=data)
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
@@ -642,7 +642,7 @@ class TestAuthenticationViews(APITestCase):
             'client_id': BINK_CLIENT_ID,
         }
 
-        response = client.post('/users/login/', data)
+        response = client.post(reverse('new_login'), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertIn('email', content.keys())
@@ -658,7 +658,7 @@ class TestAuthenticationViews(APITestCase):
             'bundle_id': BINK_BUNDLE_ID,
         }
 
-        response = client.post('/users/login/', data)
+        response = client.post(reverse('new_login'), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertIn('email', content.keys())
@@ -674,7 +674,7 @@ class TestAuthenticationViews(APITestCase):
             'bundle_id': BINK_BUNDLE_ID,
         }
 
-        response = client.post('/users/login/', data)
+        response = client.post(reverse('new_login'), data)
         self.assertEqual(response.status_code, 403)
 
     def test_login_fail_invalid_bundle(self):
@@ -686,7 +686,7 @@ class TestAuthenticationViews(APITestCase):
             'bundle_id': 'foo',
         }
 
-        response = client.post('/users/login/', data)
+        response = client.post(reverse('new_login'), data)
         self.assertEqual(response.status_code, 403)
 
     def test_remote_authentication_valid(self):

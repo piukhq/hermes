@@ -1,5 +1,5 @@
 from django.conf.urls import patterns, url
-from user.views import (Users, Register, Login, Authenticate, FaceBookLogin, TwitterLoginWeb,
+from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLoginWeb,
                         FaceBookLoginWeb, TwitterLogin, ResetPassword, ValidatePromoCode, ForgotPassword,
                         ValidateResetToken, ResetPasswordFromToken, Settings, UserSettings)
 
@@ -10,8 +10,10 @@ urlpatterns = patterns('user',
                        url(r'auth/facebook_web/?$', FaceBookLoginWeb.as_view(), name='auth_facebook_web'),
                        url(r'auth/twitter/?$', TwitterLogin.as_view(), name='authenticate_twitter_user'),
                        url(r'auth/twitter_web/?$', TwitterLoginWeb.as_view(), name='authenticate_twitter_user'),
-                       url(r'register/?$', Register.as_view(), name='register_user'),
-                       url(r'login/?$', Login.as_view(), name='login'),
+                       url(r'^v2_register/?$', NewRegister.as_view(), name='new_register_user'),
+                       url(r'^register/?$', Register.as_view(), name='register_user'),
+                       url(r'^v2_login/?$', NewLogin.as_view(), name='new_login'),
+                       url(r'^login/?$', Login.as_view(), name='login'),
                        url(r'me/?$', Users.as_view(), name='user_detail'),
                        url(r'me/password/?$', ResetPassword.as_view(), name='reset_password'),
                        url(r'me/settings/?$', UserSettings.as_view(), name='user_settings'),

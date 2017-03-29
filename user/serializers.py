@@ -39,7 +39,7 @@ class ClientAppSerializerMixin(serializers.Serializer):
                 'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
 
 
-class RegisterSerializer(ClientAppSerializerMixin, serializers.Serializer):
+class RegisterSerializer(serializers.Serializer):
     promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
@@ -74,14 +74,22 @@ class RegisterSerializer(ClientAppSerializerMixin, serializers.Serializer):
         return ret
 
 
+class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+    pass
+
+
 class PromoCodeSerializer(serializers.Serializer):
     promo_code = serializers.CharField(write_only=True)
     valid = serializers.BooleanField(read_only=True)
 
 
-class LoginSerializer(ClientAppSerializerMixin, serializers.Serializer):
+class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
+
+
+class NewLoginSerializer(ClientAppSerializerMixin, LoginSerializer):
+    pass
 
 
 class ResetPasswordSerializer(serializers.Serializer):
