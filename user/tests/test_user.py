@@ -33,6 +33,21 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
 
+    def test_register_with_client(self):
+        client = Client()
+        data = {
+            'email': 'test_1@example.com',
+            'password': 'Password1',
+            'client_id': BINK_CLIENT_ID,
+        }
+
+        response = client.post('/users/register/', data)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('email', content.keys())
+        self.assertIn('api_key', content.keys())
+        self.assertEqual(content['email'], 'test_1@example.com')
+
     def test_register_with_client_and_bundle(self):
         client = Client()
         data = {
@@ -613,7 +628,22 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
 
-    def test_login_with_client_id(self):
+    def test_login_with_client(self):
+        client = Client()
+        data = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+            'client_id': BINK_CLIENT_ID,
+        }
+
+        response = client.post('/users/login/', data)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('email', content.keys())
+        self.assertIn('api_key', content.keys())
+        self.assertEqual(content['email'], self.user.email)
+
+    def test_login_with_client_and_bundle(self):
         client = Client()
         data = {
             'email': self.user.email,
