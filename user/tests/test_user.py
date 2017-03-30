@@ -12,7 +12,8 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponse
 from django.test import Client, TestCase
 
-from user.models import CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting
+from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
+                         ClientApplication)
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from unittest import mock
 
@@ -36,18 +37,22 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_register_with_client(self):
         client = Client()
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        email = 'test_1@example.com'
         data = {
-            'email': 'test_1@example.com',
+            'email': email,
             'password': 'Password1',
-            'client_id': BINK_CLIENT_ID,
+            'client_id': app.client_id,
         }
 
         response = client.post(reverse('new_register_user'), data)
         content = json.loads(response.content.decode())
+        user = CustomUser.objects.get(email=email)
+        self.assertEqual(user.client_id, app.client_id)
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
         self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], 'test_1@example.com')
+        self.assertEqual(content['email'], email)
 
     def test_register_with_client_and_bundle(self):
         client = Client()

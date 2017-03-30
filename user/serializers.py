@@ -75,7 +75,13 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
-    pass
+    def create(self, validated_data):
+        user = super().create(validated_data)
+        client_id = validated_data.get('client_id')
+        if client_id:
+            user.client_id = client_id
+            user.save()
+        return user
 
 
 class PromoCodeSerializer(serializers.Serializer):
