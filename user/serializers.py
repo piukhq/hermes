@@ -8,7 +8,7 @@ from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
 from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
-                         ClientApplication, ClientApplicationBundle)
+                         ClientApplicationBundle)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -20,15 +20,10 @@ class ClientAppSerializerMixin(serializers.Serializer):
     bundle_id = serializers.CharField(required=False, write_only=True)
 
     def validate(self, attrs):
-        data = super(ClientAppSerializerMixin, self).validate(attrs)
+        data = super().validate(attrs)
         client_id = data.get('client_id')
         bundle_id = data.get('bundle_id')
-
-        if client_id and not ClientApplication.objects.filter(client_id=client_id).exists():
-            raise serializers.ValidationError('ClientApplication not found ({})'.format(client_id))
-
-        if bundle_id:
-            self._check_client_app_bundle(client_id, bundle_id)
+        self._check_client_app_bundle(client_id, bundle_id)
         return data
 
     def _check_client_app_bundle(self, client_id, bundle_id):
@@ -37,6 +32,11 @@ class ClientAppSerializerMixin(serializers.Serializer):
                 client_id=client_id).exists():
             raise serializers.ValidationError(
                 'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
+
+
+class ApplicationKitSerializer(serializers.Serializer):
+    client_id = serializers.CharField(write_only=True)
+    kit_name = serializers.CharField(write_only=True)
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -75,7 +75,13 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
-    pass
+    def create(self, validated_data):
+        user = super().create(validated_data)
+        client_id = validated_data.get('client_id')
+        if client_id:
+            user.client_id = client_id
+            user.save()
+        return user
 
 
 class PromoCodeSerializer(serializers.Serializer):

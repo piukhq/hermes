@@ -13,7 +13,7 @@ from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, Gener
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST, HTTP_200_OK, HTTP_201_CREATED
 from rest_framework.views import APIView
 from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
@@ -21,14 +21,14 @@ from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USE
                     REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
-from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting
+from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplicationKit
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, NewRegisterSerializer, LoginSerializer,
                               NewLoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
                               PromoCodeSerializer, TwitterRegisterSerializer,
                               ResetTokenSerializer, SettingSerializer, UserSettingSerializer,
-                              TokenResetPasswordSerializer)
+                              TokenResetPasswordSerializer, ApplicationKitSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -535,3 +535,31 @@ class UserSettings(APIView):
             }, HTTP_400_BAD_REQUEST)
 
         return Response(status=HTTP_204_NO_CONTENT)
+
+
+class IdentifyApplicationKit(APIView):
+    """
+    App "phonehome" logic. If a ClientApplication is not paired with a known
+    kit_name, an 'invalid' ApplicationKit object is created for tracking.
+    """
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = ApplicationKitSerializer
+    model = ClientApplicationKit
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        status_code = HTTP_200_OK
+        if serializer.is_valid():
+            valid_data = serializer.validated_data
+            query = {
+                'client_id': valid_data['client_id'],
+                'kit_name': valid_data['kit_name'],
+            }
+            app_kit, is_created = self.model.objects.get_or_create(**query)
+            if is_created:
+                app_kit.is_valid = False
+                app_kit.save()
+                status_code = HTTP_201_CREATED
+
+        return Response(serializer.data, status_code)
