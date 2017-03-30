@@ -131,7 +131,7 @@ class ClientApplicationBundle(models.Model):
         return cls.objects.filter(client_id=BINK_APP_ID)
 
     def __str__(self):
-        return '{} ({})'.format(self.bundle_id, str(self.client))
+        return '{} ({})'.format(self.bundle_id, self.client)
 
 
 class ClientApplicationKit(models.Model):
