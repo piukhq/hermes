@@ -1,11 +1,42 @@
 from collections import OrderedDict
+
+from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
 from rest_framework.validators import UniqueValidator
+
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting
-from django.contrib.auth.password_validation import validate_password as validate_pass
+from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
+                         ClientApplication, ClientApplicationBundle)
+
+
+class ClientAppSerializerMixin(serializers.Serializer):
+    """
+    Mixin for the register and login serializer.
+    Field values must match that of a known ClientApplication and one of its Bundles.
+    """
+    client_id = serializers.CharField(required=False, write_only=True)
+    bundle_id = serializers.CharField(required=False, write_only=True)
+
+    def validate(self, attrs):
+        data = super(ClientAppSerializerMixin, self).validate(attrs)
+        client_id = data.get('client_id')
+        bundle_id = data.get('bundle_id')
+
+        if client_id and not ClientApplication.objects.filter(client_id=client_id).exists():
+            raise serializers.ValidationError('ClientApplication not found ({})'.format(client_id))
+
+        if bundle_id:
+            self._check_client_app_bundle(client_id, bundle_id)
+        return data
+
+    def _check_client_app_bundle(self, client_id, bundle_id):
+        if not ClientApplicationBundle.objects.filter(
+                bundle_id=bundle_id,
+                client_id=client_id).exists():
+            raise serializers.ValidationError(
+                'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -43,19 +74,22 @@ class RegisterSerializer(serializers.Serializer):
         return ret
 
 
+class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+    pass
+
+
 class PromoCodeSerializer(serializers.Serializer):
     promo_code = serializers.CharField(write_only=True)
-    valid = serializers.BooleanField(read_only=True)
-
-
-class MarketingCodeSerializer(serializers.Serializer):
-    marketing_code = serializers.CharField(write_only=True)
     valid = serializers.BooleanField(read_only=True)
 
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
+
+
+class NewLoginSerializer(ClientAppSerializerMixin, LoginSerializer):
+    pass
 
 
 class ResetPasswordSerializer(serializers.Serializer):

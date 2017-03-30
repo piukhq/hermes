@@ -196,8 +196,6 @@ TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyA
 TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
-TOKEN_SECRET = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': True,

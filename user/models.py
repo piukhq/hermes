@@ -1,21 +1,27 @@
 import arrow
 import jwt
 import uuid
+import random
+from string import ascii_letters, digits
+
+from hashids import Hashids
 from django.db.models.fields import CharField
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
-from hashids import Hashids
-from hermes import settings
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 
+from hermes import settings
 from scheme.models import Scheme
 from user.managers import CustomUserManager
 from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
+
+
+BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 
 
 def valid_promo_code(promo_code):
@@ -80,8 +86,68 @@ class MarketingCode(models.Model):
         return "{0} code for partner {1}".format(self.code, self.partner)
 
 
+class Organisation(models.Model):
+    """A partner organisation wishing access the Bink API.
+    """
+    name = models.CharField(max_length=100, unique=True)
+
+    def __str__(self):
+        return self.name
+
+
+def _get_random_string(length=50, chars=(ascii_letters + digits)):
+    rand = random.SystemRandom()
+    return ''.join(rand.choice(chars) for x in range(length))
+
+
+class ClientApplication(models.Model):
+    """A registered API app consumer. Randomly generated client_id and secret fields.
+    """
+    client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
+    secret = models.CharField(max_length=128, unique=True, default=_get_random_string, db_index=True)
+    organisation = models.ForeignKey(Organisation)
+    name = models.CharField(max_length=100, unique=True)
+
+    bink_app = None
+
+    def __str__(self):
+        return '{} by {}'.format(self.name, self.organisation.name)
+
+    @classmethod
+    def get_bink_app(cls):
+        if not cls.bink_app:
+            cls.bink_app = cls.objects.get(client_id=BINK_APP_ID)
+        return cls.bink_app
+
+
+class ClientApplicationBundle(models.Model):
+    """Links a ClientApplication to one or more native app 'bundles'.
+    """
+    client = models.ForeignKey(ClientApplication)
+    bundle_id = models.CharField(max_length=200)
+
+    @classmethod
+    def get_bink_bundles(cls):
+        return cls.objects.filter(client_id=BINK_APP_ID)
+
+    def __str__(self):
+        return '{} ({})'.format(self.bundle_id, self.client)
+
+
+class ClientApplicationKit(models.Model):
+    """Link a ClientApplication to known SDK kit names for usage tracking.
+    """
+    client = models.ForeignKey(ClientApplication)
+    kit_name = models.CharField(max_length=50)
+    is_valid = models.BooleanField(default=True)
+
+    def __str__(self):
+        return 'ClientApplication: {} - kit: {}'.format(self.client, self.kit_name)
+
+
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
@@ -99,6 +165,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
+        unique_together = ('client', 'email',)
 
     def get_full_name(self):
         return self.email
@@ -119,7 +186,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'email': self.email,
             'expiry_date': expiry_date.timestamp
         }
-        reset_token = jwt.encode(payload, settings.TOKEN_SECRET)
+        reset_token = jwt.encode(payload, self.client.secret)
         self.reset_token = reset_token
         self.save()
         return reset_token
@@ -166,7 +233,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, settings.TOKEN_SECRET)
+        token = jwt.encode(payload, self.client.secret)
         return token.decode('unicode_escape')
 
     # Admin required fields
@@ -226,13 +293,13 @@ def create_user_detail(sender, instance, created, **kwargs):
 
 def valid_reset_code(reset_token):
     try:
-        CustomUser.objects.get(reset_token=reset_token)
+        user = CustomUser.objects.get(reset_token=reset_token)
     except CustomUser.DoesNotExist:
         return False
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, settings.TOKEN_SECRET)
+    token_payload = jwt.decode(reset_token, user.client.secret)
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
 
