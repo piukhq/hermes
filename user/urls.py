@@ -1,7 +1,7 @@
 from django.conf.urls import patterns, url
 from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLoginWeb,
                         FaceBookLoginWeb, TwitterLogin, ResetPassword, ValidatePromoCode, ForgotPassword,
-                        ValidateResetToken, ResetPasswordFromToken, Settings, UserSettings)
+                        ValidateResetToken, ResetPasswordFromToken, Settings, UserSettings, IdentifyApplicationKit)
 
 
 urlpatterns = patterns('user',
@@ -22,4 +22,5 @@ urlpatterns = patterns('user',
                        url(r'promo_code/?$', ValidatePromoCode.as_view(), name='promo_code'),
                        url(r'validate_reset_token/?$', ValidateResetToken.as_view(), name='validate_reset'),
                        url(r'settings/?$', Settings.as_view(), name='settings'),
+                       url(r'^app_kit/?$', IdentifyApplicationKit.as_view(), name='app_kit'),
                        )

@@ -34,6 +34,11 @@ class ClientAppSerializerMixin(serializers.Serializer):
                 'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
 
 
+class ApplicationKitSerializer(serializers.Serializer):
+    client_id = serializers.CharField(write_only=True)
+    kit_name = serializers.CharField(write_only=True)
+
+
 class RegisterSerializer(serializers.Serializer):
     promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()

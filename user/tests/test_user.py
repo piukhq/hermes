@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.test import Client, TestCase
 
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
-                         ClientApplication, ClientApplicationBundle)
+                         ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from unittest import mock
 
@@ -1083,3 +1083,22 @@ class TestUserSettings(APITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
+
+
+class TestAppKitIdentification(APITestCase):
+    def test_app_kit_known(self):
+        data = {
+            'client_id': BINK_CLIENT_ID,
+            'kit_name': 'core',
+        }
+        response = self.client.post(reverse('app_kit'), data=data)
+        self.assertEquals(response.status_code, 200)
+
+    def test_app_kit_invalid(self):
+        data = {
+            'client_id': BINK_CLIENT_ID,
+            'kit_name': 'randomkit',
+        }
+        response = self.client.post(reverse('app_kit'), data=data)
+        self.assertTrue(ClientApplicationKit.objects.filter(**data).exists())
+        self.assertEquals(response.status_code, 201)
