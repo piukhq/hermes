@@ -8,7 +8,7 @@ from rest_framework.validators import UniqueValidator
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
 from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
-                         ClientApplication, ClientApplicationBundle)
+                         ClientApplicationBundle)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -23,12 +23,7 @@ class ClientAppSerializerMixin(serializers.Serializer):
         data = super().validate(attrs)
         client_id = data.get('client_id')
         bundle_id = data.get('bundle_id')
-
-        if client_id and not ClientApplication.objects.filter(client_id=client_id).exists():
-            raise serializers.ValidationError('ClientApplication not found ({})'.format(client_id))
-
-        if bundle_id:
-            self._check_client_app_bundle(client_id, bundle_id)
+        self._check_client_app_bundle(client_id, bundle_id)
         return data
 
     def _check_client_app_bundle(self, client_id, bundle_id):

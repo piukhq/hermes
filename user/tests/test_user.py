@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.test import Client, TestCase
 
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
-                         ClientApplication)
+                         ClientApplication, ClientApplicationBundle)
 from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
 from unittest import mock
 
@@ -35,29 +35,11 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
 
-    def test_register_with_client(self):
+    def test_register_bink_client_and_bundle(self):
         client = Client()
-        app = ClientApplication.objects.create(name='Test', organisation_id=1)
         email = 'test_1@example.com'
         data = {
             'email': email,
-            'password': 'Password1',
-            'client_id': app.client_id,
-        }
-
-        response = client.post(reverse('new_register_user'), data)
-        content = json.loads(response.content.decode())
-        user = CustomUser.objects.get(email=email)
-        self.assertEqual(user.client_id, app.client_id)
-        self.assertEqual(response.status_code, 201)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], email)
-
-    def test_register_with_client_and_bundle(self):
-        client = Client()
-        data = {
-            'email': 'test_1@example.com',
             'password': 'Password1',
             'client_id': BINK_CLIENT_ID,
             'bundle_id': BINK_BUNDLE_ID,
@@ -68,7 +50,30 @@ class TestRegisterNewUserViews(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
         self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], 'test_1@example.com')
+        self.assertEqual(content['email'], email)
+        user = CustomUser.objects.get(email=email)
+        self.assertEqual(user.client_id, BINK_CLIENT_ID)
+
+    def test_register_new_client_and_bundle(self):
+        client = Client()
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id='com.bink.test')
+        email = 'test_1@example.com'
+        data = {
+            'email': email,
+            'password': 'Password1',
+            'client_id': app.client_id,
+            'bundle_id': 'com.bink.test',
+        }
+
+        response = client.post(reverse('new_register_user'), data)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 201)
+        self.assertIn('email', content.keys())
+        self.assertIn('api_key', content.keys())
+        self.assertEqual(content['email'], email)
+        user = CustomUser.objects.get(email=email)
+        self.assertEqual(user.client_id, app.client_id)
 
     def test_register_fail_invalid_client_id(self):
         client = Client()
@@ -639,21 +644,6 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
 
-    def test_login_with_client(self):
-        client = Client()
-        data = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
-            'client_id': BINK_CLIENT_ID,
-        }
-
-        response = client.post(reverse('new_login'), data)
-        content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 200)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], self.user.email)
-
     def test_login_with_client_and_bundle(self):
         client = Client()
         data = {
@@ -669,6 +659,22 @@ class TestAuthenticationViews(APITestCase):
         self.assertIn('email', content.keys())
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], self.user.email)
+
+    def test_login_fail_client_invalid_for_user(self):
+        client = Client()
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        user = CustomUser.objects.create_user('new@test.com')
+        user.client_id = app.client_id
+        user.save()
+        data = {
+            'email': 'new@test.com',
+            'password': 'defaultpassword',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID,
+        }
+
+        response = client.post(reverse('new_login'), data)
+        self.assertEqual(response.status_code, 403)
 
     def test_login_fail_invalid_client_id(self):
         client = Client()
