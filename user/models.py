@@ -92,7 +92,7 @@ class Organisation(models.Model):
     name = models.CharField(max_length=100, unique=True)
 
     def __str__(self):
-        return '{}'.format(self.name)
+        return self.name
 
 
 def _get_random_string(length=50, chars=(ascii_letters + digits)):
