@@ -20,7 +20,7 @@ class ClientAppSerializerMixin(serializers.Serializer):
     bundle_id = serializers.CharField(required=False, write_only=True)
 
     def validate(self, attrs):
-        data = super(ClientAppSerializerMixin, self).validate(attrs)
+        data = super().validate(attrs)
         client_id = data.get('client_id')
         bundle_id = data.get('bundle_id')
 
