@@ -1093,6 +1093,7 @@ class TestAppKitIdentification(APITestCase):
         }
         response = self.client.post(reverse('app_kit'), data=data)
         self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data, {})
 
     def test_app_kit_invalid(self):
         data = {
@@ -1102,3 +1103,14 @@ class TestAppKitIdentification(APITestCase):
         response = self.client.post(reverse('app_kit'), data=data)
         self.assertTrue(ClientApplicationKit.objects.filter(**data).exists())
         self.assertEquals(response.status_code, 201)
+        self.assertEquals(response.data, {})
+
+    def test_app_kit_invalid_client_id(self):
+        data = {
+            'client_id': 'foo',
+            'kit_name': 'core',
+        }
+        response = self.client.post(reverse('app_kit'), data=data)
+        self.assertFalse(ClientApplicationKit.objects.filter(**data).exists())
+        self.assertEquals(response.status_code, 200)
+        self.assertEquals(response.data, {})

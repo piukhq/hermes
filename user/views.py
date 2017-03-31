@@ -21,7 +21,8 @@ from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USE
                     REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
-from user.models import CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplicationKit
+from user.models import (CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplication,
+                         ClientApplicationKit)
 from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, NewRegisterSerializer, LoginSerializer,
                               NewLoginSerializer, FaceBookWebRegisterSerializer,
@@ -547,19 +548,21 @@ class IdentifyApplicationKit(APIView):
     serializer_class = ApplicationKitSerializer
     model = ClientApplicationKit
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.serializer_class(data=request.data)
         status_code = HTTP_200_OK
         if serializer.is_valid():
             valid_data = serializer.validated_data
-            query = {
-                'client_id': valid_data['client_id'],
-                'kit_name': valid_data['kit_name'],
-            }
-            app_kit, is_created = self.model.objects.get_or_create(**query)
-            if is_created:
-                app_kit.is_valid = False
-                app_kit.save()
-                status_code = HTTP_201_CREATED
+            client_id = valid_data['client_id']
+            if ClientApplication.objects.filter(client_id=client_id).exists():
+                query = {
+                    'client_id': client_id,
+                    'kit_name': valid_data['kit_name'],
+                }
+                app_kit, is_created = self.model.objects.get_or_create(**query)
+                if is_created:
+                    app_kit.is_valid = False
+                    app_kit.save()
+                    status_code = HTTP_201_CREATED
 
-        return Response(serializer.data, status_code)
+        return Response({}, status_code)
