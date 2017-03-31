@@ -105,7 +105,7 @@ class ClientApplication(models.Model):
     """
     client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
     secret = models.CharField(max_length=128, unique=False, default=_get_random_string, db_index=True)
-    organisation = models.ForeignKey(Organisation)
+    organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT)
     name = models.CharField(max_length=100, unique=True)
 
     bink_app = None
@@ -123,7 +123,7 @@ class ClientApplication(models.Model):
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
-    client = models.ForeignKey(ClientApplication)
+    client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
 
     @classmethod
@@ -137,7 +137,7 @@ class ClientApplicationBundle(models.Model):
 class ClientApplicationKit(models.Model):
     """Link a ClientApplication to known SDK kit names for usage tracking.
     """
-    client = models.ForeignKey(ClientApplication)
+    client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     kit_name = models.CharField(max_length=50)
     is_valid = models.BooleanField(default=True)
 
@@ -147,7 +147,7 @@ class ClientApplicationKit(models.Model):
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
-    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
