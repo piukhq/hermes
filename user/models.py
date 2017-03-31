@@ -104,7 +104,7 @@ class ClientApplication(models.Model):
     """A registered API app consumer. Randomly generated client_id and secret fields.
     """
     client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
-    secret = models.CharField(max_length=128, unique=True, default=_get_random_string, db_index=True)
+    secret = models.CharField(max_length=128, unique=False, default=_get_random_string, db_index=True)
     organisation = models.ForeignKey(Organisation)
     name = models.CharField(max_length=100, unique=True)
 
