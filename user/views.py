@@ -557,7 +557,7 @@ class IdentifyApplicationKit(APIView):
             if ClientApplication.objects.filter(client_id=client_id).exists():
                 query = {
                     'client_id': client_id,
-                    'kit_name': valid_data['kit_name'],
+                    'kit_name': valid_data['kit_name'].lower(),
                 }
                 app_kit, is_created = self.model.objects.get_or_create(**query)
                 if is_created:
