@@ -19,8 +19,8 @@ class ClientAppSerializerMixin(serializers.Serializer):
     client_id = serializers.CharField(required=False, write_only=True)
     bundle_id = serializers.CharField(required=False, write_only=True)
 
-    def validate(self, attrs):
-        data = super().validate(attrs)
+    def validate(self, data):
+        data = super().validate(data)
         client_id = data.get('client_id')
         bundle_id = data.get('bundle_id')
         self._check_client_app_bundle(client_id, bundle_id)
