@@ -146,7 +146,7 @@ class ClientApplicationKit(models.Model):
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(verbose_name='email address', max_length=255, unique=True, null=True, blank=True)
+    email = models.EmailField(verbose_name='email address', max_length=255, null=True, blank=True)
     client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
