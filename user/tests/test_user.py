@@ -75,6 +75,31 @@ class TestRegisterNewUserViews(TestCase):
         user = CustomUser.objects.get(email=email)
         self.assertEqual(user.client_id, app.client_id)
 
+    def test_register_new_client_same_email(self):
+        client = Client()
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id='com.bink.test')
+        email = 'test_1@example.com'
+        data = {
+            'email': email,
+            'password': 'Password1',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID,
+        }
+
+        response = client.post(reverse('new_register_user'), data)
+        self.assertEqual(response.status_code, 201)
+
+        data = {
+            'email': email,
+            'password': 'Password1',
+            'client_id': app.client_id,
+            'bundle_id': 'com.bink.test',
+        }
+
+        response = client.post(reverse('new_register_user'), data)
+        self.assertEqual(response.status_code, 201)
+
     def test_register_fail_invalid_client_id(self):
         client = Client()
         data = {

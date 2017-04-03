@@ -19,8 +19,8 @@ class ClientAppSerializerMixin(serializers.Serializer):
     client_id = serializers.CharField(required=False, write_only=True)
     bundle_id = serializers.CharField(required=False, write_only=True)
 
-    def validate(self, attrs):
-        data = super().validate(attrs)
+    def validate(self, data):
+        data = super().validate(data)
         client_id = data.get('client_id')
         bundle_id = data.get('bundle_id')
         self._check_client_app_bundle(client_id, bundle_id)
@@ -49,7 +49,14 @@ class RegisterSerializer(serializers.Serializer):
         email = validated_data['email']
         password = validated_data['password']
         promo_code = validated_data.get('promo_code')
-        user = CustomUser.objects.create_user(email, password, promo_code)
+
+        client_id = validated_data.get('client_id')
+        if client_id:
+            user = CustomUser.objects.create_user(email, password, promo_code, client_id=client_id)
+        else:
+            user = CustomUser.objects.create_user(email, password, promo_code)
+
+        user.save()
         return user
 
     def validate_email(self, value):
@@ -75,13 +82,15 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
-    def create(self, validated_data):
-        user = super().create(validated_data)
-        client_id = validated_data.get('client_id')
-        if client_id:
-            user.client_id = client_id
-            user.save()
-        return user
+    def validate(self, data):
+        data = super().validate(data)
+        email = CustomUser.objects.normalize_email(data['email'])
+        if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
+            raise serializers.ValidationError("That user already exists")
+        return data
+
+    def validate_email(self, email):
+        return email
 
 
 class PromoCodeSerializer(serializers.Serializer):
