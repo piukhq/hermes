@@ -4,7 +4,6 @@ import socket
 import sre_constants
 import uuid
 import requests
-
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
@@ -13,7 +12,7 @@ from django.db.models import F
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
-
+from common.models import Image
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 
@@ -155,50 +154,18 @@ class ActiveSchemeImageManager(models.Manager):
                                              end_date__gte=timezone.now()).exclude(status=Image.DRAFT)
 
 
-class Image(models.Model):
-    DRAFT = 0
-    PUBLISHED = 1
-
-    STATUSES = (
-        (DRAFT, 'draft'),
-        (PUBLISHED, 'published'),
-    )
-
-    TYPES = (
-        (0, 'hero'),
-        (1, 'banner'),
-        (2, 'offers'),
-        (3, 'icon'),
-        (4, 'asset'),
-        (5, 'reference'),
-        (6, 'personal offers'),
-    )
-
-    image_type_code = models.IntegerField(choices=TYPES)
-    size_code = models.CharField(max_length=30, blank=True, null=True)
-    image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, blank=True, null=True)
-    description = models.CharField(max_length=300, blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
-    call_to_action = models.CharField(max_length=150)
-    order = models.IntegerField()
-    status = models.IntegerField(default=DRAFT, choices=STATUSES)
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(default=timezone.now)
-
+class SchemeImage(Image):
     objects = ActiveSchemeImageManager()
-    all_objects = models.Manager()
+    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
+
+
+class SchemeAccountImage(Image):
+    objects = ActiveSchemeImageManager()
+    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
+    scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
     def __str__(self):
         return self.description
-
-    class Meta:
-        abstract = True
-
-
-class SchemeImage(Image):
-    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
 
 
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
@@ -509,14 +476,6 @@ class SchemeAccountCredentialAnswer(models.Model):
 
     class Meta:
         unique_together = ("scheme_account", "question")
-
-
-class SchemeAccountImage(Image):
-    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
-    scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
-
-    def __str__(self):
-        return self.description
 
 
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
