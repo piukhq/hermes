@@ -7,6 +7,7 @@ import uuid
 
 from common.models import Image
 
+
 class Issuer(models.Model):
     name = models.CharField(max_length=200)
     image = models.ImageField(upload_to="issuers")
@@ -33,6 +34,7 @@ class PaymentCardAccountImage(Image):
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
                                                    related_name='payment_card_accounts_set',
                                                    blank=True)
+
 
 class PaymentCard(models.Model):
     VISA = 'visa'
