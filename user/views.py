@@ -173,6 +173,15 @@ class Users(RetrieveUpdateAPIView):
         return obj
 
 
+class VerifyToken(APIView):
+    """
+    Basic view to check that a token is valid.
+    Can be used by external services which don't know the secret.
+    """
+    def get(self, request):
+        return Response()
+
+
 class Authenticate(APIView):
 
     @method_decorator(csrf_exempt)
