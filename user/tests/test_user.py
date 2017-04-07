@@ -1148,3 +1148,23 @@ class TestAppKitIdentification(APITestCase):
         self.assertFalse(ClientApplicationKit.objects.filter(**data).exists())
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data, {})
+
+
+class TestVerifyToken(APITestCase):
+    def test_valid_token(self):
+        user = UserFactory()
+        token = user.create_token()
+        headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(token)}
+
+        response = self.client.get(reverse('verify_token'), **headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data)
+
+    def test_invalid_token(self):
+        # sub 30, secret 'foo'
+        token = ('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMwLCJpYXQiOjE0OTE1NTU0ODl9.'
+                 'xXa36rs6keNVo9YVbFGgWe3EiXnNvS7yJ65fXgYnSLg')
+        headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(token)}
+
+        response = self.client.get(reverse('verify_token'), **headers)
+        self.assertEqual(response.status_code, 401)

@@ -1,7 +1,8 @@
 from django.conf.urls import patterns, url
 from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLoginWeb,
                         FaceBookLoginWeb, TwitterLogin, ResetPassword, ValidatePromoCode, ForgotPassword,
-                        ValidateResetToken, ResetPasswordFromToken, Settings, UserSettings, IdentifyApplicationKit)
+                        ValidateResetToken, ResetPasswordFromToken, Settings, UserSettings, IdentifyApplicationKit,
+                        VerifyToken)
 
 
 urlpatterns = patterns('user',
@@ -10,6 +11,7 @@ urlpatterns = patterns('user',
                        url(r'auth/facebook_web/?$', FaceBookLoginWeb.as_view(), name='auth_facebook_web'),
                        url(r'auth/twitter/?$', TwitterLogin.as_view(), name='authenticate_twitter_user'),
                        url(r'auth/twitter_web/?$', TwitterLoginWeb.as_view(), name='authenticate_twitter_user'),
+                       url(r'^auth/verify_token/?$', VerifyToken.as_view(), name='verify_token'),
                        url(r'^v2_register/?$', NewRegister.as_view(), name='new_register_user'),
                        url(r'^register/?$', Register.as_view(), name='register_user'),
                        url(r'^v2_login/?$', NewLogin.as_view(), name='new_login'),
