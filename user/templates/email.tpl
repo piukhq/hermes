@@ -992,7 +992,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                         <div
                                                           style="text-align:
                                                           justify;"><font
-face="helvetica neue, helvetica, arial, verdana, sans-serif">No worries,
+face="arial, sans-serif">No worries,
                                                           we all have
                                                           those days
                                                           where we would
@@ -1024,7 +1024,8 @@ face="helvetica neue, helvetica, arial, verdana, sans-serif">No worries,
                                                           justify;"> </div>
                                                         <div
                                                           style="text-align:
-                                                          justify;">If
+                                                          justify;"><font
+face="arial, sans-serif"><br>If
                                                           you magically
                                                           remembered
                                                           your password
@@ -1038,7 +1039,7 @@ face="helvetica neue, helvetica, arial, verdana, sans-serif">No worries,
                                                           email please
                                                           get in touch
                                                           with us
-                                                          immediately <a
+                                                          immediately </font><a
 moz-do-not-send="true"
 href="mailto:helpme@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Requested"
 target="_blank" style="mso-line-height-rule:
