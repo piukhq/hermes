@@ -5,6 +5,8 @@ from django.utils import timezone
 import base64
 import uuid
 
+from common.models import Image
+
 
 class Issuer(models.Model):
     name = models.CharField(max_length=200)
@@ -21,50 +23,17 @@ class ActivePaymentCardImageManager(models.Manager):
             start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=Image.DRAFT)
 
 
-class Image(models.Model):
-    DRAFT = 0
-    PUBLISHED = 1
-
-    STATUSES = (
-        (DRAFT, 'draft'),
-        (PUBLISHED, 'published'),
-    )
-
-    TYPES = (
-        (0, 'hero'),
-        (1, 'banner'),
-        (2, 'offers'),
-        (3, 'icon'),
-        (4, 'asset'),
-        (5, 'reference'),
-        (6, 'personal offers'),
-    )
-
-    image_type_code = models.IntegerField(choices=TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
-    image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
-    url = models.URLField(null=True, blank=True)
-    call_to_action = models.CharField(max_length=150)
-    order = models.IntegerField()
-    status = models.IntegerField(default=DRAFT, choices=STATUSES)
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(default=timezone.now)
-
-    objects = ActivePaymentCardImageManager()
-    all_objects = models.Manager()
-
-    def __str__(self):
-        return self.description
-
-    class Meta:
-        abstract = True
-
-
 class PaymentCardImage(Image):
+    objects = ActivePaymentCardImageManager()
     payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images')
+
+
+class PaymentCardAccountImage(Image):
+    objects = ActivePaymentCardImageManager()
+    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
+    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
+                                                   related_name='payment_card_accounts_set',
+                                                   blank=True)
 
 
 class PaymentCard(models.Model):
@@ -233,13 +202,6 @@ class PaymentCardAccount(models.Model):
                                          'created')
 
         return images
-
-
-class PaymentCardAccountImage(Image):
-    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
-    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='payment_card_accounts_set',
-                                                   blank=True)
 
 
 class ProviderStatusMapping(models.Model):

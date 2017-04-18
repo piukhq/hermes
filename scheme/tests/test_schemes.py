@@ -2,7 +2,7 @@ from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE
-from scheme.models import Image
+from common.models import Image
 from django.test import TestCase
 from django.conf import settings
 from user.tests.factories import UserFactory

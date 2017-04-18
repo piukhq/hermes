@@ -4,7 +4,7 @@ from rest_framework.test import APITestCase
 from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardAccountFactory,
                                           PaymentCardImageFactory)
-from payment_card.models import Image
+from common.models import Image
 
 
 class TestPaymentCardAccountImages(APITestCase):
