@@ -687,7 +687,11 @@ class TestAuthenticationViews(APITestCase):
 
     def test_login_duplicate_email_different_client(self):
         client = Client()
-        data_1 = {
+        data_1_old = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+        }
+        data_1_new = {
             'email': self.user.email,
             'password': 'defaultpassword',
             'client_id': BINK_CLIENT_ID,
@@ -695,16 +699,19 @@ class TestAuthenticationViews(APITestCase):
         }
 
         app = ClientApplication.objects.create(name='Test', organisation_id=1)
-        other_user = CustomUser.objects.create_user(self.user.email, client_id=app.client_id)
+        other_user = CustomUser.objects.create_user(self.user.email, password='foo', client_id=app.client_id)
         other_bundle = ClientApplicationBundle.objects.create(client=app, bundle_id='com.bink.test')
         data_2 = {
             'email': other_user.email,
-            'password': 'defaultpassword',
+            'password': 'foo',
             'client_id': app.client_id,
             'bundle_id': other_bundle.bundle_id,
         }
 
-        response = client.post(reverse('new_login'), data_1)
+        response = client.post(reverse('login'), data_1_old)
+        self.assertEqual(response.status_code, 200)
+
+        response = client.post(reverse('new_login'), data_1_new)
         self.assertEqual(response.status_code, 200)
 
         response = client.post(reverse('new_login'), data_2)
