@@ -685,6 +685,31 @@ class TestAuthenticationViews(APITestCase):
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], self.user.email)
 
+    def test_login_duplicate_email_different_client(self):
+        client = Client()
+        data_1 = {
+            'email': self.user.email,
+            'password': 'defaultpassword',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID,
+        }
+
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        other_user = CustomUser.objects.create_user(self.user.email, client_id=app.client_id)
+        other_bundle = ClientApplicationBundle.objects.create(client=app, bundle_id='com.bink.test')
+        data_2 = {
+            'email': other_user.email,
+            'password': 'defaultpassword',
+            'client_id': app.client_id,
+            'bundle_id': other_bundle.bundle_id,
+        }
+
+        response = client.post(reverse('new_login'), data_1)
+        self.assertEqual(response.status_code, 200)
+
+        response = client.post(reverse('new_login'), data_2)
+        self.assertEqual(response.status_code, 200)
+
     def test_login_fail_client_invalid_for_user(self):
         client = Client()
         app = ClientApplication.objects.create(name='Test', organisation_id=1)
