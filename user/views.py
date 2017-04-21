@@ -1,10 +1,13 @@
 import requests
+
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.http import Http404
+from django.conf import settings
+
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
@@ -19,11 +22,11 @@ from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
                     REGISTRATION_FAILED)
+
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import (CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplication,
                          ClientApplicationKit)
-from django.conf import settings
 from user.serializers import (UserSerializer, RegisterSerializer, NewRegisterSerializer, LoginSerializer,
                               NewLoginSerializer, FaceBookWebRegisterSerializer,
                               FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
