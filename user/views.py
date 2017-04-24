@@ -150,7 +150,8 @@ class ForgotPassword(APIView):
         Sends email with reset token to user. Responds: 'An email has been sent with details of how to reset\
          your password.'
         """
-        user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
+        client_id = request.data.get('client_id', ClientApplication.get_bink_app().client_id)
+        user = CustomUser.objects.filter(client_id=client_id, email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
             send_mail('email.tpl',
@@ -159,6 +160,7 @@ class ForgotPassword(APIView):
                       'noreply@bink.com',
                       [user.email],
                       fail_silently=False)
+
         return Response('An email has been sent with details of how to reset your password.', 200)
 
 
