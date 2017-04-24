@@ -299,6 +299,12 @@ EMAIL_HOST_PASSWORD = "Gibbon^egg^Change^^"
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
+
+# INTERCOM COMMUNICATION
+INTERCOM_HOST = 'https://api.intercom.io'
+INTERCOM_USERS_PATH = 'users'
+INTERCOM_EVENTS_PATH = 'events'
+
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',
                  '675911', '557062', '557061', '556677', '554988', '554987', '554397', '554201', '554112', '552140',
