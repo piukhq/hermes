@@ -25,6 +25,30 @@ def post_event(token, user_id, event):
     )
 
 
+def update_user_custom_attribute(token, user_id, attr_name, attr_value):
+    """
+    Update a user custom attribute
+    :param user_id: uuid identifier for the user
+    :param attr_name: name of the attribute to be updated
+    :param attr_value: new value of the attribute
+    :return: the whole response
+    """
+    headers = _get_headers(token)
+
+    payload = {
+        'user_id': user_id,
+        'custom_attributes': {
+            attr_name: attr_value,
+        }
+    }
+
+    return requests.post(
+        '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
+        headers=headers,
+        data=json.dumps(payload)
+    )
+
+
 def update_user_attributes(token, user_id, attr):
     """
     Update user attributes

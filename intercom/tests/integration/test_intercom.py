@@ -1,7 +1,8 @@
 import json
 import unittest
 
-from intercom.intercom_api import update_user_attributes, post_event, get_users, get_user_events
+from intercom.intercom_api import update_user_attributes, post_event, get_users, get_user_events, \
+    update_user_custom_attribute
 
 
 class IntercomApiTest(unittest.TestCase):
@@ -44,6 +45,17 @@ class IntercomApiTest(unittest.TestCase):
         self.assertIn('events', response_obj)
         test_events = [event for event in response_obj['events'] if event['event_name'] == test_event_name]
         self.assertEqual(len(test_events), initial_event_count + 1)
+
+    def test_update_custom_attribute(self):
+        attr_name = 'marketing_bink'
+        attr_value = False
+
+        response = update_user_custom_attribute(self.TOKEN, self.USER_ID, attr_name, attr_value)
+        self.assertEqual(response.status_code, 200, response.text)
+
+        response_obj = json.loads(response.content)
+        self.assertIn('custom_attributes', response_obj)
+        self.assertIs(response_obj['custom_attributes'][attr_name], False)
 
     def test_update_user_marketing_bink(self):
         attr = {
