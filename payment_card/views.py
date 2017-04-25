@@ -159,8 +159,8 @@ class ListCreatePaymentCardAccount(APIView):
 
     @staticmethod
     def supercede_old_card(account, old_account, user):
-        # is the card owned by this user?
-        if old_account.user != user:
+        # if the clients are the same but the users don't match, reject the card.
+        if old_account.user != user and old_account.user.client == user.client:
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -245,30 +245,31 @@ class RetrievePaymentCardUserInfo(View):
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
-            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
-            if payment_card:
-                try:
-                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
-                except ObjectDoesNotExist:
-                    # the user was matched but is not registered in that scheme
-                    response_data[payment_card_token] = {
-                        'loyalty_id': None,
-                        'scheme_account_id': None,
-                        'user_id': payment_card.user_id,
-                        'credentials': ''
-                    }
-                else:
-                    if scheme_account.status == SchemeAccount.ACTIVE:
-                        response_data[payment_card_token] = {
-                            'loyalty_id': scheme_account.third_party_identifier,
-                            'scheme_account_id': scheme_account.id,
-                            'user_id': payment_card.user_id,
-                            'credentials': scheme_account.credentials()
-                        }
+            payment_cards = PaymentCardAccount.objects.filter(token=payment_card_token)
+
+            # if there's no payment card for this token, leave it out of the returned data.
+            if not payment_cards.exists():
+                continue
+
+            scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
+                                                           status=SchemeAccount.ACTIVE,
+                                                           user__in=(p.user for p in payment_cards))
+            if scheme_accounts.exists():
+                scheme_account = scheme_accounts.order_by('created').first()
+                response_data[payment_card_token] = {
+                    'loyalty_id': scheme_account.third_party_identifier,
+                    'scheme_account_id': scheme_account.id,
+                    'user_id': scheme_account.user.id,
+                    'credentials': scheme_account.credentials()
+                }
             else:
-                # if we don't find a payment_card / user we don't insert the token
-                # in the result to signify that something must be wrong.
-                pass
+                # the user was matched but is not registered in that scheme
+                response_data[payment_card_token] = {
+                    'loyalty_id': None,
+                    'scheme_account_id': None,
+                    'user_id': payment_cards.first().user.id,
+                    'credentials': ''
+                }
         return JsonResponse(response_data, safe=False)
 
 
