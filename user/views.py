@@ -230,9 +230,8 @@ class Login(GenericAPIView):
         if not serializer.is_valid():
             return error_response(INCORRECT_CREDENTIALS)
 
-        email = CustomUser.objects.normalize_email(serializer.data['email'])
-        password = serializer.data['password']
-        user = authenticate(username=email, password=password)
+        credentials = self.get_credentials(serializer.data)
+        user = authenticate(**credentials)
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
@@ -243,11 +242,28 @@ class Login(GenericAPIView):
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
         return Response(out_serializer.data)
 
+    @classmethod
+    def get_credentials(cls, data):
+        credentials = {
+            'username': CustomUser.objects.normalize_email(data['email']),
+            'password': data['password'],
+        }
+        return credentials
+
 
 class NewLogin(Login):
     """New login view for users of an authorised app.
     """
     serializer_class = NewLoginSerializer
+
+    @classmethod
+    def get_credentials(cls, data):
+        client_key = 'client_id'
+        credentials = super().get_credentials(data)
+        credentials.update({
+            client_key: data[client_key],
+        })
+        return credentials
 
 
 class FaceBookLoginWeb(CreateAPIView):
