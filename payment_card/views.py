@@ -172,9 +172,12 @@ class ListCreatePaymentCardAccount(APIView):
             metis.enrol_existing_payment_card(account)
         else:
             account.status = old_account.status
-            old_account.is_deleted = True
-            old_account.save()
             account.save()
+
+            # only delete the old card if it's on the same app
+            if old_account.user.client == user.client:
+                old_account.is_deleted = True
+                old_account.save()
         return account
 
     @staticmethod
