@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 
-from user.models import CustomUser, valid_reset_code
+from user.models import CustomUser, ClientApplication, valid_reset_code
 from user.tests.factories import UserFactory
 
 
@@ -26,7 +26,23 @@ class TestResetPassword(TestCase):
         response = client.post('/users/validate_reset_token', data={'token': user_instance.reset_token})
         self.assertEqual(response.status_code, 200)
 
-    def test_rest_token_expiry(self):
+    def test_reset_with_client_id_duplicate_email(self):
+        client = Client()
+        app = ClientApplication.objects.create(name='Test', organisation_id=1)
+        app_user = CustomUser.objects.create_user(email=self.user.email, client_id=app.client_id)
+        response = client.post('/users/forgotten_password', data={
+            'email': self.user.email,
+            'client_id': app.client_id,
+        })
+        self.assertEqual(response.status_code, 200)
+
+        bink_app_id = ClientApplication.get_bink_app().client_id
+        bink_user = CustomUser.objects.get(email=self.user.email, client_id=bink_app_id)
+        app_user = CustomUser.objects.get(email=self.user.email, client_id=app.client_id)
+        self.assertIsNone(bink_user.reset_token)
+        self.assertIsNotNone(app_user.reset_token)
+
+    def test_reset_token_expiry(self):
         expiry_date = arrow.utcnow()
         expiry_date.replace(hours=-1)
         payload = {
