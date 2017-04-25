@@ -1,19 +1,20 @@
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
 
+from .settings import BINK_CLIENT_ID
+
 
 class EmailBackend(ModelBackend):
 
-    def authenticate(self, username=None, password=None, **kwargs):
+    def authenticate(self, username=None, password=None, client_id=BINK_CLIENT_ID, **kwargs):
         UserModel = get_user_model()
 
         if username is None:
             username = kwargs.get(UserModel.USERNAME_FIELD)
 
         try:
-            # Allow an admin user to login with email
             if username and "@" in username:
-                user = UserModel.objects.get(email__iexact=username)
+                user = UserModel.objects.get(client_id=client_id, email__iexact=username)
             else:
                 user = UserModel._default_manager.get_by_natural_key(username)
 
