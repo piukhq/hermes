@@ -247,7 +247,7 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
 
         try:
-            intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid)
+            intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid, scheme.company, scheme.slug)
         except intercom_api.IntercomException:
             pass
 
