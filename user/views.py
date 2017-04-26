@@ -540,7 +540,8 @@ class UserSettings(APIView):
                 user_setting.save()
                 if slug_key in intercom_api.USER_CUSTOM_ATTRIBUTES:
                     try:
-                        intercom_api.update_user_custom_attribute(settings.INTERCOM_TOKEN, request.user.uid, slug_key, value)
+                        intercom_api.update_user_custom_attribute(settings.INTERCOM_TOKEN, request.user.uid,
+                                                                  slug_key, value)
                     except intercom_api.IntercomException:
                         pass
 

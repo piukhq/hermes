@@ -315,7 +315,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('status', json)
         self.assertIn('user', json)
 
-        mock_update_custom_attribute.assert_called_once()
+        self.assertEqual(mock_update_custom_attribute.call_count, 1)
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
     def test_create_join_account_against_user_setting(self, mock_update_custom_attribute):

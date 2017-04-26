@@ -21,7 +21,7 @@ class IntercomApiTest(unittest.TestCase):
 
         post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID)
 
-        post_mock.assert_called_once()
+        self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
 
         self.assertIn(
@@ -50,7 +50,7 @@ class IntercomApiTest(unittest.TestCase):
         post_mock.return_value = unittest.mock.Mock(status_code=200)
         reset_user_custom_attributes(self.FAKE_TOKEN, self.FAKE_USER_ID)
 
-        post_mock.assert_called_once()
+        self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
 
         self.assertIn(
@@ -81,7 +81,7 @@ class IntercomApiTest(unittest.TestCase):
 
         update_user_custom_attribute(self.FAKE_TOKEN, self.FAKE_USER_ID, attr_name, attr_value)
 
-        post_mock.assert_called_once()
+        self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
 
         self.assertIn(

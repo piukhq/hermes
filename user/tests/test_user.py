@@ -1067,7 +1067,7 @@ class TestUserSettings(APITestCase):
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 0)
 
-        mock_update_custom_attribute.assert_called_once()
+        self.assertEqual(mock_update_custom_attribute.call_count, 1)
 
     @mock.patch('intercom.intercom_api.update_user_custom_attribute')
     def test_update_intercom_user_settings(self, mock_update_custom_attribute):
@@ -1193,7 +1193,7 @@ class TestUserSettings(APITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
 
-        mock_update_custom_attribute.assert_called_once()
+        self.assertEqual(mock_update_custom_attribute.call_count, 1)
 
 
 class TestAppKitIdentification(APITestCase):
