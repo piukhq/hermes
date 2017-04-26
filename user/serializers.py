@@ -16,8 +16,8 @@ class ClientAppSerializerMixin(serializers.Serializer):
     Mixin for the register and login serializer.
     Field values must match that of a known ClientApplication and one of its Bundles.
     """
-    client_id = serializers.CharField(required=False, write_only=True)
-    bundle_id = serializers.CharField(required=False, write_only=True)
+    client_id = serializers.CharField()
+    bundle_id = serializers.CharField()
 
     def validate(self, data):
         data = super().validate(data)

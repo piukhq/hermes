@@ -1,36 +1,37 @@
 import requests
+from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.http import Http404
-from mail_templated import send_mail
-from requests_oauthlib import OAuth1Session
-from rest_framework import mixins
-from rest_framework.generics import (RetrieveUpdateAPIView, CreateAPIView, GenericAPIView, get_object_or_404,
-                                     ListAPIView)
-from rest_framework.mixins import UpdateModelMixin
-from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
-from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_400_BAD_REQUEST, HTTP_200_OK
-from rest_framework.views import APIView
-from rest_framework.authentication import SessionAuthentication
 from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USER, FACEBOOK_GRAPH_ACCESS,
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
                     REGISTRATION_FAILED)
+from mail_templated import send_mail
+from requests_oauthlib import OAuth1Session
+from rest_framework import mixins
+from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView,
+                                     RetrieveUpdateAPIView, get_object_or_404)
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.mixins import UpdateModelMixin
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
+                                   HTTP_400_BAD_REQUEST)
+from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
 from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplication,
-                         ClientApplicationKit)
-from django.conf import settings
-from user.serializers import (UserSerializer, RegisterSerializer, NewRegisterSerializer, LoginSerializer,
-                              NewLoginSerializer, FaceBookWebRegisterSerializer,
-                              FacebookRegisterSerializer, ResponseAuthSerializer, ResetPasswordSerializer,
-                              PromoCodeSerializer, TwitterRegisterSerializer,
-                              ResetTokenSerializer, SettingSerializer, UserSettingSerializer,
-                              TokenResetPasswordSerializer, ApplicationKitSerializer)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser,
+                         Setting, UserSetting, valid_promo_code, valid_reset_code)
+from user.serializers import (ApplicationKitSerializer,
+                              FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
+                              NewLoginSerializer, NewRegisterSerializer, PromoCodeSerializer,
+                              RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
+                              ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
+                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -145,10 +146,12 @@ class ForgotPassword(APIView):
 
     def post(self, request):
         """
-        Sends email with reset token to user. Responds: 'An email has been sent with details of how to reset\
-         your password.'
+        Sends email with reset token to user.
+        Responds: 'An email has been sent with details of how to reset your password.'
         """
-        user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
+        # TODO: Remove default Bink client_id when migrating to SDK app versions only (deprecation path).
+        client_id = request.data.get('client_id', ClientApplication.get_bink_app().client_id)
+        user = CustomUser.objects.filter(client_id=client_id, email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
             send_mail('email.tpl',
@@ -157,6 +160,7 @@ class ForgotPassword(APIView):
                       'noreply@bink.com',
                       [user.email],
                       fail_silently=False)
+
         return Response('An email has been sent with details of how to reset your password.', 200)
 
 
@@ -231,9 +235,8 @@ class Login(GenericAPIView):
         if not serializer.is_valid():
             return error_response(INCORRECT_CREDENTIALS)
 
-        email = CustomUser.objects.normalize_email(serializer.data['email'])
-        password = serializer.data['password']
-        user = authenticate(username=email, password=password)
+        credentials = self.get_credentials(serializer.data)
+        user = authenticate(**credentials)
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
@@ -244,11 +247,28 @@ class Login(GenericAPIView):
         out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
         return Response(out_serializer.data)
 
+    @classmethod
+    def get_credentials(cls, data):
+        credentials = {
+            'username': CustomUser.objects.normalize_email(data['email']),
+            'password': data['password'],
+        }
+        return credentials
+
 
 class NewLogin(Login):
     """New login view for users of an authorised app.
     """
     serializer_class = NewLoginSerializer
+
+    @classmethod
+    def get_credentials(cls, data):
+        client_key = 'client_id'
+        credentials = super().get_credentials(data)
+        credentials.update({
+            client_key: data[client_key],
+        })
+        return credentials
 
 
 class FaceBookLoginWeb(CreateAPIView):
