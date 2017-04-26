@@ -6,7 +6,6 @@ from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 from rest_framework.test import APITestCase
 
-from django.conf import settings as django_settings
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
