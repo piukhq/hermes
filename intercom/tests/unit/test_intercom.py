@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from hermes import settings
@@ -18,6 +19,11 @@ class IntercomApiTest(unittest.TestCase):
 
     def test_post_issued_card_event_successful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=202)
+        expected_data = {
+            'user_id': self.FAKE_USER_ID,
+            'event_name': ISSUED_JOIN_CARD_EVENT,
+            'created_at': 99999999
+        }
 
         post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID)
 
@@ -32,12 +38,7 @@ class IntercomApiTest(unittest.TestCase):
         self.assertTrue('headers', call_kwargs)
         self.assertTrue('data', call_kwargs)
 
-        expected_data = '{{"user_id": "{0}", "event_name": "{1}", "created_at": {2}}}'.format(
-            self.FAKE_USER_ID,
-            ISSUED_JOIN_CARD_EVENT,
-            '99999999'
-        )
-        self.assertEqual(call_kwargs['data'], expected_data)
+        self.assertEqual(expected_data, json.loads(call_kwargs['data']))
 
     def test_post_issued_card_event_unsuccessful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=400, text='mock_text')
@@ -48,6 +49,14 @@ class IntercomApiTest(unittest.TestCase):
 
     def test_reset_user_custom_attributes_successful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=200)
+        expected_data = {
+            'user_id': self.FAKE_USER_ID,
+            'custom_attributes': {
+                'marketing-bink': None,
+                'marketing-external': None
+            }
+        }
+
         reset_user_custom_attributes(self.FAKE_TOKEN, self.FAKE_USER_ID)
 
         self.assertEqual(post_mock.call_count, 1)
@@ -60,11 +69,7 @@ class IntercomApiTest(unittest.TestCase):
         )
         self.assertTrue('headers', call_kwargs)
         self.assertTrue('data', call_kwargs)
-        expected_data = '{{"user_id": "{0}", "custom_attributes": {1}}}'.format(
-            self.FAKE_USER_ID,
-            '{"marketing-bink": null, "marketing-external": null}'
-        )
-        self.assertEqual(call_kwargs['data'], expected_data)
+        self.assertEqual(expected_data, json.loads(call_kwargs['data']))
 
     def test_reset_user_custom_attributes_unsuccessful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=400, text='mock_text')
@@ -79,6 +84,11 @@ class IntercomApiTest(unittest.TestCase):
         attr_name = 'attr-name'
         attr_value = '1'
 
+        expected_data = {
+            'user_id': self.FAKE_USER_ID,
+            'custom_attributes': {attr_name: attr_value}
+        }
+
         update_user_custom_attribute(self.FAKE_TOKEN, self.FAKE_USER_ID, attr_name, attr_value)
 
         self.assertEqual(post_mock.call_count, 1)
@@ -91,12 +101,8 @@ class IntercomApiTest(unittest.TestCase):
         )
         self.assertTrue('headers', call_kwargs)
         self.assertTrue('data', call_kwargs)
-        expected_data = '{{"user_id": "{0}", "custom_attributes": {{"{1}": "{2}"}}}}'.format(
-            self.FAKE_USER_ID,
-            attr_name,
-            attr_value
-        )
-        self.assertEqual(call_kwargs['data'], expected_data)
+
+        self.assertEqual(json.loads(call_kwargs['data']), expected_data)
 
     def test_update_user_custom_attribute_unsuccessful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=400, text='mock_text')
