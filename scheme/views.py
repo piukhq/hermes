@@ -5,8 +5,10 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
+from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
                                      get_object_or_404, ListCreateAPIView)
+
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.forms import CSVUploadForm
@@ -243,6 +245,11 @@ class CreateJoinSchemeAccount(APIView):
             order=0,
         )
         account.save()
+
+        try:
+            intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid)
+        except intercom_api.IntercomException:
+            pass
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)

@@ -20,6 +20,7 @@ from errors import (error_response, FACEBOOK_CANT_VALIDATE, FACEBOOK_INVALID_USE
                     INCORRECT_CREDENTIALS, SUSPENDED_ACCOUNT, FACEBOOK_BAD_TOKEN, INVALID_PROMO_CODE,
                     REGISTRATION_FAILED)
 from hermes.settings import LETHE_URL, MEDIA_URL
+from intercom import intercom_api
 from user.authentication import JwtAuthentication
 from user.models import (CustomUser, valid_promo_code, valid_reset_code, Setting, UserSetting, ClientApplication,
                          ClientApplicationKit)
@@ -489,14 +490,6 @@ class UserSettings(APIView):
 
         return Response(settings_list)
 
-    def delete(self, request):
-        """
-        Reset a user's app settings.
-        Responds with a 204 - No Content.
-        """
-        UserSetting.objects.filter(user=request.user).delete()
-        return Response(status=HTTP_204_NO_CONTENT)
-
     def put(self, request):
         """
         Change a user's app settings. Takes one or more slug-value pairs.
@@ -507,14 +500,9 @@ class UserSettings(APIView):
             - code: 400
               message: Some of the given settings are invalid.
         """
-        # find all bad setting slugs (if any) for error reporting.
-        bad_settings = []
-        for k, v in request.data.items():
-            setting = Setting.objects.filter(slug=k).first()
-            if not setting:
-                bad_settings.append(k)
+        bad_settings = self._filter_bad_setting_slugs(request.data)
 
-        if len(bad_settings) > 0:
+        if bad_settings:
             return Response({
                 'error': 'Some of the given settings are invalid.',
                 'messages': bad_settings
@@ -522,21 +510,19 @@ class UserSettings(APIView):
 
         validation_errors = []
 
-        for k, v in request.data.items():
-            user_setting = UserSetting.objects.filter(user=request.user, setting__slug=k).first()
-
-            if user_setting:
-                user_setting.value = v
-            else:
-                setting = Setting.objects.filter(slug=k).first()
-                user_setting = UserSetting(user=request.user, setting=setting, value=v)
-
+        for slug_key, value in request.data.items():
+            user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
             try:
                 user_setting.full_clean()
             except ValidationError as e:
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
+                if slug_key in intercom_api.USER_CUSTOM_ATTRIBUTES:
+                    try:
+                        intercom_api.update_user_custom_attribute(settings.INTERCOM_TOKEN, request.user.uid, slug_key, value)
+                    except intercom_api.IntercomException:
+                        pass
 
         if validation_errors:
             return Response({
@@ -545,6 +531,40 @@ class UserSettings(APIView):
             }, HTTP_400_BAD_REQUEST)
 
         return Response(status=HTTP_204_NO_CONTENT)
+
+    def delete(self, request):
+        """
+        Reset a user's app settings.
+        Responds with a 204 - No Content.
+        """
+        UserSetting.objects.filter(user=request.user).delete()
+        try:
+            intercom_api.reset_user_custom_attributes(settings.INTERCOM_TOKEN, request.user.uid)
+        except intercom_api.IntercomException:
+            pass
+
+        return Response(status=HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _filter_bad_setting_slugs(request_data):
+        bad_settings = []
+
+        for k, v in request_data.items():
+            setting = Setting.objects.filter(slug=k).first()
+            if not setting:
+                bad_settings.append(k)
+
+        return bad_settings
+
+    @staticmethod
+    def _create_or_update_user_setting(user, setting_slug, value):
+        user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
+        if user_setting:
+            user_setting.value = value
+        else:
+            setting = Setting.objects.filter(slug=setting_slug).first()
+            user_setting = UserSetting(user=user, setting=setting, value=value)
+        return user_setting
 
 
 class IdentifyApplicationKit(APIView):

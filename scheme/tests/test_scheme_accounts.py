@@ -289,7 +289,8 @@ class TestSchemeAccountViews(APITestCase):
                     return False
         return True
 
-    def test_create_join_account(self):
+    @patch('intercom.intercom_api.post_issued_join_card_event')
+    def test_create_join_account_and_notify_intercom(self, mock_update_custom_attribute):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -314,7 +315,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('status', json)
         self.assertIn('user', json)
 
-    def test_create_join_account_against_user_setting(self):
+        mock_update_custom_attribute.assert_called_once()
+
+    @patch('intercom.intercom_api.post_issued_join_card_event')
+    def test_create_join_account_against_user_setting(self, mock_update_custom_attribute):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -332,6 +336,8 @@ class TestSchemeAccountViews(APITestCase):
         json = resp.json()
         self.assertEqual(json['code'], 200)
         self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
+
+        self.assertFalse(mock_update_custom_attribute.called)
 
 
 class TestSchemeAccountModel(APITestCase):

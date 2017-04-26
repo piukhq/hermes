@@ -9,6 +9,10 @@ USER_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
 
 
+class IntercomException(Exception):
+    pass
+
+
 def post_issued_join_card_event(token, user_id):
     """
     Submit an event to the Intercom service
@@ -18,7 +22,7 @@ def post_issued_join_card_event(token, user_id):
     """
     headers = _get_headers(token)
 
-    return requests.post(
+    response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_EVENTS_PATH),
         headers=headers,
         data=json.dumps({
@@ -27,6 +31,11 @@ def post_issued_join_card_event(token, user_id):
             'created_at': int(time.time())
         })
     )
+
+    if response.status_code != 202:
+        raise IntercomException('Error post_issued_join_card_event: {}'.format(response.text))
+
+    return response
 
 
 def reset_user_custom_attributes(token, user_id):
@@ -42,11 +51,16 @@ def reset_user_custom_attributes(token, user_id):
         'custom_attributes': dict((attr_name, None) for attr_name in USER_CUSTOM_ATTRIBUTES)
     }
 
-    return requests.post(
+    response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
         headers=headers,
         data=json.dumps(payload)
     )
+
+    if response.status_code != 200:
+        raise IntercomException('Error reset_user_custom_attributes: {}'.format(response.text))
+
+    return response
 
 
 def update_user_custom_attribute(token, user_id, attr_name, attr_value):
@@ -66,11 +80,16 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
         }
     }
 
-    return requests.post(
+    response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
         headers=headers,
         data=json.dumps(payload)
     )
+
+    if response.status_code != 200:
+        raise IntercomException('Error update_user_custom_attribute: {}'.format(response.text))
+
+    return response
 
 
 def get_user_events(token, user_id):
