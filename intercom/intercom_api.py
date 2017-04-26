@@ -5,7 +5,11 @@ import time
 from django.conf import settings
 
 
-def post_event(token, user_id, event):
+USER_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
+ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
+
+
+def post_issued_join_card_event(token, user_id):
     """
     Submit an event to the Intercom service
     :param user_id: uuid identifier for the user
@@ -19,9 +23,29 @@ def post_event(token, user_id, event):
         headers=headers,
         data=json.dumps({
             'user_id': user_id,
-            'event_name': event,
+            'event_name': ISSUED_JOIN_CARD_EVENT,
             'created_at': int(time.time())
         })
+    )
+
+
+def reset_user_custom_attributes(token, user_id):
+    """
+    Reset user custom attributes
+    :param user_id: uuid identifier for the user
+    :return: the whole response
+    """
+    headers = _get_headers(token)
+
+    payload = {
+        'user_id': user_id,
+        'custom_attributes': dict((attr_name, None) for attr_name in USER_CUSTOM_ATTRIBUTES)
+    }
+
+    return requests.post(
+        '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
+        headers=headers,
+        data=json.dumps(payload)
     )
 
 
@@ -46,37 +70,6 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
         headers=headers,
         data=json.dumps(payload)
-    )
-
-
-def update_user_attributes(token, user_id, attr):
-    """
-    Update user attributes
-    :param user_id: uuid identifier for the user
-    :param attr: A hash of key/value pairs containing any all the attributes to be updated
-    :return: the whole response
-    """
-    headers = _get_headers(token)
-
-    payload = {
-        'user_id': user_id,
-    }
-    payload.update(attr)
-
-    return requests.post(
-        '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
-        headers=headers,
-        data=json.dumps(payload)
-    )
-
-
-def get_users(token):
-    """Retrieves all the user from the Intercom service"""
-    headers = _get_headers(token)
-
-    return requests.get(
-        '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
-        headers=headers
     )
 
 
