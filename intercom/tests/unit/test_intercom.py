@@ -19,13 +19,15 @@ class IntercomApiTest(unittest.TestCase):
 
     def test_post_issued_card_event_successful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=202)
+        company_name = 'test_company_name'
+        slug = 'test-slug'
         expected_data = {
             'user_id': self.FAKE_USER_ID,
             'event_name': ISSUED_JOIN_CARD_EVENT,
             'created_at': 99999999
         }
 
-        post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID)
+        post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID, company_name, slug)
 
         self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
@@ -42,9 +44,11 @@ class IntercomApiTest(unittest.TestCase):
 
     def test_post_issued_card_event_unsuccessful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=400, text='mock_text')
+        company_name = 'test_company_name'
+        slug = 'test-slug'
 
         with self.assertRaises(IntercomException) as context:
-            post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID)
+            post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID, company_name, slug)
         self.assertIn('Error post_issued_join_card_event: mock_text', str(context.exception))
 
     def test_reset_user_custom_attributes_successful(self, post_mock):
