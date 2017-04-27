@@ -21,10 +21,15 @@ class IntercomApiTest(unittest.TestCase):
         post_mock.return_value = unittest.mock.Mock(status_code=202)
         company_name = 'test_company_name'
         slug = 'test-slug'
+
         expected_data = {
             'user_id': self.FAKE_USER_ID,
             'event_name': ISSUED_JOIN_CARD_EVENT,
-            'created_at': 99999999
+            'created_at': 99999999,
+            'metadata': {
+                'company name': 'test_company_name',
+                'slug': 'test-slug'
+            }
         }
 
         post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID, company_name, slug)
