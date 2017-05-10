@@ -31,6 +31,7 @@ from user.serializers import (ApplicationKitSerializer,
                               RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
                               ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
                               TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
+from user.managers import apply_promo_code
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -101,10 +102,24 @@ class ValidatePromoCode(CreateAPIView):
     permission_classes = (AllowAny,)
     serializer_class = PromoCodeSerializer
 
+    # Frontend 1.8 BUGFIX:
+    # Emulate the promo code part of the registration flow.
+    # This should be reverted back to its normal flow after an adequate amount of time.
     def post(self, request, *args, **kwargs):
-        code = request.data['promo_code']
-        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
-        return Response(out_serializer.data)
+        try:
+            code = request.data['promo_code']
+        except KeyError:
+            return Response(status=400)
+
+        try:
+            jwt_auth = JwtAuthentication()
+            user = jwt_auth.authenticate(request)
+        except:
+            out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
+            return Response(out_serializer.data)
+        else:
+            apply_promo_code(user, code)
+            return Response(status=200)
 
 
 class ValidateResetToken(CreateAPIView):
@@ -182,6 +197,7 @@ class VerifyToken(APIView):
     Basic view to check that a token is valid.
     Can be used by external services which don't know the secret.
     """
+
     def get(self, request):
         return Response()
 
