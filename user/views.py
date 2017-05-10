@@ -98,7 +98,7 @@ class ApplyPromoCode(CreateAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
-            return Response({'valid': False}, status=HTTP_400_BAD_REQUEST)
+            return Response({'valid': False}, status=HTTP_200_OK)
         data = serializer.validated_data
         request.user.apply_promo_code(data['promo_code'])
         return Response({'valid': True}, status=HTTP_200_OK)

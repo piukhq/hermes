@@ -1137,16 +1137,38 @@ class TestApplyPromoCode(APITestCase):
 
     def test_invalid_code(self):
         """
-        Request to apply a made-up code to `self.user1` and assert that a 4xx error code is returned, and that no
-        referral or marketing codes have been applied to `self.user1`.
+        Request to apply a made-up code to `self.user1` and assert that no referral or marketing codes have been applied
+        to `self.user1`.
         """
         resp = self.client.post(reverse('promo_code'),
                                 data={'promo_code': 'm209b87w3bjh0sz7q3vat90agj'},
                                 **self.auth_headers)
-        self.assertEqual(400, resp.status_code)
+        self.assertEqual(200, resp.status_code)
 
         updated_user = CustomUser.objects.get(pk=self.user1.id)
         self.assertIsNone(updated_user.marketing_code)
 
         referral = Referral.objects.filter(recipient=self.user1)
+        self.assertFalse(referral.exists())
+
+    def test_apply_multiple_referrals(self):
+        """
+        Request to apply the referral code of `self.user2` to `self.user1` and assert that the referral has been
+        created. Then, request to apply the referral code of `user3` to `self.user1` and assert that a second referral
+        has not been created.
+        """
+        user3 = UserFactory()
+
+        resp = self.client.post(reverse('promo_code'),
+                                data={'promo_code': self.user2.referral_code},
+                                **self.auth_headers)
+        self.assertEqual(200, resp.status_code)
+        referral = Referral.objects.filter(referrer=self.user2, recipient=self.user1)
+        self.assertTrue(referral.exists())
+
+        resp = self.client.post(reverse('promo_code'),
+                                data={'promo_code': user3.referral_code},
+                                **self.auth_headers)
+        self.assertEqual(200, resp.status_code)
+        referral = Referral.objects.filter(referrer=user3, recipient=self.user1)
         self.assertFalse(referral.exists())
