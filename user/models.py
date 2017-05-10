@@ -200,10 +200,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
 
     def apply_marketing(self, marketing_code):
+        if self.marketing_code:
+            return
         try:
             mc = MarketingCode.objects.get(code=marketing_code)
             if valid_marketing_code(mc.code):
                 self.marketing_code = mc
+                self.save()
             else:
                 return False
         except MarketingCode.DoesNotExist:
