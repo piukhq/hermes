@@ -97,10 +97,11 @@ class ApplyPromoCode(CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response({'valid': False}, status=HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
         request.user.apply_promo_code(data['promo_code'])
-        return Response(serializer.validated_data, status=HTTP_200_OK)
+        return Response({'valid': True}, status=HTTP_200_OK)
 
 
 class ValidateResetToken(CreateAPIView):
