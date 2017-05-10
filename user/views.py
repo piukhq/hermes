@@ -113,7 +113,7 @@ class ValidatePromoCode(CreateAPIView):
 
         try:
             jwt_auth = JwtAuthentication()
-            user = jwt_auth.authenticate(request)
+            user, _ = jwt_auth.authenticate(request)
         except:
             out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
             return Response(out_serializer.data)

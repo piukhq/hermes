@@ -51,6 +51,7 @@ def valid_marketing_code(marketing_code):
 
 class ModifyingFieldDescriptor(object):
     """ Modifies a field when set using the field's (overriden) .to_python() method. """
+
     def __init__(self, field):
         self.field = field
 
@@ -192,8 +193,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return reset_token
 
     def create_referral(self, referral_code):
-        referrer_id = hash_ids.decode(referral_code)[0]
-        Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
+        decoded = hash_ids.decode(referral_code)
+
+        if decoded:
+            referrer_id = decoded[0]
+            Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
 
     def apply_marketing(self, marketing_code):
         try:
