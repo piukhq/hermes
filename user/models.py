@@ -194,6 +194,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return reset_token
 
     def create_referral(self, referral_code):
+        if Referral.objects.filter(recipient=self).exists():
+            return
+
         decoded = hash_ids.decode(referral_code)
 
         if decoded:
