@@ -241,14 +241,14 @@ class TestRegisterNewUserViews(TestCase):
         self.assertEqual(content['message'], 'Registration failed.')
 
     def test_existing_email_switch_case(self):
-            client = Client()
-            response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
-            self.assertEqual(response.status_code, 201)
-            response = client.post(reverse('register_user'), {'email': 'TeSt_6@Example.com', 'password': 'Password6'})
-            content = json.loads(response.content.decode())
-            self.assertEqual(response.status_code, 403)
-            self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-            self.assertEqual(content['message'], 'Registration failed.')
+        client = Client()
+        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
+        self.assertEqual(response.status_code, 201)
+        response = client.post(reverse('register_user'), {'email': 'TeSt_6@Example.com', 'password': 'Password6'})
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
+        self.assertEqual(content['message'], 'Registration failed.')
 
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
@@ -888,13 +888,9 @@ class TestUserModel(TestCase):
 
 
 class TestCustomUserManager(TestCase):
-    @mock.patch.object(CustomUser, 'create_referral', auto_spec=True)
-    def test_create_user(self, mock_create_referral):
+    def test_create_user(self):
         password = '234'
-        user = CustomUser.objects._create_user('test@sdf.com', password, promo_code='wer',
-                                               is_staff=False, is_superuser=False)
-
-        self.assertTrue(mock_create_referral.called)
+        user = CustomUser.objects._create_user('test@sdf.com', password, is_staff=False, is_superuser=False)
         self.assertNotEqual(user.password, password)
 
 

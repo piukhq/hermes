@@ -1,21 +1,23 @@
+from string import ascii_letters, digits
+import random
+import uuid
+
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.utils.translation import ugettext_lazy as _
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.db.models.fields import CharField
+from django.dispatch import receiver
+from django.conf import settings
+from django.db import models
+from hashids import Hashids
 import arrow
 import jwt
-import uuid
-import random
-from string import ascii_letters, digits
 
-from hashids import Hashids
-from django.db.models.fields import CharField
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.utils.translation import ugettext_lazy as _
-
-from hermes import settings
-from scheme.models import Scheme
 from user.validators import validate_boolean, validate_number
+from user.managers import CustomUserManager
+from scheme.models import Scheme
+
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
