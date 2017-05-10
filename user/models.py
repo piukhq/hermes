@@ -1,22 +1,23 @@
+from string import ascii_letters, digits
+import random
+import uuid
+
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.utils.translation import ugettext_lazy as _
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.db.models.fields import CharField
+from django.dispatch import receiver
+from django.conf import settings
+from django.db import models
+from hashids import Hashids
 import arrow
 import jwt
-import uuid
-import random
-from string import ascii_letters, digits
 
-from hashids import Hashids
-from django.db.models.fields import CharField
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.utils.translation import ugettext_lazy as _
-
-from hermes import settings
-from scheme.models import Scheme
-from user.managers import CustomUserManager
 from user.validators import validate_boolean, validate_number
+from user.managers import CustomUserManager
+from scheme.models import Scheme
+
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
 
@@ -51,6 +52,7 @@ def valid_marketing_code(marketing_code):
 
 class ModifyingFieldDescriptor(object):
     """ Modifies a field when set using the field's (overriden) .to_python() method. """
+
     def __init__(self, field):
         self.field = field
 
@@ -192,19 +194,30 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return reset_token
 
     def create_referral(self, referral_code):
-        referrer_id = hash_ids.decode(referral_code)[0]
-        Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
+        decoded = hash_ids.decode(referral_code)
+
+        if decoded:
+            referrer_id = decoded[0]
+            Referral.objects.create(referrer_id=referrer_id, recipient_id=self.id)
 
     def apply_marketing(self, marketing_code):
+        if self.marketing_code:
+            return
         try:
             mc = MarketingCode.objects.get(code=marketing_code)
             if valid_marketing_code(mc.code):
                 self.marketing_code = mc
+                self.save()
             else:
                 return False
         except MarketingCode.DoesNotExist:
             return False
         return True
+
+    def apply_promo_code(self, promo_code):
+        # if it's a marketing code then treat it as such, else do the promo/referral thing...
+        if not self.apply_marketing(promo_code.lower()):
+            self.create_referral(promo_code)
 
     def __unicode__(self):
         return self.email or str(self.uid)

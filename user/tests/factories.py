@@ -1,8 +1,9 @@
-import factory
 from factory.fuzzy import FuzzyAttribute
-from user import models
 from faker import Factory
+import factory
+import arrow
 
+from user import models
 
 fake = Factory.create()
 
@@ -55,3 +56,14 @@ class UserSettingFactory(factory.DjangoModelFactory):
     user = factory.SubFactory(UserFactory)
     setting = factory.SubFactory(SettingFactory)
     value = fake.text(max_nb_chars=255)
+
+
+class MarketingCodeFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.MarketingCode
+
+    code = FuzzyAttribute(fake.slug)
+    date_from = arrow.now().datetime
+    date_to = arrow.now().replace(days=+7).datetime
+    description = fake.text(max_nb_chars=300)
+    partner = fake.text(max_nb_chars=100)
