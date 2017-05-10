@@ -15,7 +15,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from hermes import settings
 from scheme.models import Scheme
-from user.managers import CustomUserManager
+from user.managers import CustomUserManager, apply_promo_code
 from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
@@ -212,6 +212,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         except MarketingCode.DoesNotExist:
             return False
         return True
+
+    def apply_promo_code(self, promo_code):
+        apply_promo_code(self, promo_code)
 
     def __unicode__(self):
         return self.email or str(self.uid)

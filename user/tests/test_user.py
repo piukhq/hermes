@@ -14,7 +14,8 @@ from django.test import Client, TestCase
 
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
-from user.tests.factories import UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory
+from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
+                                  MarketingCodeFactory)
 from unittest import mock
 
 from user.views import facebook_login, twitter_login, social_login
@@ -211,60 +212,6 @@ class TestRegisterNewUserViews(TestCase):
             {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc})
         self.assertEqual(response.status_code, 201)
 
-    def test_timedout_marketing_code_without_registration(self):
-        client = Client()
-        # create a marketing code
-        mc = MarketingCode()
-        code = "SALE123".lower()
-        mc.code = code
-        mc.date_from = arrow.utcnow().replace(hours=-12).datetime
-        mc.date_to = arrow.utcnow().replace(hours=-6).datetime
-        mc.description = ''
-        mc.partner = 'Dixons Travel'
-        mc.save()
-
-        # Apply the marketing code for this user
-        response = client.post('/users/promo_code/', {'promo_code': code})
-        self.assertEqual(response.status_code, 200)
-        content = json.loads(response.content.decode())
-        self.assertFalse(content['valid'])
-
-    def test_good_marketing_code_without_registration(self):
-        client = Client()
-        # create a marketing code
-        mc = MarketingCode()
-        code = "SALE123".lower()
-        mc.code = code
-        mc.date_from = arrow.utcnow().datetime
-        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
-        mc.description = ''
-        mc.partner = 'Dixons Travel'
-        mc.save()
-
-        # Apply the marketing code for this user
-        response = client.post('/users/promo_code/', {'promo_code': code})
-        self.assertEqual(response.status_code, 200)
-        content = json.loads(response.content.decode())
-        self.assertTrue(content['valid'])
-
-    def test_bad_marketing_code_without_registration(self):
-        client = Client()
-        # create a marketing code
-        mc = MarketingCode()
-        code = "SALE123".lower()
-        mc.code = code
-        mc.date_from = arrow.utcnow().datetime
-        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
-        mc.description = ''
-        mc.partner = 'Dixons Travel'
-        mc.save()
-
-        # Apply the marketing code for this user
-        response = client.post('/users/promo_code/', {'promo_code': "SALE987"})
-        self.assertEqual(response.status_code, 200)
-        content = json.loads(response.content.decode())
-        self.assertFalse(content['valid'])
-
     def test_good_marketing_code(self):
         client = Client()
         # create a marketing code
@@ -282,35 +229,6 @@ class TestRegisterNewUserViews(TestCase):
             reverse('register_user'),
             {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': code})
         self.assertEqual(response.status_code, 201)
-
-    def test_bad_marketing_code(self):
-        client = Client()
-        # create a marketing code
-        mc = MarketingCode()
-        code = "SALE987".lower()
-        mc.code = code
-        mc.date_from = arrow.utcnow().datetime
-        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
-        mc.description = ''
-        mc.partner = 'Dixons Travel'
-        mc.save()
-
-        # Apply the marketing code for this user with a new user registration
-        response = client.post(
-            reverse('register_user'),
-            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': "SALE"})
-        self.assertEqual(response.status_code, 400)
-        content = json.loads(response.content.decode())
-        self.assertEqual(content['promo_code'], ['Promo code is not valid'])
-
-    def test_bad_promo_code(self):
-        client = Client()
-        response = client.post(
-            reverse('register_user'),
-            {'email': 't4@example.com', 'password': 'pasd4', 'promo_code': '4'})
-        self.assertEqual(response.status_code, 400)
-        content = json.loads(response.content.decode())
-        self.assertEqual(content['promo_code'], ['Promo code is not valid'])
 
     def test_existing_email(self):
         client = Client()
@@ -343,19 +261,6 @@ class TestRegisterNewUserViews(TestCase):
         response = self.client.post(reverse('login'), data={"email": email, "password": 'Password6'})
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
-
-
-class TestPromoCodeViews(TestCase):
-    def test_promo_code(self):
-        user = UserFactory()
-        response = self.client.post('/users/promo_code', {'promo_code': hash_ids.encode(user.id)})
-        content = json.loads(response.content.decode())
-        self.assertTrue(content['valid'])
-
-    def test_promo_code_bad(self):
-        response = self.client.post('/users/promo_code', {'promo_code': 44})
-        content = json.loads(response.content.decode())
-        self.assertFalse(content['valid'])
 
 
 class TestUserProfileViews(TestCase):
@@ -867,7 +772,7 @@ class TestTwitterLogin(APITestCase):
     def test_twitter_login_app(self, twitter_login_mock):
         twitter_login_mock.return_value = HttpResponse()
         self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
-        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234', None))
+        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234'))
 
     @mock.patch('user.views.social_login', autospec=True)
     @httpretty.activate
@@ -877,7 +782,7 @@ class TestTwitterLogin(APITestCase):
         mock_social_login.return_value = (201, user)
         httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
                                body=json.dumps({'id_str': twitter_id}), content_type="application/json")
-        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb", None)
+        response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['email'], user.email)
 
@@ -931,35 +836,35 @@ class TestSocialLogin(APITestCase):
     def test_social_login_exists(self):
         facebook_id = 'O7bz6vG60Y'
         created_user = UserFactory(facebook=facebook_id)
-        status, user = social_login(facebook_id, None, 'facebook', None)
+        status, user = social_login(facebook_id, None, 'facebook')
         self.assertEqual(status, 200)
         self.assertEqual(created_user, user)
 
     def test_social_login_exists_no_email(self):
         facebook_id = 'O7bz6vG60Y'
         UserFactory(facebook=facebook_id, email=None)
-        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook', None)
+        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
         self.assertEqual(status, 200)
         self.assertEqual(user.email, 'frank@sea.com')
 
     def test_social_login_not_linked(self):
         user = UserFactory()
         twitter_id = '3456bz23466vG'
-        status, user = social_login(twitter_id, user.email, 'twitter', None)
+        status, user = social_login(twitter_id, user.email, 'twitter')
         self.assertEqual(status, 200)
         self.assertEqual(user.twitter, twitter_id)
 
     def test_social_login_no_user(self):
         twitter_id = '6u111bzUNL'
         twitter_email = 'bob@sea.com'
-        status, user = social_login(twitter_id, twitter_email, 'twitter', None)
+        status, user = social_login(twitter_id, twitter_email, 'twitter')
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, twitter_email)
 
     def test_social_login_no_user_no_email(self):
         twitter_id = 'twitter_email'
-        status, user = social_login(twitter_id, None, 'twitter', None)
+        status, user = social_login(twitter_id, None, 'twitter')
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, None)
@@ -1200,3 +1105,52 @@ class TestVerifyToken(APITestCase):
 
         response = self.client.get(reverse('verify_token'), **headers)
         self.assertEqual(response.status_code, 401)
+
+
+class TestApplyPromoCode(APITestCase):
+    def setUp(self):
+        self.user1 = UserFactory()
+        self.user2 = UserFactory()
+
+        self.marketing_code = MarketingCodeFactory()
+
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(self.user1.create_token())}
+
+    def test_valid_marketing_code(self):
+        """
+        Request to apply `self.marketing_code` to `self.user` and assert that it has been applied correctly.
+        """
+        resp = self.client.post(reverse('promo_code'),
+                                data={'promo_code': self.marketing_code.code},
+                                **self.auth_headers)
+        self.assertEqual(200, resp.status_code)
+
+        updated_user = CustomUser.objects.get(pk=self.user1.id)
+        self.assertEqual(updated_user.marketing_code, self.marketing_code)
+
+    def test_valid_referral_code(self):
+        """
+        Request to apply the referral code of `self.user2` to `self.user` and assert that the referral has been created.
+        """
+        resp = self.client.post(reverse('promo_code'),
+                                data={'promo_code': self.user2.referral_code},
+                                **self.auth_headers)
+        self.assertEqual(200, resp.status_code)
+        referral = Referral.objects.filter(referrer=self.user2, recipient=self.user1)
+        self.assertTrue(referral.exists())
+
+    def test_invalid_code(self):
+        """
+        Request to apply a made-up code to `self.user1` and assert that a 4xx error code is returned, and that no
+        referral or marketing codes have been applied to `self.user1`.
+        """
+        resp = self.client.post(reverse('promo_code'),
+                                data={'promo_code': 'm209b87w3bjh0sz7q3vat90agj'},
+                                **self.auth_headers)
+        self.assertEqual(400, resp.status_code)
+
+        updated_user = CustomUser.objects.get(pk=self.user1.id)
+        self.assertIsNone(updated_user.marketing_code)
+
+        referral = Referral.objects.filter(recipient=self.user1)
+        self.assertFalse(referral.exists())

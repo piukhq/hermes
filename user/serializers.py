@@ -40,7 +40,6 @@ class ApplicationKitSerializer(serializers.Serializer):
 
 
 class RegisterSerializer(serializers.Serializer):
-    promo_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
@@ -48,13 +47,12 @@ class RegisterSerializer(serializers.Serializer):
     def create(self, validated_data):
         email = validated_data['email']
         password = validated_data['password']
-        promo_code = validated_data.get('promo_code')
 
         client_id = validated_data.get('client_id')
         if client_id:
-            user = CustomUser.objects.create_user(email, password, promo_code, client_id=client_id)
+            user = CustomUser.objects.create_user(email, password, client_id=client_id)
         else:
-            user = CustomUser.objects.create_user(email, password, promo_code)
+            user = CustomUser.objects.create_user(email, password)
 
         user.save()
         return user
@@ -67,11 +65,6 @@ class RegisterSerializer(serializers.Serializer):
 
     def validate_password(self, value):
         validate_pass(value)
-        return value
-
-    def validate_promo_code(self, value):
-        if value and not valid_promo_code(value):
-            raise serializers.ValidationError("Promo code is not valid")
         return value
 
     def to_representation(self, instance):
@@ -93,9 +86,13 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
         return email
 
 
-class PromoCodeSerializer(serializers.Serializer):
-    promo_code = serializers.CharField(write_only=True)
-    valid = serializers.BooleanField(read_only=True)
+class ApplyPromoCodeSerializer(serializers.Serializer):
+    promo_code = serializers.CharField()
+
+    def validate_promo_code(self, promo_code):
+        if not valid_promo_code(promo_code):
+            raise serializers.ValidationError('Invalid promo code: {}'.format(promo_code))
+        return promo_code
 
 
 class LoginSerializer(serializers.Serializer):
@@ -220,13 +217,11 @@ class FaceBookWebRegisterSerializer(serializers.Serializer):
 class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
-    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
 
 
 class TwitterRegisterSerializer(serializers.Serializer):
     access_token_secret = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
-    promo_code = serializers.CharField(max_length=120, required=False, allow_blank=True)
 
 
 class ResponseAuthSerializer(serializers.Serializer):

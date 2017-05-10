@@ -6,9 +6,8 @@ from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE,
-                    FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER, INCORRECT_CREDENTIALS,
-                    INVALID_PROMO_CODE, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
+from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from hermes.settings import LETHE_URL, MEDIA_URL
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
@@ -23,15 +22,13 @@ from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser,
-                         Setting, UserSetting, valid_promo_code, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer,
                               FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
-                              NewLoginSerializer, NewRegisterSerializer, PromoCodeSerializer,
+                              NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
                               RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
                               ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
                               TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
-from user.managers import apply_promo_code
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -59,10 +56,7 @@ class CustomRegisterMixin(object):
                           fail_silently=False)
             return Response(serializer.data, 201)
         else:
-            if 'promo_code' in serializer.errors:
-                return Response({'promo_code': serializer.errors['promo_code']}, 400)
-            else:
-                return error_response(REGISTRATION_FAILED)
+            return error_response(REGISTRATION_FAILED)
 
 
 # TODO: Could be merged with users
@@ -94,32 +88,19 @@ class NewRegister(Register):
     serializer_class = NewRegisterSerializer
 
 
-class ValidatePromoCode(CreateAPIView):
+class ApplyPromoCode(CreateAPIView):
     """
-    Validate promo codes
+    Apply a promo code to a user.
     """
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-    serializer_class = PromoCodeSerializer
+    authentication_classes = (JwtAuthentication,)
+    serializer_class = ApplyPromoCodeSerializer
 
-    # Frontend 1.8 BUGFIX:
-    # Emulate the promo code part of the registration flow.
-    # This should be reverted back to its normal flow after an adequate amount of time.
     def post(self, request, *args, **kwargs):
-        try:
-            code = request.data['promo_code']
-        except KeyError:
-            return Response(status=400)
-
-        try:
-            jwt_auth = JwtAuthentication()
-            user, _ = jwt_auth.authenticate(request)
-        except:
-            out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
-            return Response(out_serializer.data)
-        else:
-            apply_promo_code(user, code)
-            return Response(status=200)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        request.user.apply_promo_code(data['promo_code'])
+        return Response(serializer.validated_data, status=HTTP_200_OK)
 
 
 class ValidateResetToken(CreateAPIView):
@@ -135,7 +116,7 @@ class ValidateResetToken(CreateAPIView):
         reset_token = request.data['token']
         if not valid_reset_code(reset_token):
             return Response(status=404)
-        out_serializer = ResetTokenSerializer({'valid': valid_promo_code(reset_token)})
+        out_serializer = ResetTokenSerializer({'valid': True})
         return Response(out_serializer.data)
 
 
@@ -341,7 +322,7 @@ class FaceBookLogin(CreateAPIView):
             return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token, request.data.get('promo_code'))
+        return facebook_login(access_token)
 
 
 class TwitterLoginWeb(APIView):
@@ -384,8 +365,7 @@ class TwitterLogin(CreateAPIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        return twitter_login(request.data['access_token'], request.data['access_token_secret'],
-                             request.data.get('promo_code'))
+        return twitter_login(request.data['access_token'], request.data['access_token_secret'])
 
 
 class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
@@ -413,17 +393,17 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token, promo_code=None):
+def facebook_login(access_token):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
         return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
-    return social_response(profile['id'], profile.get('email'), 'facebook', promo_code)
+    return social_response(profile['id'], profile.get('email'), 'facebook')
 
 
-def twitter_login(access_token, access_token_secret, promo_code=None):
+def twitter_login(access_token, access_token_secret):
     """
     https://dev.twitter.com/web/sign-in/implementing
     https://dev.twitter.com/rest/reference/get/account/verify_credentials
@@ -445,20 +425,17 @@ def twitter_login(access_token, access_token_secret, promo_code=None):
     email = profile.get('email')
     if not email:
         email = None
-    return social_response(profile['id_str'], email, 'twitter', promo_code)
+    return social_response(profile['id_str'], email, 'twitter')
 
 
-def social_response(social_id, email, service, promo_code):
-    if promo_code and not valid_promo_code(promo_code):
-        return error_response(INVALID_PROMO_CODE)
-
-    status, user = social_login(social_id, email, service, promo_code)
+def social_response(social_id, email, service):
+    status, user = social_login(social_id, email, service)
 
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
 
 
-def social_login(social_id, email, service, promo_code):
+def social_login(social_id, email, service):
     status = 200
     try:
         user = CustomUser.objects.get(**{service: social_id})
@@ -476,8 +453,7 @@ def social_login(social_id, email, service, promo_code):
         except CustomUser.DoesNotExist:
             # We are creating a new user
             password = get_random_string(length=32)
-            user = CustomUser.objects.create_user(**{'email': email, 'password': password, 'promo_code': promo_code,
-                                                     service: social_id})
+            user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id})
             status = 201
     return status, user
 
