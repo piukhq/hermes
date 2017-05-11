@@ -303,11 +303,12 @@ EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 
 
-# INTERCOM COMMUNICATION
+# INTERCOM_TOKEN default value is for testing
+INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')
 INTERCOM_HOST = 'https://api.intercom.io'
 INTERCOM_USERS_PATH = 'users'
 INTERCOM_EVENTS_PATH = 'events'
-INTERCOM_TOKEN = 'TODO add token'
+
 
 
 # Barclays BINs, to be removed when Barclays is supported.
