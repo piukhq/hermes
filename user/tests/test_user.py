@@ -952,8 +952,9 @@ class TestUserSettings(APITestCase):
         self.assertEqual(data[0]['value'], '1')
         self.assertEqual(data[0]['value_type'], setting.value_type_name)
 
-    def test_delete_user_settings(self):
-        settings = [SettingFactory(), SettingFactory()]
+    @mock.patch('intercom.intercom_api.reset_user_custom_attributes')
+    def test_delete_user_settings(self, mock_update_custom_attribute):
+        settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
 
@@ -967,7 +968,39 @@ class TestUserSettings(APITestCase):
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 0)
 
-    def test_update_user_settings(self):
+        self.assertEqual(mock_update_custom_attribute.call_count, 1)
+
+    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_update_intercom_user_settings(self, mock_update_custom_attribute):
+        settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
+        UserSettingFactory(user=self.user, value='1', setting=settings[0])
+        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
+        self.assertEqual(user_setting.value, '1')
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
+        self.assertEqual(user_setting.value, '0')
+
+        data = {
+            settings[0].slug: '0',
+            settings[1].slug: '1',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 204)
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
+        self.assertEqual(user_setting.value, '0')
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
+        self.assertEqual(user_setting.value, '1')
+
+        self.assertEqual(mock_update_custom_attribute.call_count, 2)
+        self.assertEqual(mock_update_custom_attribute.call_count, len(settings))
+
+    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_update_non_intercom_user_settings(self, mock_update_custom_attribute):
         settings = [SettingFactory(), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -991,6 +1024,8 @@ class TestUserSettings(APITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
         self.assertEqual(user_setting.value, '1')
+
+        self.assertFalse(mock_update_custom_attribute.called)
 
     def test_update_incorrect_user_settings(self):
         setting = SettingFactory()
@@ -1029,7 +1064,8 @@ class TestUserSettings(APITestCase):
         self.assertIn("'kitten' is not a valid value for type boolean.", data['messages'])
         self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
 
-    def test_create_new_setting(self):
+    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_create_non_intercom_settings(self, mock_update_custom_attribute):
         setting = SettingFactory()
 
         data = {
@@ -1041,6 +1077,24 @@ class TestUserSettings(APITestCase):
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
+
+        self.assertFalse(mock_update_custom_attribute.called)
+
+    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_create_intercom_setting(self, mock_update_custom_attribute):
+        setting = SettingFactory(slug='marketing-bink')
+
+        data = {
+            setting.slug: '1',
+        }
+        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 204)
+
+        user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
+        self.assertEqual(user_setting.value, '1')
+
+        self.assertEqual(mock_update_custom_attribute.call_count, 1)
 
 
 class TestAppKitIdentification(APITestCase):
