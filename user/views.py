@@ -537,7 +537,7 @@ class UserSettings(APIView):
                             settings.INTERCOM_TOKEN,
                             request.user.uid,
                             slug_key,
-                            self._map_str_to_boolean(value)
+                            user_setting.to_boolean()
                         )
                     except intercom_api.IntercomException:
                         pass
@@ -583,15 +583,6 @@ class UserSettings(APIView):
             setting = Setting.objects.filter(slug=setting_slug).first()
             user_setting = UserSetting(user=user, setting=setting, value=value)
         return user_setting
-
-    @staticmethod
-    def _map_str_to_boolean(value):
-        if value == '1':
-            return True
-        if value == '0':
-            return False
-
-        return None
 
 
 class IdentifyApplicationKit(APIView):

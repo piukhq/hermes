@@ -382,6 +382,12 @@ class UserSetting(models.Model):
     def clean(self):
         validate_setting_value(self.value, self.setting)
 
+    def to_boolean(self):
+        try:
+            return bool(int(self.value))
+        except ValueError:
+            return None
+
 
 def validate_setting_value(value, setting):
     # not all value_types have a corresponding validator.
