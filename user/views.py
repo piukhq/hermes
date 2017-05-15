@@ -533,8 +533,12 @@ class UserSettings(APIView):
                 user_setting.save()
                 if slug_key in intercom_api.USER_CUSTOM_ATTRIBUTES:
                     try:
-                        intercom_api.update_user_custom_attribute(settings.INTERCOM_TOKEN, request.user.uid,
-                                                                  slug_key, value)
+                        intercom_api.update_user_custom_attribute(
+                            settings.INTERCOM_TOKEN,
+                            request.user.uid,
+                            slug_key,
+                            self._map_str_to_boolean(value)
+                        )
                     except intercom_api.IntercomException:
                         pass
 
@@ -579,6 +583,15 @@ class UserSettings(APIView):
             setting = Setting.objects.filter(slug=setting_slug).first()
             user_setting = UserSetting(user=user, setting=setting, value=value)
         return user_setting
+
+    @staticmethod
+    def _map_str_to_boolean(value):
+        if value == '1':
+            return True
+        if value == '0':
+            return False
+
+        return None
 
 
 class IdentifyApplicationKit(APIView):
