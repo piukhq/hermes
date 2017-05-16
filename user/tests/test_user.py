@@ -983,8 +983,8 @@ class TestUserSettings(APITestCase):
         self.assertEqual(user_setting.value, '0')
 
         data = {
-            settings[0].slug: '0',
-            settings[1].slug: '1',
+            settings[0].slug: '0',  # False
+            settings[1].slug: '1',  # True
         }
         resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
 
@@ -997,6 +997,14 @@ class TestUserSettings(APITestCase):
         self.assertEqual(user_setting.value, '1')
 
         self.assertEqual(mock_update_custom_attribute.call_count, 2)
+        # marketing-bink updated to True in intercom
+        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][2], 'marketing-bink')
+        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][3], False)
+
+        # marketing-external updated to False in intercom
+        self.assertEqual(mock_update_custom_attribute.call_args_list[1][0][2], 'marketing-external')
+        self.assertEqual(mock_update_custom_attribute.call_args_list[1][0][3], True)
+
         self.assertEqual(mock_update_custom_attribute.call_count, len(settings))
 
     @mock.patch('intercom.intercom_api.update_user_custom_attribute')
@@ -1095,6 +1103,9 @@ class TestUserSettings(APITestCase):
         self.assertEqual(user_setting.value, '1')
 
         self.assertEqual(mock_update_custom_attribute.call_count, 1)
+        # marketing-bink updated to True in intercom
+        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][2], 'marketing-bink')
+        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][3], True)
 
 
 class TestAppKitIdentification(APITestCase):
