@@ -22,38 +22,17 @@ flake8:
   tags:
     - docker
 
-deploy_dev:
+deploy:
   stage: deploy
-  environment: dev
   script:
-    - docker build -t hellobink/hermes:dev .
-    - docker login -u binkautomation -p epitome-generic-basilisk
-    - docker push hellobink/hermes:dev
+    - docker build -t registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID -t registry.gitlab.com/hellobink/olympus/hermes/image:latest .
+    - docker login registry.gitlab.com -u binkautomation -p $REPO_PASS
+    - docker push registry.gitlab.com/hellobink/olympus/hermes/image:latest
+    - docker push registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID
+    - docker rmi registry.gitlab.com/hellobink/olympus/hermes/image:latest
+    - docker rmi registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID
   only:
     - master
   tags:
     - shell
 
-deploy_staging:
-  stage: deploy
-  environment: staging
-  script:
-    - docker build -t hellobink/hermes:staging .
-    - docker login -u binkautomation -p epitome-generic-basilisk
-    - docker push hellobink/hermes:staging
-  only:
-    - staging
-  tags:
-    - shell
-
-deploy_production:
-  stage: deploy
-  environment: production
-  script:
-    - docker build -t hellobink/hermes:production .
-    - docker login -u binkautomation -p epitome-generic-basilisk
-    - docker push hellobink/hermes:production
-  only:
-    - production
-  tags:
-    - shell
