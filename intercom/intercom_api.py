@@ -109,9 +109,10 @@ def update_account_status_custom_attribute(token, account):
     :param account: scheme account to be send to intercom
     :return: the whole response
     """
-    attr_value = "{},{}".format(
+    attr_value = "{},{},{}".format(
         account.status_name,
-        _get_today_datetime().strftime("%Y/%m/%d")
+        _get_today_datetime().strftime("%Y/%m/%d"),
+        account.scheme.slug
     )
     return update_user_custom_attribute(token, account.user.uid, account.scheme.slug, attr_value)
 

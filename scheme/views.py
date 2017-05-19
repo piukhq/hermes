@@ -208,6 +208,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 answer=data[serializer.context['answer_type']],
             )
         data['id'] = scheme_account.id
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
         return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
 
