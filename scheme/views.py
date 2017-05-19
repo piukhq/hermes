@@ -1,5 +1,7 @@
 import csv
 import uuid
+
+import datetime
 import requests
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
@@ -128,7 +130,9 @@ class LinkCredentials(GenericAPIView):
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+
         response_data = self.link_account(serializer, scheme_account)
+
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -248,6 +252,7 @@ class CreateJoinSchemeAccount(APIView):
 
         try:
             intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid, scheme.company, scheme.slug)
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, user.id, account)
         except intercom_api.IntercomException:
             pass
 
