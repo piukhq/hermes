@@ -1,7 +1,6 @@
 import csv
 import uuid
 
-import datetime
 import requests
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
@@ -13,6 +12,7 @@ from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIVie
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
                            SchemeAccountImage)
@@ -150,6 +150,12 @@ class LinkCredentials(GenericAPIView):
             'status_name': scheme_account.status_name
         }
         response_data.update(serializer.data)
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
         return response_data
 
 
@@ -252,7 +258,7 @@ class CreateJoinSchemeAccount(APIView):
 
         try:
             intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid, scheme.company, scheme.slug)
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, user.id, account)
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
         except intercom_api.IntercomException:
             pass
 

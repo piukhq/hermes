@@ -141,7 +141,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]))
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
         self.assertEqual(mock_update_custom_attr.call_args[0][3], "Active,2000/05/19")
 
     @patch('intercom.intercom_api.update_user_custom_attribute')
@@ -167,7 +167,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data[manual_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]))
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
         self.assertEqual(mock_update_custom_attr.call_args[0][3], "Active,2000/05/19")
 
     def test_list_schemes_accounts(self):

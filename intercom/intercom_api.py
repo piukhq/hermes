@@ -101,7 +101,7 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
     return response
 
 
-def update_account_status_custom_attribute(token, user_id, account):
+def update_account_status_custom_attribute(token, account):
     """
     Update scheme account user custom attribute with the format:
     'sheme-slug': '{status},YYYY/mm/dd'
@@ -114,7 +114,7 @@ def update_account_status_custom_attribute(token, user_id, account):
         account.status_name,
         _get_today_datetime().strftime("%Y/%m/%d")
     )
-    return update_user_custom_attribute(token, user_id, account.scheme.slug, attr_value)
+    return update_user_custom_attribute(token, account.user.uid, account.scheme.slug, attr_value)
 
 
 def get_user_events(token, user_id):
