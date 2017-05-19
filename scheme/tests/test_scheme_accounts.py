@@ -9,7 +9,6 @@ from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, Lis
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
-from scheme.views import SchemeAccountQuery
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
@@ -339,7 +338,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(mock_update_custom_attr.call_count, 1)
         self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
         self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.slug)
-        self.assertEqual(mock_update_custom_attr.call_args[0][3],"Join,2000/05/19")
+        self.assertEqual(mock_update_custom_attr.call_args[0][3], "Join,2000/05/19")
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
