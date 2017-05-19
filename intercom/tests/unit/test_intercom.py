@@ -2,7 +2,7 @@ import json
 import unittest
 
 from hermes import settings
-from intercom.intercom_api import post_issued_join_card_event, ISSUED_JOIN_CARD_EVENT, reset_user_setting, \
+from intercom.intercom_api import post_issued_join_card_event, ISSUED_JOIN_CARD_EVENT, reset_user_settings, \
     update_user_custom_attribute, IntercomException
 
 
@@ -66,7 +66,7 @@ class IntercomApiTest(unittest.TestCase):
             }
         }
 
-        reset_user_setting(self.FAKE_TOKEN, self.FAKE_USER_ID)
+        reset_user_settings(self.FAKE_TOKEN, self.FAKE_USER_ID)
 
         self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
@@ -84,7 +84,7 @@ class IntercomApiTest(unittest.TestCase):
         post_mock.return_value = unittest.mock.Mock(status_code=400, text='mock_text')
 
         with self.assertRaises(IntercomException) as context:
-            reset_user_setting(self.FAKE_TOKEN, self.FAKE_USER_ID)
+            reset_user_settings(self.FAKE_TOKEN, self.FAKE_USER_ID)
         self.assertIn('Error reset_user_custom_attributes: mock_text', str(context.exception))
 
     def test_update_user_custom_attribute_successful(self, post_mock):

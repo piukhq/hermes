@@ -531,7 +531,7 @@ class UserSettings(APIView):
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
-                if slug_key in intercom_api.SETTINGS_CUSTOM_ATTRIBUTES:
+                if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
                     try:
                         intercom_api.update_user_custom_attribute(
                             settings.INTERCOM_TOKEN,
@@ -557,7 +557,7 @@ class UserSettings(APIView):
         """
         UserSetting.objects.filter(user=request.user).delete()
         try:
-            intercom_api.reset_user_setting(settings.INTERCOM_TOKEN, request.user.uid)
+            intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
         except intercom_api.IntercomException:
             pass
 

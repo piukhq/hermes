@@ -1,15 +1,12 @@
 import csv
 import uuid
-
 import requests
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
 from intercom import intercom_api
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
-                                     get_object_or_404, ListCreateAPIView)
-
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 

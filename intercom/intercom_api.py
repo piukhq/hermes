@@ -7,7 +7,7 @@ import time
 from django.conf import settings
 
 
-SETTINGS_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
+SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
 
 
@@ -46,7 +46,7 @@ def post_issued_join_card_event(token, user_id, company_name, slug):
     return response
 
 
-def reset_user_setting(token, user_id):
+def reset_user_settings(token, user_id):
     """
     Reset user custom attributes
     :param token: Intercom API access token
@@ -57,7 +57,7 @@ def reset_user_setting(token, user_id):
 
     payload = {
         'user_id': user_id,
-        'custom_attributes': dict((attr_name, None) for attr_name in SETTINGS_CUSTOM_ATTRIBUTES)
+        'custom_attributes': dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES)
     }
     response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),

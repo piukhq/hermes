@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from intercom.intercom_api import reset_user_setting, post_issued_join_card_event, \
+from intercom.intercom_api import reset_user_settings, post_issued_join_card_event, \
     update_user_custom_attribute, ISSUED_JOIN_CARD_EVENT, get_user_events
 
 
@@ -42,7 +42,7 @@ class IntercomApiTest(unittest.TestCase):
         self.assertIs(response_obj['custom_attributes'][attr_name], False)
 
     def test_reset_custom_attributes(self):
-        response = reset_user_setting(self.TOKEN, self.USER_ID)
+        response = reset_user_settings(self.TOKEN, self.USER_ID)
         self.assertEqual(response.status_code, 200, response.text)
 
         response_obj = json.loads(response.content)
