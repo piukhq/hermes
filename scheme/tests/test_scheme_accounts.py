@@ -144,7 +144,7 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
-            "Active,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            "ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
         )
 
     @patch('intercom.intercom_api.update_user_custom_attribute')
@@ -173,7 +173,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
-            "Active,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            "ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
         )
 
     def test_list_schemes_accounts(self):
@@ -204,7 +204,7 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
-            "Wallet only card,2000/05/19,{}".format(scheme.slug)
+            "WALLET_ONLY,2000/05/19,{}".format(scheme.slug)
         )
 
     def test_scheme_account_update_status(self):
@@ -356,7 +356,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.slug)
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
-            "Join,2000/05/19,{}".format(scheme.slug)
+            "JOIN,2000/05/19,{}".format(scheme.slug)
         )
 
     @patch('intercom.intercom_api.post_issued_join_card_event')

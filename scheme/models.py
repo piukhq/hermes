@@ -194,24 +194,25 @@ class SchemeAccount(models.Model):
     PASSWORD_EXPIRED = 533
     JOIN = 900
 
-    STATUSES = (
-        (PENDING, 'Pending'),
-        (ACTIVE, 'Active'),
-        (INVALID_CREDENTIALS, 'Invalid credentials'),
-        (INVALID_MFA, 'Invalid mfa'),
-        (END_SITE_DOWN, 'End site down'),
-        (IP_BLOCKED, 'IP blocked'),
-        (TRIPPED_CAPTCHA, 'Tripped captcha'),
-        (INCOMPLETE, 'Please check your scheme account login details.'),
-        (LOCKED_BY_ENDSITE, 'Account locked on end site'),
-        (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries'),
-        (UNKNOWN_ERROR, 'An unknown error has occurred'),
-        (MIDAS_UNREACHEABLE, 'Midas unavailable'),
-        (WALLET_ONLY, 'Wallet only card'),
-        (AGENT_NOT_FOUND, 'Agent does not exist on midas'),
-        (PASSWORD_EXPIRED, 'Password expired'),
-        (JOIN, 'Join'),
+    EXTENDED_STATUSES = (
+        (PENDING, 'Pending', 'PENDING'),
+        (ACTIVE, 'Active', 'ACTIVE'),
+        (INVALID_CREDENTIALS, 'Invalid credentials', 'INVALID_CREDENTIALS'),
+        (INVALID_MFA, 'Invalid mfa', 'INVALID_MFA'),
+        (END_SITE_DOWN, 'End site down', 'END_SITE_DOWN'),
+        (IP_BLOCKED, 'IP blocked', 'IP_BLOCKED'),
+        (TRIPPED_CAPTCHA, 'Tripped captcha', 'TRIPPED_CAPTCHA'),
+        (INCOMPLETE, 'Please check your scheme account login details.', 'INCOMPLETE'),
+        (LOCKED_BY_ENDSITE, 'Account locked on end site', 'LOCKED_BY_ENDSITE'),
+        (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries', 'RETRY_LIMIT_REACHED'),
+        (UNKNOWN_ERROR, 'An unknown error has occurred', 'UNKNOWN_ERROR'),
+        (MIDAS_UNREACHEABLE, 'Midas unavailable', 'MIDAS_UNREACHEABLE'),
+        (WALLET_ONLY, 'Wallet only card', 'WALLET_ONLY'),
+        (AGENT_NOT_FOUND, 'Agent does not exist on midas', 'AGENT_NOT_FOUND'),
+        (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
+        (JOIN, 'Join', 'JOIN'),
     )
+    STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA]
@@ -230,6 +231,15 @@ class SchemeAccount(models.Model):
     @property
     def status_name(self):
         return dict(self.STATUSES).get(self.status)
+
+    @property
+    def status_key(self):
+        status_keys = dict(
+            (extended_status[0], extended_status[2])
+            for extended_status
+            in self.EXTENDED_STATUSES
+        )
+        return status_keys.get(self.status)
 
     def _collect_credentials(self):
         credentials = {}

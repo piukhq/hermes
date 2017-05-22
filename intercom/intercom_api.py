@@ -5,6 +5,7 @@ import time
 
 from django.conf import settings
 
+from scheme.models import SchemeAccount
 
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
@@ -103,14 +104,14 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
 def update_account_status_custom_attribute(token, account):
     """
     Update scheme account user custom attribute with the format:
-    'sheme-slug': '{status},YYYY/mm/dd'
+    'scheme-slug': '{status},YYYY/mm/dd'
     :param token: Intercom API access token
     :param user_id: uuid identifier for the user
     :param account: scheme account to be send to intercom
     :return: the whole response
     """
     attr_value = "{},{},{}".format(
-        account.status_name,
+        account.status_key,
         _get_today_datetime().strftime("%Y/%m/%d"),
         account.scheme.slug
     )
