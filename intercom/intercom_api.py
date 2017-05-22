@@ -5,8 +5,6 @@ import time
 
 from django.conf import settings
 
-from scheme.models import SchemeAccount
-
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
 
