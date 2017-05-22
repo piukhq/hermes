@@ -467,7 +467,7 @@ class TestSchemeAccountModel(APITestCase):
         points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHEABLE)
+        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
 
 
 class TestAccessTokens(APITestCase):

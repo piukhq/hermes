@@ -188,7 +188,7 @@ class SchemeAccount(models.Model):
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
     UNKNOWN_ERROR = 520
-    MIDAS_UNREACHEABLE = 9
+    MIDAS_UNREACHABLE = 9
     AGENT_NOT_FOUND = 404
     WALLET_ONLY = 10
     PASSWORD_EXPIRED = 533
@@ -206,7 +206,7 @@ class SchemeAccount(models.Model):
         (LOCKED_BY_ENDSITE, 'Account locked on end site', 'LOCKED_BY_ENDSITE'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries', 'RETRY_LIMIT_REACHED'),
         (UNKNOWN_ERROR, 'An unknown error has occurred', 'UNKNOWN_ERROR'),
-        (MIDAS_UNREACHEABLE, 'Midas unavailable', 'MIDAS_UNREACHEABLE'),
+        (MIDAS_UNREACHABLE, 'Midas unavailable', 'MIDAS_UNREACHABLE'),
         (WALLET_ONLY, 'Wallet only card', 'WALLET_ONLY'),
         (AGENT_NOT_FOUND, 'Agent does not exist on midas', 'AGENT_NOT_FOUND'),
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
@@ -214,7 +214,7 @@ class SchemeAccount(models.Model):
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
-    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHEABLE,
+    SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA]
 
     user = models.ForeignKey('user.CustomUser')
@@ -299,7 +299,7 @@ class SchemeAccount(models.Model):
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
         except ConnectionError:
-            self.status = SchemeAccount.MIDAS_UNREACHEABLE
+            self.status = SchemeAccount.MIDAS_UNREACHABLE
         self.save()
         return points
 
