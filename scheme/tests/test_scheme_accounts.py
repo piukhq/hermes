@@ -1,4 +1,6 @@
 from decimal import Decimal
+
+import datetime
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from scheme.encyption import AESCipher
@@ -117,8 +119,11 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account(self, mock_get_midas_balance):
+    def test_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -135,8 +140,18 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+        )
+
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_put_link_schemes_account(self, mock_get_midas_balance):
+    def test_put_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -155,6 +170,12 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data[manual_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+        )
+
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
@@ -164,7 +185,11 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('card_label', response.data[0])
         self.assertNotIn('barcode_regex', response.data[0]['scheme'])
 
-    def test_wallet_only(self):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
+    def test_wallet_only(self, mock_date, mock_update_custom_attr):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
 
@@ -176,6 +201,11 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(content['card_number'], '1234')
         self.assertIn('/schemes/accounts/', response._headers['location'][1])
         self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
+
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "WALLET_ONLY,2000/05/19,{}".format(scheme.slug)
+        )
 
     def test_scheme_account_update_status(self):
         data = {
@@ -290,7 +320,10 @@ class TestSchemeAccountViews(APITestCase):
         return True
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
-    def test_create_join_account_and_notify_intercom(self, mock_update_custom_attribute):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
+    def test_create_join_account_and_notify_intercom(self, mock_date, mock_update_custom_attr, mock_post_issued_event):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -315,11 +348,20 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('status', json)
         self.assertIn('user', json)
 
-        self.assertEqual(mock_update_custom_attribute.call_count, 1)
-        self.assertEqual(len(mock_update_custom_attribute.call_args[0]), 4)
+        self.assertEqual(mock_post_issued_event.call_count, 1)
+        self.assertEqual(len(mock_post_issued_event.call_args[0]), 4)
+
+        self.assertEqual(mock_update_custom_attr.call_count, 1)
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+        self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.slug)
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "JOIN,2000/05/19,{}".format(scheme.slug)
+        )
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
-    def test_create_join_account_against_user_setting(self, mock_update_custom_attribute):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_create_join_account_against_user_setting(self, mock_update_custom_attr, mock_post_issued_event):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -338,7 +380,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(json['code'], 200)
         self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
 
-        self.assertFalse(mock_update_custom_attribute.called)
+        self.assertFalse(mock_post_issued_event.called)
+        self.assertFalse(mock_update_custom_attr.called)
 
 
 class TestSchemeAccountModel(APITestCase):
@@ -424,7 +467,7 @@ class TestSchemeAccountModel(APITestCase):
         points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHEABLE)
+        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
 
 
 class TestAccessTokens(APITestCase):

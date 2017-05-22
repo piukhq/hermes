@@ -6,11 +6,10 @@ from django.shortcuts import render_to_response, redirect
 from django.template import RequestContext
 from django.utils import timezone
 from intercom import intercom_api
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView,
-                                     get_object_or_404, ListCreateAPIView)
-
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
                            SchemeAccountImage)
@@ -128,7 +127,9 @@ class LinkCredentials(GenericAPIView):
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+
         response_data = self.link_account(serializer, scheme_account)
+
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -146,6 +147,12 @@ class LinkCredentials(GenericAPIView):
             'status_name': scheme_account.status_name
         }
         response_data.update(serializer.data)
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
         return response_data
 
 
@@ -201,6 +208,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 answer=data[serializer.context['answer_type']],
             )
         data['id'] = scheme_account.id
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
         return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
 
@@ -248,6 +261,7 @@ class CreateJoinSchemeAccount(APIView):
 
         try:
             intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid, scheme.company, scheme.slug)
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
         except intercom_api.IntercomException:
             pass
 

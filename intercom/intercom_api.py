@@ -1,11 +1,11 @@
+import datetime
 import json
 import requests
 import time
 
 from django.conf import settings
 
-
-USER_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
+SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
 
 
@@ -44,7 +44,7 @@ def post_issued_join_card_event(token, user_id, company_name, slug):
     return response
 
 
-def reset_user_custom_attributes(token, user_id):
+def reset_user_settings(token, user_id):
     """
     Reset user custom attributes
     :param token: Intercom API access token
@@ -55,7 +55,7 @@ def reset_user_custom_attributes(token, user_id):
 
     payload = {
         'user_id': user_id,
-        'custom_attributes': dict((attr_name, None) for attr_name in USER_CUSTOM_ATTRIBUTES)
+        'custom_attributes': dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES)
     }
     response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
@@ -99,6 +99,23 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
     return response
 
 
+def update_account_status_custom_attribute(token, account):
+    """
+    Update scheme account user custom attribute with the format:
+    'scheme-slug': '{status},YYYY/mm/dd'
+    :param token: Intercom API access token
+    :param user_id: uuid identifier for the user
+    :param account: scheme account to be send to intercom
+    :return: the whole response
+    """
+    attr_value = "{},{},{}".format(
+        account.status_key,
+        _get_today_datetime().strftime("%Y/%m/%d"),
+        account.scheme.slug
+    )
+    return update_user_custom_attribute(token, account.user.uid, account.scheme.slug, attr_value)
+
+
 def get_user_events(token, user_id):
     """ Retrieves the user identified with the user_id uuid"""
     headers = _get_headers(token)
@@ -111,6 +128,10 @@ def get_user_events(token, user_id):
         ),
         headers=headers
     )
+
+
+def _get_today_datetime():
+    return datetime.datetime.today()
 
 
 def _get_headers(token):
