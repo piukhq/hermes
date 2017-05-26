@@ -18,6 +18,7 @@ class SchemeAccountImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccountImage
+        fields = '__all__'
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -195,6 +196,7 @@ class QuerySchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
+        fields = '__all__'
 
 
 class ReferenceImageSerializer(serializers.ModelSerializer):

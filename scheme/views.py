@@ -1,9 +1,9 @@
 import csv
 import uuid
 import requests
+from datetime import datetime
 from django.http import HttpResponseBadRequest
-from django.shortcuts import render_to_response, redirect
-from django.template import RequestContext
+from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
@@ -129,6 +129,8 @@ class LinkCredentials(GenericAPIView):
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
 
         response_data = self.link_account(serializer, scheme_account)
+        scheme_account.link_date = datetime.now()
+        scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
@@ -381,7 +383,7 @@ def csv_upload(request):
             return redirect('/admin/scheme/schemeaccountimage/{}'.format(image_criteria_instance.id))
 
     context = {'form': form}
-    return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))
+    return render(request, 'admin/csv_upload_form.html', context)
 
 
 class DonorSchemes(APIView):

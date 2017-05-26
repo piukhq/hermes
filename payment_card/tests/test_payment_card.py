@@ -167,14 +167,8 @@ class TestPaymentCard(APITestCase):
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
 
         # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertTrue(httpretty.has_request())
-        self.assertEqual(response.status_code, 201)
-        self.assertNotIn('psp_token', response.data)
-        self.assertNotIn('token', response.data)
-        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(payment_card_account.psp_token, "some-token")
-        self.assertEqual(payment_card_account.status, 0)
-        self.assertEqual(payment_card_account.pan_end, '9820')
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
 
     @httpretty.activate
     def test_post_barclays_payment_card_account(self):

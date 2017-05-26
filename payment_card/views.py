@@ -4,8 +4,7 @@ import json
 
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
-from django.shortcuts import redirect, render_to_response
-from django.template import RequestContext
+from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
 from django.conf import settings
@@ -115,8 +114,6 @@ class ListCreatePaymentCardAccount(APIView):
             - code: 403
               message: A payment card account by that fingerprint and expiry already exists.
         """
-        # iOS bug fix: only capture the last four digits of the pan_end (they send us five.)
-        request.data['pan_end'] = request.data['pan_end'][-4:]
 
         serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
@@ -360,4 +357,4 @@ def csv_upload(request):
             return redirect('/admin/payment_card/paymentaccountimage/{}'.format(image_instance.id))
 
     context = {'form': form}
-    return render_to_response('admin/csv_upload_form.html', context, context_instance=RequestContext(request))
+    return render(request, 'admin/csv_upload_form.html', context)

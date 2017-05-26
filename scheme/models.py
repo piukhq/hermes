@@ -170,6 +170,7 @@ class SchemeAccountImage(Image):
 
 
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
+    use_in_migrations = True
 
     def get_queryset(self):
         return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True).\
@@ -224,6 +225,7 @@ class SchemeAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
+    link_date = models.DateTimeField(null=True, blank=True)
 
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()

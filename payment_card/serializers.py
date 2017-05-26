@@ -9,6 +9,7 @@ class PaymentCardImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.PaymentCardImage
+        fields = '__all__'
 
 
 class PaymentCardSerializer(serializers.ModelSerializer):
@@ -66,6 +67,7 @@ class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.PaymentCardAccount
+        fields = '__all__'
 
 
 class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
