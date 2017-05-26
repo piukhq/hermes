@@ -6,28 +6,27 @@ from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE,
-                    FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER, INCORRECT_CREDENTIALS,
-                    INVALID_PROMO_CODE, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
-from hermes.settings import LETHE_URL, MEDIA_URL
+from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
+from hermes.settings import LETHE_URL, MEDIA_URL
+from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser,
-                         Setting, UserSetting, valid_promo_code, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer,
                               FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
-                              NewLoginSerializer, NewRegisterSerializer, PromoCodeSerializer,
+                              NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
                               RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
                               ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
                               TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
@@ -58,10 +57,7 @@ class CustomRegisterMixin(object):
                           fail_silently=False)
             return Response(serializer.data, 201)
         else:
-            if 'promo_code' in serializer.errors:
-                return Response({'promo_code': serializer.errors['promo_code']}, 400)
-            else:
-                return error_response(REGISTRATION_FAILED)
+            return error_response(REGISTRATION_FAILED)
 
 
 # TODO: Could be merged with users
@@ -93,18 +89,20 @@ class NewRegister(Register):
     serializer_class = NewRegisterSerializer
 
 
-class ValidatePromoCode(CreateAPIView):
+class ApplyPromoCode(CreateAPIView):
     """
-    Validate promo codes
+    Apply a promo code to a user.
     """
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-    serializer_class = PromoCodeSerializer
+    authentication_classes = (JwtAuthentication,)
+    serializer_class = ApplyPromoCodeSerializer
 
     def post(self, request, *args, **kwargs):
-        code = request.data['promo_code']
-        out_serializer = PromoCodeSerializer({'valid': valid_promo_code(code)})
-        return Response(out_serializer.data)
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'valid': False}, status=HTTP_200_OK)
+        data = serializer.validated_data
+        request.user.apply_promo_code(data['promo_code'])
+        return Response({'valid': True}, status=HTTP_200_OK)
 
 
 class ValidateResetToken(CreateAPIView):
@@ -120,7 +118,7 @@ class ValidateResetToken(CreateAPIView):
         reset_token = request.data['token']
         if not valid_reset_code(reset_token):
             return Response(status=404)
-        out_serializer = ResetTokenSerializer({'valid': valid_promo_code(reset_token)})
+        out_serializer = ResetTokenSerializer({'valid': True})
         return Response(out_serializer.data)
 
 
@@ -182,6 +180,7 @@ class VerifyToken(APIView):
     Basic view to check that a token is valid.
     Can be used by external services which don't know the secret.
     """
+
     def get(self, request):
         return Response()
 
@@ -325,7 +324,7 @@ class FaceBookLogin(CreateAPIView):
             return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token, request.data.get('promo_code'))
+        return facebook_login(access_token)
 
 
 class TwitterLoginWeb(APIView):
@@ -368,8 +367,7 @@ class TwitterLogin(CreateAPIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        return twitter_login(request.data['access_token'], request.data['access_token_secret'],
-                             request.data.get('promo_code'))
+        return twitter_login(request.data['access_token'], request.data['access_token_secret'])
 
 
 class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
@@ -397,17 +395,17 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token, promo_code=None):
+def facebook_login(access_token):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
     if not r.ok:
         return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
-    return social_response(profile['id'], profile.get('email'), 'facebook', promo_code)
+    return social_response(profile['id'], profile.get('email'), 'facebook')
 
 
-def twitter_login(access_token, access_token_secret, promo_code=None):
+def twitter_login(access_token, access_token_secret):
     """
     https://dev.twitter.com/web/sign-in/implementing
     https://dev.twitter.com/rest/reference/get/account/verify_credentials
@@ -429,20 +427,17 @@ def twitter_login(access_token, access_token_secret, promo_code=None):
     email = profile.get('email')
     if not email:
         email = None
-    return social_response(profile['id_str'], email, 'twitter', promo_code)
+    return social_response(profile['id_str'], email, 'twitter')
 
 
-def social_response(social_id, email, service, promo_code):
-    if promo_code and not valid_promo_code(promo_code):
-        return error_response(INVALID_PROMO_CODE)
-
-    status, user = social_login(social_id, email, service, promo_code)
+def social_response(social_id, email, service):
+    status, user = social_login(social_id, email, service)
 
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
     return Response(out_serializer.data, status=status)
 
 
-def social_login(social_id, email, service, promo_code):
+def social_login(social_id, email, service):
     status = 200
     try:
         user = CustomUser.objects.get(**{service: social_id})
@@ -460,8 +455,7 @@ def social_login(social_id, email, service, promo_code):
         except CustomUser.DoesNotExist:
             # We are creating a new user
             password = get_random_string(length=32)
-            user = CustomUser.objects.create_user(**{'email': email, 'password': password, 'promo_code': promo_code,
-                                                     service: social_id})
+            user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id})
             status = 201
     return status, user
 
@@ -509,14 +503,6 @@ class UserSettings(APIView):
 
         return Response(settings_list)
 
-    def delete(self, request):
-        """
-        Reset a user's app settings.
-        Responds with a 204 - No Content.
-        """
-        UserSetting.objects.filter(user=request.user).delete()
-        return Response(status=HTTP_204_NO_CONTENT)
-
     def put(self, request):
         """
         Change a user's app settings. Takes one or more slug-value pairs.
@@ -527,14 +513,9 @@ class UserSettings(APIView):
             - code: 400
               message: Some of the given settings are invalid.
         """
-        # find all bad setting slugs (if any) for error reporting.
-        bad_settings = []
-        for k, v in request.data.items():
-            setting = Setting.objects.filter(slug=k).first()
-            if not setting:
-                bad_settings.append(k)
+        bad_settings = self._filter_bad_setting_slugs(request.data)
 
-        if len(bad_settings) > 0:
+        if bad_settings:
             return Response({
                 'error': 'Some of the given settings are invalid.',
                 'messages': bad_settings
@@ -542,21 +523,24 @@ class UserSettings(APIView):
 
         validation_errors = []
 
-        for k, v in request.data.items():
-            user_setting = UserSetting.objects.filter(user=request.user, setting__slug=k).first()
-
-            if user_setting:
-                user_setting.value = v
-            else:
-                setting = Setting.objects.filter(slug=k).first()
-                user_setting = UserSetting(user=request.user, setting=setting, value=v)
-
+        for slug_key, value in request.data.items():
+            user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
             try:
                 user_setting.full_clean()
             except ValidationError as e:
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
+                if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
+                    try:
+                        intercom_api.update_user_custom_attribute(
+                            settings.INTERCOM_TOKEN,
+                            request.user.uid,
+                            slug_key,
+                            user_setting.to_boolean()
+                        )
+                    except intercom_api.IntercomException:
+                        pass
 
         if validation_errors:
             return Response({
@@ -565,6 +549,40 @@ class UserSettings(APIView):
             }, HTTP_400_BAD_REQUEST)
 
         return Response(status=HTTP_204_NO_CONTENT)
+
+    def delete(self, request):
+        """
+        Reset a user's app settings.
+        Responds with a 204 - No Content.
+        """
+        UserSetting.objects.filter(user=request.user).delete()
+        try:
+            intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
+        except intercom_api.IntercomException:
+            pass
+
+        return Response(status=HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _filter_bad_setting_slugs(request_data):
+        bad_settings = []
+
+        for k, v in request_data.items():
+            setting = Setting.objects.filter(slug=k).first()
+            if not setting:
+                bad_settings.append(k)
+
+        return bad_settings
+
+    @staticmethod
+    def _create_or_update_user_setting(user, setting_slug, value):
+        user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
+        if user_setting:
+            user_setting.value = value
+        else:
+            setting = Setting.objects.filter(slug=setting_slug).first()
+            user_setting = UserSetting(user=user, setting=setting, value=value)
+        return user_setting
 
 
 class IdentifyApplicationKit(APIView):
