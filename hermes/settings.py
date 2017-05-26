@@ -37,7 +37,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    ".chingrewards.com"
+    ".chingrewards.com",
+    ".bink-dev.xyz",
+    ".bink-sandbox.xyz",
+    ".bink.com",
+    ".bink-hackathon.xyz",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
