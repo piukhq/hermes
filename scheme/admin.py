@@ -94,7 +94,7 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'user',)
+            return self.readonly_fields + ('scheme', 'user', 'link_date')
         return self.readonly_fields
 
 
