@@ -170,41 +170,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
 
-    @httpretty.activate
-    def test_post_barclays_payment_card_account(self):
-        # add barclays offer image
-        offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=2)
-
-        # add hero image
-        hero_image = PaymentCardAccountImageFactory(
-            description='barclays', image_type_code=0, payment_card=self.payment_card)
-
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
-
-        data = {'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '543979',
-                'pan_end': '9820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': 'some-token',
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
-
-        self.assertFalse(offer_image.payment_card_accounts.exists())
-        self.assertFalse(hero_image.payment_card_accounts.exists())
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 201)
-        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(offer_image.payment_card_accounts.first(), payment_card_account)
-        self.assertEqual(hero_image.payment_card_accounts.first(), payment_card_account)
-
     def test_patch_payment_card_account(self):
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                      data={'pan_start': '987678'}, **self.auth_headers)
