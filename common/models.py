@@ -1,5 +1,4 @@
 from django.db import models
-from django.utils import timezone
 
 
 class Image(models.Model):
@@ -32,21 +31,24 @@ class Image(models.Model):
     )
 
     image_type_code = models.IntegerField(choices=TYPES)
-    size_code = models.CharField(max_length=30, null=True, blank=True)
+    size_code = models.CharField(max_length=30, blank=True)
     image = models.ImageField(upload_to="schemes")
-    strap_line = models.CharField(max_length=50, null=True, blank=True)
-    description = models.CharField(max_length=300, null=True, blank=True)
+    strap_line = models.CharField(max_length=50, blank=True)
+    description = models.CharField(max_length=300)
     url = models.URLField(null=True, blank=True)
     call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(default=timezone.now)
+    created = models.DateTimeField(auto_now_add=True)
     all_objects = models.Manager()
 
+    def image_type_code_name(self):
+        return dict(self.TYPES)[self.image_type_code]
+
     def __str__(self):
-        return self.description
+        return '({}) {}'.format(self.image_type_code_name(), self.description)
 
     class Meta:
         abstract = True

@@ -10,7 +10,7 @@ from colorful.fields import RGBColorField
 from common.models import Image
 from django.conf import settings
 from django.db import models
-from django.db.models import F
+from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -151,8 +151,9 @@ class Exchange(models.Model):
 class ActiveSchemeImageManager(models.Manager):
 
     def get_queryset(self):
-        return super().get_queryset().filter(start_date__lt=timezone.now(),
-                                             end_date__gte=timezone.now()).exclude(status=Image.DRAFT)
+        return super().get_queryset().filter(
+            start_date__lt=timezone.now()).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=timezone.now())).exclude(status=Image.DRAFT)
 
 
 class SchemeImage(Image):

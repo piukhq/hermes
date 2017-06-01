@@ -1,6 +1,6 @@
 from bulk_update.helper import bulk_update
 from django.db import models
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 import base64
 import uuid
@@ -20,7 +20,8 @@ class ActivePaymentCardImageManager(models.Manager):
 
     def get_queryset(self):
         return super().get_queryset().filter(
-            start_date__lt=timezone.now(), end_date__gte=timezone.now()).exclude(status=Image.DRAFT)
+            start_date__lt=timezone.now()).filter(
+            Q(end_date__isnull=True) | Q(end_date__gte=timezone.now())).exclude(status=Image.DRAFT)
 
 
 class PaymentCardImage(Image):
