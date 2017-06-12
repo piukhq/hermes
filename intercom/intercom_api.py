@@ -113,7 +113,7 @@ def update_account_status_custom_attribute(token, account):
         _get_today_datetime().strftime("%Y/%m/%d"),
         account.scheme.slug
     )
-    return update_user_custom_attribute(token, account.user.uid, account.scheme.slug, attr_value)
+    return update_user_custom_attribute(token, account.user.uid, account.scheme.company, attr_value)
 
 
 def get_user_events(token, user_id):
