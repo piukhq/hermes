@@ -353,7 +353,8 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(mock_update_custom_attr.call_count, 1)
         self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
-        self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.slug)
+        self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.company)
+
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
             "JOIN,2000/05/19,{}".format(scheme.slug)
