@@ -60,4 +60,4 @@ urlpatterns = [
 
     # TODO: Better URL
     url(r'^/csv_upload',
-        views.csv_upload, name='csv_upload'),]
+        views.csv_upload, name='csv_upload'), ]

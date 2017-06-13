@@ -23,8 +23,7 @@ from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
 from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code,
-                         Organisation)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer,
                               FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
                               NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
