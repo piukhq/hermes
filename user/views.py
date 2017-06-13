@@ -623,8 +623,8 @@ class TsAndCs(RetrieveAPIView):
 
     def get(self, request, *args, **kwargs):
         try:
-            organisation = get_object_or_404(Organisation, id=int(kwargs['pk']))
-            terms_and_conditions = organisation.terms_and_conditions
+            ca = get_object_or_404(ClientApplication, client_id=kwargs['pk'])
+            terms_and_conditions = ca.organisation.terms_and_conditions
             status = 200
         except:
             terms_and_conditions = ''
@@ -644,9 +644,9 @@ class TsAndCs(RetrieveAPIView):
             serializer = OrganisationTsAndCsSerializer(data=request.data)
             serializer.is_valid()
             data = serializer.validated_data
-            scheme_account = get_object_or_404(Organisation, id=int(kwargs['pk']))
-            scheme_account.terms_and_conditions = data['terms_and_conditions']
-            scheme_account.save()
+            ca = get_object_or_404(ClientApplication, client_id=kwargs['pk'])
+            ca.organisation.terms_and_conditions = data['terms_and_conditions']
+            ca.organisation.save()
             status = 200
             success = True
         except:
