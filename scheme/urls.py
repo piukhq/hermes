@@ -60,7 +60,4 @@ urlpatterns = [
 
     # TODO: Better URL
     url(r'^/csv_upload',
-        views.csv_upload, name='csv_upload'),
-
-    url(r'^/terms_and_conditions/(?P<pk>[0-9]+)',
-        views.TsAndCs.as_view()), ]
+        views.csv_upload, name='csv_upload'),]

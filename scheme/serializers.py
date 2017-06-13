@@ -50,10 +50,6 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
 
-class SchemeAccountTsAndCsSerializer(serializers.Serializer):
-    terms_and_conditions = serializers.CharField(max_length=4000, required=True)
-
-
 class SchemeAnswerSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=250, required=False)
     card_number = serializers.CharField(max_length=250, required=False)

@@ -227,7 +227,6 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
-    terms_and_conditions = models.TextField(blank=True)
 
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()

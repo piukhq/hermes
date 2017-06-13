@@ -11,7 +11,7 @@ from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_A
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
-from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView,
+from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
@@ -23,13 +23,15 @@ from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
 from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code,
+                         Organisation)
 from user.serializers import (ApplicationKitSerializer,
                               FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
                               NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
                               RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
                               ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
-                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
+                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer,
+                              OrganisationTsAndCsSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -611,3 +613,46 @@ class IdentifyApplicationKit(APIView):
                     app_kit.save()
 
         return Response({}, HTTP_200_OK)
+
+
+class TsAndCs(RetrieveAPIView):
+    """
+        Gets terms and conditions as HTML and returns a JSON object
+    """
+    authentication_classes = (JwtAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        try:
+            organisation = get_object_or_404(Organisation, id=int(kwargs['pk']))
+            terms_and_conditions = organisation.terms_and_conditions
+            status = 200
+        except:
+            terms_and_conditions = ''
+            status = 418  # official "I'm a teapot" HTTP response code
+
+        return Response({
+            'TsAndCs': terms_and_conditions,
+        }, status=status)
+
+    """
+        SERVICE NOT FOR PUBLIC ACCESS
+        Sets terms and conditions as HTML and returns
+        a JSON object
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            serializer = OrganisationTsAndCsSerializer(data=request.data)
+            serializer.is_valid()
+            data = serializer.validated_data
+            scheme_account = get_object_or_404(Organisation, id=int(kwargs['pk']))
+            scheme_account.terms_and_conditions = data['terms_and_conditions']
+            scheme_account.save()
+            status = 200
+            success = True
+        except:
+            status = 418  # official "I'm a teapot" HTTP response code
+            success = False
+
+        return Response({
+            'Success': success,
+        }, status=status)
