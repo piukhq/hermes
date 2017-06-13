@@ -19,7 +19,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer)
+                                QuerySchemeAccountSerializer, SchemeAccountTsAndCsSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -469,3 +469,48 @@ class IdentifyCard(APIView):
         return Response({
             'scheme_id': int(json['scheme_id'])
         }, status=200)
+
+
+class TsAndCs(RetrieveAPIView):
+    """
+        Gets terms and conditions as HTML and returns a JSON object
+    """
+    authentication_classes = (JwtAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+
+        try:
+            result = []
+            scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+            terms_and_conditions = scheme_account.terms_and_conditions
+            status = 200
+        except:
+            terms_and_conditions = ''
+            status = 418  # official "I'm a teapot" HTTP response code
+
+        return Response({
+            'TsAndCs': terms_and_conditions,
+        }, status=status)
+
+    """
+        SERVICE NOT FOR PUBLIC ACCESS
+        Sets terms and conditions as HTML and returns
+        a JSON object
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            serializer = SchemeAccountTsAndCsSerializer(data=request.data)
+            serializer.is_valid()
+            data = serializer.validated_data
+            scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+            scheme_account.terms_and_conditions = data['terms_and_conditions']
+            scheme_account.save()
+            status = 200
+            success = True
+        except:
+            status = 418  # official "I'm a teapot" HTTP response code
+            success = False
+
+        return Response({
+            'Success': success,
+        }, status=status)
