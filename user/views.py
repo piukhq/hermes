@@ -630,7 +630,7 @@ class TsAndCs(RetrieveAPIView):
             status = 418  # official "I'm a teapot" HTTP response code
 
         return Response({
-            'TsAndCs': terms_and_conditions,
+            'terms_and_conditions': terms_and_conditions,
         }, status=status)
 
     """
