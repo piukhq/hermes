@@ -104,7 +104,7 @@ class NewLoginSerializer(ClientAppSerializerMixin, LoginSerializer):
     pass
 
 
-class OrganisationTsAndCsSerializer(serializers.Serializer):
+class OrganisationTermsAndConditionsSerializer(serializers.Serializer):
     terms_and_conditions = serializers.CharField()
 
 

@@ -29,8 +29,7 @@ from user.serializers import (ApplicationKitSerializer,
                               NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
                               RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
                               ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
-                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer,
-                              OrganisationTsAndCsSerializer)
+                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):

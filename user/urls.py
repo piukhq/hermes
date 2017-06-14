@@ -23,4 +23,6 @@ urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticat
                url(r'validate_reset_token/?$', ValidateResetToken.as_view(), name='validate_reset'),
                url(r'settings/?$', Settings.as_view(), name='settings'),
                url(r'^app_kit/?$', IdentifyApplicationKit.as_view(), name='app_kit'),
-               url(r'^organisation/terms_and_conditions/?$', OrganisationTermsAndConditions.as_view(), name='terms_and_conditions'), ]
+               url(r'^organisation/terms_and_conditions/?$',
+                   OrganisationTermsAndConditions.as_view(),
+                   name='terms_and_conditions'), ]
