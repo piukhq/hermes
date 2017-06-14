@@ -1248,47 +1248,12 @@ class TestTermsAndConditions(TestCase):
 
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(self.user1.create_token())}
 
-    def test_ts_and_cs(self):
+    def test_terms_and_conditions(self):
         client = Client()
-        self.ts_and_cs_post(client)
-        self.ts_and_cs_get(client)
-
-    def ts_and_cs_post(self, client):
-        response = client.post(reverse('terms_and_conditions'),
-                               data={"terms_and_conditions":
-                                     "<p>I authorise MasterCard, Visa and American Express"
-                                     "to monitor activity on my payment card to determine "
-                                     "when I have made a qualifying transaction, and for "
-                                     "MasterCard, Visa and American Express to share such "
-                                     "transaction details with Loyalty Angels Limited to "
-                                     "enable my card-linked offer(s) and target offers that"
-                                     "may be of interest to me.</p><p>For information about"
-                                     "Loyalty Angels Limited privacy practices, please see "
-                                     "our <a href='http://www.bink.com/privacy-policy'>"
-                                     "Privacy Policy</a>. You may opt-out of transaction "
-                                     "monitoring on the payment card(s) you entered at any "
-                                     "time by deleting your payment card from your Bink "
-                                     "wallet.</p>"},
-                               **self.auth_headers)
-        content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(content['Success'], True)
-
-    def ts_and_cs_get(self, client):
+        self.user1.client.organisation.terms_and_conditions = "<p>This is a test</p>"
+        self.user1.client.organisation.save()
         response = client.get(reverse('terms_and_conditions'), **self.auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
         self.assertEqual(content['terms_and_conditions'],
-                         "<p>I authorise MasterCard, Visa and American Express"
-                         "to monitor activity on my payment card to determine "
-                         "when I have made a qualifying transaction, and for "
-                         "MasterCard, Visa and American Express to share such "
-                         "transaction details with Loyalty Angels Limited to "
-                         "enable my card-linked offer(s) and target offers that"
-                         "may be of interest to me.</p><p>For information about"
-                         "Loyalty Angels Limited privacy practices, please see "
-                         "our <a href='http://www.bink.com/privacy-policy'>"
-                         "Privacy Policy</a>. You may opt-out of transaction "
-                         "monitoring on the payment card(s) you entered at any "
-                         "time by deleting your payment card from your Bink "
-                         "wallet.</p>")
+                         "<p>This is a test</p>")

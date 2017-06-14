@@ -614,7 +614,7 @@ class IdentifyApplicationKit(APIView):
         return Response({}, HTTP_200_OK)
 
 
-class TsAndCs(RetrieveAPIView):
+class OrganisationTermsAndConditions(RetrieveAPIView):
     """
         Gets terms and conditions as HTML and returns a JSON object
     """
@@ -631,27 +631,4 @@ class TsAndCs(RetrieveAPIView):
 
         return Response({
             'terms_and_conditions': terms_and_conditions,
-        }, status=status)
-
-    """
-        SERVICE NOT FOR PUBLIC ACCESS
-        Sets terms and conditions as HTML and returns
-        a JSON object
-    """
-    def post(self, request, *args, **kwargs):
-        try:
-            serializer = OrganisationTsAndCsSerializer(data=request.data)
-            serializer.is_valid()
-            data = serializer.validated_data
-            user = get_object_or_404(CustomUser, id=int(request.user.id))
-            user.client.organisation.terms_and_conditions = data['terms_and_conditions']
-            user.client.organisation.save()
-            status = 200
-            success = True
-        except:
-            status = 418  # official "I'm a teapot" HTTP response code
-            success = False
-
-        return Response({
-            'Success': success,
         }, status=status)

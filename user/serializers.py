@@ -105,7 +105,7 @@ class NewLoginSerializer(ClientAppSerializerMixin, LoginSerializer):
 
 
 class OrganisationTsAndCsSerializer(serializers.Serializer):
-    terms_and_conditions = serializers.CharField(max_length=4000, required=True)
+    terms_and_conditions = serializers.CharField()
 
 
 class ResetPasswordSerializer(serializers.Serializer):
