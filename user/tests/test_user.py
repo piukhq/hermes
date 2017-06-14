@@ -1278,16 +1278,17 @@ class TestTermsAndConditions(TestCase):
         response = client.get(reverse('terms_and_conditions'), **self.auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(content['terms_and_conditions'], "<p>I authorise MasterCard, Visa and American Express"
-                                             "to monitor activity on my payment card to determine "
-                                             "when I have made a qualifying transaction, and for "
-                                             "MasterCard, Visa and American Express to share such "
-                                             "transaction details with Loyalty Angels Limited to "
-                                             "enable my card-linked offer(s) and target offers that"
-                                             "may be of interest to me.</p><p>For information about"
-                                             "Loyalty Angels Limited privacy practices, please see "
-                                             "our <a href='http://www.bink.com/privacy-policy'>"
-                                             "Privacy Policy</a>. You may opt-out of transaction "
-                                             "monitoring on the payment card(s) you entered at any "
-                                             "time by deleting your payment card from your Bink "
-                                             "wallet.</p>")
+        self.assertEqual(content['terms_and_conditions'],
+                         "<p>I authorise MasterCard, Visa and American Express"
+                         "to monitor activity on my payment card to determine "
+                         "when I have made a qualifying transaction, and for "
+                         "MasterCard, Visa and American Express to share such "
+                         "transaction details with Loyalty Angels Limited to "
+                         "enable my card-linked offer(s) and target offers that"
+                         "may be of interest to me.</p><p>For information about"
+                         "Loyalty Angels Limited privacy practices, please see "
+                         "our <a href='http://www.bink.com/privacy-policy'>"
+                         "Privacy Policy</a>. You may opt-out of transaction "
+                         "monitoring on the payment card(s) you entered at any "
+                         "time by deleting your payment card from your Bink "
+                         "wallet.</p>")
