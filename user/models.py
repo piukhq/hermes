@@ -89,9 +89,10 @@ class MarketingCode(models.Model):
 
 
 class Organisation(models.Model):
-    """A partner organisation wishing access the Bink API.
+    """A partner organisation wishing to access the Bink API.
     """
     name = models.CharField(max_length=100, unique=True)
+    terms_and_conditions = models.TextField(blank=True)
 
     def __str__(self):
         return self.name

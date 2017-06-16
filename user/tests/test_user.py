@@ -1240,3 +1240,20 @@ class TestApplyPromoCode(APITestCase):
         self.assertEqual(200, resp.status_code)
         referral = Referral.objects.filter(referrer=user3, recipient=self.user1)
         self.assertFalse(referral.exists())
+
+
+class TestTermsAndConditions(TestCase):
+    def setUp(self):
+        self.user1 = UserFactory()
+
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(self.user1.create_token())}
+
+    def test_terms_and_conditions(self):
+        client = Client()
+        self.user1.client.organisation.terms_and_conditions = "<p>This is a test</p>"
+        self.user1.client.organisation.save()
+        response = client.get(reverse('terms_and_conditions'), **self.auth_headers)
+        content = json.loads(response.content.decode())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(content['terms_and_conditions'],
+                         "<p>This is a test</p>")

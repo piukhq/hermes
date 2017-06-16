@@ -11,7 +11,7 @@ from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_A
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
-from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView,
+from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
@@ -611,3 +611,18 @@ class IdentifyApplicationKit(APIView):
                     app_kit.save()
 
         return Response({}, HTTP_200_OK)
+
+
+class OrganisationTermsAndConditions(RetrieveAPIView):
+    """
+        Gets terms and conditions as HTML and returns a JSON object
+    """
+    authentication_classes = (JwtAuthentication,)
+
+    def get(self, request, *args, **kwargs):
+        user = get_object_or_404(CustomUser, id=request.user.id)
+        terms_and_conditions = user.client.organisation.terms_and_conditions
+
+        return Response({
+            'terms_and_conditions': terms_and_conditions,
+        }, status=200)
