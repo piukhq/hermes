@@ -620,14 +620,9 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
     authentication_classes = (JwtAuthentication,)
 
     def get(self, request, *args, **kwargs):
-        try:
-            user = get_object_or_404(CustomUser, id=int(request.user.id))
-            terms_and_conditions = user.client.organisation.terms_and_conditions
-            status = 200
-        except:
-            terms_and_conditions = ''
-            status = 418  # official "I'm a teapot" HTTP response code
+        user = get_object_or_404(CustomUser, id=request.user.id)
+        terms_and_conditions = user.client.organisation.terms_and_conditions
 
         return Response({
             'terms_and_conditions': terms_and_conditions,
-        }, status=status)
+        }, status=200)
