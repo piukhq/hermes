@@ -108,7 +108,8 @@ def update_account_status_custom_attribute(token, account):
     :param account: scheme account to be send to intercom
     :return: the whole response
     """
-    attr_value = "{},{},{}".format(
+    attr_value = "{},{},{},{}".format(
+        str(account.is_deleted).lower(),
         account.status_key,
         _get_today_datetime().strftime("%Y/%m/%d"),
         account.scheme.slug
