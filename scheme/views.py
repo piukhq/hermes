@@ -97,6 +97,11 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
+        except intercom_api.IntercomException:
+            pass
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
