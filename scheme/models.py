@@ -65,18 +65,18 @@ class Scheme(models.Model):
     slug = models.SlugField(unique=True)
     url = models.URLField()
     company = models.CharField(max_length=200)
-    company_url = models.URLField(blank=True, null=True)
-    forgotten_password_url = models.URLField(max_length=500, blank=True, null=True)
-    join_url = models.URLField(blank=True, null=True)
+    company_url = models.URLField(blank=True)
+    forgotten_password_url = models.URLField(max_length=500, blank=True)
+    join_url = models.URLField(blank=True)
     join_t_and_c = models.TextField(blank=True, verbose_name="Join terms & conditions")
-    link_account_text = models.TextField(blank=True, null=True)
+    link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
 
-    ios_scheme = models.CharField(max_length=255, blank=True, null=True, verbose_name='iOS scheme')
-    itunes_url = models.URLField(blank=True, null=True, verbose_name='iTunes URL')
-    android_app_id = models.CharField(max_length=255, blank=True, null=True, verbose_name='Android app ID')
-    play_store_url = models.URLField(blank=True, null=True, verbose_name='Play store URL')
+    ios_scheme = models.CharField(max_length=255, blank=True, verbose_name='iOS scheme')
+    itunes_url = models.URLField(blank=True, verbose_name='iTunes URL')
+    android_app_id = models.CharField(max_length=255, blank=True, verbose_name='Android app ID')
+    play_store_url = models.URLField(blank=True, verbose_name='Play store URL')
 
     barcode_type = models.IntegerField(choices=BARCODE_TYPES, blank=True, null=True)
     scan_message = models.CharField(max_length=100)
@@ -87,22 +87,22 @@ class Scheme(models.Model):
                                                   help_text='The maximum number of digits the points value will reach. '
                                                             'This cannot be higher than four, because any arbitrarily '
                                                             'large number can be compressed down to four digits.')
-    point_name = models.CharField(max_length=MAX_POINTS_VALUE_LENGTH - 1, default='points', null=True, blank=True,
+    point_name = models.CharField(max_length=MAX_POINTS_VALUE_LENGTH - 1, default='points', blank=True,
                                   help_text='This field must have a length that, when added to the value of the above '
                                             'field, is less than or equal to {}.'.format(MAX_POINTS_VALUE_LENGTH - 1))
 
-    identifier = models.CharField(max_length=30, null=True, blank=True, help_text="Regex identifier for barcode")
-    colour = RGBColorField(blank=True, null=True)
+    identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
+    colour = RGBColorField(blank=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
 
-    card_number_regex = models.CharField(max_length=100, null=True, blank=True,
+    card_number_regex = models.CharField(max_length=100, blank=True,
                                          help_text="Regex to map barcode to card number")
-    barcode_regex = models.CharField(max_length=100, null=True, blank=True,
+    barcode_regex = models.CharField(max_length=100, blank=True,
                                      help_text="Regex to map card number to barcode")
-    card_number_prefix = models.CharField(max_length=100, null=True, blank=True,
+    card_number_prefix = models.CharField(max_length=100, blank=True,
                                           help_text="Prefix to from barcode -> card number mapping")
-    barcode_prefix = models.CharField(max_length=100, null=True, blank=True,
+    barcode_prefix = models.CharField(max_length=100, blank=True,
                                       help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
