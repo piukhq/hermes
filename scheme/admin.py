@@ -10,6 +10,13 @@ class SchemeImageInline(admin.StackedInline):
     model = SchemeImage
     extra = 0
 
+    def get_queryset(self, request):
+        qs = self.model.all_objects.get_queryset()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
+
 
 class CredentialQuestionFormset(BaseInlineFormSet):
 
