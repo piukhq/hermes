@@ -13,6 +13,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL('SET CONSTRAINTS ALL IMMEDIATE', reverse_sql=migrations.RunSQL.noop),
         migrations.AlterField(
             model_name='scheme',
             name='android_app_id',
@@ -22,25 +23,29 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='scheme',
             name='barcode_prefix',
-            field=models.CharField(blank=True, default='', help_text='Prefix to from card number -> barcode mapping', max_length=100),
+            field=models.CharField(blank=True, default='',
+                                   help_text='Prefix to from card number -> barcode mapping', max_length=100),
             preserve_default=False,
         ),
         migrations.AlterField(
             model_name='scheme',
             name='barcode_regex',
-            field=models.CharField(blank=True, default='', help_text='Regex to map card number to barcode', max_length=100),
+            field=models.CharField(blank=True, default='',
+                                   help_text='Regex to map card number to barcode', max_length=100),
             preserve_default=False,
         ),
         migrations.AlterField(
             model_name='scheme',
             name='card_number_prefix',
-            field=models.CharField(blank=True, default='', help_text='Prefix to from barcode -> card number mapping', max_length=100),
+            field=models.CharField(blank=True, default='',
+                                   help_text='Prefix to from barcode -> card number mapping', max_length=100),
             preserve_default=False,
         ),
         migrations.AlterField(
             model_name='scheme',
             name='card_number_regex',
-            field=models.CharField(blank=True, default='', help_text='Regex to map barcode to card number', max_length=100),
+            field=models.CharField(blank=True, default='',
+                                   help_text='Regex to map barcode to card number', max_length=100),
             preserve_default=False,
         ),
         migrations.AlterField(
@@ -100,6 +105,8 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='scheme',
             name='point_name',
-            field=models.CharField(blank=True, default='points', help_text='This field must have a length that, when added to the value of the above field, is less than or equal to 10.', max_length=10),
+            field=models.CharField(
+                blank=True, default='points', help_text='This field must have a length that, when added to the value of the above field, is less than or equal to 10.', max_length=10),
         ),
+        migrations.RunSQL(migrations.RunSQL.noop, reverse_sql='SET CONSTRAINTS ALL IMMEDIATE'),
     ]
