@@ -3,15 +3,25 @@ from django.contrib import admin
 from payment_card import models
 
 
-class PaymentCardImageInline(admin.StackedInline):
-    model = models.PaymentCardImage
-    extra = 0
-
-
+@admin.register(models.PaymentCard)
 class PaymentCardAdmin(admin.ModelAdmin):
-    inlines = (PaymentCardImageInline,)
     list_display = ('name', 'id', 'is_active',)
     list_filter = ('is_active', )
+
+
+@admin.register(models.PaymentCardImage)
+class PaymentCardImageAdmin(admin.ModelAdmin):
+    list_display = ('payment_card', 'description', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('payment_card', 'status', 'created',)
+    search_fields = ('payment_card__name', 'description')
+    raw_id_fields = ('payment_card',)
+
+    def get_queryset(self, request):
+        qs = self.model.all_objects.get_queryset()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
 
 
 def titled_filter(title):
@@ -24,6 +34,7 @@ def titled_filter(title):
     return Wrapper
 
 
+@admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
     list_display = ('user', 'payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
     list_filter = (('payment_card__name', titled_filter('payment card')),
@@ -34,10 +45,11 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
     search_fields = ['user__email', 'pan_start', 'pan_end', 'token']
 
 
+@admin.register(models.PaymentCardAccountImage)
 class PaymentCardAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('description', 'status', 'payment_card', 'start_date', 'end_date', 'created',)
-    list_filter = ('status', 'start_date', 'end_date', 'payment_card',)
-    date_hierarchy = 'start_date'
+    list_display = ('payment_card', 'description', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('payment_card', 'status', 'created',)
+    search_fields = ('payment_card__name', 'description')
     raw_id_fields = ('payment_card_accounts',)
 
     def get_queryset(self, request):
@@ -48,6 +60,7 @@ class PaymentCardAccountImageAdmin(admin.ModelAdmin):
         return qs
 
 
+@admin.register(models.ProviderStatusMapping)
 class ProviderStatusMappingAdmin(admin.ModelAdmin):
     list_display = ('provider', 'provider_status_code', 'bink_status_code')
     list_filter = ('provider', 'bink_status_code')
@@ -55,7 +68,3 @@ class ProviderStatusMappingAdmin(admin.ModelAdmin):
 
 
 admin.site.register(models.Issuer)
-admin.site.register(models.PaymentCardAccount, PaymentCardAccountAdmin)
-admin.site.register(models.PaymentCard, PaymentCardAdmin)
-admin.site.register(models.PaymentCardAccountImage, PaymentCardAccountImageAdmin)
-admin.site.register(models.ProviderStatusMapping, ProviderStatusMappingAdmin)

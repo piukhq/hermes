@@ -6,18 +6,6 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
                            SchemeCredentialQuestion, SchemeAccountImage)
 
 
-class SchemeImageInline(admin.StackedInline):
-    model = SchemeImage
-    extra = 0
-
-    def get_queryset(self, request):
-        qs = self.model.all_objects.get_queryset()
-        ordering = self.ordering or ()
-        if ordering:
-            qs = qs.order_by(*ordering)
-        return qs
-
-
 class CredentialQuestionFormset(BaseInlineFormSet):
 
     def clean(self):
@@ -61,8 +49,9 @@ class SchemeForm(ModelForm):
         return point_name
 
 
+@admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeImageInline, CredentialQuestionInline)
+    inlines = (CredentialQuestionInline,)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active', )
@@ -75,7 +64,19 @@ class SchemeAdmin(admin.ModelAdmin):
         return self.readonly_fields
 
 
-admin.site.register(Scheme, SchemeAdmin)
+@admin.register(SchemeImage)
+class SchemeImageAdmin(admin.ModelAdmin):
+    list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('scheme', 'status', 'created')
+    search_fields = ('scheme__name', 'description')
+    raw_id_fields = ('scheme',)
+
+    def get_queryset(self, request):
+        qs = self.model.all_objects.get_queryset()
+        ordering = self.ordering or ()
+        if ordering:
+            qs = qs.order_by(*ordering)
+        return qs
 
 
 class SchemeAccountCredentialAnswerInline(admin.TabularInline):
@@ -93,6 +94,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+@admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
     list_filter = ('is_deleted', 'status', 'scheme',)
@@ -105,10 +107,11 @@ class SchemeAccountAdmin(admin.ModelAdmin):
         return self.readonly_fields
 
 
+@admin.register(SchemeAccountImage)
 class SchemeAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('description', 'status', 'scheme', 'start_date', 'end_date', 'created',)
-    list_filter = ('status', 'start_date', 'end_date', 'scheme',)
-    date_hierarchy = 'start_date'
+    list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('scheme', 'status', 'created')
+    search_fields = ('scheme__name', 'description')
     raw_id_fields = ('scheme_accounts',)
 
     def get_queryset(self, request):
@@ -119,6 +122,7 @@ class SchemeAccountImageAdmin(admin.ModelAdmin):
         return qs
 
 
+@admin.register(Exchange)
 class ExchangeAdmin(admin.ModelAdmin):
     search_fields = ["host_scheme__name", "donor_scheme__name"]
 
@@ -135,7 +139,4 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
 
 
-admin.site.register(SchemeAccount, SchemeAccountAdmin)
 admin.site.register(Category)
-admin.site.register(SchemeAccountImage, SchemeAccountImageAdmin)
-admin.site.register(Exchange, ExchangeAdmin)
