@@ -70,7 +70,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
 
         try:
-            intercom_api.update_payment_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
             pass
 
@@ -97,7 +97,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
                 'Content-Type': 'application/json'})
 
         try:
-            intercom_api.update_payment_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
             pass
 
@@ -150,7 +150,7 @@ class ListCreatePaymentCardAccount(APIView):
             self.apply_barclays_images(account)
 
             try:
-                intercom_api.update_payment_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
+                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
             except intercom_api.IntercomException:
                 pass
 
@@ -320,7 +320,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.save()
 
         try:
-            intercom_api.update_payment_account_status_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
         except intercom_api.IntercomException:
             pass
 
