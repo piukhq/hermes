@@ -104,7 +104,7 @@ class TestPaymentCard(APITestCase):
 
     @httpretty.activate
     @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_post_payment_card_account(self, mock_update_user_custom_attr):
+    def test_post_payment_card_account(self, mock_update_user_custom_attribute):
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
@@ -124,6 +124,17 @@ class TestPaymentCard(APITestCase):
                 'order': 0}
 
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
+
+        self.assertEqual(
+            mock_update_user_custom_attribute.call_args[0][3],
+            "pending,{},Aron Stokes,4,10,New Zealand,088012,9820,{},{},{}".format(
+                self.payment_card_account.payment_card.system_name,
+                self.payment_card_account.created.strftime("%Y/%m/%d"),
+                self.payment_card_account.updated.strftime("%Y/%m/%d"),
+                str(self.payment_card_account.is_deleted).lower()
+            )
+        )
+
         # The stub is called indirectly via the View so we can only verify the stub has been called
         self.assertTrue(httpretty.has_request())
         self.assertEqual(response.status_code, 201)
@@ -202,6 +213,16 @@ class TestPaymentCard(APITestCase):
         self.assertFalse(offer_image.payment_card_accounts.exists())
         self.assertFalse(hero_image.payment_card_accounts.exists())
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
+
+        self.assertEqual(
+            mock_update_user_custom_attribute.call_args[0][3],
+            "pending,{},Aron Stokes,4,10,New Zealand,543979,9820,{},{},{}".format(
+                self.payment_card_account.payment_card.system_name,
+                self.payment_card_account.created.strftime("%Y/%m/%d"),
+                self.payment_card_account.updated.strftime("%Y/%m/%d"),
+                str(self.payment_card_account.is_deleted).lower()
+            )
+        )
 
         self.assertEqual(response.status_code, 201)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
@@ -287,9 +308,13 @@ class TestPaymentCard(APITestCase):
 
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)
+
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                    **self.auth_headers)
+
+        self.assertEqual(mock_update_user_custom_attribute.call_args[0][3][-4:], "true")
+
         self.assertEqual(response.status_code, 404)
         # The stub is called indirectly via the View so we can only verify the stub has been called
         self.assertTrue(httpretty.has_request())
