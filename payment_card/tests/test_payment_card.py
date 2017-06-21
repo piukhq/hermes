@@ -10,6 +10,7 @@ from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
 from django.conf import settings
+from unittest.mock import patch
 
 
 class TestPaymentCardImages(APITestCase):
@@ -102,7 +103,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data['status_name'], 'pending')
 
     @httpretty.activate
-    def test_post_payment_card_account(self):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_post_payment_card_account(self, mock_update_user_custom_attr):
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
@@ -171,7 +173,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
 
     @httpretty.activate
-    def test_post_barclays_payment_card_account(self):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_post_barclays_payment_card_account(self, mock_update_user_custom_attribute):
         # add barclays offer image
         offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=2)
 
@@ -276,7 +279,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
 
     @httpretty.activate
-    def test_delete_payment_card_accounts(self):
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    def test_delete_payment_card_accounts(self, mock_update_user_custom_attribute):
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
