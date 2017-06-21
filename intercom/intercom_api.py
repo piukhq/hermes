@@ -150,7 +150,7 @@ def update_payment_account_custom_attribute(token, account):
         account.updated.strftime("%Y/%m/%d"),
         str(account.is_deleted).lower(),
     )
-    return update_user_custom_attribute(token, account.user.uid, account.name_on_card, attr_value)
+    return update_user_custom_attribute(token, account.user.uid, account.name_on_card + account.pan_end, attr_value)
 
 
 def get_user_events(token, user_id):
