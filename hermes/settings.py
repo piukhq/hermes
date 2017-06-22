@@ -277,7 +277,7 @@ ANYMAIL = {
     'MAILGUN_SENDER_DOMAIN': 'uk.bink.com',
 }
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
-DEFAULT_FROM_EMAIL = 'noreply@uk.bink.com'
+DEFAULT_FROM_EMAIL = 'Bink HQ <noreply@uk.bink.com>'
 
 SWAGGER_SETTINGS = {
     'api_version': '1',
