@@ -79,6 +79,7 @@ INSTALLED_APPS = (
     'order',
     'colorful',
     'mail_templated',
+    'anymail',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -271,6 +272,13 @@ if not any([TESTING, LOCAL]) and HERMES_SENTRY_DNS:
         'release': raven.fetch_git_sha(BASE_DIR),
     }
 
+ANYMAIL = {
+    'MAILGUN_API_KEY': 'key-63iepgmkm8qdzs0fxm05jy0oq3c1yd42',
+    'MAILGUN_SENDER_DOMAIN': 'uk.bink.com',
+}
+EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+DEFAULT_FROM_EMAIL = 'Bink HQ <noreply@uk.bink.com>'
+
 SWAGGER_SETTINGS = {
     'api_version': '1',
     'info': {
@@ -298,15 +306,6 @@ if env_var('HERMES_NO_DB_TEST', False):
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
 
 FILE_UPLOAD_PERMISSIONS = 0o755
-
-# EMAIL SETTINGS
-EMAIL_HOST = "mail.bink.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = "noreply@bink.com"
-EMAIL_HOST_PASSWORD = "Gibbon^egg^Change^^"
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
-
 
 # INTERCOM_TOKEN default value is for testing
 INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')

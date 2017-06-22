@@ -52,7 +52,7 @@ class CustomRegisterMixin(object):
             if user:
                 send_mail('register_email.tpl',
                           {'user': user},
-                          'Bink HQ <noreply@bink.com>',
+                          settings.DEFAULT_FROM_EMAIL,
                           [user.email],
                           fail_silently=False)
             return Response(serializer.data, 201)
@@ -153,8 +153,8 @@ class ForgotPassword(APIView):
             user.generate_reset_token()
             send_mail('email.tpl',
                       {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
-                       'hermes_url': MEDIA_URL},
-                      'noreply@bink.com',
+                               'hermes_url': MEDIA_URL},
+                      settings.DEFAULT_FROM_EMAIL,
                       [user.email],
                       fail_silently=False)
 
