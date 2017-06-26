@@ -103,10 +103,6 @@ class PaymentCard(models.Model):
         return self.name
 
     @property
-    def system_name(self):
-        return dict(self.SYSTEMS).get(self.system)
-
-    @property
     def images(self):
         return PaymentCardImage.objects.filter(payment_card=self.id)
 

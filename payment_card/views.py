@@ -15,7 +15,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 import requests
 import arrow
-from intercom import intercom_api
 
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -68,12 +67,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         serializer = serializers.UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
-        except intercom_api.IntercomException:
-            pass
-
         return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
@@ -95,11 +88,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             'date': arrow.get(instance.created).timestamp}, headers={
                 'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                 'Content-Type': 'application/json'})
-
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
-        except intercom_api.IntercomException:
-            pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -149,11 +137,6 @@ class ListCreatePaymentCardAccount(APIView):
 
             self.apply_barclays_images(account)
 
-            try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
-            except intercom_api.IntercomException:
-                pass
-
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -192,7 +175,6 @@ class ListCreatePaymentCardAccount(APIView):
             if old_account.user.client == user.client:
                 old_account.is_deleted = True
                 old_account.save()
-
         return account
 
     @staticmethod
@@ -318,11 +300,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
-
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
-        except intercom_api.IntercomException:
-            pass
 
         return Response({
             'id': payment_card_account.id,
