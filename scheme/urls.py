@@ -60,4 +60,9 @@ urlpatterns = [
 
     # TODO: Better URL
     url(r'^/csv_upload',
-        views.csv_upload, name='csv_upload'), ]
+        views.csv_upload, name='csv_upload'),
+
+    url(r'^/accounts/(?P<pk>[0-9]+)/single_question_link',
+        views.AddAccountAndLinkCredentials.as_view(),
+        name='add_account_and_link_credentials'),
+]

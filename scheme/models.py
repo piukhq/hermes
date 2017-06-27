@@ -466,6 +466,7 @@ class SchemeCredentialQuestion(models.Model):
 
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
+    one_question_link = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['order']
