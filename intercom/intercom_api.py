@@ -117,6 +117,42 @@ def update_account_status_custom_attribute(token, account):
     return update_user_custom_attribute(token, account.user.uid, account.scheme.company, attr_value)
 
 
+def update_payment_account_custom_attribute(token, account):
+    """
+    Update payment card account user custom attribute
+    Data to transfer:
+        [Status e.g. pending, active etc],
+        [Payment Card Type e.g. Visa, Mastercard, AMEX],
+        [Name on Card],
+        [Expiry Month],
+        [ExpiryYear],
+        [Country],
+        [PAN Start],
+        [PAN End],
+        [Created Date],
+        [Last Update Date e.g. pending to Active],
+        [is delete status]
+    :param token: Intercom API access token
+    :param account: payment card account to be send to intercom
+    :return: the whole response
+    """
+
+    attr_value = "{},{},{},{},{},{},{},{},{},{},{}".format(
+        account.status_name,
+        account.payment_card.system_name,
+        account.name_on_card,
+        str(account.expiry_month),
+        str(account.expiry_year),
+        account.country,
+        account.pan_start,
+        account.pan_end,
+        account.created.strftime("%Y/%m/%d"),
+        account.updated.strftime("%Y/%m/%d"),
+        str(account.is_deleted).lower(),
+    )
+    return update_user_custom_attribute(token, account.user.uid, account.name_on_card + account.pan_end, attr_value)
+
+
 def get_user_events(token, user_id):
     """ Retrieves the user identified with the user_id uuid"""
     headers = _get_headers(token)
