@@ -32,6 +32,30 @@ from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
 
+class BaseLinkMixin(object):
+
+    @staticmethod
+    def link_account(serializer, scheme_account):
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
+        response_data = {
+            'balance': scheme_account.get_midas_balance(),
+            'status': scheme_account.status,
+            'status_name': scheme_account.status_name
+        }
+        response_data.update(serializer.data)
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
+        return response_data
+
 
 class SwappableSerializerMixin(object):
     serializer_class = None
@@ -105,7 +129,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class LinkCredentials(GenericAPIView):
+class LinkCredentials(BaseLinkMixin, GenericAPIView):
     serializer_class = SchemeAnswerSerializer
     override_serializer_classes = {
         'PUT': SchemeAnswerSerializer,
@@ -140,36 +164,8 @@ class LinkCredentials(GenericAPIView):
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
-    @staticmethod
-    def link_account(serializer, scheme_account):
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                scheme_account=scheme_account, defaults={'answer': answer})
-        response_data = {
-            'balance': scheme_account.get_midas_balance(),
-            'status': scheme_account.status,
-            'status_name': scheme_account.status_name
-        }
-        response_data.update(serializer.data)
-
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
-            pass
-
-        return response_data
-
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-
-    override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer,
-        'POST': CreateSchemeAccountSerializer,
-        'OPTIONS': ListSchemeAccountSerializer,
-    }
 
     def get(self, request, *args, **kwargs):
         """
@@ -186,6 +182,10 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
+        return create_account(self, request, *args, **kwargs)
+
+
+    def create_account(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -223,6 +223,31 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         return Response(data, status=status.HTTP_201_CREATED,
                         headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
+
+
+class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
+
+    def post(self, request, *args, **kwargs):
+
+        create_response = create_account(self, request, *args, **kwargs)
+
+        serializer_class = SchemeAnswerSerializer
+        override_serializer_classes = {
+            'POST': AddAccountAndLinkSchemeSerializer,
+            'OPTIONS': AddAccountAndLinkSchemeSerializer,
+        }
+
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+        response_data = self.link_account(serializer, scheme_account)
+        scheme_account.link_date = datetime.now()
+        scheme_account.save()
+
+        out_serializer = ResponseLinkSerializer(response_data)
+        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+    def get(self, request, *args, **kwargs):
+        pass
 
 
 class CreateJoinSchemeAccount(APIView):

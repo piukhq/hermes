@@ -82,6 +82,23 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         return data
 
 
+class LinkSchemeSerializer(SchemeAnswerSerializer):
+
+    def validate(self, data):
+        # Validate no manual answer
+        manual_question_type = self.context['scheme_account'].scheme.manual_question.type
+        if manual_question_type not in data:
+            raise serializers.ValidationError("Manual answer should be submitted to this endpoint")
+
+        # Validate credentials existence
+        question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+        missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
+        if missing_credentials:
+            raise serializers.ValidationError(
+                "All the required credentials have not been submitted: {0}".format(missing_credentials))
+        return data
+
+
 class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     scheme = serializers.IntegerField()
     order = serializers.IntegerField()
