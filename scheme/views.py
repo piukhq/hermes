@@ -19,7 +19,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer)
+                                QuerySchemeAccountSerializer, OneQuestionLinkSchemeSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -42,11 +42,12 @@ class BaseLinkMixin(object):
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
+        midas_information = scheme_account.get_midas_balance()
         response_data = {
-            'balance': scheme_account.get_midas_balance(),
-            'status': scheme_account.status,
-            'status_name': scheme_account.status_name
+            'balance': midas_information,
         }
+        response_data['status'] = scheme_account.status
+        response_data['status_name'] = scheme_account.status_name
         response_data.update(serializer.data)
 
         try:
@@ -166,6 +167,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
+    override_serializer_classes = {
+        'GET': ListSchemeAccountSerializer,
+        'POST': CreateSchemeAccountSerializer,
+        'OPTIONS': ListSchemeAccountSerializer,
+    }
 
     def get(self, request, *args, **kwargs):
         """
@@ -177,23 +183,23 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         user = self.request.user
         return SchemeAccount.objects.filter(user=user)
 
-    def post(self, request, *args, **kwargs):
+    def post(self, *args, **kwargs):
         """
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        return create_account(self, request, *args, **kwargs)
+        return self.create_account(self, *args, **kwargs)
 
-
-    def create_account(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def create_account(self, *args, **kwargs):
+        serializer = self.get_serializer(data=self.request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
+        if type(data) == int:
+            return(data)
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
-                    user=request.user,
+                    user=self.request.user,
                     scheme_id=data['scheme'],
                     status=SchemeAccount.JOIN
                 )
@@ -203,7 +209,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.save()
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
-                    user=request.user,
+                    user=self.request.user,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
@@ -221,32 +227,56 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         except intercom_api.IntercomException:
             pass
 
-        return Response(data, status=status.HTTP_201_CREATED,
-                        headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
+        return Response(
+            data,
+            status=status.HTTP_201_CREATED,
+            headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=self.request)}
+        )
 
 
 class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
+    override_serializer_classes = {
+        'GET': ListSchemeAccountSerializer,
+        'POST': CreateSchemeAccountSerializer,
+        'OPTIONS': ListSchemeAccountSerializer,
+    }
 
     def post(self, request, *args, **kwargs):
-
-        create_response = create_account(self, request, *args, **kwargs)
+        """
+        Create a new scheme account within the users wallet.
+        Then link credentials for loyalty scheme login.
+        If account is already created, skips to linking.
+        """
+        create_response = self.create_account(self, *args, **kwargs)
+        if type(create_response) == int:
+            user_id = create_response
+        else:
+            user_id = create_response.data.__getitem__('id')
 
         serializer_class = SchemeAnswerSerializer
-        override_serializer_classes = {
-            'POST': AddAccountAndLinkSchemeSerializer,
-            'OPTIONS': AddAccountAndLinkSchemeSerializer,
+        self.override_serializer_classes = {
+            'POST': OneQuestionLinkSchemeSerializer,
         }
 
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
-        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=user_id, user=self.request.user)
+        serializer = OneQuestionLinkSchemeSerializer(
+            data=self.request.data,
+            context={'scheme_account': scheme_account}
+        )
         response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = datetime.now()
         scheme_account.save()
-
+        barcode = response_data['balance']['data']
+        SchemeAccountCredentialAnswer.objects.update_or_create(
+            question=scheme_account.question('barcode'),
+            scheme_account=scheme_account, defaults={'answer': barcode})
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):
+        pass
+
+    def options(self, request, *args, **kwargs):
         pass
 
 

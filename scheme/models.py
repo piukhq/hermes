@@ -116,6 +116,10 @@ class Scheme(models.Model):
         return self.questions.filter(scan_question=True).first()
 
     @property
+    def one_question_link(self):
+        return self.questions.filter(one_question_link=True).first()
+
+    @property
     def link_questions(self):
         return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 

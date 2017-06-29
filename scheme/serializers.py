@@ -25,13 +25,14 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme', 'manual_question', 'scan_question')
+        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
     manual_question = QuestionSerializer()
+    one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
 
     class Meta:
@@ -82,20 +83,13 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         return data
 
 
-class LinkSchemeSerializer(SchemeAnswerSerializer):
+class OneQuestionLinkSchemeSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
-        # Validate no manual answer
-        manual_question_type = self.context['scheme_account'].scheme.manual_question.type
-        if manual_question_type not in data:
-            raise serializers.ValidationError("Manual answer should be submitted to this endpoint")
-
-        # Validate credentials existence
-        question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
-        missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
-        if missing_credentials:
-            raise serializers.ValidationError(
-                "All the required credentials have not been submitted: {0}".format(missing_credentials))
+        # Validate one question link flag
+        one_question_link_flag = self.context['scheme_account'].scheme.one_question_link.type
+        if one_question_link_flag not in data:
+            raise serializers.ValidationError("One question link flag not found on received answers")
         return data
 
 
@@ -111,9 +105,13 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
         scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme)\
-            .exclude(status=SchemeAccount.JOIN).exists()
-        if scheme_accounts:
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
+            .exclude(status=SchemeAccount.JOIN)
+
+        if scheme_accounts.exists():
+            if self.context['view'].__class__.__name__ == 'AddAccountAndLinkCredentials':
+                return scheme_accounts[0].id
+            else:
+                raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
         if len(answer_types) != 1:
@@ -133,6 +131,8 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             allowed_types.append(scheme.manual_question.type)
         if scheme.scan_question:
             allowed_types.append(scheme.scan_question.type)
+        if scheme.one_question_link:
+            allowed_types.append(scheme.one_question_link.type)
         return allowed_types
 
 
