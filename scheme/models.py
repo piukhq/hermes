@@ -116,7 +116,7 @@ class Scheme(models.Model):
         return self.questions.filter(scan_question=True).first()
 
     @property
-    def one_question_link(self):
+    def one_question_link_question(self):
         return self.questions.filter(one_question_link=True).first()
 
     @property
@@ -389,6 +389,10 @@ class SchemeAccount(models.Model):
     @property
     def manual_answer(self):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
+
+    @property
+    def one_question_link_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
 
     @property
     def action_status(self):
