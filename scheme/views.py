@@ -32,6 +32,7 @@ from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
 
+
 class BaseLinkMixin(object):
 
     @staticmethod
@@ -253,7 +254,6 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
         else:
             user_id = create_response.data.__getitem__('id')
 
-        serializer_class = SchemeAnswerSerializer
         self.override_serializer_classes = {
             'POST': OneQuestionLinkSchemeSerializer,
         }

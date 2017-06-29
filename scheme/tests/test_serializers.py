@@ -1,6 +1,7 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer
+from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, \
+    LinkSchemeSerializer, OneQuestionLinkSchemeSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
 from scheme.credentials import BARCODE
 from unittest.mock import MagicMock, patch
@@ -31,7 +32,7 @@ class TestCreateSchemeAccountSerializer(TestCase):
     def test_validate_existing_scheme_account(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         scheme_account = SchemeAccountFactory(scheme=question.scheme, user=self.user)
-
+        self.serializer.context['view'] = ''
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': scheme_account.scheme.id})
         self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))
