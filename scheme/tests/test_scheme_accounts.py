@@ -5,7 +5,8 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
+from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer, \
+    OneQuestionLinkSchemeSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
@@ -326,6 +327,35 @@ class TestSchemeAccountViews(APITestCase):
                 if status_code not in scheme_status_codes:
                     return False
         return True
+
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_one_question_link_view(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+        SchemeCredentialQuestionFactory(scheme=self.scheme_account.scheme, type=EMAIL, one_question_link=True)
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        data = {EMAIL: "test@test123456.com", 'scheme': self.scheme_account.scheme.id, 'order': 1}
+        response = self.client.post('/schemes/accounts/single_question_link',
+                                    data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+        )
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
