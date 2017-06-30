@@ -41,7 +41,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
                    'status',
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
-    readonly_fields = ('token',)
+    readonly_fields = ('token', 'psp_token', )
     search_fields = ['user__email', 'pan_start', 'pan_end', 'token']
 
 

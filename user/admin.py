@@ -22,6 +22,7 @@ class UserSchemeAccountsInline(StackedInline):
 class UserPaymentCardAccountInline(StackedInline):
     model = PaymentCardAccount
     extra = 0
+    readonly_fields = ('token', 'psp_token', )
 
 
 class CustomUserModelForm(forms.ModelForm):
