@@ -257,7 +257,6 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
         self.override_serializer_classes = {
             'POST': OneQuestionLinkSchemeSerializer,
         }
-
         scheme_account = get_object_or_404(SchemeAccount.objects, id=user_id, user=self.request.user)
         serializer = OneQuestionLinkSchemeSerializer(
             data=self.request.data,
@@ -266,10 +265,16 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
         response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = datetime.now()
         scheme_account.save()
-        barcode = response_data['balance']['data']
-        SchemeAccountCredentialAnswer.objects.update_or_create(
-            question=scheme_account.question('barcode'),
-            scheme_account=scheme_account, defaults={'answer': barcode})
+        try:
+            if 'email' in request.data:
+                barcode = response_data['balance']['data']
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=scheme_account.question('barcode'),
+                    scheme_account=scheme_account, defaults={'answer': barcode})
+
+        except:
+            pass
+
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
