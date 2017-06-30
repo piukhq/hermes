@@ -138,17 +138,17 @@ def update_payment_account_custom_attribute(token, account):
     """
 
     attr_value = "{},{},{},{},{},{},{},{},{},{},{}".format(
-        "STS:" + account.status_name,
-        "CRD:" + account.payment_card.system_name,
-        "NAM:" + account.name_on_card,
-        "EXPM:" + str(account.expiry_month),
-        "EXPY:" + str(account.expiry_year),
-        "CTY:" + account.country,
-        "BIN:" + account.pan_start,
-        "END:" + account.pan_end,
-        "CTD:" + account.created.strftime("%Y/%m/%d"),
-        "UPD:" + account.updated.strftime("%Y/%m/%d"),
-        "DEL:" + str(account.is_deleted).lower(),
+        "STS:{}".format(account.status_name),
+        "CRD:{}".format(account.payment_card.system_name),
+        "NAM:{}".format(account.name_on_card),
+        "EXPM:{}".format(str(account.expiry_month)),
+        "EXPY:{}".format(str(account.expiry_year)),
+        "CTY:{}".format(account.country),
+        "BIN:{}".format(account.pan_start),
+        "END:{}".format(account.pan_end),
+        "CTD:{}".format(account.created.strftime("%Y/%m/%d")),
+        "UPD:{}".format(account.updated.strftime("%Y/%m/%d")),
+        "DEL:{}".format(str(account.is_deleted).lower()),
     )
 
     key = "Payment Card " + str(account.order)
