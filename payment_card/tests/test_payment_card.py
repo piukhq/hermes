@@ -217,7 +217,8 @@ class TestPaymentCard(APITestCase):
 
         self.assertEqual(
             mock_update_user_custom_attribute.call_args[0][3],
-            "STS:pending,CRD:{},NAM:Aron Stokes,EXPM:4,EXPY:10,CTY:New Zealand,BIN:543979,END:9820,CTD:{},UPD:{},DEL:{}".format(
+            "STS:pending,CRD:{},NAM:Aron Stokes,EXPM:4,EXPY:10,CTY:New Zealand,BIN:543979,END:9820,CTD:{}"
+            ",UPD:{},DEL:{}".format(
                 self.payment_card_account.payment_card.system_name,
                 self.payment_card_account.created.strftime("%Y/%m/%d"),
                 self.payment_card_account.updated.strftime("%Y/%m/%d"),
