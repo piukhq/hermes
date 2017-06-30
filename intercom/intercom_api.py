@@ -151,7 +151,7 @@ def update_payment_account_custom_attribute(token, account):
         "DEL:{}".format(str(account.is_deleted).lower()),
     )
 
-    key = "Payment Card " + str(account.order)
+    key = "Payment Card {}".format(str(account.order))
 
     return update_user_custom_attribute(token, account.user.uid, key, attr_value)
 
