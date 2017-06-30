@@ -138,19 +138,22 @@ def update_payment_account_custom_attribute(token, account):
     """
 
     attr_value = "{},{},{},{},{},{},{},{},{},{},{}".format(
-        account.status_name,
-        account.payment_card.system_name,
-        account.name_on_card,
-        str(account.expiry_month),
-        str(account.expiry_year),
-        account.country,
-        account.pan_start,
-        account.pan_end,
-        account.created.strftime("%Y/%m/%d"),
-        account.updated.strftime("%Y/%m/%d"),
-        str(account.is_deleted).lower(),
+        "STS:" + account.status_name,
+        "CRD:" + account.payment_card.system_name,
+        "NAM:" + account.name_on_card,
+        "EXPM:" + str(account.expiry_month),
+        "EXPY:" + str(account.expiry_year),
+        "CTY:" + account.country,
+        "BIN:" + account.pan_start,
+        "END:" + account.pan_end,
+        "CTD:" + account.created.strftime("%Y/%m/%d"),
+        "UPD:" + account.updated.strftime("%Y/%m/%d"),
+        "DEL:" + str(account.is_deleted).lower(),
     )
-    return update_user_custom_attribute(token, account.user.uid, account.name_on_card + account.pan_end, attr_value)
+
+    key = "Payment Card " + str(account.payment_card.order)
+
+    return update_user_custom_attribute(token, account.user.uid, key, attr_value)
 
 
 def get_user_events(token, user_id):
