@@ -90,7 +90,7 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
     response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_USERS_PATH),
         headers=headers,
-        data=json.dumps(payload)
+        data=json.dumps(payload),
     )
 
     if response.status_code != 200:
@@ -151,7 +151,7 @@ def update_payment_account_custom_attribute(token, account):
         "DEL:{}".format(str(account.is_deleted).lower()),
     )
 
-    key = "Payment Card {}".format(str(account.order))
+    key = "PAYMENT CARD {}".format(str(account.order))
 
     return update_user_custom_attribute(token, account.user.uid, key, attr_value)
 
