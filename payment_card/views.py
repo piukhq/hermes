@@ -2,6 +2,7 @@ from io import StringIO
 import csv
 import json
 
+from raven.contrib.django.raven_compat.models import client as sentry
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render
@@ -72,7 +73,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         try:
             intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
-            pass
+            sentry.captureException()
 
         return Response(serializer.data)
 
@@ -99,7 +100,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         try:
             intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
-            pass
+            sentry.captureException()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -152,7 +153,7 @@ class ListCreatePaymentCardAccount(APIView):
             try:
                 intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
             except intercom_api.IntercomException:
-                pass
+                sentry.captureException()
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -322,7 +323,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         try:
             intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
         except intercom_api.IntercomException:
-            pass
+            sentry.captureException()
 
         return Response({
             'id': payment_card_account.id,
