@@ -91,7 +91,9 @@ class Scheme(models.Model):
                                   help_text='This field must have a length that, when added to the value of the above '
                                             'field, is less than or equal to {}.'.format(MAX_POINTS_VALUE_LENGTH - 1))
 
-    identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
+    identifier = models.CharField(max_length=30, blank=True, help_text='Regex identifier for barcode, please be sure '
+                                                                       'not to conflict with my360 regex of any '
+                                                                       'characters exactly 10 digits long')
     colour = RGBColorField(blank=True)
     is_active = models.BooleanField(default=True)
     category = models.ForeignKey(Category)
