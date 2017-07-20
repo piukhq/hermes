@@ -32,7 +32,6 @@ from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
-import json
 
 
 class BaseLinkMixin(object):
@@ -251,12 +250,6 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
         If account is already created, skips to linking.
         """
         card_number = request.data.get('barcode') or request.data.get('card_number')
-        if 'card_number' in request.data:
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question('barcode'),
-                scheme_account=scheme_account, defaults={'answer': card_number}
-            )
-
         # Remove when endpoint is fixed! - add retry and comments to show that my360 is flakey - do it in method!
         scheme_slug_list = self.get_schemes_from_my360(request.data['barcode'])
 
@@ -296,12 +289,16 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
             )
             response_data = self.link_account(serializer, scheme_account)
             scheme_account.link_date = datetime.now()
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question('barcode'),
+                scheme_account=scheme_account, defaults={'answer': card_number}
+            )
             scheme_account.save()
 
             out_serializer = ResponseLinkSerializer(response_data)
             if scheme_id == scheme_ids[0]:
                 pass
-            elif out_serializer.data['balance'] != None:
+            elif out_serializer.data['balance'] is not None:
                 successful_link_list.append(out_serializer.data)
             else:
                 not_successful_link_list.append(out_serializer.data)
@@ -329,8 +326,8 @@ class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
         user_identifier = user
 
         # Remove comments when my360 api is up and running
-        #scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
-        #scheme_list_json = json.loads(scheme_list_response)
+        # scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
+        # scheme_list_json = json.loads(scheme_list_response)
         # scheme_code_list = scheme_list_json['schemes']
         scheme_code_list = ['kp6_ox', '-fdK4i', 'abc']
 
