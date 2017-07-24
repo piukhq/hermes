@@ -8,3 +8,4 @@ media
 .env
 __pychache__
 .cache
+venv/

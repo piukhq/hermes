@@ -6,6 +6,10 @@ urlpatterns = [
         views.CreateAccount.as_view(),
         name='create_scheme_account'),
 
+    url(r'^/accounts/my360/?$',
+        views.CreateMy365AccountsAndLink.as_view(),
+        name='create_my360_accounts_and_link'),
+
     url(r'^/accounts/query$',
         views.SchemeAccountQuery.as_view(),
         name='query_scheme_accounts'),
@@ -61,8 +65,4 @@ urlpatterns = [
     # TODO: Better URL
     url(r'^/csv_upload',
         views.csv_upload, name='csv_upload'),
-
-    url(r'^/accounts/single_question_link/?$',
-        views.AddAccountAndLinkCredentials.as_view(),
-        name='add_account_and_link_credentials'),
 ]

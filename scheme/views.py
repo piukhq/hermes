@@ -39,24 +39,26 @@ class BaseLinkMixin(object):
     @staticmethod
     def link_account(serializer, scheme_account):
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+
+        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account)
+
+    @staticmethod
+    def _link_account(data, scheme_account):
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
         midas_information = scheme_account.get_midas_balance()
         response_data = {
-            'balance': midas_information,
+            'balance': midas_information
         }
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
-        response_data.update(serializer.data)
-
+        response_data.update(dict(data))
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
         except intercom_api.IntercomException:
             pass
-
         return response_data
 
 
@@ -195,13 +197,26 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     def create_account(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         data = serializer.validated_data
+        self._create_account(request.user, data, serializer.context['answer_type'])
+        print('++++++++++++++++++++++++++++++++++++++++++++++++')
+        print(data)
+        print({'Location': reverse('retrieve_account', args=[data['id']], request=request)})
+        print('++++++++++++++++++++++++++++++++++++++++++++++++')
+        return Response(
+            data,
+            status=status.HTTP_201_CREATED,
+            headers={'Location': reverse('retrieve_account', args=[data['id']], request=request)}
+        )
+
+    def _create_account(self, user, data, answer_type):
         if type(data) == int:
             return(data)
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
-                    user=request.user,
+                    user=user,
                     scheme_id=data['scheme'],
                     status=SchemeAccount.JOIN
                 )
@@ -211,125 +226,111 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.save()
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
-                    user=request.user,
+                    user=user,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
                 )
-
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                question=scheme_account.question(serializer.context['answer_type']),
-                answer=data[serializer.context['answer_type']],
+                question=scheme_account.question(answer_type),
+                answer=data[answer_type],
             )
         data['id'] = scheme_account.id
-
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
         except intercom_api.IntercomException:
             pass
 
-        return Response(
-            data,
-            status=status.HTTP_201_CREATED,
-            headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)}
-        )
+        return scheme_account
 
 
-class AddAccountAndLinkCredentials(BaseLinkMixin, CreateAccount):
-    override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer,
-        'POST': CreateSchemeAccountSerializer,
-        'OPTIONS': ListSchemeAccountSerializer,
-    }
-
-    def post(self, request, *args, **kwargs):
-        """
+class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
+    """
         Create a new scheme account within the users wallet.
         Then link credentials for loyalty scheme login.
         If account is already created, skips to linking.
-        """
-        card_number = request.data.get('barcode') or request.data.get('card_number')
+    """
+    override_serializer_classes = {
+        'POST': CreateSchemeAccountSerializer
+    }
+
+    def post(self, request, *args, **kwargs):
+
+        print('HERE1!!')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        card_number = request.data.get('barcode')  # or request.data.get('card_number')
         # Remove when endpoint is fixed! - add retry and comments to show that my360 is flakey - do it in method!
-        scheme_slug_list = self.get_schemes_from_my360(request.data['barcode'])
+        scheme_slug_list = self.get_my360_schemes(card_number)
+        import pdb; pdb.set_trace()
+        scheme_ids = [
+            get_object_or_404(Scheme.objects, slug=scheme_slug).id
+            for scheme_slug in scheme_slug_list
+        ]
 
-        scheme_ids = []
-        for scheme_slug in scheme_slug_list:
-            scheme_obj = get_object_or_404(Scheme.objects, slug=scheme_slug)
-            scheme_id = scheme_obj.id
-            scheme_ids.append(scheme_id)
-
-        create_request = QueryDict('', mutable=True)
-        create_request.user = request.user
-        create_request.data = QueryDict('', mutable=True)
-        create_request.data['order'] = request.data['order']
-        create_request.GET = QueryDict('', mutable=True)
-        if request.data.__contains__('barcode'):
-            create_request.data['barcode'] = request.data['barcode']
-        elif request.data.__contains__('card_number'):
-            create_request.data['card_number'] = request.data['card_number']
+        scheme_accounts = []
+        scheme_accounts_resp = []
+        for scheme_id in scheme_ids:
+            data = {
+                'order': request.data['order'],
+                'barcode': request.data['barcode'],  # TODO with card_number
+                'scheme': scheme_id
+            }
+            scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
+            # scheme_accounts_resp.append(data)
+            scheme_accounts.append(scheme_account)
 
         successful_link_list = []
         not_successful_link_list = []
-        for scheme_id in scheme_ids:
-            create_request.data['scheme'] = scheme_id
-            create_response = self.create_account(create_request)
-            if type(create_response) == int:
-                user_id = create_response
-            else:
-                user_id = create_response.data.__getitem__('id')
 
-            self.override_serializer_classes = {
-                'POST': OneQuestionLinkSchemeSerializer,
-            }
-            scheme_account = get_object_or_404(SchemeAccount.objects, id=user_id, user=request.user)
-            serializer = OneQuestionLinkSchemeSerializer(
-                data=request.data,
-                context={'scheme_account': scheme_account}
-            )
+        for i, scheme_account in enumerate(scheme_accounts):
+            print('HERE!!')
+            serializer = OneQuestionLinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
             response_data = self.link_account(serializer, scheme_account)
             scheme_account.link_date = datetime.now()
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question('barcode'),
-                scheme_account=scheme_account, defaults={'answer': card_number}
+                scheme_account=scheme_account,
+                defaults={'answer': card_number}
             )
             scheme_account.save()
 
             out_serializer = ResponseLinkSerializer(response_data)
-            if scheme_id == scheme_ids[0]:
-                pass
-            elif out_serializer.data['balance'] is not None:
+            print('oops!!!')
+            print(out_serializer)
+            print('oops!!!')
+            if out_serializer.data['balance'] is not None:
+                scheme_accounts_resp.append(
+                    {
+                        'order': scheme_account.order,
+                        'barcode': scheme_account.barcode,  # TODO with card_number
+                        'scheme': scheme_account.scheme.id,
+                        'id': scheme_account.id,
+                        'balance': out_serializer.data['balance'],
+                        'status': out_serializer.data['status'],
+                        'status_name': out_serializer.data['status_name']
+                    }
+                )
                 successful_link_list.append(out_serializer.data)
             else:
                 not_successful_link_list.append(out_serializer.data)
 
-            # Clean up for next loop
-            create_request.data['order'] = str(int(create_request.data['order']) + 1)
-            self.override_serializer_classes = {
-                'POST': CreateSchemeAccountSerializer,
-            }
+        return Response(
+            scheme_accounts_resp,
+            status=status.HTTP_201_CREATED
+        )
 
-        return Response({
-                            'successful_link': successful_link_list,
-                            'failed_link': not_successful_link_list
-                        },
-                        status=status.HTTP_201_CREATED)
-
-    def get(self, request, *args, **kwargs):
-        pass
-
-    def options(self, request, *args, **kwargs):
-        pass
-
-    def get_schemes_from_my360(self, user):
+    def get_my360_schemes(self, user):
+        import json
         scheme_list_url = 'https://rewards.api.mygravity.co/v2/reward_scheme/'
         user_identifier = user
 
-        # Remove comments when my360 api is up and running
-        # scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
-        # scheme_list_json = json.loads(scheme_list_response)
-        # scheme_code_list = scheme_list_json['schemes']
-        scheme_code_list = ['kp6_ox', '-fdK4i', 'abc']
+        scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
+        scheme_list_json = json.loads(scheme_list_response)
+        scheme_code_list = scheme_list_json['schemes']
 
         scheme_slug_list = ['my360']
         for scheme_code in scheme_code_list:

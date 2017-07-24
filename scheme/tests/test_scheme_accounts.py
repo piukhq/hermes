@@ -1,6 +1,8 @@
-from decimal import Decimal
-
 import datetime
+import json
+
+
+from decimal import Decimal
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from scheme.encyption import AESCipher
@@ -9,12 +11,12 @@ from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, Lis
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
+from scheme.views import CreateMy365AccountsAndLink
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
-import json
 
 from user.tests.factories import UserFactory
 
@@ -77,7 +79,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_join_account(self):
         join_scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
+        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, scan_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, user=self.user, status=SchemeAccount.JOIN)
 
         response = self.client.post('/schemes/accounts', data={
@@ -89,6 +91,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 201)
 
         data = response.json()
+        print(data)
         self.assertEqual(data['id'], join_account.id)
         self.assertEqual(data['order'], 0)
         self.assertEqual(data['scheme'], join_scheme.id)
@@ -327,12 +330,22 @@ class TestSchemeAccountViews(APITestCase):
                     return False
         return True
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
+    def test_create_manual_my360_account_view(self):
+        assert False, 'Not implemented - Manual creation'
+
+    def test_create_my360_account_view_no_schemes_associated(self):
+        assert False, 'Not implemented - No schemes'
+
+    def test_create_scanned_my360_account_view_already_created(self):
+        assert False, 'Not implemented - Scanned Already created'
+
+    def test_create_manual_my360_account_view_already_created(self):
+        assert False, 'Not implemented - Scanned Already created'
+
+    # See order
+    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_one_question_link_view(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
-        SchemeCredentialQuestionFactory(scheme=self.scheme_account.scheme, type=EMAIL, one_question_link=True)
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_create_scanned_my360_account_view_food_cellar(self, mock_get_midas_balance, mock_get_schemes):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -341,20 +354,53 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {EMAIL: "test@test123456.com", 'scheme': self.scheme_account.scheme.id, 'order': 1}
-        response = self.client.post('/schemes/accounts/single_question_link',
-                                    data=data, **self.auth_headers)
+        # Given my360_food_cellar_test scheme exists in 'Bink system'
+        # And a QR barcode scheme credential question are created for the schema
+        # And my360_food_cellar_test scheme account does not exist in 'Bink System'
+        # And my360_food_cellar_test scheme account exists in 'My360 System'
+        scheme_0 = SchemeFactory(slug='food_cellar_slug', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, scan_question=True, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, scan_question=True, one_question_link=True)
+
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: '123456789',
+            'scheme': scheme_0.id,
+            'order': 0
+        }
+
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
+
+        scheme_accounts = response.json()
+        print(';;;;;;;;;;;;;;;;;;;;')
+        print(scheme_accounts)
+        print(';;;;;;;;;;;;;;;;;;;;')
+        self.assertEqual(len(scheme_accounts), 2)
+
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[1]['barcode'], '123456789')
+
+        self.assertEqual(scheme_accounts[0]['order'], '0')
+        self.assertEqual(scheme_accounts[1]['order'], '0')
+
+        self.assertIn('id', scheme_accounts[0])
+        self.assertIn('id', scheme_accounts[1])
+
+        self.assertIn('scheme', scheme_accounts[0])
+        self.assertIn('scheme', scheme_accounts[1])
+
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
+
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertEqual(scheme_accounts[1]['status_name'], "Active")
+
+        import pdb; pdb.set_trace()
+        self.assertEqual(scheme_accounts[manual_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
-
-        self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
-        )
 
     @patch('intercom.intercom_api.post_issued_join_card_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')

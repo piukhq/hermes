@@ -112,10 +112,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():
-            if self.context['view'].__class__.__name__ == 'AddAccountAndLinkCredentials':
-                return scheme_accounts[0].id
-            else:
-                raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
+            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
         if len(answer_types) != 1:
