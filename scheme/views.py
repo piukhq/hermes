@@ -243,7 +243,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         return scheme_account
 
 
-class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
+class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
     """
         Create a new scheme account within the users wallet.
         Then link credentials for loyalty scheme login.
@@ -311,7 +311,7 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
         return response_data
 
     def get_my360_schemes(self, user):
-        # TODO this has to be testes end to end after mygravity api is developed
+        # TODO this has to be tested end to end after mygravity api is developed
         scheme_list_url = 'https://rewards.api.mygravity.co/v2/reward_scheme/'
         user_identifier = user
 
