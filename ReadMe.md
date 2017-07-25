@@ -1,4 +1,7 @@
 # Hermes
+
+[![build status](https://gitlab.com/hellobink/Olympus/hermes/badges/master/build.svg)](https://gitlab.com/hellobink/Olympus/hermes/commits/master) [![coverage report](https://gitlab.com/hellobink/Olympus/hermes/badges/master/coverage.svg)](https://gitlab.com/hellobink/Olympus/hermes/commits/master)
+
 *From the minds of Andrew Kenyon and Ben Olsen, (Sponsored by Paul Batty and Mick Latham Inc.),
  we give you Hermes....a self contained user registration module. Incorporating all your payment and loyalty card registration too...*
  
