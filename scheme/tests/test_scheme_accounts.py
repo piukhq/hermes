@@ -11,7 +11,7 @@ from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, Lis
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount
-from scheme.views import CreateMy365AccountsAndLink
+from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
@@ -329,7 +329,7 @@ class TestSchemeAccountViews(APITestCase):
                     return False
         return True
 
-    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_manual_create_account_view(self, mock_get_midas_balance, mock_get_schemes):
         # Given:
@@ -386,7 +386,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_accounts[0]['status_name'], "Active")
         self.assertEqual(scheme_accounts[1]['status_name'], "Active")
 
-    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=[])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=[])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_scan_create_account_no_schemes_associated(self, mock_get_midas_balance, mock_get_schemes):
         scheme_0 = SchemeFactory(slug='food_cellar_slug', id=999)
@@ -401,7 +401,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json(), [])
 
-    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug'])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug'])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_manual_create_account_already_created(self, mock_get_midas_balance, mock_get_schemes):
         # Given:
@@ -431,7 +431,7 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug'])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug'])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_scan_create_account_already_created(self, mock_get_midas_balance, mock_get_schemes):
         # Given:
@@ -461,7 +461,7 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-    @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_scan_create_account_view_food_cellar(self, mock_get_midas_balance, mock_get_schemes):
         # Given:

@@ -7,7 +7,7 @@ urlpatterns = [
         name='create_scheme_account'),
 
     url(r'^/accounts/my360/?$',
-        views.CreateMy365AccountsAndLink.as_view(),
+        views.CreateMy360AccountsAndLink.as_view(),
         name='create_my360_accounts_and_link'),
 
     url(r'^/accounts/query$',
