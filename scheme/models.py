@@ -297,10 +297,7 @@ class SchemeAccount(models.Model):
             credentials = self.credentials()
             if not credentials:
                 return points
-            parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
-            headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-            response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                    params=parameters, headers=headers)
+            response = self._get_balance(credentials)
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE
@@ -311,6 +308,13 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.MIDAS_UNREACHABLE
         self.save()
         return points
+
+    def _get_balance(self, credentials):
+        parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+        headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
+        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
+                                params=parameters, headers=headers)
+        return response
 
     def question(self, question_type):
         """

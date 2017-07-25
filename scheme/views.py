@@ -200,10 +200,6 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         data = serializer.validated_data
         self._create_account(request.user, data, serializer.context['answer_type'])
-        print('++++++++++++++++++++++++++++++++++++++++++++++++')
-        print(data)
-        print({'Location': reverse('retrieve_account', args=[data['id']], request=request)})
-        print('++++++++++++++++++++++++++++++++++++++++++++++++')
         return Response(
             data,
             status=status.HTTP_201_CREATED,
@@ -260,7 +256,8 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        card_number = request.data.get('barcode')  # or request.data.get('card_number')
+        card_number_key = 'barcode' if 'barcode' in request.data else 'card_number'
+        card_number = request.data.get(card_number_key)
 
         scheme_slug_list = self.get_my360_schemes(card_number)
         scheme_ids = [
@@ -274,14 +271,14 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
         for scheme_id in scheme_ids:
             data = {
                 'order': data['order'],
-                'barcode': data['barcode'],  # TODO with card_number
+                card_number_key: data[card_number_key],
                 'scheme': scheme_id
             }
             scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
 
-            serializer = OneQuestionLinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+            _serializer = OneQuestionLinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
 
-            response_data = self.link_account(serializer, scheme_account)
+            response_data = self.link_account(_serializer, scheme_account)
             scheme_account.link_date = datetime.now()
             scheme_account.save()
 
@@ -290,7 +287,7 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
                 successful_link_list.append(
                     {
                         'order': scheme_account.order,
-                        'barcode': scheme_account.barcode,  # TODO with card_number
+                        card_number_key: scheme_account.barcode or scheme_account.card_number,
                         'scheme': scheme_account.scheme.id,
                         'id': scheme_account.id,
                         'balance': out_serializer.data['balance'],
