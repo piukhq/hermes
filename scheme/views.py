@@ -5,7 +5,7 @@ import requests
 
 from collections import OrderedDict
 from datetime import datetime
-from django.http import HttpResponseBadRequest, QueryDict
+from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
