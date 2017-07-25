@@ -79,7 +79,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_join_account(self):
         join_scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, scan_question=True)
+        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, user=self.user, status=SchemeAccount.JOIN)
 
         response = self.client.post('/schemes/accounts', data={
@@ -91,7 +91,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 201)
 
         data = response.json()
-        print(data)
         self.assertEqual(data['id'], join_account.id)
         self.assertEqual(data['order'], 0)
         self.assertEqual(data['scheme'], join_scheme.id)

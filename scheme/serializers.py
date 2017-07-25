@@ -83,20 +83,6 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
         return data
 
 
-class OneQuestionLinkSchemeSerializer(SchemeAnswerSerializer):
-
-    def validate(self, data):
-        # Validate one question link flag
-        try:
-            one_question_link_flag = self.context['scheme_account'].scheme.one_question_link.type
-        except AttributeError:
-            raise serializers.ValidationError("One question link flag not found on requested scheme")
-
-        if one_question_link_flag not in data:
-            raise serializers.ValidationError("One question link flag not found on received answers")
-        return data
-
-
 class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     scheme = serializers.IntegerField()
     order = serializers.IntegerField()

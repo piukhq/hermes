@@ -1,6 +1,9 @@
 import csv
 import uuid
+import json
 import requests
+
+from collections import OrderedDict
 from datetime import datetime
 from django.http import HttpResponseBadRequest, QueryDict
 from django.shortcuts import render, redirect
@@ -9,7 +12,6 @@ from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
-
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
@@ -20,7 +22,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, OneQuestionLinkSchemeSerializer)
+                                QuerySchemeAccountSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -259,52 +261,57 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
         card_number_key = 'barcode' if 'barcode' in request.data else 'card_number'
         card_number = request.data.get(card_number_key)
 
-        scheme_slug_list = self.get_my360_schemes(card_number)
-        scheme_ids = [
-            get_object_or_404(Scheme.objects, slug=scheme_slug).id
-            for scheme_slug in scheme_slug_list
-            ]
+        scheme_slugs = self.get_my360_schemes(card_number)
 
-        successful_link_list = []
-        not_successful_link_list = []
+        scheme_accounts_response = []
 
-        for scheme_id in scheme_ids:
+        for scheme in scheme_slugs:
+            scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
+
             data = {
                 'order': data['order'],
                 card_number_key: data[card_number_key],
                 'scheme': scheme_id
             }
+
             scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
+            linked_data = self._link_scheme_account(card_number_key, data, scheme_account)
 
-            _serializer = OneQuestionLinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
-
-            response_data = self.link_account(_serializer, scheme_account)
-            scheme_account.link_date = datetime.now()
-            scheme_account.save()
-
-            out_serializer = ResponseLinkSerializer(response_data)
-            if out_serializer.data['balance'] is not None:
-                successful_link_list.append(
-                    {
-                        'order': scheme_account.order,
-                        card_number_key: scheme_account.barcode or scheme_account.card_number,
-                        'scheme': scheme_account.scheme.id,
-                        'id': scheme_account.id,
-                        'balance': out_serializer.data['balance'],
-                        'status': out_serializer.data['status'],
-                        'status_name': out_serializer.data['status_name']
-                    }
-                )
-            else:
-                not_successful_link_list.append(out_serializer.data)
+            scheme_accounts_response.append(
+                self._format_response(card_number_key, scheme_account, linked_data)
+            )
 
         return Response(
-            successful_link_list,
+            scheme_accounts_response,
             status=status.HTTP_201_CREATED
         )
 
+    @staticmethod
+    def _format_response(card_number_key, scheme_account, linked_data):
+        linked_data = ResponseLinkSerializer(linked_data)
+        scheme_response = {
+            'order': scheme_account.order,
+            card_number_key: scheme_account.barcode or scheme_account.card_number,
+            'scheme': scheme_account.scheme.id,
+            'id': scheme_account.id
+        }
+
+        if linked_data.data['balance']:
+            scheme_response.update({
+                'balance': linked_data.data['balance'],
+                'status': linked_data.data['status'],
+                'status_name': linked_data.data['status_name']
+            })
+        return scheme_response
+
+    def _link_scheme_account(self, card_number_key, data, scheme_account):
+        response_data = self._link_account(OrderedDict({card_number_key: data[card_number_key]}), scheme_account)
+        scheme_account.link_date = datetime.now()
+        scheme_account.save()
+        return response_data
+
     def get_my360_schemes(self, user):
-        import json
+        # TODO this has to be testes end to end after mygravity api is developed
         scheme_list_url = 'https://rewards.api.mygravity.co/v2/reward_scheme/'
         user_identifier = user
 
