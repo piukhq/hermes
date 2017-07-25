@@ -256,54 +256,38 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
     }
 
     def post(self, request, *args, **kwargs):
-
-        print('HERE1!!')
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
         card_number = request.data.get('barcode')  # or request.data.get('card_number')
-        # Remove when endpoint is fixed! - add retry and comments to show that my360 is flakey - do it in method!
+
         scheme_slug_list = self.get_my360_schemes(card_number)
-        import pdb; pdb.set_trace()
         scheme_ids = [
             get_object_or_404(Scheme.objects, slug=scheme_slug).id
             for scheme_slug in scheme_slug_list
-        ]
-
-        scheme_accounts = []
-        scheme_accounts_resp = []
-        for scheme_id in scheme_ids:
-            data = {
-                'order': request.data['order'],
-                'barcode': request.data['barcode'],  # TODO with card_number
-                'scheme': scheme_id
-            }
-            scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
-            # scheme_accounts_resp.append(data)
-            scheme_accounts.append(scheme_account)
+            ]
 
         successful_link_list = []
         not_successful_link_list = []
 
-        for i, scheme_account in enumerate(scheme_accounts):
-            print('HERE!!')
+        for scheme_id in scheme_ids:
+            data = {
+                'order': data['order'],
+                'barcode': data['barcode'],  # TODO with card_number
+                'scheme': scheme_id
+            }
+            scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
+
             serializer = OneQuestionLinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+
             response_data = self.link_account(serializer, scheme_account)
             scheme_account.link_date = datetime.now()
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question('barcode'),
-                scheme_account=scheme_account,
-                defaults={'answer': card_number}
-            )
             scheme_account.save()
 
             out_serializer = ResponseLinkSerializer(response_data)
-            print('oops!!!')
-            print(out_serializer)
-            print('oops!!!')
             if out_serializer.data['balance'] is not None:
-                scheme_accounts_resp.append(
+                successful_link_list.append(
                     {
                         'order': scheme_account.order,
                         'barcode': scheme_account.barcode,  # TODO with card_number
@@ -314,12 +298,11 @@ class CreateMy365AccountsAndLink(BaseLinkMixin, CreateAccount):
                         'status_name': out_serializer.data['status_name']
                     }
                 )
-                successful_link_list.append(out_serializer.data)
             else:
                 not_successful_link_list.append(out_serializer.data)
 
         return Response(
-            scheme_accounts_resp,
+            successful_link_list,
             status=status.HTTP_201_CREATED
         )
 

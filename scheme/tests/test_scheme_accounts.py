@@ -346,6 +346,10 @@ class TestSchemeAccountViews(APITestCase):
     @patch.object(CreateMy365AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_create_scanned_my360_account_view_food_cellar(self, mock_get_midas_balance, mock_get_schemes):
+        # Given my360_food_cellar_test scheme exists in 'Bink system'
+        # And a QR barcode scheme credential question are created for the schema
+        # And my360_food_cellar_test scheme account does not exist in 'Bink System'
+        # And my360_food_cellar_test scheme account exists in 'My360 System'
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -354,10 +358,6 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        # Given my360_food_cellar_test scheme exists in 'Bink system'
-        # And a QR barcode scheme credential question are created for the schema
-        # And my360_food_cellar_test scheme account does not exist in 'Bink System'
-        # And my360_food_cellar_test scheme account exists in 'My360 System'
         scheme_0 = SchemeFactory(slug='food_cellar_slug', id=999)
         scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
 
@@ -370,14 +370,13 @@ class TestSchemeAccountViews(APITestCase):
             'scheme': scheme_0.id,
             'order': 0
         }
-
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
         self.assertEqual(response.status_code, 201)
 
         scheme_accounts = response.json()
-        print(';;;;;;;;;;;;;;;;;;;;')
+        print('-----------------------------------')
         print(scheme_accounts)
-        print(';;;;;;;;;;;;;;;;;;;;')
+        print('-----------------------------------')
         self.assertEqual(len(scheme_accounts), 2)
 
         self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
