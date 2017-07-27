@@ -4,13 +4,13 @@
 
 *From the minds of Andrew Kenyon and Ben Olsen, (Sponsored by Paul Batty and Mick Latham Inc.),
  we give you Hermes....a self contained user registration module. Incorporating all your payment and loyalty card registration too...*
- 
+
 ## Components
  * Django 1.9
  * Postgresql 9.1+
- 
+
 ## Installation (Ubuntu Linux)
- * Install Python 3 virtual environment and Postgres dependencies required for C bindings to PsycoPG2 driver 
+ * Install Python 3 virtual environment and Postgres dependencies required for C bindings to PsycoPG2 driver
    * sudo apt-get install python3-pip python3-dev libpq-dev postgresql postgresql-contrib
    * sudo pip3 install virtualenv
    * virtualenv ~/.virtualenvs/hermes
@@ -34,3 +34,35 @@
    * Add 'django_extensions' to INSTALLED_APPS in settings.py.
    * pip install django-extensions pydotplus pygraphviz
    * Run python manage.py graph_models -a -o hermes_models.png
+
+## Docker Configuration
+
+### Environment Variables
+
+- `DATABASE_IP`
+  - String Value, usually an FQDN or IP Address
+- `DATABASE_PORT`
+  - String Value, port for Postgres, usually 5432
+- `DATABASE_USER`
+  - String Value, username to use for auth with Postgres
+- `DATABASE_PASS`
+  - String Value, password to use for auth with Postgres
+- `DATABASE_NAME`
+  - String Value, name of database within Postgres
+- `DEBUG`
+  - `True` = Enable Debug Features
+  - `False` = Disable Debug Features
+- `MEDIA_URL`
+  - String Value, URL to serve media on, usually https://<fqdn>/media
+- `MIDAS_URL`
+  - String Value, URL to access Midas
+- `HECATE_URL`
+  - String Value, URL to access Hecate
+- `LETHE_URL`
+  - String Value, URL to access Lethe
+- `METIS_URL`
+  - String Value, URL to access Metis
+- `SWAGGER_BASE_PATH`
+  - String Value, path to expose swagger documentation on
+- `FACEBOOK_CLIENT_SECRET`
+  - String Value, Facebook Client Secret

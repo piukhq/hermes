@@ -1,38 +1,70 @@
+stages:
+  - tests
+  - deploy
+
 tests:
+  stage: tests
   script:
     - pip3 install -r requirements.txt
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - py.test --cov-report term-missing --cov=.
-  tags:
-    - docker
   services:
     - postgres:9.4.4
   tags:
     - docker
 
 complexity:
+  stage: tests
   script:
     - xenon --max-average A --max-modules B --max-absolute B .
   tags:
     - docker
 
 flake8:
+  stage: tests
   script:
     - flake8 *
   tags:
     - docker
 
-deploy:
+deploy-dev:
   stage: deploy
   script:
-    - docker build -t registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID -t registry.gitlab.com/hellobink/olympus/hermes/image:latest .
-    - docker login registry.gitlab.com -u binkautomation -p $REPO_PASS
-    - docker push registry.gitlab.com/hellobink/olympus/hermes/image:latest
-    - docker push registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID
-    - docker rmi registry.gitlab.com/hellobink/olympus/hermes/image:latest
-    - docker rmi registry.gitlab.com/hellobink/olympus/hermes/image:build-$CI_PIPELINE_ID
+    - docker build -t olympus.azurecr.io/hermes:latest .
+    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
+    - docker push olympus.azurecr.io/hermes:latest
+    - docker rmi olympus.azurecr.io/hermes:latest
+    - docker logout olympus.azurecr.io
+  environment: dev
   only:
     - master
   tags:
     - shell
 
+deploy-staging:
+  stage: deploy
+  script:
+    - docker build -t olympus.azurecr.io/hermes:staging .
+    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
+    - docker push olympus.azurecr.io/hermes:staging
+    - docker rmi olympus.azurecr.io/hermes:staging
+    - docker logout olympus.azurecr.io
+  environment: staging
+  only:
+    - staging
+  tags:
+    - shell
+
+deploy-production:
+  stage: deploy
+  script:
+    - docker build -t olympus.azurecr.io/hermes:production .
+    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
+    - docker push olympus.azurecr.io/hermes:production
+    - docker rmi olympus.azurecr.io/hermes:production
+    - docker logout olympus.azurecr.io
+  environment: production
+  only:
+    - production
+  tags:
+    - shell
