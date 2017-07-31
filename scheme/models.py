@@ -116,6 +116,10 @@ class Scheme(models.Model):
         return self.questions.filter(scan_question=True).first()
 
     @property
+    def one_question_link(self):
+        return self.questions.filter(one_question_link=True).first()
+
+    @property
     def link_questions(self):
         return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 
@@ -291,10 +295,7 @@ class SchemeAccount(models.Model):
             credentials = self.credentials()
             if not credentials:
                 return points
-            parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
-            headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-            response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                    params=parameters, headers=headers)
+            response = self._get_balance(credentials)
             self.status = response.status_code
             if response.status_code == 200:
                 self.status = SchemeAccount.ACTIVE
@@ -305,6 +306,13 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.MIDAS_UNREACHABLE
         self.save()
         return points
+
+    def _get_balance(self, credentials):
+        parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+        headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
+        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
+                                params=parameters, headers=headers)
+        return response
 
     def question(self, question_type):
         """
@@ -387,6 +395,10 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
 
     @property
+    def one_question_link_answer(self):
+        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
+
+    @property
     def action_status(self):
         if self.status in self.USER_ACTION_REQUIRED:
             return 'USER_ACTION_REQUIRED'
@@ -466,6 +478,7 @@ class SchemeCredentialQuestion(models.Model):
 
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
+    one_question_link = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['order']

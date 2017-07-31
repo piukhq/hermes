@@ -1,6 +1,9 @@
 import csv
 import uuid
+import json
 import requests
+
+from collections import OrderedDict
 from datetime import datetime
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
@@ -9,7 +12,7 @@ from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
-
+from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
                            SchemeAccountImage)
@@ -31,6 +34,34 @@ from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
+
+
+class BaseLinkMixin(object):
+
+    @staticmethod
+    def link_account(serializer, scheme_account):
+        serializer.is_valid(raise_exception=True)
+
+        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account)
+
+    @staticmethod
+    def _link_account(data, scheme_account):
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
+        midas_information = scheme_account.get_midas_balance()
+        response_data = {
+            'balance': midas_information
+        }
+        response_data['status'] = scheme_account.status
+        response_data['status_name'] = scheme_account.status_name
+        response_data.update(dict(data))
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+        return response_data
 
 
 class SwappableSerializerMixin(object):
@@ -105,7 +136,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class LinkCredentials(GenericAPIView):
+class LinkCredentials(BaseLinkMixin, GenericAPIView):
     serializer_class = SchemeAnswerSerializer
     override_serializer_classes = {
         'PUT': SchemeAnswerSerializer,
@@ -140,31 +171,8 @@ class LinkCredentials(GenericAPIView):
         out_serializer = ResponseLinkSerializer(response_data)
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
-    @staticmethod
-    def link_account(serializer, scheme_account):
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                scheme_account=scheme_account, defaults={'answer': answer})
-        response_data = {
-            'balance': scheme_account.get_midas_balance(),
-            'status': scheme_account.status,
-            'status_name': scheme_account.status_name
-        }
-        response_data.update(serializer.data)
-
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
-            pass
-
-        return response_data
-
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
         'POST': CreateSchemeAccountSerializer,
@@ -186,14 +194,27 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
+        return self.create_account(request, *args, **kwargs)
+
+    def create_account(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
 
+        data = serializer.validated_data
+        self._create_account(request.user, data, serializer.context['answer_type'])
+        return Response(
+            data,
+            status=status.HTTP_201_CREATED,
+            headers={'Location': reverse('retrieve_account', args=[data['id']], request=request)}
+        )
+
+    def _create_account(self, user, data, answer_type):
+        if type(data) == int:
+            return(data)
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
-                    user=request.user,
+                    user=user,
                     scheme_id=data['scheme'],
                     status=SchemeAccount.JOIN
                 )
@@ -203,26 +224,107 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.save()
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
-                    user=request.user,
+                    user=user,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
                 )
-
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                question=scheme_account.question(serializer.context['answer_type']),
-                answer=data[serializer.context['answer_type']],
+                question=scheme_account.question(answer_type),
+                answer=data[answer_type],
             )
         data['id'] = scheme_account.id
-
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
         except intercom_api.IntercomException:
             pass
 
-        return Response(data, status=status.HTTP_201_CREATED,
-                        headers={'Location': reverse('retrieve_account', args=[scheme_account.id], request=request)})
+        return scheme_account
+
+
+class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
+    """
+        Create a new scheme account within the users wallet.
+        Then link credentials for loyalty scheme login.
+        If account is already created, skips to linking.
+    """
+    override_serializer_classes = {
+        'POST': CreateSchemeAccountSerializer
+    }
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        card_number_key = 'barcode' if 'barcode' in request.data else 'card_number'
+        card_number = request.data.get(card_number_key)
+
+        scheme_slugs = self.get_my360_schemes(card_number)
+
+        scheme_accounts_response = []
+
+        for scheme in scheme_slugs:
+            scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
+
+            data = {
+                'order': data['order'],
+                card_number_key: data[card_number_key],
+                'scheme': scheme_id
+            }
+
+            scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
+            linked_data = self._link_scheme_account(card_number_key, data, scheme_account)
+
+            scheme_accounts_response.append(
+                self._format_response(card_number_key, scheme_account, linked_data)
+            )
+
+        return Response(
+            scheme_accounts_response,
+            status=status.HTTP_201_CREATED
+        )
+
+    @staticmethod
+    def _format_response(card_number_key, scheme_account, linked_data):
+        linked_data = ResponseLinkSerializer(linked_data)
+        scheme_response = {
+            'order': scheme_account.order,
+            card_number_key: scheme_account.barcode or scheme_account.card_number,
+            'scheme': scheme_account.scheme.id,
+            'id': scheme_account.id
+        }
+
+        if linked_data.data['balance']:
+            scheme_response.update({
+                'balance': linked_data.data['balance'],
+                'status': linked_data.data['status'],
+                'status_name': linked_data.data['status_name']
+            })
+        return scheme_response
+
+    def _link_scheme_account(self, card_number_key, data, scheme_account):
+        response_data = self._link_account(OrderedDict({card_number_key: data[card_number_key]}), scheme_account)
+        scheme_account.link_date = datetime.now()
+        scheme_account.save()
+        return response_data
+
+    def get_my360_schemes(self, user):
+        # TODO this has to be tested end to end after mygravity api is developed
+        scheme_list_url = 'https://rewards.api.mygravity.co/v2/reward_scheme/'
+        user_identifier = user
+
+        scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
+        scheme_list_json = json.loads(scheme_list_response)
+        scheme_code_list = scheme_list_json['schemes']
+
+        scheme_slug_list = ['my360']
+        for scheme_code in scheme_code_list:
+            scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
+            if scheme_slug:
+                scheme_slug_list.append(scheme_slug)
+        return scheme_slug_list
 
 
 class CreateJoinSchemeAccount(APIView):

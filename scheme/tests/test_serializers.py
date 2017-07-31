@@ -31,7 +31,7 @@ class TestCreateSchemeAccountSerializer(TestCase):
     def test_validate_existing_scheme_account(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         scheme_account = SchemeAccountFactory(scheme=question.scheme, user=self.user)
-
+        self.serializer.context['view'] = ''
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': scheme_account.scheme.id})
         self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))

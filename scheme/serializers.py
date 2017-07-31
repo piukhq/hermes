@@ -25,13 +25,14 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme', 'manual_question', 'scan_question')
+        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
     manual_question = QuestionSerializer()
+    one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
 
     class Meta:
@@ -94,8 +95,9 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
         scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme)\
-            .exclude(status=SchemeAccount.JOIN).exists()
-        if scheme_accounts:
+            .exclude(status=SchemeAccount.JOIN)
+
+        if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
@@ -116,6 +118,8 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             allowed_types.append(scheme.manual_question.type)
         if scheme.scan_question:
             allowed_types.append(scheme.scan_question.type)
+        if scheme.one_question_link:
+            allowed_types.append(scheme.one_question_link.type)
         return allowed_types
 
 
