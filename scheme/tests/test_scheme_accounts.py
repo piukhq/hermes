@@ -351,7 +351,9 @@ class TestSchemeAccountViews(APITestCase):
 
         scheme_0 = SchemeFactory(slug='food_cellar_slug', id=999)
         scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=CARD_NUMBER, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=CARD_NUMBER, manual_question=True, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=CARD_NUMBER, manual_question=True, one_question_link=True)
 
         # When the front end requests [POST] /schemes/accounts/my360
@@ -370,6 +372,9 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(scheme_accounts[0]['card_number'], '123456789')
         self.assertEqual(scheme_accounts[1]['card_number'], '123456789')
+
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[1]['barcode'], '123456789')
 
         self.assertEqual(scheme_accounts[0]['order'], 1)
         self.assertEqual(scheme_accounts[1]['order'], 1)

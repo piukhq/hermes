@@ -1,6 +1,5 @@
 import csv
 import uuid
-import json
 import requests
 
 from collections import OrderedDict
@@ -258,7 +257,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        card_number_key = 'barcode' if 'barcode' in request.data else 'card_number'
+        card_number_key = serializer.context['answer_type']
         card_number = request.data.get(card_number_key)
 
         scheme_slugs = self.get_my360_schemes(card_number)
@@ -270,11 +269,14 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
 
             data = {
                 'order': data['order'],
-                card_number_key: data[card_number_key],
+                'barcode': card_number,
+                'card_number': card_number,
                 'scheme': scheme_id
             }
 
-            scheme_account = self._create_account(request.user, data, serializer.context['answer_type'])
+            scheme_account = self._create_account(request.user, data, card_number_key)
+            if card_number_key != 'barcode':
+                self._create_barcode_scheme_answer(scheme_account, card_number)
             linked_data = self._link_scheme_account(card_number_key, data, scheme_account)
 
             scheme_accounts_response.append(
@@ -291,7 +293,8 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         linked_data = ResponseLinkSerializer(linked_data)
         scheme_response = {
             'order': scheme_account.order,
-            card_number_key: scheme_account.barcode or scheme_account.card_number,
+            'card_number': scheme_account.card_number,
+            'barcode': scheme_account.barcode,
             'scheme': scheme_account.scheme.id,
             'id': scheme_account.id
         }
@@ -310,21 +313,27 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         scheme_account.save()
         return response_data
 
-    def get_my360_schemes(self, user):
-        # TODO this has to be tested end to end after mygravity api is developed
-        scheme_list_url = 'https://rewards.api.mygravity.co/v2/reward_scheme/'
-        user_identifier = user
+    @staticmethod
+    def get_my360_schemes(card_number):
+        schemes_url = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
+        response = requests.get(schemes_url.format(card_number))
 
-        scheme_list_response = requests.get(scheme_list_url + user_identifier + "/list")
-        scheme_list_json = json.loads(scheme_list_response)
-        scheme_code_list = scheme_list_json['schemes']
+        scheme_codes = response.json().get('schemes')
 
-        scheme_slug_list = ['my360']
-        for scheme_code in scheme_code_list:
+        schemes = []
+        for scheme_code in scheme_codes:
             scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
             if scheme_slug:
-                scheme_slug_list.append(scheme_slug)
-        return scheme_slug_list
+                schemes.append(scheme_slug)
+        return schemes
+
+    @staticmethod
+    def _create_barcode_scheme_answer(scheme_account, barcode):
+        SchemeAccountCredentialAnswer.objects.create(
+            scheme_account=scheme_account,
+            question=scheme_account.question('barcode'),
+            answer=barcode,
+        )
 
 
 class CreateJoinSchemeAccount(APIView):
