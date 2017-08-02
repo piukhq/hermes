@@ -201,7 +201,7 @@ class ListCreatePaymentCardAccount(APIView):
         # if the card is a barclaycard, attach relevant placeholder images to signify that we can't auto-collect.
         if account.pan_start in settings.BARCLAYS_BINS:
             barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                                       image_type_code=2)
+                                                                       image_type_code=6)
             barclays_offer_image.payment_card_accounts.add(account)
 
             try:

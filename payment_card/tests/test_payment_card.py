@@ -187,8 +187,8 @@ class TestPaymentCard(APITestCase):
     @httpretty.activate
     @patch('intercom.intercom_api.update_user_custom_attribute')
     def test_post_barclays_payment_card_account(self, mock_update_user_custom_attribute):
-        # add barclays offer image
-        offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=2)
+        # add barclays personal offer image
+        offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
 
         # add hero image
         hero_image = PaymentCardAccountImageFactory(
