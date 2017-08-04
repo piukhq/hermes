@@ -47,14 +47,6 @@ class CustomRegisterMixin(object):
         serializer = serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
-
-            user = CustomUser.objects.filter(email__iexact=request.data['email']).first()
-            if user:
-                send_mail('register_email.tpl',
-                          {'user': user},
-                          settings.DEFAULT_FROM_EMAIL,
-                          [user.email],
-                          fail_silently=False)
             return Response(serializer.data, 201)
         else:
             return error_response(REGISTRATION_FAILED)
