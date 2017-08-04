@@ -325,6 +325,9 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
             if scheme_slug:
                 schemes.append(scheme_slug)
+
+        if schemes:
+            schemes.insert(0, 'my360')
         return schemes
 
     @staticmethod

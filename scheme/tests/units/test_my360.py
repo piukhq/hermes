@@ -38,7 +38,7 @@ class TestMy360(TestCase):
         request_mock.assert_called_once_with(
             'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'.format(card_number)
         )
-        self.assertEqual(my_360_schemes, ['cliff-roe-sports', 'the-food-cellar', 'hewetts'])
+        self.assertEqual(my_360_schemes, ['my360', 'cliff-roe-sports', 'the-food-cellar', 'hewetts'])
 
     @patch('requests.get')
     def test_my360_get_schemes_return_invalid_on_bad_request(self, request_mock):
