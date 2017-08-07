@@ -71,7 +71,7 @@ class JwtAuthentication(BaseAuthentication):
             raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
         try:
-            token_contents = jwt.decode(key, user.client.secret, verify=True)
+            token_contents = jwt.decode(key, user.client.secret + user.salt, verify=True)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
         return user, None
@@ -90,6 +90,7 @@ class ServiceAuthentication(JwtAuthentication):
     """
     Authentication for olympus services
     """
+
     def authenticate_credentials(self, key):
         if key != settings.SERVICE_API_KEY:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))

@@ -1,7 +1,10 @@
+import base64
+import os
+
 from factory.fuzzy import FuzzyAttribute
+from django.utils import timezone
 from faker import Factory
 import factory
-import arrow
 
 from user import models
 
@@ -16,6 +19,7 @@ class UserFactory(factory.DjangoModelFactory):
     password = factory.PostGenerationMethodCall('set_password', 'defaultpassword')
     is_active = True
     is_staff = False
+    salt = base64.b64encode(os.urandom(16))[:8].decode('utf-8')
 
 
 class UserProfileFactory(factory.Factory):
@@ -63,7 +67,7 @@ class MarketingCodeFactory(factory.DjangoModelFactory):
         model = models.MarketingCode
 
     code = FuzzyAttribute(fake.slug)
-    date_from = arrow.now().datetime
-    date_to = arrow.now().replace(days=+7).datetime
+    date_from = timezone.now()
+    date_to = timezone.now() + timezone.timedelta(days=7)
     description = fake.text(max_nb_chars=300)
     partner = fake.text(max_nb_chars=100)

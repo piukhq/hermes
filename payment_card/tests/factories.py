@@ -1,10 +1,13 @@
+from datetime import datetime
 import uuid
 import factory
+
 from factory.fuzzy import FuzzyAttribute
 from faker import Factory
-from payment_card import models
-from user.tests.factories import UserFactory
 from django.utils import timezone
+
+from user.tests.factories import UserFactory
+from payment_card import models
 
 fake = Factory.create()
 
@@ -61,7 +64,7 @@ class PaymentCardImageFactory(factory.DjangoModelFactory):
     order = 0
     status = 1
     start_date = timezone.now()
-    end_date = "2200-1-1"
+    end_date = timezone.make_aware(datetime(2200, 1, 1))
 
 
 class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
@@ -82,6 +85,6 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     payment_card = factory.SubFactory(PaymentCardFactory)
 
     start_date = timezone.now()
-    end_date = '2200-1-1'
+    end_date = timezone.make_aware(datetime(2200, 1, 1))
 
     status = models.PaymentCardAccountImage.PUBLISHED

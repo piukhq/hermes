@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 
 import datetime
 from django.db import migrations, models
+from django.utils import timezone
 import django.db.models.deletion
 
 
@@ -34,7 +35,8 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='schemeaccountimage',
             name='scheme',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='scheme.Scheme'),
+            field=models.ForeignKey(blank=True, null=True,
+                                    on_delete=django.db.models.deletion.CASCADE, to='scheme.Scheme'),
         ),
         migrations.AddField(
             model_name='schemeaccountimage',
@@ -44,7 +46,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='schemeaccountimage',
             name='start_date',
-            field=models.DateTimeField(default=datetime.datetime(1970, 1, 1, 0, 0)),
+            field=models.DateTimeField(default=timezone.make_aware(datetime.datetime(1970, 1, 1, 0, 0))),
             preserve_default=False,
         ),
         migrations.AddField(

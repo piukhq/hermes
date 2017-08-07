@@ -1,16 +1,16 @@
-import arrow
-import httpretty
+from unittest.mock import patch
+
 from rest_framework.test import APITestCase
-from payment_card.tests.factories import (PaymentCardAccountFactory, PaymentCardAccountImageFactory,
-                                          PaymentCardImageFactory)
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+from django.utils import timezone
+from django.conf import settings
+import httpretty
+
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
-from django.conf import settings
-from unittest.mock import patch
 
 
 class TestPaymentCardImages(APITestCase):
@@ -19,9 +19,9 @@ class TestPaymentCardImages(APITestCase):
     def setUpClass(cls):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
-        cls.image = PaymentCardImageFactory(status=Image.DRAFT,
-                                            start_date=arrow.now().replace(hours=-1).datetime,
-                                            end_date=arrow.now().replace(hours=1).datetime)
+        cls.image = factories.PaymentCardImageFactory(status=Image.DRAFT,
+                                                      start_date=timezone.now() - timezone.timedelta(hours=1),
+                                                      end_date=timezone.now() + timezone.timedelta(hours=1))
 
         super().setUpClass()
 
@@ -49,7 +49,7 @@ class TestPaymentCard(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
-        cls.payment_card_image = PaymentCardAccountImageFactory()
+        cls.payment_card_image = factories.PaymentCardAccountImageFactory()
 
         super(TestPaymentCard, cls).setUpClass()
 
@@ -188,10 +188,10 @@ class TestPaymentCard(APITestCase):
     @patch('intercom.intercom_api.update_user_custom_attribute')
     def test_post_barclays_payment_card_account(self, mock_update_user_custom_attribute):
         # add barclays personal offer image
-        offer_image = PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
+        offer_image = factories.PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
 
         # add hero image
-        hero_image = PaymentCardAccountImageFactory(
+        hero_image = factories.PaymentCardAccountImageFactory(
             description='barclays', image_type_code=0, payment_card=self.payment_card)
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
@@ -332,7 +332,7 @@ class TestPaymentCard(APITestCase):
         token = 'test_token_123'
         user = UserFactory()
         SchemeAccountFactory(user=user)
-        PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
+        factories.PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)

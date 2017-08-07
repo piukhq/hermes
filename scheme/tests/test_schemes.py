@@ -1,13 +1,15 @@
+from unittest.mock import patch
+
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
-from scheme.credentials import EMAIL, BARCODE
-from common.models import Image
 from django.test import TestCase
 from django.conf import settings
+from django.utils import timezone
+
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
+from scheme.credentials import EMAIL, BARCODE
 from user.tests.factories import UserFactory
-from unittest.mock import patch
-import arrow
+from common.models import Image
 
 
 class TestSchemeImages(APITestCase):
@@ -17,8 +19,8 @@ class TestSchemeImages(APITestCase):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = SchemeImageFactory(status=Image.DRAFT,
-                                       start_date=arrow.now().replace(hours=-1).datetime,
-                                       end_date=arrow.now().replace(hours=1).datetime)
+                                       start_date=timezone.now() - timezone.timedelta(hours=1),
+                                       end_date=timezone.now() + timezone.timedelta(hours=1))
 
         SchemeCredentialQuestionFactory(scheme=cls.image.scheme)
 

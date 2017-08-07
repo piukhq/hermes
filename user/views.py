@@ -362,6 +362,13 @@ class TwitterLogin(CreateAPIView):
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
 
 
+class Logout(APIView):
+    def post(self, request, *args, **kwargs):
+        request.user.generate_salt()
+        request.user.save()
+        return Response({'logged_out': True})
+
+
 class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
