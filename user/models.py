@@ -1,6 +1,8 @@
 from string import ascii_letters, digits
 import random
+import base64
 import uuid
+import os
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.utils.translation import ugettext_lazy as _
@@ -158,8 +160,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
-
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
+    salt = models.CharField(max_length=8)
 
     USERNAME_FIELD = 'uid'
 
@@ -193,6 +195,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         self.reset_token = reset_token
         self.save()
         return reset_token
+
+    def generate_salt(self):
+        self.salt = base64.b64encode(os.urandom(16))[:8].decode('utf-8')
 
     def create_referral(self, referral_code):
         if Referral.objects.filter(recipient=self).exists():
@@ -250,7 +255,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, self.client.secret)
+        token = jwt.encode(payload, self.client.secret + self.salt)
         return token.decode('unicode_escape')
 
     # Admin required fields

@@ -1,6 +1,7 @@
-import arrow
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APITestCase
+
 from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardAccountFactory,
                                           PaymentCardImageFactory)
@@ -14,8 +15,8 @@ class TestPaymentCardAccountImages(APITestCase):
         cls.payment_card_account_image = PaymentCardAccountImageFactory(
             image_type_code=2,
             status=Image.PUBLISHED,
-            start_date=arrow.now().replace(hours=-1).datetime,
-            end_date=arrow.now().replace(hours=1).datetime)
+            start_date=timezone.now() - timezone.timedelta(hours=1),
+            end_date=timezone.now() + timezone.timedelta(hours=1))
         cls.payment_card_account_image.payment_card_accounts.add(cls.payment_card_account)
 
         cls.payment_card_images = [

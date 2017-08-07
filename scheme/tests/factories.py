@@ -1,10 +1,13 @@
+from datetime import datetime
+
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
 from faker import Factory
-from user.tests.factories import UserFactory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
+
+from user.tests.factories import UserFactory
 
 
 fake = Factory.create()
@@ -83,7 +86,7 @@ class SchemeImageFactory(factory.DjangoModelFactory):
     order = 0
     status = 1
     start_date = timezone.now()
-    end_date = "2200-1-1"
+    end_date = timezone.make_aware(datetime(2200, 1, 1))
 
 
 class SchemeAccountImageFactory(factory.DjangoModelFactory):

@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse
 from django.test import Client, TestCase
+from django.utils import timezone
 
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
@@ -35,6 +36,10 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn('email', content.keys())
         self.assertIn('api_key', content.keys())
         self.assertEqual(content['email'], 'test_1@example.com')
+
+        user = CustomUser.objects.get(email='test_1@example.com')
+        self.assertEqual(len(user.salt), 8)
+        self.assertNotIn(user.salt, [None, ''])
 
     def test_register_bink_client_and_bundle(self):
         client = Client()
@@ -218,8 +223,8 @@ class TestRegisterNewUserViews(TestCase):
         mc = MarketingCode()
         code = "SALE123".lower()
         mc.code = code
-        mc.date_from = arrow.utcnow().datetime
-        mc.date_to = arrow.utcnow().replace(hours=+12).datetime
+        mc.date_from = timezone.now()
+        mc.date_to = timezone.now() + timezone.timedelta(hours=12)
         mc.description = ''
         mc.partner = 'Dixons Travel'
         mc.save()
@@ -726,7 +731,7 @@ class TestAuthenticationViews(APITestCase):
 
     @mock.patch('user.models.CustomUser.get_expiry_date')
     def test_change_password_once_timeout(self, mock_get_expiry_date):
-        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+10)
+        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+2)
 
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
         response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
@@ -738,7 +743,7 @@ class TestAuthenticationViews(APITestCase):
 
         token = user.generate_reset_token()
 
-        time.sleep(12)
+        time.sleep(3)
 
         response = self.client.post('/users/reset_password',
                                     {'password': '1stPassword', "token": token.decode('UTF-8'), },
@@ -870,6 +875,36 @@ class TestSocialLogin(APITestCase):
         self.assertEqual(user.email, None)
 
 
+class TestLogout(APITestCase):
+    def test_logout_changes_user_salt(self):
+        user = UserFactory()
+        token = user.create_token()
+        first_salt = user.salt
+        self.assertEqual(len(first_salt), 8)
+        self.assertNotIn(first_salt, [None, ''])
+        response = self.client.post(reverse('logout'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['logged_out'])
+        user = CustomUser.objects.get(id=user.id)
+        self.assertNotEqual(user.salt, first_salt)
+
+    def test_logout_invalidates_old_token(self):
+        user = UserFactory()
+        token = user.create_token()
+
+        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.assertEqual(200, response.status_code)
+
+        self.client.post(reverse('logout'), HTTP_AUTHORIZATION='token {}'.format(token))
+        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.assertEqual(401, response.status_code)
+
+        user = CustomUser.objects.get(id=user.id)
+        token = user.create_token()
+        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.assertEqual(200, response.status_code)
+
+
 class TestUserModel(TestCase):
     def test_create_referral(self):
         user = UserFactory()
@@ -885,6 +920,13 @@ class TestUserModel(TestCase):
         self.assertFalse(valid_promo_code(''))
         self.assertFalse(valid_promo_code(None))
         self.assertFalse(valid_promo_code(3457987))
+
+    def test_generate_salt(self):
+        user = UserFactory()
+        user.generate_salt()
+        user.save()
+        self.assertEqual(len(user.salt), 8)
+        self.assertNotIn(user.salt, [None, ''])
 
 
 class TestCustomUserManager(TestCase):

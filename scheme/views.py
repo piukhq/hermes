@@ -3,7 +3,6 @@ import uuid
 import requests
 
 from collections import OrderedDict
-from datetime import datetime
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
@@ -164,7 +163,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
 
         response_data = self.link_account(serializer, scheme_account)
-        scheme_account.link_date = datetime.now()
+        scheme_account.link_date = timezone.now()
         scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
@@ -309,7 +308,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
 
     def _link_scheme_account(self, card_number_key, data, scheme_account):
         response_data = self._link_account(OrderedDict({card_number_key: data[card_number_key]}), scheme_account)
-        scheme_account.link_date = datetime.now()
+        scheme_account.link_date = timezone.now()
         scheme_account.save()
         return response_data
 
