@@ -69,6 +69,7 @@ class CustomUserDetail(UserAdmin):
     list_filter = ('is_staff',)
     filter_horizontal = ()
     search_fields = ('email', 'uid', 'profile__first_name', 'profile__last_name',)
+    exclude = ('salt',)
 
 
 @admin.register(Referral)
