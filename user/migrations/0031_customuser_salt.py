@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='customuser',
             name='salt',
-            field=models.CharField(default='changeme', max_length=8),
+            field=models.CharField(default='', max_length=8),
             preserve_default=False,
         ),
     ]
