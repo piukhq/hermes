@@ -20,7 +20,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer)
+                                QuerySchemeAccountSerializer, UpdateMy360SchemeAccountSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -28,6 +28,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
+from django.db.models.base import ObjectDoesNotExist
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
@@ -248,38 +249,108 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         If account is already created, skips to linking.
     """
     override_serializer_classes = {
-        'POST': CreateSchemeAccountSerializer
+        'POST': CreateSchemeAccountSerializer,
+        'PUT': UpdateMy360SchemeAccountSerializer
     }
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
-        card_number_key = serializer.context['answer_type']
-        card_number = request.data.get(card_number_key)
-
-        scheme_slugs = self.get_my360_schemes(card_number)
-
+        credential_type = 'barcode'
+        barcode = request.data.get(credential_type)
         scheme_accounts_response = []
+        try:
+            scheme_account = SchemeAccount.all_objects.get(
+                user=request.user,
+                scheme_id=data['scheme'],
+                is_deleted=True
+            )
 
-        for scheme in scheme_slugs:
-            scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
+        except ObjectDoesNotExist:
+            scheme_account = None
+
+        if scheme_account:
+            if scheme_account.scheme.slug == 'my360':
+                my360_scheme_account = scheme_account
+
+            else:
+                my360_scheme_account = SchemeAccount.objects.filter(scheme__slug='my360').first()
 
             data = {
+                'order': my360_scheme_account.order,
+                'barcode': barcode,
+                'scheme': data['scheme']
+            }
+
+            scheme_account.is_deleted = False
+            scheme_account.order = my360_scheme_account.order
+            scheme_account.save()
+
+            linked_data = self._link_scheme_account(credential_type, data, scheme_account)
+            scheme_accounts_response.append(
+                self._format_response(credential_type, scheme_account, linked_data)
+            )
+
+        else:
+            scheme_slugs = self.get_my360_schemes(barcode)
+
+            scheme_accounts_response = []
+            for scheme in scheme_slugs:
+                scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
+
+                data = {
+                    'order': data['order'],
+                    'barcode': barcode,
+                    'scheme': scheme_id
+                }
+
+                scheme_account = self._create_account(request.user, data, credential_type)
+                linked_data = self._link_scheme_account(credential_type, data, scheme_account)
+                scheme_accounts_response.append(
+                    self._format_response(credential_type, scheme_account, linked_data)
+                )
+
+        return Response(
+            scheme_accounts_response,
+            status=status.HTTP_201_CREATED
+        )
+
+    def put(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        credential_type = 'barcode'
+        barcode = request.data.get(credential_type)
+
+        new_scheme_slugs = self.get_my360_schemes(barcode)
+        old_scheme_slugs = request.data.getlist('current_scheme_list')
+        scheme_slugs_to_add = [slug for slug in new_scheme_slugs if slug not in old_scheme_slugs]
+        scheme_slugs_to_add += request.data.getlist('wallet_only_schemes')
+
+        scheme_accounts_response = []
+        for scheme in scheme_slugs_to_add:
+            scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
+            scheme_account = None
+            data = {
                 'order': data['order'],
-                'barcode': card_number,
-                'card_number': card_number,
+                'barcode': barcode,
                 'scheme': scheme_id
             }
 
-            scheme_account = self._create_account(request.user, data, card_number_key)
-            if card_number_key != 'barcode':
-                self._create_barcode_scheme_answer(scheme_account, card_number)
-            linked_data = self._link_scheme_account(card_number_key, data, scheme_account)
+            # Dont add My360 cards the user doesn't want
+            if SchemeAccount.all_objects.filter(user=request.user, scheme_id=data['scheme'], is_deleted=True).exists():
+                continue
 
+            try:
+                scheme_account = SchemeAccount.objects.get(user=request.user, scheme_id=data['scheme'])
+            except ObjectDoesNotExist:
+                scheme_account = self._create_account(request.user, data, credential_type)
+
+            linked_data = self._link_scheme_account(credential_type, data, scheme_account)
             scheme_accounts_response.append(
-                self._format_response(card_number_key, scheme_account, linked_data)
+                self._format_response(credential_type, scheme_account, linked_data)
             )
 
         return Response(
@@ -288,11 +359,10 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         )
 
     @staticmethod
-    def _format_response(card_number_key, scheme_account, linked_data):
+    def _format_response(credential_type, scheme_account, linked_data):
         linked_data = ResponseLinkSerializer(linked_data)
         scheme_response = {
             'order': scheme_account.order,
-            'card_number': scheme_account.card_number,
             'barcode': scheme_account.barcode,
             'scheme': scheme_account.scheme.id,
             'id': scheme_account.id
@@ -306,16 +376,16 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             })
         return scheme_response
 
-    def _link_scheme_account(self, card_number_key, data, scheme_account):
-        response_data = self._link_account(OrderedDict({card_number_key: data[card_number_key]}), scheme_account)
+    def _link_scheme_account(self, credential_type, data, scheme_account):
+        response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account)
         scheme_account.link_date = timezone.now()
         scheme_account.save()
         return response_data
 
     @staticmethod
-    def get_my360_schemes(card_number):
+    def get_my360_schemes(barcode):
         schemes_url = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
-        response = requests.get(schemes_url.format(card_number))
+        response = requests.get(schemes_url.format(barcode))
 
         scheme_codes = response.json().get('schemes')
 
@@ -328,14 +398,6 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         if schemes:
             schemes.insert(0, 'my360')
         return schemes
-
-    @staticmethod
-    def _create_barcode_scheme_answer(scheme_account, barcode):
-        SchemeAccountCredentialAnswer.objects.create(
-            scheme_account=scheme_account,
-            question=scheme_account.question('barcode'),
-            answer=barcode,
-        )
 
 
 class CreateJoinSchemeAccount(APIView):

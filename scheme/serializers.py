@@ -123,6 +123,29 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         return allowed_types
 
 
+class UpdateMy360SchemeAccountSerializer(CreateSchemeAccountSerializer):
+    scheme = serializers.IntegerField()
+    order = serializers.IntegerField()
+    id = serializers.IntegerField(read_only=True)
+
+    def validate(self, data):
+        try:
+            scheme = Scheme.objects.get(pk=data['scheme'])
+        except Scheme.DoesNotExist:
+            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
+
+        answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
+        if len(answer_types) != 1:
+            raise serializers.ValidationError("You must submit one scan or manual question answer")
+
+        answer_type = answer_types.pop()
+        self.context['answer_type'] = answer_type
+        # only allow one credential
+        if answer_type not in self.allowed_answers(scheme):
+            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
+        return data
+
+
 class BalanceSerializer(serializers.Serializer):
     points = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     points_label = serializers.CharField(allow_null=True)
