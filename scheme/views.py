@@ -257,18 +257,15 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+
         credential_type = 'barcode'
         barcode = request.data.get(credential_type)
         scheme_accounts_response = []
-        try:
-            scheme_account = SchemeAccount.all_objects.get(
-                user=request.user,
-                scheme_id=data['scheme'],
-                is_deleted=True
-            )
-
-        except ObjectDoesNotExist:
-            scheme_account = None
+        scheme_account = SchemeAccount.all_objects.filter(
+            user=request.user,
+            scheme_id=data['scheme'],
+            is_deleted=True
+        ).first()
 
         if scheme_account:
             if scheme_account.scheme.slug == 'my360':
@@ -320,7 +317,6 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
         credential_type = 'barcode'
         barcode = request.data.get(credential_type)
 
