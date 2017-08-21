@@ -612,7 +612,9 @@ class TestSchemeAccountViews(APITestCase):
         my360_scheme = SchemeAccountFactory(scheme=scheme_0, user=self.user, order=4)
         SchemeAccountFactory(scheme=scheme_1, user=self.user)
         deleted_scheme = SchemeAccountFactory(scheme=scheme_2, user=self.user, is_deleted=True, id=100, order=2)
+        deleted_scheme2 = SchemeAccountFactory(scheme=scheme_2, user=self.user, is_deleted=True, id=101, order=2)
         self.assertTrue(deleted_scheme.is_deleted)
+        self.assertTrue(deleted_scheme2.is_deleted)
 
         data = {
             BARCODE: '123456789',
@@ -626,7 +628,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
         self.assertEqual(scheme_accounts[0]['order'], my360_scheme.order)
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
-        self.assertEqual(scheme_accounts[0]['id'], deleted_scheme.id)
+        self.assertEqual(scheme_accounts[0]['id'], deleted_scheme2.id)
         self.assertIn('scheme', scheme_accounts[0])
         self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
         self.assertEqual(scheme_accounts[0]['status_name'], "Active")
