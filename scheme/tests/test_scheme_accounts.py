@@ -1,7 +1,7 @@
 import datetime
 import json
 
-
+from hermes.settings import MY360_SCHEME_URL
 from decimal import Decimal
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -354,9 +354,9 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
-        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
@@ -404,6 +404,75 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_accounts[1]['scheme'], scheme_2.id)
         self.assertEqual(scheme_accounts[2]['scheme'], scheme_1.id)
 
+    @patch.object(
+        CreateMy360AccountsAndLink,
+        'get_my360_schemes',
+        return_value=['my360', 'food_cellar_slug']
+    )
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_my360_create_account_view_deleted_my360(self, mock_get_midas_balance, mock_get_schemes):
+        # Given:
+        # ['my360', 'food_cellar_slug'] schemes exist in 'Bink system'
+        # 'food_cellar_slug' scheme account exist in 'My360 system'
+        # ['my360', 'food_cellar_slug'] schemes accounts do not exist in 'Bink system'
+        # a card_number scheme credential question with one_question_link is created for the each schema
+        # and the user has a previously deleted 'my360' scheme account
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        })
+        response_mock.status_code = 200
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+
+        deleted_scheme = SchemeAccountFactory(scheme=scheme_0, user=self.user, is_deleted=True, id=123)
+        self.assertTrue(deleted_scheme.is_deleted)
+
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: '123456789',
+            'scheme': scheme_0.id,
+            'order': 1
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then three schemes accounts are created in Bink
+        self.assertEqual(response.status_code, 201)
+
+        scheme_accounts = response.json()
+        self.assertEqual(len(scheme_accounts), 2)
+
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[1]['barcode'], '123456789')
+
+        self.assertEqual(scheme_accounts[0]['order'], 1)
+        self.assertEqual(scheme_accounts[1]['order'], 1)
+
+        self.assertIn('id', scheme_accounts[0])
+        self.assertIn('id', scheme_accounts[1])
+
+        self.assertIn('scheme', scheme_accounts[0])
+        self.assertIn('scheme', scheme_accounts[1])
+
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
+
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertEqual(scheme_accounts[1]['status_name'], "Active")
+
+        self.assertEqual(scheme_accounts[0]['scheme'], scheme_0.id)
+        self.assertEqual(scheme_accounts[1]['scheme'], scheme_1.id)
+
     @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=[])
     @patch.object(SchemeAccount, '_get_balance')
     def test_my360_scan_create_account_no_schemes_associated(self, mock_get_midas_balance, mock_get_schemes):
@@ -427,8 +496,8 @@ class TestSchemeAccountViews(APITestCase):
         # a barcode scheme credential question are created for the schema
         # And food_cellar_slug scheme account exists in 'My360 System'
         # And ['my360', 'food_cellar_slug'] scheme account exists in 'Bink System'
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
@@ -480,10 +549,10 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997)
-        scheme_3 = SchemeFactory(slug='hewetts_slug', id=995)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
+        scheme_3 = SchemeFactory(slug='hewetts_slug', id=995, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
@@ -541,10 +610,10 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997)
-        scheme_3 = SchemeFactory(slug='bubble_city_slug', id=996)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
+        scheme_3 = SchemeFactory(slug='bubble_city_slug', id=996, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
@@ -601,9 +670,9 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
@@ -659,9 +728,9 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)

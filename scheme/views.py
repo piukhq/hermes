@@ -2,6 +2,7 @@ import csv
 import uuid
 import requests
 
+from hermes.settings import MY360_SCHEME_URL
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
@@ -257,17 +258,22 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
         credential_type = 'barcode'
         barcode = request.data.get(credential_type)
         scheme_accounts_response = []
-        scheme_account = SchemeAccount.all_objects.filter(
+
+        # Check if user has any my360 scheme accounts
+        my360_scheme_account = SchemeAccount.objects.filter(user=request.user, scheme__url=MY360_SCHEME_URL).first()
+
+        # Check if user has this scheme account deleted
+        deleted_scheme_account = SchemeAccount.all_objects.filter(
             user=request.user,
             scheme_id=data['scheme'],
             is_deleted=True
         ).first()
 
-        if scheme_account:
+        if deleted_scheme_account and my360_scheme_account:
+            scheme_account = deleted_scheme_account
             if scheme_account.scheme.slug == 'my360':
                 my360_scheme_account = scheme_account
 
@@ -289,7 +295,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                 self._format_response(credential_type, scheme_account, linked_data)
             )
 
-        else:
+        elif not my360_scheme_account:
             scheme_slugs = self.get_my360_schemes(barcode)
 
             scheme_accounts_response = []
