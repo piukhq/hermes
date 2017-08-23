@@ -123,26 +123,17 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         return allowed_types
 
 
-class UpdateMy360SchemeAccountSerializer(CreateSchemeAccountSerializer):
-    scheme = serializers.IntegerField()
+class UpdateMy360SchemeAccountSerializer(SchemeAnswerSerializer):
+    scheme_account = serializers.IntegerField()
     order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
 
     def validate(self, data):
         try:
-            scheme = Scheme.objects.get(pk=data['scheme'])
-        except Scheme.DoesNotExist:
-            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
+            SchemeAccount.objects.get(pk=data['scheme_account'])
+        except SchemeAccount.DoesNotExist:
+            raise serializers.ValidationError("Scheme Account '{0}' does not exist".format(data['scheme_account']))
 
-        answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
-        if len(answer_types) != 1:
-            raise serializers.ValidationError("You must submit one scan or manual question answer")
-
-        answer_type = answer_types.pop()
-        self.context['answer_type'] = answer_type
-        # only allow one credential
-        if answer_type not in self.allowed_answers(scheme):
-            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
         return data
 
 

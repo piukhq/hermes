@@ -392,11 +392,11 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('scheme', scheme_accounts[1])
         self.assertIn('scheme', scheme_accounts[2])
 
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertNotIn('balance', scheme_accounts[0])
         self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
         self.assertEqual(scheme_accounts[2]['balance']['points'], '100.00')
 
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertNotIn('status_name', scheme_accounts[0])
         self.assertEqual(scheme_accounts[1]['status_name'], "Active")
         self.assertEqual(scheme_accounts[2]['status_name'], "Active")
 
@@ -464,10 +464,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('scheme', scheme_accounts[0])
         self.assertIn('scheme', scheme_accounts[1])
 
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertNotIn('balance', scheme_accounts[0])
         self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
 
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertNotIn('status_name', scheme_accounts[0])
         self.assertEqual(scheme_accounts[1]['status_name'], "Active")
 
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_0.id)
@@ -554,18 +554,28 @@ class TestSchemeAccountViews(APITestCase):
         scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
         scheme_3 = SchemeFactory(slug='hewetts_slug', id=995, url=MY360_SCHEME_URL)
 
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
+        my360_question = SchemeCredentialQuestionFactory(
+            scheme=scheme_0,
+            type=BARCODE,
+            manual_question=True,
+            one_question_link=True
+        )
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_3, type=BARCODE, manual_question=True, one_question_link=True)
 
-        SchemeAccountFactory(scheme=scheme_0, user=self.user)
+        my360_scheme_account = SchemeAccountFactory(scheme=scheme_0, user=self.user)
         SchemeAccountFactory(scheme=scheme_1, user=self.user)
         SchemeAccountFactory(scheme=scheme_3, user=self.user, status=SchemeAccount.WALLET_ONLY)
 
+        SchemeCredentialAnswerFactory(
+            question=my360_question,
+            answer='ABCDEFG123',
+            scheme_account=my360_scheme_account
+        )
+
         data = {
-            'barcode': '123456789',
-            'scheme': scheme_0.id,
+            'scheme_account': my360_scheme_account.id,
             'order': 1,
             'current_scheme_list': ['my360', 'food_cellar_slug', 'hewetts_slug'],
             'wallet_only_schemes': ['hewetts_slug']
@@ -575,7 +585,8 @@ class TestSchemeAccountViews(APITestCase):
 
         scheme_accounts = response.json()
         self.assertEqual(len(scheme_accounts), 2)
-        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[0]['barcode'], 'ABCDEFG123')
+        self.assertEqual(scheme_accounts[1]['barcode'], 'ABCDEFG123')
         self.assertEqual(scheme_accounts[0]['order'], 1)
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
         self.assertIn('id', scheme_accounts[0])
@@ -615,19 +626,29 @@ class TestSchemeAccountViews(APITestCase):
         scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
         scheme_3 = SchemeFactory(slug='bubble_city_slug', id=996, url=MY360_SCHEME_URL)
 
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
+        my360_question = SchemeCredentialQuestionFactory(
+            scheme=scheme_0,
+            type=BARCODE,
+            manual_question=True,
+            one_question_link=True
+        )
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_3, type=BARCODE, manual_question=True, one_question_link=True)
 
-        SchemeAccountFactory(scheme=scheme_0, user=self.user)
+        my360_scheme_account = SchemeAccountFactory(scheme=scheme_0, user=self.user)
         SchemeAccountFactory(scheme=scheme_1, user=self.user)
         deleted_scheme = SchemeAccountFactory(scheme=scheme_3, user=self.user, is_deleted=True)
         self.assertTrue(deleted_scheme.is_deleted)
 
+        SchemeCredentialAnswerFactory(
+            question=my360_question,
+            answer='ABCDEFG123',
+            scheme_account=my360_scheme_account
+        )
+
         data = {
-            'barcode': '123456789',
-            'scheme': scheme_0.id,
+            'scheme_account': my360_scheme_account.id,
             'order': 1,
             'current_scheme_list': ['my360', 'food_cellar_slug']
         }
@@ -636,7 +657,7 @@ class TestSchemeAccountViews(APITestCase):
 
         scheme_accounts = response.json()
         self.assertEqual(len(scheme_accounts), 1)
-        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[0]['barcode'], 'ABCDEFG123')
         self.assertEqual(scheme_accounts[0]['order'], 1)
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
         self.assertIn('id', scheme_accounts[0])
