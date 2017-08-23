@@ -301,7 +301,6 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             scheme_accounts_response = []
             for scheme in scheme_slugs:
                 scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
-
                 data = {
                     'order': data['order'],
                     'barcode': barcode,
@@ -309,9 +308,17 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                 }
 
                 scheme_account = self._create_account(request.user, data, credential_type)
-                linked_data = self._link_scheme_account(credential_type, data, scheme_account)
+                if scheme == "my360":
+                    data['status'] = scheme_account.status
+                    data['status_name'] = scheme_account.status_name
+                    data['balance'] = None
+                    scheme_response_data = data
+
+                else:
+                    scheme_response_data = self._link_scheme_account(credential_type, data, scheme_account)
+
                 scheme_accounts_response.append(
-                    self._format_response(credential_type, scheme_account, linked_data)
+                    self._format_response(credential_type, scheme_account, scheme_response_data)
                 )
 
         return Response(
@@ -323,8 +330,14 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+
         credential_type = 'barcode'
-        barcode = request.data.get(credential_type)
+        my360_scheme_account = SchemeAccount.objects.get(user=request.user, id=request.data.get('scheme_account'))
+        my360_credential_answer = SchemeAccountCredentialAnswer.objects.get(
+                question=my360_scheme_account.question(credential_type),
+                scheme_account=my360_scheme_account.id
+        )
+        barcode = my360_credential_answer.answer
 
         new_scheme_slugs = self.get_my360_schemes(barcode)
         old_scheme_slugs = request.data.getlist('current_scheme_list')
