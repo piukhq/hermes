@@ -2,7 +2,7 @@ import csv
 import uuid
 import requests
 
-from hermes.settings import MY360_SCHEME_URL
+from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
@@ -21,7 +21,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, UpdateMy360SchemeAccountSerializer)
+                                QuerySchemeAccountSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -29,7 +29,6 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
 from django.db import transaction
-from django.db.models.base import ObjectDoesNotExist
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
@@ -199,8 +198,31 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
     def create_account(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         data = serializer.validated_data
+
+        # my360 schemes should never come through this endpoint
+        scheme = Scheme.objects.get(id=data['scheme'])
+        if scheme.url == settings.MY360_SCHEME_URL:
+            try:
+                metadata = {
+                    'scheme name': scheme.name,
+                }
+                intercom_api.post_intercom_event(
+                    settings.INTERCOM_TOKEN,
+                    request.user.uid,
+                    intercom_api.MY360_APP_EVENT,
+                    metadata
+                )
+
+            except intercom_api.IntercomException:
+                pass
+
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
+                ]
+            })
+
         self._create_account(request.user, data, serializer.context['answer_type'])
         return Response(
             data,
@@ -247,11 +269,11 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
     """
         Create a new scheme account within the users wallet.
         Then link credentials for loyalty scheme login.
-        If account is already created, skips to linking.
+        Generic My360 scheme will create and link all paired
+        My360 schemes.
     """
     override_serializer_classes = {
         'POST': CreateSchemeAccountSerializer,
-        'PUT': UpdateMy360SchemeAccountSerializer
     }
 
     def post(self, request, *args, **kwargs):
@@ -262,157 +284,91 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         barcode = request.data.get(credential_type)
         scheme_accounts_response = []
 
-        # Check if user has any my360 scheme accounts
-        my360_scheme_account = SchemeAccount.objects.filter(user=request.user, scheme__url=MY360_SCHEME_URL).first()
-
-        # Check if user has this scheme account deleted
-        deleted_scheme_account = SchemeAccount.all_objects.filter(
-            user=request.user,
-            scheme_id=data['scheme'],
-            is_deleted=True
-        ).first()
-
-        if deleted_scheme_account and my360_scheme_account:
-            scheme_account = deleted_scheme_account
-            if scheme_account.scheme.slug == 'my360':
-                my360_scheme_account = scheme_account
-
-            else:
-                my360_scheme_account = SchemeAccount.objects.filter(scheme__slug='my360').first()
-
-            data = {
-                'order': my360_scheme_account.order,
-                'barcode': barcode,
-                'scheme': data['scheme']
-            }
-
-            scheme_account.is_deleted = False
-            scheme_account.order = my360_scheme_account.order
-            scheme_account.save()
-
-            linked_data = self._link_scheme_account(credential_type, data, scheme_account)
-            scheme_accounts_response.append(
-                self._format_response(credential_type, scheme_account, linked_data)
-            )
-
-        elif not my360_scheme_account:
+        scheme = Scheme.objects.get(id=int(data['scheme']))
+        # If passing generic My360 scheme slug, create and link all paired scheme accounts
+        if scheme.slug == 'my360':
             scheme_slugs = self.get_my360_schemes(barcode)
 
-            scheme_accounts_response = []
             for scheme in scheme_slugs:
-                scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
-                data = {
-                    'order': data['order'],
-                    'barcode': barcode,
-                    'scheme': scheme_id
-                }
+                try:
+                    scheme_id = Scheme.objects.get(slug=scheme).id
 
-                scheme_account = self._create_account(request.user, data, credential_type)
-                if scheme == "my360":
-                    data['status'] = scheme_account.status
-                    data['status_name'] = scheme_account.status_name
-                    data['balance'] = None
-                    scheme_response_data = data
+                except:
+                    sentry.captureException()
+                    continue
 
-                else:
+                if not SchemeAccount.objects.filter(scheme_id=scheme_id, user=request.user):
+                    data = {
+                        'order': data['order'],
+                        'barcode': barcode,
+                        'scheme': scheme_id
+                    }
+
+                    scheme_account = self._create_account(request.user, data, credential_type)
                     scheme_response_data = self._link_scheme_account(credential_type, data, scheme_account)
 
-                scheme_accounts_response.append(
-                    self._format_response(credential_type, scheme_account, scheme_response_data)
-                )
+                    scheme_accounts_response.append(
+                        self._format_response(credential_type, scheme_account, scheme_response_data)
+                    )
 
-        return Response(
-            scheme_accounts_response,
-            status=status.HTTP_201_CREATED
-        )
+            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
 
-    def put(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        # Else create and link the requested My360 scheme account
+        else:
+            scheme_account = self._create_account(request.user, data, credential_type)
+            scheme_response_data = self._link_scheme_account(credential_type, data, scheme_account)
 
-        credential_type = 'barcode'
-        my360_scheme_account = SchemeAccount.objects.get(user=request.user, id=request.data.get('scheme_account'))
-        my360_credential_answer = SchemeAccountCredentialAnswer.objects.get(
-                question=my360_scheme_account.question(credential_type),
-                scheme_account=my360_scheme_account.id
-        )
-        barcode = my360_credential_answer.answer
-
-        new_scheme_slugs = self.get_my360_schemes(barcode)
-        old_scheme_slugs = request.data.getlist('current_scheme_list')
-        scheme_slugs_to_add = [slug for slug in new_scheme_slugs if slug not in old_scheme_slugs]
-        scheme_slugs_to_add += request.data.getlist('wallet_only_schemes')
-
-        scheme_accounts_response = []
-        for scheme in scheme_slugs_to_add:
-            scheme_id = get_object_or_404(Scheme.objects, slug=scheme).id
-            scheme_account = None
-            data = {
-                'order': data['order'],
-                'barcode': barcode,
-                'scheme': scheme_id
-            }
-
-            # Dont add My360 cards the user doesn't want
-            if SchemeAccount.all_objects.filter(user=request.user, scheme_id=data['scheme'], is_deleted=True).exists():
-                continue
-
-            try:
-                scheme_account = SchemeAccount.objects.get(user=request.user, scheme_id=data['scheme'])
-            except ObjectDoesNotExist:
-                scheme_account = self._create_account(request.user, data, credential_type)
-
-            linked_data = self._link_scheme_account(credential_type, data, scheme_account)
             scheme_accounts_response.append(
-                self._format_response(credential_type, scheme_account, linked_data)
+                self._format_response(credential_type, scheme_account, scheme_response_data)
             )
 
-        return Response(
-            scheme_accounts_response,
-            status=status.HTTP_201_CREATED
-        )
+            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
 
     @staticmethod
-    def _format_response(credential_type, scheme_account, linked_data):
-        linked_data = ResponseLinkSerializer(linked_data)
-        scheme_response = {
-            'order': scheme_account.order,
-            'barcode': scheme_account.barcode,
-            'scheme': scheme_account.scheme.id,
-            'id': scheme_account.id
-        }
+    def get_my360_schemes(barcode):
 
-        if linked_data.data['balance']:
-            scheme_response.update({
-                'balance': linked_data.data['balance'],
-                'status': linked_data.data['status'],
-                'status_name': linked_data.data['status_name']
-            })
-        return scheme_response
+        def convert_scheme_code_list_to_scheme_slugs(scheme_code_list):
+            schemes = []
+            for scheme_code in scheme_code_list:
+                scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
+                if scheme_slug:
+                    schemes.append(scheme_slug)
+            return schemes
+
+        schemes_url = settings.MY360_SCHEME_API_URL
+        response = requests.get(schemes_url.format(barcode))
+        if response.status_code == 200:
+            valid = response.json().get('valid')
+            if valid:
+                scheme_code_list = response.json().get('schemes')
+                scheme_slugs = convert_scheme_code_list_to_scheme_slugs(scheme_code_list)
+
+                return scheme_slugs
+
+        return Response(
+            {'code': 400, 'message': 'Error getting schemes from My360'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     def _link_scheme_account(self, credential_type, data, scheme_account):
         response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account)
         scheme_account.link_date = timezone.now()
         scheme_account.save()
+
         return response_data
 
     @staticmethod
-    def get_my360_schemes(barcode):
-        schemes_url = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
-        response = requests.get(schemes_url.format(barcode))
+    def _format_response(credential_type, scheme_account, linked_data):
+        linked_data = ResponseLinkSerializer(linked_data)
+        response = {
+            'order': scheme_account.order,
+            'barcode': scheme_account.barcode,
+            'scheme': scheme_account.scheme.id,
+            'id': scheme_account.id,
+        }
+        response.update(linked_data.data)
 
-        scheme_codes = response.json().get('schemes')
-
-        schemes = []
-        for scheme_code in scheme_codes:
-            scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
-            if scheme_slug:
-                schemes.append(scheme_slug)
-
-        if schemes:
-            schemes.insert(0, 'my360')
-        return schemes
+        return response
 
 
 class CreateJoinSchemeAccount(APIView):
@@ -457,7 +413,16 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
 
         try:
-            intercom_api.post_issued_join_card_event(settings.INTERCOM_TOKEN, user.uid, scheme.company, scheme.slug)
+            metadata = {
+                'company name': scheme.company,
+                'slug': scheme.slug
+            }
+            intercom_api.post_intercom_event(
+                settings.INTERCOM_TOKEN,
+                user.uid,
+                intercom_api.ISSUED_JOIN_CARD_EVENT,
+                metadata
+            )
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
         except intercom_api.IntercomException:
             pass

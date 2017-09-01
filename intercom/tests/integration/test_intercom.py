@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from intercom.intercom_api import reset_user_settings, post_issued_join_card_event, \
+from intercom.intercom_api import reset_user_settings, post_intercom_event, \
     update_user_custom_attribute, ISSUED_JOIN_CARD_EVENT, get_user_events
 
 
@@ -20,7 +20,12 @@ class IntercomApiTest(unittest.TestCase):
         # post a new event
         company_name = 'test_company_name'
         slug = 'test-slug'
-        response_post = post_issued_join_card_event(self.TOKEN, self.USER_ID, company_name, slug)
+
+        metadata = {
+            'company name': company_name,
+            'slug': slug
+        }
+        response_post = post_intercom_event(self.TOKEN, self.USER_ID, ISSUED_JOIN_CARD_EVENT, metadata)
         self.assertEqual(response_post.status_code, 202, response_post.text)
 
         # get the new event count
