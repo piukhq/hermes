@@ -7,31 +7,29 @@ from django.conf import settings
 
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
+MY360_APP_EVENT = 'my360-app-event'
 
 
 class IntercomException(Exception):
     pass
 
 
-def post_issued_join_card_event(token, user_id, company_name, slug):
+# metadata must be passed in as a dictionary
+def post_intercom_event(token, user_id, event_name, metadata):
     """
     Submit an event to the Intercom service
     :param token: Intercom API access token
     :param user_id: uuid identifier for the user (user.uid from CustomUser models)
-    :param company_name: scheme company name
-    :param slug: scheme slug
     :return: the whole response
     """
     headers = _get_headers(token)
     payload = {
         'user_id': user_id,
-        'event_name': ISSUED_JOIN_CARD_EVENT,
+        'event_name': event_name,
         'created_at': int(time.time()),
-        'metadata': {
-            'company name': company_name,
-            'slug': slug
-        }
+        'metadata': metadata
     }
+
     response = requests.post(
         '{host}/{path}'.format(host=settings.INTERCOM_HOST, path=settings.INTERCOM_EVENTS_PATH),
         headers=headers,
@@ -39,7 +37,7 @@ def post_issued_join_card_event(token, user_id, company_name, slug):
     )
 
     if response.status_code != 202:
-        raise IntercomException('Error post_issued_join_card_event: {}'.format(response.text))
+        raise IntercomException('Error with {} intercom event: {}'.format(event_name, response.text))
 
     return response
 

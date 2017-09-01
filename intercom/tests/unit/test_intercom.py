@@ -1,12 +1,13 @@
 import json
 import unittest
+from unittest.mock import patch
 
 from hermes import settings
-from intercom.intercom_api import post_issued_join_card_event, ISSUED_JOIN_CARD_EVENT, reset_user_settings, \
+from intercom.intercom_api import post_intercom_event, ISSUED_JOIN_CARD_EVENT, reset_user_settings, \
     update_user_custom_attribute, IntercomException
 
 
-@unittest.mock.patch('requests.post')
+@patch('requests.post')
 class IntercomApiTest(unittest.TestCase):
 
     FAKE_TOKEN = 'FAKE_TOKEN_XXx'
@@ -32,7 +33,11 @@ class IntercomApiTest(unittest.TestCase):
             }
         }
 
-        post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID, company_name, slug)
+        metadata = {
+            'company name': company_name,
+            'slug': slug
+        }
+        post_intercom_event(self.FAKE_TOKEN, self.FAKE_USER_ID, ISSUED_JOIN_CARD_EVENT, metadata)
 
         self.assertEqual(post_mock.call_count, 1)
         call_url, call_kwargs = post_mock.call_args
@@ -53,8 +58,12 @@ class IntercomApiTest(unittest.TestCase):
         slug = 'test-slug'
 
         with self.assertRaises(IntercomException) as context:
-            post_issued_join_card_event(self.FAKE_TOKEN, self.FAKE_USER_ID, company_name, slug)
-        self.assertIn('Error post_issued_join_card_event: mock_text', str(context.exception))
+            metadata = {
+             'company name': company_name,
+             'slug': slug
+            }
+            post_intercom_event(self.FAKE_TOKEN, self.FAKE_USER_ID, ISSUED_JOIN_CARD_EVENT, metadata)
+        self.assertIn('Error with issued-join-card intercom event: mock_text', str(context.exception))
 
     def test_reset_user_custom_attributes_successful(self, post_mock):
         post_mock.return_value = unittest.mock.Mock(status_code=200)

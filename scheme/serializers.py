@@ -123,20 +123,6 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         return allowed_types
 
 
-class UpdateMy360SchemeAccountSerializer(SchemeAnswerSerializer):
-    scheme_account = serializers.IntegerField()
-    order = serializers.IntegerField()
-    id = serializers.IntegerField(read_only=True)
-
-    def validate(self, data):
-        try:
-            SchemeAccount.objects.get(pk=data['scheme_account'])
-        except SchemeAccount.DoesNotExist:
-            raise serializers.ValidationError("Scheme Account '{0}' does not exist".format(data['scheme_account']))
-
-        return data
-
-
 class BalanceSerializer(serializers.Serializer):
     points = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     points_label = serializers.CharField(allow_null=True)

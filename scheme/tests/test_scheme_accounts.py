@@ -1,7 +1,6 @@
 import datetime
 import json
 
-from hermes.settings import MY360_SCHEME_URL
 from decimal import Decimal
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -333,15 +332,16 @@ class TestSchemeAccountViews(APITestCase):
     @patch.object(
         CreateMy360AccountsAndLink,
         'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug', 'deep_blue_slug']
+        return_value=['food_cellar_slug', 'deep_blue_slug']
     )
     @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_create_account_view(self, mock_get_midas_balance, mock_get_schemes):
+    def test_my360_create_account_view_generic_my360_scheme(self, mock_get_midas_balance, mock_get_schemes):
         # Given:
         # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
-        # ['food_cellar_slug', 'deep_blue_slug'] schemes accounts exist in 'My360 system'
-        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes accounts do not exist in 'Bink system'
-        # a card_number scheme credential question with one_question_link is created for the each schema
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts do not exist in 'Bink system'
+
         response_mock = MagicMock()
         response_mock.json = MagicMock(return_value={
             'value': Decimal('10'),
@@ -354,9 +354,9 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998, url=MY360_SCHEME_URL)
-        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997, url=MY360_SCHEME_URL)
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
@@ -370,53 +370,38 @@ class TestSchemeAccountViews(APITestCase):
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
-        # Then three schemes accounts are created in Bink
+        # Then two schemes accounts are created in Bink
         self.assertEqual(response.status_code, 201)
 
         scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 3)
+        self.assertEqual(len(scheme_accounts), 2)
 
         self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
         self.assertEqual(scheme_accounts[1]['barcode'], '123456789')
-        self.assertEqual(scheme_accounts[2]['barcode'], '123456789')
 
         self.assertEqual(scheme_accounts[0]['order'], 1)
         self.assertEqual(scheme_accounts[1]['order'], 1)
-        self.assertEqual(scheme_accounts[2]['order'], 1)
 
         self.assertIn('id', scheme_accounts[0])
         self.assertIn('id', scheme_accounts[1])
-        self.assertIn('id', scheme_accounts[2])
 
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertIn('scheme', scheme_accounts[1])
-        self.assertIn('scheme', scheme_accounts[2])
-
-        self.assertNotIn('balance', scheme_accounts[0])
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
         self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
-        self.assertEqual(scheme_accounts[2]['balance']['points'], '100.00')
 
-        self.assertNotIn('status_name', scheme_accounts[0])
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
         self.assertEqual(scheme_accounts[1]['status_name'], "Active")
-        self.assertEqual(scheme_accounts[2]['status_name'], "Active")
 
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_0.id)
-        self.assertEqual(scheme_accounts[1]['scheme'], scheme_2.id)
-        self.assertEqual(scheme_accounts[2]['scheme'], scheme_1.id)
+        self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
+        self.assertEqual(scheme_accounts[1]['scheme'], scheme_1.id)
 
-    @patch.object(
-        CreateMy360AccountsAndLink,
-        'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug']
-    )
     @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_create_account_view_deleted_my360(self, mock_get_midas_balance, mock_get_schemes):
+    def test_my360_create_account_view_non_generic_my360_scheme(self, mock_get_midas_balance):
         # Given:
-        # ['my360', 'food_cellar_slug'] schemes exist in 'Bink system'
-        # 'food_cellar_slug' scheme account exist in 'My360 system'
-        # ['my360', 'food_cellar_slug'] schemes accounts do not exist in 'Bink system'
-        # a card_number scheme credential question with one_question_link is created for the each schema
-        # and the user has a previously deleted 'my360' scheme account
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # 'deep_blue_slug' scheme accounts do not exist in 'Bink system'
+
         response_mock = MagicMock()
         response_mock.json = MagicMock(return_value={
             'value': Decimal('10'),
@@ -429,14 +414,48 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
 
-        deleted_scheme = SchemeAccountFactory(scheme=scheme_0, user=self.user, is_deleted=True, id=123)
-        self.assertTrue(deleted_scheme.is_deleted)
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: '123456789',
+            'scheme': scheme_1.id,
+            'order': 1
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then one scheme accounts are created in Bink
+        self.assertEqual(response.status_code, 201)
+
+        scheme_accounts = response.json()
+        self.assertEqual(len(scheme_accounts), 1)
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[0]['order'], 1)
+        self.assertIn('id', scheme_accounts[0])
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertEqual(scheme_accounts[0]['scheme'], scheme_1.id)
+
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=[])
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_my360_no_schemes_associated_generic_scheme(self, mock_get_midas_balance, mock_get_schemes):
+        # Given:
+        # ['my360', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['deep_blue_slug'] scheme accounts do not exist in 'My360 system'
+        # ['deep_blue_slug'] scheme accounts do not exist in 'Bink system'
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
 
         # When the front end requests [POST] /schemes/accounts/my360
         data = {
@@ -446,97 +465,117 @@ class TestSchemeAccountViews(APITestCase):
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
-        # Then three schemes accounts are created in Bink
+        # Then no schemes accounts are created in Bink
         self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json(), [])
 
-        scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 2)
-
-        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
-        self.assertEqual(scheme_accounts[1]['barcode'], '123456789')
-
-        self.assertEqual(scheme_accounts[0]['order'], 1)
-        self.assertEqual(scheme_accounts[1]['order'], 1)
-
-        self.assertIn('id', scheme_accounts[0])
-        self.assertIn('id', scheme_accounts[1])
-
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertIn('scheme', scheme_accounts[1])
-
-        self.assertNotIn('balance', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[1]['balance']['points'], '100.00')
-
-        self.assertNotIn('status_name', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[1]['status_name'], "Active")
-
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_0.id)
-        self.assertEqual(scheme_accounts[1]['scheme'], scheme_1.id)
-
-    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=[])
+    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_scan_create_account_no_schemes_associated(self, mock_get_midas_balance, mock_get_schemes):
-        scheme_0 = SchemeFactory(slug='food_cellar_slug', id=999)
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, scan_question=True, one_question_link=True)
+    def test_my360_create_account_already_created_generic_my360_scheme(self, mock_get_midas_balance, mock_get_schemes):
+        # Given:
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] scheme exists in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # And ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exists in 'My360 System'
+        # And ['food_cellar_slug'] scheme account exists in 'Bink System'
 
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        })
+        response_mock.status_code = 200
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
+        scheme_2 = SchemeFactory(slug='deep_blue_slug', id=997)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
+
+        SchemeAccountFactory(scheme=scheme_1, user=self.user)
+
+        # When the front end requests [POST] /schemes/accounts/my360
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
             'order': 1
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), [])
 
-    @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['my360', 'food_cellar_slug'])
+        # Then one schemes accounts are created in Bink
+        self.assertEqual(response.status_code, 201)
+
+        scheme_accounts = response.json()
+        self.assertEqual(len(scheme_accounts), 1)
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[0]['order'], 1)
+        self.assertIn('id', scheme_accounts[0])
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
+
     @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_create_account_already_created(self, mock_get_midas_balance, mock_get_schemes):
+    def test_my360_create_account_already_created_non_generic_my360_scheme(self, mock_get_midas_balance):
         # Given:
-        # ['my360', 'food_cellar_slug'] scheme exists in 'Bink system'
-        # a barcode scheme credential question are created for the schema
-        # And food_cellar_slug scheme account exists in 'My360 System'
-        # And ['my360', 'food_cellar_slug'] scheme account exists in 'Bink System'
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
+        # ['my360', 'food_cellar_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for the each scheme
+        # 'food_cellar_slug' scheme accounts exist in 'My360 system'
+        # 'food_cellar_slug' scheme accounts exist in 'Bink system'
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
 
         SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
 
-        my360_account = SchemeAccountFactory(scheme=scheme_0, user=self.user)
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
+        scheme_account_1 = SchemeAccountFactory(scheme=scheme_1, user=self.user)
 
+        # When the front end requests [POST] /schemes/accounts/my360
         data = {
             BARCODE: '123456789',
-            'scheme': scheme_0.id,
+            'scheme': scheme_1.id,
             'order': 1
         }
-
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then no schemes accounts are created in Bink
         self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.data,
             {
                 'non_field_errors': [
-                    "You already have an account for this scheme: '{}'".format(str(my360_account.scheme))
+                    "You already have an account for this scheme: '{}'".format(str(scheme_account_1.scheme))
                 ]
             }
         )
 
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 1)
+
+    @patch('intercom.intercom_api.post_intercom_event')
     @patch.object(
         CreateMy360AccountsAndLink,
         'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug', 'el_mexicana_slug', 'hewetts_slug']
+        return_value=['food_cellar_slug', 'deep_blue_slug']
     )
     @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_update_accounts_with_wallet_only(self, mock_get_midas_balance, mock_get_schemes):
+    def test_my360_create_account_view_generic_my360_scheme_old_app(
+        self,
+        mock_get_midas_balance,
+        mock_get_schemes,
+        mock_post_intercom_event
+    ):
         # Given:
-        # ['my360', 'food_cellar_slug', 'el_mexicana_slug', 'hewetts_slug'] schemes exists in 'Bink system'
-        # a barcode scheme credential question is created for each schema
-        # ['food_cellar_slug', 'el_mexicana_slug', 'hewetts_slug'] scheme accounts exist in 'My360 System'
-        # And ['my360', 'food_cellar_slug', 'el_mexicana_slug', 'hewetts_slug']
-        # scheme account exists in 'Bink System'
-        # And one Bink user who already has ['my360', 'food_cellar_slug'] scheme accounts linked in 'Bink System'
-        # And that user has a wallet-only 'hewetts_slug' scheme account from an old version of the app
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts do not exist in 'Bink system'
+        # the old endpoint is used as user has old version of Bink app
         response_mock = MagicMock()
         response_mock.json = MagicMock(return_value={
             'value': Decimal('10'),
@@ -549,240 +588,104 @@ class TestSchemeAccountViews(APITestCase):
         response_mock.status_code = 200
         mock_get_midas_balance.return_value = response_mock
 
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
-        scheme_3 = SchemeFactory(slug='hewetts_slug', id=995, url=MY360_SCHEME_URL)
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=settings.MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998, url=settings.MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997, url=settings.MY360_SCHEME_URL)
 
-        my360_question = SchemeCredentialQuestionFactory(
-            scheme=scheme_0,
-            type=BARCODE,
-            manual_question=True,
-            one_question_link=True
-        )
-        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_3, type=BARCODE, manual_question=True, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
 
-        my360_scheme_account = SchemeAccountFactory(scheme=scheme_0, user=self.user)
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
-        SchemeAccountFactory(scheme=scheme_3, user=self.user, status=SchemeAccount.WALLET_ONLY)
-
-        SchemeCredentialAnswerFactory(
-            question=my360_question,
-            answer='ABCDEFG123',
-            scheme_account=my360_scheme_account
-        )
-
-        data = {
-            'scheme_account': my360_scheme_account.id,
-            'order': 1,
-            'current_scheme_list': ['my360', 'food_cellar_slug', 'hewetts_slug'],
-            'wallet_only_schemes': ['hewetts_slug']
-        }
-        response = self.client.put('/schemes/accounts/my360', **self.auth_headers, data=data)
-        self.assertEqual(response.status_code, 201)
-
-        scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 2)
-        self.assertEqual(scheme_accounts[0]['barcode'], 'ABCDEFG123')
-        self.assertEqual(scheme_accounts[1]['barcode'], 'ABCDEFG123')
-        self.assertEqual(scheme_accounts[0]['order'], 1)
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
-        self.assertIn('id', scheme_accounts[0])
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
-
-    @patch.object(
-        CreateMy360AccountsAndLink,
-        'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug', 'el_mexicana_slug', 'bubble_city_slug']
-    )
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_update_accounts_with_deleted(self, mock_get_midas_balance, mock_get_schemes):
-        # Given:
-        # ['my360', 'food_cellar_slug', 'el_mexicana_slug', 'bubble_city_slug'] schemes exists in 'Bink system'
-        # a barcode scheme credential question is created for each schema
-        # ['food_cellar_slug', 'el_mexicana_slug', 'bubble_city_slug'] scheme accounts exist in 'My360 System'
-        # And ['my360', 'food_cellar_slug', 'el_mexicana_slug', 'bubble_city_slug']
-        # scheme account exists in 'Bink System'
-        # And one Bink user who already has ['my360', 'food_cellar_slug'] scheme accounts linked in 'Bink System'
-        # And that user has previously deleted the 'bubble_city_slug' scheme account from there wallet
-        response_mock = MagicMock()
-        response_mock.json = MagicMock(return_value={
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'balance': Decimal('20'),
-            'is_stale': False
-        })
-        response_mock.status_code = 200
-        mock_get_midas_balance.return_value = response_mock
-
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
-        scheme_3 = SchemeFactory(slug='bubble_city_slug', id=996, url=MY360_SCHEME_URL)
-
-        my360_question = SchemeCredentialQuestionFactory(
-            scheme=scheme_0,
-            type=BARCODE,
-            manual_question=True,
-            one_question_link=True
-        )
-        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_3, type=BARCODE, manual_question=True, one_question_link=True)
-
-        my360_scheme_account = SchemeAccountFactory(scheme=scheme_0, user=self.user)
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
-        deleted_scheme = SchemeAccountFactory(scheme=scheme_3, user=self.user, is_deleted=True)
-        self.assertTrue(deleted_scheme.is_deleted)
-
-        SchemeCredentialAnswerFactory(
-            question=my360_question,
-            answer='ABCDEFG123',
-            scheme_account=my360_scheme_account
-        )
-
-        data = {
-            'scheme_account': my360_scheme_account.id,
-            'order': 1,
-            'current_scheme_list': ['my360', 'food_cellar_slug']
-        }
-        response = self.client.put('/schemes/accounts/my360', **self.auth_headers, data=data)
-        self.assertEqual(response.status_code, 201)
-
-        scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 1)
-        self.assertEqual(scheme_accounts[0]['barcode'], 'ABCDEFG123')
-        self.assertEqual(scheme_accounts[0]['order'], 1)
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
-        self.assertIn('id', scheme_accounts[0])
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
-
-    @patch.object(
-        CreateMy360AccountsAndLink,
-        'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug', 'el_mexicana_slug']
-    )
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_add_deleted_account(self, mock_get_midas_balance, mock_get_schemes):
-        # Given:
-        # ['my360', 'food_cellar_slug', 'el_mexicana_slug'] scheme exists in 'Bink system'
-        # a barcode scheme credential question is created for each schema
-        # ['food_cellar_slug', 'el_mexicana_slug'] scheme accounts exist in 'My360 System'
-        # And ['my360', 'food_cellar_slug', 'el_mexicana_slug'] scheme account exists in 'Bink System'
-        # And one Bink user who already has ['my360', 'food_cellar_slug'] scheme accounts linked in 'Bink System'
-        # And that user has previously deleted the 'bubble_city_slug' scheme account from there wallet
-        response_mock = MagicMock()
-        response_mock.json = MagicMock(return_value={
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'balance': Decimal('20'),
-            'is_stale': False
-        })
-        response_mock.status_code = 200
-        mock_get_midas_balance.return_value = response_mock
-
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
-
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
-
-        my360_scheme = SchemeAccountFactory(scheme=scheme_0, user=self.user, order=4)
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
-        deleted_scheme = SchemeAccountFactory(scheme=scheme_2, user=self.user, is_deleted=True, id=100, order=2)
-        deleted_scheme2 = SchemeAccountFactory(scheme=scheme_2, user=self.user, is_deleted=True, id=101, order=2)
-        self.assertTrue(deleted_scheme.is_deleted)
-        self.assertTrue(deleted_scheme2.is_deleted)
-
-        data = {
-            BARCODE: '123456789',
-            'scheme': scheme_2.id,
-            'order': 1
-        }
-        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
-        self.assertEqual(response.status_code, 201)
-        scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 1)
-        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
-        self.assertEqual(scheme_accounts[0]['order'], my360_scheme.order)
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
-        self.assertEqual(scheme_accounts[0]['id'], deleted_scheme2.id)
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
-
-    @patch.object(
-        CreateMy360AccountsAndLink,
-        'get_my360_schemes',
-        return_value=['my360', 'food_cellar_slug', 'el_mexicana_slug']
-    )
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_add_deleted_generic_account(self, mock_get_midas_balance, mock_get_schemes):
-        # Given:
-        # ['my360', 'food_cellar_slug', 'el_mexicana_slug'] scheme exists in 'Bink system'
-        # a barcode scheme credential question is created for each schema
-        # ['food_cellar_slug', 'el_mexicana_slug'] scheme accounts exist in 'My360 System'
-        # And ['my360', 'food_cellar_slug', 'el_mexicana_slug'] scheme account exists in 'Bink System'
-        # And one Bink user who already has ['my360', 'food_cellar_slug'] scheme accounts linked in 'Bink System'
-        # And that user has previously deleted the 'bubble_city_slug' scheme account from there wallet
-        response_mock = MagicMock()
-        response_mock.json = MagicMock(return_value={
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'balance': Decimal('20'),
-            'is_stale': False
-        })
-        response_mock.status_code = 200
-        mock_get_midas_balance.return_value = response_mock
-
-        scheme_0 = SchemeFactory(slug='my360', id=999, url=MY360_SCHEME_URL)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998, url=MY360_SCHEME_URL)
-        scheme_2 = SchemeFactory(slug='el_mexicana_slug', id=997, url=MY360_SCHEME_URL)
-
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
-
-        deleted_my360_scheme = SchemeAccountFactory(scheme=scheme_0, user=self.user, order=4, is_deleted=True)
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
-        SchemeAccountFactory(scheme=scheme_2, user=self.user, id=100)
-        self.assertTrue(deleted_my360_scheme.is_deleted)
-
+        # When the front end requests [POST] /schemes/accounts
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
             'order': 1
         }
-        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
-        self.assertEqual(response.status_code, 201)
-        scheme_accounts = response.json()
-        self.assertEqual(len(scheme_accounts), 1)
-        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
-        self.assertEqual(scheme_accounts[0]['order'], deleted_my360_scheme.order)
-        self.assertEqual(scheme_accounts[0]['scheme'], scheme_0.id)
-        self.assertEqual(scheme_accounts[0]['id'], deleted_my360_scheme.id)
-        self.assertIn('scheme', scheme_accounts[0])
-        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
-        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        response = self.client.post('/schemes/accounts', **self.auth_headers, data=data)
 
-    @patch('intercom.intercom_api.post_issued_join_card_event')
+        # Then no schemes accounts are created in Bink
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            {
+                'non_field_errors': [
+                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme_0.slug)
+                ]
+            }
+        )
+
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
+
+        self.assertEqual(mock_post_intercom_event.call_count, 1)
+        self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
+        self.assertEqual(mock_post_intercom_event.call_args[0][3]['scheme name'], scheme_0.name)
+
+    @patch('intercom.intercom_api.post_intercom_event')
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_my360_create_account_view_non_generic_my360_scheme_old_app(
+        self,
+        mock_get_midas_balance,
+        mock_post_intercom_event
+    ):
+        # Given:
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # 'deep_blue_slug' scheme accounts exist in 'My360 system'
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts do not exist in 'Bink system'
+        # the old endpoint is used as user has old version of Bink app
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        })
+        response_mock.status_code = 200
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999, url=settings.MY360_SCHEME_URL)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998, url=settings.MY360_SCHEME_URL)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997, url=settings.MY360_SCHEME_URL)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
+
+        # When the front end requests [POST] /schemes/accounts
+        data = {
+            BARCODE: '123456789',
+            'scheme': scheme_1.id,
+            'order': 1
+        }
+        response = self.client.post('/schemes/accounts', **self.auth_headers, data=data)
+
+        # Then no schemes accounts are created in Bink
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            {
+                'non_field_errors': [
+                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme_1.slug)
+                ]
+            }
+        )
+
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
+
+        self.assertEqual(mock_post_intercom_event.call_count, 1)
+        self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
+        self.assertEqual(mock_post_intercom_event.call_args[0][3]['scheme name'], scheme_1.name)
+
+    @patch('intercom.intercom_api.post_intercom_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
-    def test_create_join_account_and_notify_intercom(self, mock_date, mock_update_custom_attr, mock_post_issued_event):
+    def test_create_join_account_and_notify_intercom(self, mock_date, mock_update_custom_attr,
+                                                     mock_post_intercom_event):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         scheme = SchemeFactory()
 
@@ -808,8 +711,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('status', json)
         self.assertIn('user', json)
 
-        self.assertEqual(mock_post_issued_event.call_count, 1)
-        self.assertEqual(len(mock_post_issued_event.call_args[0]), 4)
+        self.assertEqual(mock_post_intercom_event.call_count, 1)
+        self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
 
         self.assertEqual(mock_update_custom_attr.call_count, 1)
         self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
@@ -820,9 +723,9 @@ class TestSchemeAccountViews(APITestCase):
             "false,JOIN,2000/05/19,{}".format(scheme.slug)
         )
 
-    @patch('intercom.intercom_api.post_issued_join_card_event')
+    @patch('intercom.intercom_api.post_intercom_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_create_join_account_against_user_setting(self, mock_update_custom_attr, mock_post_issued_event):
+    def test_create_join_account_against_user_setting(self, mock_update_custom_attr, mock_post_intercom_event):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -841,7 +744,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(json['code'], 200)
         self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
 
-        self.assertFalse(mock_post_issued_event.called)
+        self.assertFalse(mock_post_intercom_event.called)
         self.assertFalse(mock_update_custom_attr.called)
 
 
