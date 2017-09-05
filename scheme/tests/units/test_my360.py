@@ -30,7 +30,7 @@ class TestMy360(TestCase):
         mock_response.status_code = 200
         mock_response.json = MagicMock(return_value={
             'valid': True,
-            'schemes': ['k7yej1', '-fdK4i', 'hewtts']
+            'schemes': ['K7yej1', '-fdK4i', 'hewtts']
         })
 
         request_mock.return_value = mock_response
