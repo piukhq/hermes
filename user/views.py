@@ -6,7 +6,7 @@ from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from errors import (FACEBOOK_BAD_TOKEN, FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
@@ -24,12 +24,11 @@ from hermes.settings import LETHE_URL, MEDIA_URL
 from intercom import intercom_api
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
-from user.serializers import (ApplicationKitSerializer,
-                              FaceBookWebRegisterSerializer, FacebookRegisterSerializer, LoginSerializer,
-                              NewLoginSerializer, NewRegisterSerializer, ApplyPromoCodeSerializer,
-                              RegisterSerializer, ResetPasswordSerializer, ResetTokenSerializer,
-                              ResponseAuthSerializer, SettingSerializer, TokenResetPasswordSerializer,
-                              TwitterRegisterSerializer, UserSerializer, UserSettingSerializer)
+from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
+                              NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
+                              ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
+                              TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
+                              UserSettingSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -261,35 +260,6 @@ class NewLogin(Login):
         return credentials
 
 
-class FaceBookLoginWeb(CreateAPIView):
-    """
-    This is only used by web app
-    """
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-    serializer_class = FaceBookWebRegisterSerializer
-
-    def post(self, request, *args, **kwargs):
-        """
-        Login using a Facebook account from web app
-        ---
-        response_serializer: ResponseAuthSerializer
-        """
-        access_token_url = 'https://graph.facebook.com/v2.3/oauth/access_token'
-        params = {
-            'client_id': request.data['clientId'],
-            'redirect_uri': request.data['redirectUri'],
-            'client_secret': settings.FACEBOOK_CLIENT_SECRET,
-            'code': request.data['code']
-        }
-        # Exchange authorization code for access token.
-        r = requests.get(access_token_url, params=params)
-        if not r.ok:
-            return error_response(FACEBOOK_BAD_TOKEN)
-
-        return facebook_login(r.json()['access_token'])
-
-
 class FaceBookLogin(CreateAPIView):
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
@@ -317,34 +287,6 @@ class FaceBookLogin(CreateAPIView):
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
         return facebook_login(access_token)
-
-
-class TwitterLoginWeb(APIView):
-    authentication_classes = (OpenAuthentication,)
-    permission_classes = (AllowAny,)
-
-    def post(self, request, *args, **kwargs):
-        """
-        Login using a Twitter account from web app.
-        ---
-        response_serializer: ResponseAuthSerializer
-        """
-        request_token_url = 'https://api.twitter.com/oauth/request_token'
-        access_token_url = 'https://api.twitter.com/oauth/access_token'
-
-        if request.data.get('oauth_token') and request.data.get('oauth_verifier'):
-            oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
-                                          client_secret=settings.TWITTER_CONSUMER_SECRET,
-                                          resource_owner_key=request.data['oauth_token'],
-                                          verifier=request.data['oauth_verifier'])
-            access_token = oauth_session.fetch_access_token(access_token_url)
-            return twitter_login(access_token['oauth_token'], access_token['oauth_token_secret'])
-
-        oauth_session = OAuth1Session(settings.TWITTER_CONSUMER_KEY,
-                                      client_secret=settings.TWITTER_CONSUMER_SECRET,
-                                      callback_uri=settings.TWITTER_CALLBACK_URL)
-        request_token = oauth_session.fetch_request_token(request_token_url)
-        return Response(request_token)
 
 
 class TwitterLogin(CreateAPIView):
@@ -397,7 +339,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
 def facebook_login(access_token):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
-    r = requests.get('https://graph.facebook.com/v2.3/me', params=params)
+    r = requests.get('https://graph.facebook.com/me', params=params)
     if not r.ok:
         return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
