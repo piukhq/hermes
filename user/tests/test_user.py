@@ -2,7 +2,6 @@ import json
 import time
 import arrow
 import httpretty as httpretty
-from requests_oauthlib import OAuth1Session
 from rest_framework.utils.serializer_helpers import ReturnList
 from rest_framework.test import APITestCase
 
@@ -757,23 +756,6 @@ class TestAuthenticationViews(APITestCase):
 
 class TestTwitterLogin(APITestCase):
     @mock.patch('user.views.twitter_login', autospec=True)
-    @mock.patch.object(OAuth1Session, 'fetch_access_token', autospec=True)
-    def test_twitter_login_web(self, mock_fetch_access_token, mock_twitter_login):
-        mock_twitter_login.return_value = HttpResponse()
-        mock_fetch_access_token.return_value = {'oauth_token': 'sdfsdf', 'oauth_token_secret': 'asdfasdf'}
-        self.client.post('/users/auth/twitter_web', {"oauth_token": 'G9E511MOEQ', "oauth_verifier": '1234'})
-        self.assertEqual(mock_fetch_access_token.call_args[0][1],  'https://api.twitter.com/oauth/access_token')
-        self.assertEqual(mock_twitter_login.call_args[0], ('sdfsdf', 'asdfasdf'))
-
-    @mock.patch.object(OAuth1Session, 'fetch_request_token', autospec=True)
-    def test_twitter_request_token(self, mock_fetch_request_token):
-        mock_fetch_request_token.return_value = {'test': True}
-        response = self.client.post('/users/auth/twitter_web')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, {'test': True})
-        self.assertEqual(mock_fetch_request_token.call_args[0][1],  'https://api.twitter.com/oauth/request_token')
-
-    @mock.patch('user.views.twitter_login', autospec=True)
     def test_twitter_login_app(self, twitter_login_mock):
         twitter_login_mock.return_value = HttpResponse()
         self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
@@ -793,17 +775,6 @@ class TestTwitterLogin(APITestCase):
 
 
 class TestFacebookLogin(APITestCase):
-    @mock.patch('user.views.facebook_login', autospec=True)
-    @httpretty.activate
-    def test_facebook_web_login_view(self, facebook_login_mock):
-        facebook_login_mock.return_value = HttpResponse()
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/oauth/access_token',
-                               body=json.dumps({'access_token': '252345'}), content_type="application/json")
-        response = self.client.post('/users/auth/facebook_web', data={'clientId': '6b045AG',
-                                                                      'redirectUri': 'pa11mZTFOB', 'code': '235345wer'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(facebook_login_mock.call_args[0][0],  '252345')
-
     @mock.patch('user.views.facebook_login', autospec=True)
     @httpretty.activate
     def test_facebook_login_view(self, mock_facebook_login):
@@ -830,7 +801,7 @@ class TestFacebookLogin(APITestCase):
         facebook_id = 'O7bz6vG60Y'
         user = UserFactory(facebook=facebook_id)
         mock_social_login.return_value = (200, user)
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/v2.3/me',
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
                                body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
         response = facebook_login('Ju76xER1A5')
         self.assertEqual(response.status_code, 200)
