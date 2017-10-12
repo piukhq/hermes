@@ -35,3 +35,4 @@ requests-oauthlib==0.5.0
 simplegeneric==0.8.1
 six==1.10.0
 traitlets==4.0.0
+django-admin-env-notice==0.1.4

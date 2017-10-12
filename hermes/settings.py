@@ -21,7 +21,6 @@ read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
 
@@ -69,6 +68,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_admin_env_notice',
     'django.contrib.admin',
     'rest_framework',
     'rest_framework_swagger',
@@ -107,6 +107,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django_admin_env_notice.context_processors.from_settings',
             ],
         },
     },
@@ -342,3 +343,6 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
                  '539616', '530129', '530128', '530126', '530125', '530124', '530123', '530122', '530121', '530120',
                  '523065', '520665', '518109', '517240', '517239', '517238', '517237', '517236', '517235', '517234',
                  '517233', '439314', '530831', '426510']
+
+ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
+ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)

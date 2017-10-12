@@ -66,3 +66,7 @@
   - String Value, path to expose swagger documentation on
 - `FACEBOOK_CLIENT_SECRET`
   - String Value, Facebook Client Secret
+- `ENVIRONMENT_NAME`
+  - String Value, text of django admin environment message
+- `ENVIRONMENT_COLOR`
+  - String Value, hex value of django admin environment message background colour
