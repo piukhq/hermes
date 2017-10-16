@@ -54,15 +54,14 @@ class TestMy360(TestCase):
 
         request_mock.return_value = mock_response
 
-        card_number = '0123456789101112'
-        error_response = CreateMy360AccountsAndLink.get_my360_schemes(card_number)
+        with self.assertRaises(ValueError) as my360_error:
+            card_number = '0123456789101112'
+            CreateMy360AccountsAndLink.get_my360_schemes(card_number)
 
+        self.assertEqual("Invalid response from My360 while getting a cards scheme list", str(my360_error.exception))
         request_mock.assert_called_once_with(
             'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'.format(card_number)
         )
-
-        self.assertEqual(error_response.data, {'code': 400, 'message': 'Error getting schemes from My360'})
-        self.assertEqual(error_response.status_code, 400)
 
     @patch('requests.get')
     def test_my360_get_schemes_handles_bad_request(self, request_mock):
@@ -72,12 +71,11 @@ class TestMy360(TestCase):
 
         request_mock.return_value = mock_response
 
-        card_number = '0123456789101112'
-        error_response = CreateMy360AccountsAndLink.get_my360_schemes(card_number)
+        with self.assertRaises(ValueError) as my360_error:
+            card_number = '0123456789101112'
+            CreateMy360AccountsAndLink.get_my360_schemes(card_number)
 
+        self.assertEqual("Invalid response from My360 while getting a cards scheme list", str(my360_error.exception))
         request_mock.assert_called_once_with(
             'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'.format(card_number)
         )
-
-        self.assertEqual(error_response.data, {'code': 400, 'message': 'Error getting schemes from My360'})
-        self.assertEqual(error_response.status_code, 400)

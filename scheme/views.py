@@ -279,50 +279,47 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+
+        request_data = self.get_required_my360_data(serializer.validated_data)
+
+        if request_data['error_response']:
+            return request_data['error_response']
+
+        # if passing generic My360 scheme slug, create and link all paired scheme accounts
+        elif request_data['scheme_obj'].slug == 'my360':
+            return self.create_and_link_schemes(request_data, request.user)
+
+        # else create and link the one requested My360 scheme account
+        else:
+            return self.create_and_link_scheme(request_data, request.user)
+
+    def get_required_my360_data(self, request_data):
         credential_type = 'barcode'
-        barcode = request.data.get(credential_type)
-        scheme_accounts_response = []
-
-        scheme = Scheme.objects.get(id=int(data['scheme']))
-        # If passing generic My360 scheme slug, create and link all paired scheme accounts
-        if scheme.slug == 'my360':
-            scheme_slugs = self.get_my360_schemes(barcode)
-
-            for scheme in scheme_slugs:
-                try:
-                    scheme_id = Scheme.objects.get(slug=scheme).id
-
-                except:
-                    sentry.captureException()
-                    continue
-
-                if not SchemeAccount.objects.filter(scheme_id=scheme_id, user=request.user):
-                    data = {
-                        'order': data['order'],
-                        'barcode': barcode,
-                        'scheme': scheme_id
-                    }
-
-                    scheme_account = self._create_account(request.user, data, credential_type)
-                    scheme_response_data = self._link_scheme_account(credential_type, data, scheme_account)
-
-                    scheme_accounts_response.append(
-                        self._format_response(credential_type, scheme_account, scheme_response_data)
+        credential_value = request_data.get(credential_type)
+        scheme_id = request_data.get('scheme')
+        scheme_obj = Scheme.objects.get(id=int(scheme_id))
+        try:
+            scheme_slugs = self.get_my360_schemes(credential_value) if scheme_obj.slug == 'my360' else None
+            error = None
+        except:
+            error = Response(
+                        {'code': 400, 'message': 'Error getting schemes from My360'},
+                        status=status.HTTP_400_BAD_REQUEST
                     )
 
-            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
+        my360_info = {
+            'credential_type': credential_type,
+            'scheme_obj': scheme_obj,
+            'scheme_slugs': scheme_slugs,
+            'error_response': error,
+            'new_scheme_data': {
+                'barcode': credential_value,
+                'order': request_data.get('order'),
+                'scheme': scheme_id if not scheme_obj.slug == 'my360' else None
+            },
+        }
 
-        # Else create and link the requested My360 scheme account
-        else:
-            scheme_account = self._create_account(request.user, data, credential_type)
-            scheme_response_data = self._link_scheme_account(credential_type, data, scheme_account)
-
-            scheme_accounts_response.append(
-                self._format_response(credential_type, scheme_account, scheme_response_data)
-            )
-
-            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
+        return my360_info
 
     @staticmethod
     def get_my360_schemes(barcode):
@@ -345,17 +342,65 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
 
                 return scheme_slugs
 
-        return Response(
-            {'code': 400, 'message': 'Error getting schemes from My360'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        raise ValueError('Invalid response from My360 while getting a cards scheme list')
+
+    def create_and_link_schemes(self, request_data, user):
+        scheme_accounts_response = []
+        new_scheme_data = request_data['new_scheme_data']
+        for scheme in request_data['scheme_slugs']:
+            try:
+                scheme_id = Scheme.objects.get(slug=scheme).id
+
+            except:
+                sentry.captureException()
+                continue
+
+            if not SchemeAccount.objects.filter(scheme_id=scheme_id, user=user):
+                new_scheme_data['scheme'] = scheme_id
+                scheme_account = self._create_account(user, new_scheme_data, request_data['credential_type'])
+                link_response = self._link_scheme_account(request_data['credential_type'],
+                                                          new_scheme_data, scheme_account)
+                if link_response:
+                    scheme_accounts_response.append(link_response)
+
+        if scheme_accounts_response:
+            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
+
+        if request_data['scheme_slugs']:
+            return Response({'Error': 'Error linking My360 card, not adding scheme account'},
+                            status=status.HTTP_400_BAD_REQUEST
+                            )
+
+        return Response({'Error': 'No paired schemes found for this card'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+    def create_and_link_scheme(self, request_data, user):
+        scheme_account = self._create_account(user,
+                                              request_data['new_scheme_data'], request_data['credential_type'])
+        link_response = self._link_scheme_account(request_data['credential_type'],
+                                                  request_data['new_scheme_data'], scheme_account)
+
+        if link_response:
+            return Response([link_response], status=status.HTTP_201_CREATED)
+
+        return Response({'Error': 'Error linking My360 card, not adding scheme account'},
+                        status=status.HTTP_400_BAD_REQUEST
+                        )
 
     def _link_scheme_account(self, credential_type, data, scheme_account):
         response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account)
-        scheme_account.link_date = timezone.now()
-        scheme_account.save()
+        if response_data['balance']:
+            scheme_account.link_date = timezone.now()
+            scheme_account.save()
 
-        return response_data
+            return self._format_response(credential_type, scheme_account, response_data)
+
+        try:
+            scheme_account.delete()
+            return None
+        except:
+            sentry.captureException()
 
     @staticmethod
     def _format_response(credential_type, scheme_account, linked_data):
