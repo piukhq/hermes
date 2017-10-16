@@ -465,9 +465,12 @@ class TestSchemeAccountViews(APITestCase):
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
-        # Then no schemes accounts are created in Bink
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json(), [])
+        # Then no scheme accounts are created in Bink
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {'Error': 'No paired schemes found for this card'})
+
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
 
     @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, '_get_balance')
@@ -680,6 +683,101 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(mock_post_intercom_event.call_count, 1)
         self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
         self.assertEqual(mock_post_intercom_event.call_args[0][3]['scheme name'], scheme_1.name)
+
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_my360_manual_add_one_scheme_when_my360_down(self, mock_get_midas_balance):
+        # Given:
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # 'deep_blue_slug' scheme accounts do not exist in 'Bink system'
+        # 'My360' system is down
+
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            "status": 520,
+            "status_name": "An unknown error has occurred",
+            "balance": None
+        })
+        response_mock.status_code = 400
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
+
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: 'my360down',
+            'scheme': scheme_1.id,
+            'order': 788
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then no scheme accounts are created in Bink
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            {
+                'Error': 'Error linking My360 card, not adding scheme account'
+            }
+        )
+        self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_1.id)), 0)
+
+    @patch.object(
+        CreateMy360AccountsAndLink,
+        'get_my360_schemes',
+        return_value=['food_cellar_slug', 'deep_blue_slug']
+    )
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_my360_scan_add_multiple_schemes_when_my360_down(self, mock_get_midas_balance, mock_get_schemes):
+        # Given:
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # ['food_cellar_slug', 'deep_blue_slug']scheme accounts do not exist in 'Bink system'
+        # 'My360' system is down
+
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            "status": 520,
+            "status_name": "An unknown error has occurred",
+            "balance": None
+        })
+        response_mock.status_code = 400
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
+
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: 'my360down2',
+            'scheme': scheme_0.id,
+            'order': 789
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then no scheme accounts are created in Bink
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data,
+            {
+                'Error': 'Error linking My360 card, not adding scheme account'
+            }
+        )
+        self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_0.id)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_1.id)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_2.id)), 0)
 
     @patch('intercom.intercom_api.post_intercom_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
