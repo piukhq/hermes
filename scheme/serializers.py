@@ -349,11 +349,6 @@ class JoinSerializer(SchemeAnswerSerializer):
         if SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme):
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
-        # Validate save_user_information and order
-        for field in ['save_user_information', 'order']:
-            if field not in data:
-                self.raise_missing_field_error(field)
-
         # Validate all join questions
         scheme_join_question_types = [question.type for question in scheme.join_questions]
         request_join_question_types = data.keys()

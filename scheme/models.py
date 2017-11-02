@@ -397,10 +397,6 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.filter(question=self.question(CARD_NUMBER)).first()
 
     @property
-    def join_answer(self):
-        return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.join_question)
-
-    @property
     def manual_answer(self):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.manual_question).first()
 
