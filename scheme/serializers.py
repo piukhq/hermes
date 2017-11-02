@@ -27,6 +27,7 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = SchemeCredentialQuestion
         exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link')
 
+
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
