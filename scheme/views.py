@@ -21,7 +21,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer)
+                                QuerySchemeAccountSerializer, JoinSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -674,3 +674,73 @@ class IdentifyCard(APIView):
         return Response({
             'scheme_id': int(json['scheme_id'])
         }, status=200)
+
+
+class Join(SwappableSerializerMixin, GenericAPIView):
+    override_serializer_classes = {
+        'POST': JoinSerializer,
+    }
+
+    def post(self, request, *args, **kwargs):
+        """
+        Create a new scheme account,
+        Register a new loyalty account on the requested scheme,
+        Link the newly created loyalty account with the created scheme account.
+        """
+        scheme_id = int(self.kwargs['pk'])
+        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+        serializer = JoinSerializer(data=request.data, context={
+                                                                'scheme': join_scheme,
+                                                                'user': request.user
+                                                                })
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        data['scheme'] = scheme_id
+
+        scheme_account = self.create_join_account(data, request.user, scheme_id)
+        data['id'] = scheme_account.id
+
+        self.create_join_account_credential_answers(data['credentials'], scheme_account)
+
+        scheme_account.get_midas_balance()
+
+        keys_to_remove = ['save_user_information', 'credentials']
+        response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
+
+        return Response(
+            response_dict,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def create_join_account(self, data, user, scheme_id):
+        with transaction.atomic():
+            try:
+                scheme_account = SchemeAccount.objects.get(
+                    user=user,
+                    scheme_id=scheme_id,
+                    status=SchemeAccount.JOIN
+                )
+
+                scheme_account.order = data['order']
+                scheme_account.status = SchemeAccount.PENDING
+                scheme_account.save()
+            except SchemeAccount.DoesNotExist:
+                scheme_account = SchemeAccount.objects.create(
+                    user=user,
+                    scheme_id=data['scheme'],
+                    order=data['order'],
+                    status=SchemeAccount.PENDING
+                )
+
+        try:
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+        except intercom_api.IntercomException:
+            pass
+
+        return scheme_account
+
+    def create_join_account_credential_answers(self, data, scheme_account):
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})

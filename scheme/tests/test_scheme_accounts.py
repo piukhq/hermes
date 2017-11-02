@@ -845,6 +845,97 @@ class TestSchemeAccountViews(APITestCase):
         self.assertFalse(mock_post_intercom_event.called)
         self.assertFalse(mock_update_custom_attr.called)
 
+    def test_register_join_endpoint_missing_credential_question(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+
+        self.assertEqual(resp.status_code, 400)
+        json = resp.json()
+        self.assertEqual(json, {'non_field_errors': ['username field required']})
+
+    def test_register_join_endpoint_missing_save_user_information(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+
+        data = {
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+
+        self.assertEqual(resp.status_code, 400)
+        json = resp.json()
+        self.assertEqual(json, {'save_user_information': ['This field is required.']})
+
+    def test_register_join_endpoint_account_already_created(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+        SchemeAccountFactory(user=self.user, scheme_id=scheme.id)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 400)
+        json = resp.json()
+        self.assertTrue(json['non_field_errors'][0].startswith('You already have an account for this scheme'))
+
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_register_join_endpoint_create_scheme_account(self, mock_get_balance):
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'balance': Decimal('20'),
+            'is_stale': False
+        })
+        response_mock.status_code = 200
+        mock_get_balance.return_value = response_mock
+
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(mock_get_balance.called)
+
+        json = resp.json()
+        self.assertEqual(json['scheme'], scheme.id)
+        self.assertEqual(len(json), len(data)+1)
+        scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
+        self.assertEqual(json['id'], scheme_account.id)
+        self.assertEqual('Active', scheme_account.status_name)
+
 
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
