@@ -120,6 +120,10 @@ class Scheme(models.Model):
         return self.questions.filter(one_question_link=True).first()
 
     @property
+    def join_questions(self):
+        return self.questions.filter(join_question=True)
+
+    @property
     def link_questions(self):
         return self.questions.exclude(scan_question=True).exclude(manual_question=True)
 
@@ -199,6 +203,7 @@ class SchemeAccount(models.Model):
     WALLET_ONLY = 10
     PASSWORD_EXPIRED = 533
     JOIN = 900
+    JOIN_FAILED = 901
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -217,9 +222,10 @@ class SchemeAccount(models.Model):
         (AGENT_NOT_FOUND, 'Agent does not exist on midas', 'AGENT_NOT_FOUND'),
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
+        (JOIN_FAILED, 'Join failed', 'JOIN_FAILED')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, JOIN_FAILED]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA]
 
@@ -479,6 +485,7 @@ class SchemeCredentialQuestion(models.Model):
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
+    join_question = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['order']

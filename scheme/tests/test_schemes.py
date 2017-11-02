@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
-from scheme.credentials import EMAIL, BARCODE
+from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER
 from user.tests.factories import UserFactory
 from common.models import Image
 
@@ -69,6 +69,9 @@ class TestSchemeViews(APITestCase):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
         link_question = SchemeCredentialQuestionFactory.create(scheme=scheme, type=EMAIL)
+        join_question = SchemeCredentialQuestionFactory.create(
+            scheme=scheme, type=CARD_NUMBER, join_question=True, manual_question=True
+        )
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
 
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
@@ -78,6 +81,7 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['id'], scheme.id)
         self.assertEqual(len(response.data['images']), 1)
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
+        self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
 
     def test_get_reference_images(self):
         scheme = SchemeFactory()
@@ -121,3 +125,13 @@ class TestSchemeModel(TestCase):
         link_questions = scheme.link_questions
         self.assertEqual(len(link_questions), 1)
         self.assertEqual(link_questions[0].id, email_question.id)
+
+    def test_join_questions(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True, join_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True)
+        email_question = SchemeCredentialQuestionFactory(type=EMAIL, scheme=scheme, join_question=True)
+
+        join_questions = scheme.join_questions
+        self.assertEqual(len(join_questions), 2)
+        self.assertTrue(email_question.id in [question.id for question in scheme.join_questions])
