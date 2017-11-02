@@ -65,4 +65,8 @@ urlpatterns = [
     # TODO: Better URL
     url(r'^/csv_upload',
         views.csv_upload, name='csv_upload'),
+
+    url(r'^/(?P<pk>[0-9]+)/join',
+        views.Join.as_view(),
+        name='create_join_scheme_account'),
 ]

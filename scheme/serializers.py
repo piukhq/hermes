@@ -27,10 +27,10 @@ class QuestionSerializer(serializers.ModelSerializer):
         model = SchemeCredentialQuestion
         exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link')
 
-
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
+    join_questions = serializers.SerializerMethodField()
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
@@ -41,6 +41,10 @@ class SchemeSerializer(serializers.ModelSerializer):
 
     def get_link_questions(self, obj):
         serializer = QuestionSerializer(obj.link_questions, many=True)
+        return serializer.data
+
+    def get_join_questions(self, obj):
+        serializer = QuestionSerializer(obj.join_questions, many=True)
         return serializer.data
 
 
@@ -332,3 +336,36 @@ class DonorSchemeAccountSerializer(serializers.Serializer):
 
 class IdentifyCardSerializer(serializers.Serializer):
     scheme_id = serializers.IntegerField()
+
+
+class JoinSerializer(SchemeAnswerSerializer):
+    save_user_information = serializers.NullBooleanField(required=True)
+    order = serializers.IntegerField(required=True)
+
+    def validate(self, data):
+        scheme = self.context['scheme']
+        # Validate scheme account for this doesn't already exist
+        if SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme):
+            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
+
+        # Validate save_user_information and order
+        for field in ['save_user_information', 'order']:
+            if field not in data:
+                self.raise_missing_field_error(field)
+
+        # Validate all join questions
+        scheme_join_question_types = [question.type for question in scheme.join_questions]
+        request_join_question_types = data.keys()
+        data['credentials'] = {}
+
+        for question in scheme_join_question_types:
+            if question not in request_join_question_types:
+                self.raise_missing_field_error(question)
+            else:
+                data['credentials'][question] = data[question]
+
+        return data
+
+    @staticmethod
+    def raise_missing_field_error(missing_field):
+        raise serializers.ValidationError("{} field required".format(missing_field))

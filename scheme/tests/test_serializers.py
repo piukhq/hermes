@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
-from scheme.credentials import BARCODE
+from scheme.credentials import BARCODE, PASSWORD
 from unittest.mock import MagicMock, patch
 
 from user.tests.factories import UserFactory
@@ -80,5 +80,19 @@ class TestSchemeSerializer(TestCase):
         serializer = SchemeSerializer()
 
         data = serializer.get_link_questions(scheme)
+        self.assertEqual(data[0]['id'], question.id)
+        self.assertEqual(data[0]['type'], BARCODE)
+
+    def test_get_join_questions(self):
+        scheme = SchemeFactory()
+        question = SchemeCredentialQuestionFactory(
+            type=BARCODE, scheme=scheme, join_question=True, manual_question=True
+        )
+        question2 = SchemeCredentialQuestionFactory(
+            type=PASSWORD, scheme=scheme, join_question=False
+        )
+        serializer = SchemeSerializer()
+
+        data = serializer.get_join_questions(scheme)
         self.assertEqual(data[0]['id'], question.id)
         self.assertEqual(data[0]['type'], BARCODE)
