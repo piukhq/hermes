@@ -88,7 +88,7 @@ class TestSchemeSerializer(TestCase):
         question = SchemeCredentialQuestionFactory(
             type=BARCODE, scheme=scheme, join_question=True, manual_question=True
         )
-        question2 = SchemeCredentialQuestionFactory(
+        SchemeCredentialQuestionFactory(
             type=PASSWORD, scheme=scheme, join_question=False
         )
         serializer = SchemeSerializer()
