@@ -351,6 +351,9 @@ class JoinSerializer(SchemeAnswerSerializer):
 
         # Validate all join questions
         scheme_join_question_types = [question.type for question in scheme.join_questions]
+        if not scheme_join_question_types:
+            raise serializers.ValidationError('No join questions found for scheme: {}'.format(scheme.slug))
+
         request_join_question_types = data.keys()
         data['credentials'] = {}
 
