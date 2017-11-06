@@ -881,6 +881,25 @@ class TestSchemeAccountViews(APITestCase):
         json = resp.json()
         self.assertEqual(json, {'save_user_information': ['This field is required.']})
 
+    def test_register_join_endpoint_scheme_has_no_join_questions(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+
+        data = {
+            'order': 2,
+            'save_user_information': False,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+
+        self.assertEqual(resp.status_code, 400)
+        json = resp.json()
+        self.assertEqual(json, {'non_field_errors': ['No join questions found for scheme: {}'.format(scheme.slug)]})
+
     def test_register_join_endpoint_account_already_created(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
