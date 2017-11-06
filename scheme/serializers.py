@@ -66,9 +66,12 @@ class SchemeAnswerSerializer(serializers.Serializer):
     postcode = serializers.CharField(max_length=250, required=False)
     memorable_date = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
     pin = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    title = serializers.CharField(max_length=250, required=False)
+    first_name = serializers.CharField(max_length=250, required=False)
     last_name = serializers.CharField(max_length=250, required=False)
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
+    phone_number = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
@@ -346,7 +349,10 @@ class JoinSerializer(SchemeAnswerSerializer):
     def validate(self, data):
         scheme = self.context['scheme']
         # Validate scheme account for this doesn't already exist
-        if SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme):
+        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme) \
+            .exclude(status=SchemeAccount.JOIN)
+
+        if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         # Validate all join questions
