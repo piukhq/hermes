@@ -25,7 +25,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link')
+        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'join_question')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
