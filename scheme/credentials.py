@@ -7,9 +7,12 @@ EMAIL = 'email'
 POSTCODE = 'postcode'
 MEMORABLE_DATE = 'memorable_date'
 PIN = 'pin'
+TITLE = 'title'
+FIRST_NAME = 'first_name'
 LAST_NAME = 'last_name'
 FAVOURITE_PLACE = 'favourite_place'
 DATE_OF_BIRTH = 'date_of_birth'
+PHONE_NUMBER = 'phone_number'
 
 CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
@@ -21,9 +24,12 @@ CREDENTIAL_TYPES = (
     (POSTCODE, 'postcode'),
     (MEMORABLE_DATE, 'memorable date'),
     (PIN, 'pin'),
+    (TITLE, 'title'),
+    (FIRST_NAME, 'first name'),
     (LAST_NAME, 'last name'),
     (FAVOURITE_PLACE, 'favourite place'),
     (DATE_OF_BIRTH, 'date_of_birth'),
+    (PHONE_NUMBER, 'phone number'),
 )
 
 ENCRYPTED_CREDENTIALS = (
@@ -32,7 +38,10 @@ ENCRYPTED_CREDENTIALS = (
     MEMORABLE_DATE,
     PLACE_OF_BIRTH,
     PIN,
+    TITLE,
+    FIRST_NAME,
     LAST_NAME,
     FAVOURITE_PLACE,
     DATE_OF_BIRTH,
+    PHONE_NUMBER,
 )
