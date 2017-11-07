@@ -349,7 +349,7 @@ class JoinSerializer(SchemeAnswerSerializer):
     def validate(self, data):
         scheme = self.context['scheme']
         # Validate scheme account for this doesn't already exist
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme) \
+        scheme_accounts = SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme) \
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():
