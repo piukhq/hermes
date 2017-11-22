@@ -39,6 +39,7 @@ ALLOWED_HOSTS = [
     ".chingrewards.com",
     ".bink-dev.xyz",
     ".bink-sandbox.xyz",
+    ".bink-sandbox.com",
     ".bink.com",
     ".bink-hackathon.xyz",
     ".loyaltyangels.local",
