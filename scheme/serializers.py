@@ -290,6 +290,7 @@ def get_images_for_scheme_account(scheme_account):
                 call_to_action=image.call_to_action,
                 order=image.order,
                 created=image.created,
+                reward_tier=image.reward_tier
             )
 
             serializer = SchemeAccountImageSerializer(account_image)
