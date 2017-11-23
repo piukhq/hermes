@@ -79,6 +79,7 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     description = fake.sentence(nb_words=3)
     url = fake.url()
     call_to_action = fake.sentence(nb_words=3)
+    reward_tier = ""
 
     order = 0
 
