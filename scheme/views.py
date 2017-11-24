@@ -1,7 +1,9 @@
 import csv
 import uuid
 import requests
+import socket
 
+from requests import RequestException
 from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
@@ -698,21 +700,32 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         data['scheme'] = scheme_id
 
         scheme_account = self.create_join_account(data, request.user, scheme_id)
-        data['id'] = scheme_account.id
+        try:
+            data['id'] = scheme_account.id
+            if data['save_user_information']:
+                self.save_user_profile(data['credentials'], request.user)
 
-        self.create_join_account_credential_answers(data['credentials'], scheme_account)
+            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug)
 
-        scheme_account.get_midas_balance()
+            keys_to_remove = ['save_user_information', 'credentials']
+            response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
-        keys_to_remove = ['save_user_information', 'credentials']
-        response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
+            return Response(
+                response_dict,
+                status=status.HTTP_201_CREATED,
+            )
+        except Exception:
+            scheme_account.status = SchemeAccount.JOIN
+            scheme_account.save()
+            sentry.captureException()
 
-        return Response(
-            response_dict,
-            status=status.HTTP_201_CREATED,
-        )
+            return Response(
+                {'message': 'Error with join'},
+                status=status.HTTP_200_OK,
+            )
 
-    def create_join_account(self, data, user, scheme_id):
+    @staticmethod
+    def create_join_account(data, user, scheme_id):
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
@@ -739,8 +752,89 @@ class Join(SwappableSerializerMixin, GenericAPIView):
 
         return scheme_account
 
-    def create_join_account_credential_answers(self, data, scheme_account):
-        for answer_type, answer in data.items():
+    @staticmethod
+    def save_user_profile(credentials, user):
+        for question, answer in credentials.items():
+            try:
+                setattr(user.profile, question, answer)
+            except:
+                continue
+        user.profile.save()
+
+    @staticmethod
+    def post_midas_join(scheme_account, credentials_dict, slug):
+        for question in scheme_account.scheme.link_questions:
+            question_type = question.type
             SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                scheme_account=scheme_account, defaults={'answer': answer})
+                question=scheme_account.question(question_type),
+                scheme_account=scheme_account,
+                answer=credentials_dict[question_type])
+
+        data = {
+            'scheme_account_id': scheme_account.id,
+            'credentials': credentials_dict,
+            'user_id': scheme_account.user.id
+        }
+        headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
+        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
+                                 json=data, headers=headers)
+
+        if not response.json().get('status') == "success":
+            raise RequestException(
+                'Error creating join task in Midas. Response message :{}'.format(response['status'])
+            )
+
+
+class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
+    authentication_classes = (ServiceAuthentication,)
+
+    def put(self, request, *args, **kwargs):
+        """
+        Update an existing scheme account paired to a join scheme.
+        Adds membership ID to scheme credential answers.
+        In case of error, status account to JOIN and sends intercom message to user.
+        """
+        scheme_account_id = int(self.kwargs['pk'])
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=scheme_account_id)
+        scheme = scheme_account.scheme
+        if not request.data['identifier'] or request.data['identifier'] == 'None':
+            self.update_scheme_account_and_notify_user(scheme_account, scheme.name, request.data['status'])
+        else:
+            self.set_membership_id(scheme_account, scheme, request.data['identifier'])
+
+        return Response({'status': 'success'},
+                        status=status.HTTP_200_OK)
+
+    @staticmethod
+    def set_membership_id(scheme_account, scheme, answer):
+        question_to_update = scheme.manual_question
+
+        SchemeAccountCredentialAnswer.objects.update_or_create(
+            question=question_to_update,
+            scheme_account=scheme_account,
+            answer=answer
+        )
+
+    def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error):
+        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+        [answer.delete() for answer in scheme_account_answers]
+
+        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.save()
+        try:
+            metadata = {
+                'scheme name': scheme_name,
+            }
+            intercom_api.post_intercom_event(
+                settings.INTERCOM_TOKEN,
+                self.request.user.uid,
+                intercom_api.JOIN_FAILED_EVENT,
+                metadata
+            )
+        except intercom_api.IntercomException:
+            pass
+
+        try:
+            raise(RuntimeError('Join error, error raised during join was: ').format(error))
+        except:
+            sentry.captureException()
