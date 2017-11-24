@@ -3,6 +3,7 @@ from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
 from scheme.credentials import BARCODE, PASSWORD
+from scheme.models import SchemeCredentialQuestion
 from unittest.mock import MagicMock, patch
 
 from user.tests.factories import UserFactory
@@ -76,7 +77,7 @@ class TestAnswerValidation(TestCase):
 class TestSchemeSerializer(TestCase):
     def test_get_link_questions(self):
         scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme)
+        question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, options=SchemeCredentialQuestion.LINK)
         serializer = SchemeSerializer()
 
         data = serializer.get_link_questions(scheme)
@@ -85,12 +86,11 @@ class TestSchemeSerializer(TestCase):
 
     def test_get_join_questions(self):
         scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(
-            type=BARCODE, scheme=scheme, join_question=True, manual_question=True
-        )
-        SchemeCredentialQuestionFactory(
-            type=PASSWORD, scheme=scheme, join_question=False
-        )
+        question = SchemeCredentialQuestionFactory(type=BARCODE,
+                                                   scheme=scheme,
+                                                   options=SchemeCredentialQuestion.LINK_AND_JOIN,
+                                                   manual_question=True)
+        SchemeCredentialQuestionFactory(type=PASSWORD, scheme=scheme, options=SchemeCredentialQuestion.LINK)
         serializer = SchemeSerializer()
 
         data = serializer.get_join_questions(scheme)

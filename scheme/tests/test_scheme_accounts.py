@@ -9,13 +9,14 @@ from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
-from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL
+from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
+    TITLE, FIRST_NAME, LAST_NAME
 
 from user.tests.factories import UserFactory
 
@@ -30,8 +31,11 @@ class TestSchemeAccountViews(APITestCase):
                                         manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                              type=CARD_NUMBER,
-                                                             third_party_identifier=True)
-        password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD)
+                                                             third_party_identifier=True,
+                                                             options=SchemeCredentialQuestion.LINK)
+        password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
+                                                            type=PASSWORD,
+                                                            options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
@@ -44,7 +48,9 @@ class TestSchemeAccountViews(APITestCase):
                                                                            scheme_account=cls.scheme_account)
         cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
-        barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=BARCODE)
+        barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
+                                                           type=BARCODE,
+                                                           options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
         cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(answer="9999888877776666",
                                                                           question=barcode_question,
@@ -847,15 +853,14 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_register_join_endpoint_missing_credential_question(self):
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         data = {
             'save_user_information': False,
             'order': 2,
             'password': 'password'
-
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
 
@@ -865,9 +870,9 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_register_join_endpoint_missing_save_user_information(self):
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         data = {
             'order': 2,
@@ -884,8 +889,8 @@ class TestSchemeAccountViews(APITestCase):
     def test_register_join_endpoint_scheme_has_no_join_questions(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
 
         data = {
             'order': 2,
@@ -902,9 +907,9 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_register_join_endpoint_account_already_created(self):
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeAccountFactory(user=self.user, scheme_id=scheme.id)
 
         data = {
@@ -919,23 +924,36 @@ class TestSchemeAccountViews(APITestCase):
         json = resp.json()
         self.assertTrue(json['non_field_errors'][0].startswith('You already have an account for this scheme'))
 
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_register_join_endpoint_create_scheme_account(self, mock_get_balance):
-        response_mock = MagicMock()
-        response_mock.json = MagicMock(return_value={
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'balance': Decimal('20'),
-            'is_stale': False
-        })
-        response_mock.status_code = 200
-        mock_get_balance.return_value = response_mock
+    def test_register_join_endpoint_link_join_question_mismatch(self):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 400)
+        json = resp.json()
+        self.assertTrue(json['non_field_errors'][0].startswith('Please convert all \"Link\" only credential'
+                                                               ' questions to \"Join & Link\"'))
+
+    @patch('requests.post', auto_spec=True, return_value=MagicMock())
+    def test_register_join_endpoint_create_scheme_account(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {'status': 'success'}
 
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, join_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, join_question=True)
+        link_question = SchemeCredentialQuestionFactory(scheme=scheme,
+                                                        type=USER_NAME,
+                                                        manual_question=True,
+                                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
 
         data = {
             'save_user_information': False,
@@ -946,14 +964,140 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
-        self.assertTrue(mock_get_balance.called)
+        self.assertTrue(mock_request.called)
 
-        json = resp.json()
-        self.assertEqual(json['scheme'], scheme.id)
-        self.assertEqual(len(json), len(data)+1)
+        resp_json = resp.json()
+        self.assertEqual(resp_json['scheme'], scheme.id)
+        self.assertEqual(len(resp_json), len(data)+1)
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
-        self.assertEqual(json['id'], scheme_account.id)
-        self.assertEqual('Active', scheme_account.status_name)
+        self.assertEqual(resp_json['id'], scheme_account.id)
+        self.assertEqual('Pending', scheme_account.status_name)
+        self.assertEqual(len(scheme_account.schemeaccountcredentialanswer_set.all()), 1)
+        self.assertTrue(scheme_account.schemeaccountcredentialanswer_set.filter(question=link_question))
+
+    @patch('requests.post', auto_spec=True, return_value=MagicMock())
+    def test_register_join_endpoint_saves_user_profile(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {'status': 'success'}
+
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme,
+                                        type=EMAIL,
+                                        manual_question=True,
+                                        options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PHONE, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=TITLE, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=FIRST_NAME, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=LAST_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+
+        phone_number = '01234567890'
+        title = 'mr'
+        first_name = 'bob'
+        last_name = 'test'
+        data = {
+            'save_user_information': True,
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password',
+            'email': 'test@testbink.com',
+            'phone': phone_number,
+            'title': title,
+            'first_name': first_name,
+            'last_name': last_name,
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 201)
+
+        user = SchemeAccount.objects.filter(scheme=scheme, user=self.user).first().user
+        user_profile = user.profile
+        self.assertEqual(user_profile.phone, phone_number)
+        self.assertEqual(user_profile.first_name, first_name)
+        self.assertEqual(user_profile.last_name, last_name)
+
+    @patch('requests.post', auto_spec=True, return_value=MagicMock())
+    def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {'status': 'fail'}
+
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme,
+                                        type=USER_NAME,
+                                        manual_question=True,
+                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'username': 'testbink',
+            'password': 'password'
+
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_request.called)
+
+        resp_json = resp.json()
+        self.assertIn('Error with join', resp_json['message'])
+        self.assertTrue(SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id).status_name == 'Join')
+
+    @patch('intercom.intercom_api.post_intercom_event')
+    def test_update_join_endpoint_with_membership_id(self, mock_post_intercom_event):
+        scheme = SchemeFactory()
+        manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(
+            question=SchemeCredentialQuestionFactory(scheme=scheme,
+                                                     type=PASSWORD,
+                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
+            answer='password',
+            scheme_account=scheme_account
+        )
+
+        data = {
+            'identifier': '0123456',
+            'status': 'success',
+        }
+        resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
+                               **self.auth_service_headers, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json() == {'status': 'success'})
+        self.assertFalse(mock_post_intercom_event.called)
+        manual_answer = SchemeAccountCredentialAnswer.objects.get(question=manual_question,
+                                                                  scheme_account_id=scheme_account.id)
+        self.assertTrue(manual_answer)
+        self.assertEqual(manual_answer.answer, '0123456')
+
+    @patch('intercom.intercom_api.post_intercom_event')
+    def test_update_join_endpoint_with_error(self, mock_post_intercom_event):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(
+            question=SchemeCredentialQuestionFactory(scheme=scheme,
+                                                     type=PASSWORD,
+                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
+            answer='password',
+            scheme_account=scheme_account
+        )
+
+        data = {
+            'identifier': None,
+            'status': 'LoginError',
+        }
+        resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
+                               **self.auth_service_headers, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json() == {'status': 'success'})
+        self.assertTrue(mock_post_intercom_event.called)
+        scheme_account.refresh_from_db()
+        self.assertTrue(scheme_account.status_name == 'Join')
+        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
+        self.assertEqual(len(scheme_account_answers), 0)
 
 
 class TestSchemeAccountModel(APITestCase):
@@ -1047,7 +1191,9 @@ class TestAccessTokens(APITestCase):
     def setUpClass(cls):
         # Scheme Account 3
         cls.scheme_account = SchemeAccountFactory()
-        question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account.scheme)
+        question = SchemeCredentialQuestionFactory(type=CARD_NUMBER,
+                                                   scheme=cls.scheme_account.scheme,
+                                                   options=SchemeCredentialQuestion.LINK)
         cls.scheme = cls.scheme_account.scheme
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
 
@@ -1234,5 +1380,8 @@ class TestExchange(APITestCase):
     @staticmethod
     def create_scheme():
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, scan_question=True)
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER,
+                                        scheme=scheme,
+                                        scan_question=True,
+                                        options=SchemeCredentialQuestion.LINK)
         return scheme

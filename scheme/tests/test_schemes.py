@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER
+from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
 
@@ -22,7 +23,7 @@ class TestSchemeImages(APITestCase):
                                        start_date=timezone.now() - timezone.timedelta(hours=1),
                                        end_date=timezone.now() + timezone.timedelta(hours=1))
 
-        SchemeCredentialQuestionFactory(scheme=cls.image.scheme)
+        SchemeCredentialQuestionFactory(scheme=cls.image.scheme, options=SchemeCredentialQuestion.LINK)
 
         super().setUpClass()
 
@@ -57,21 +58,26 @@ class TestSchemeViews(APITestCase):
         self.assertIn('has_points', response.data[0])
         self.assertIn('has_transactions', response.data[0])
         self.assertIn('link_questions', response.data[0])
+        self.assertIn('join_questions', response.data[0])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
             self.assertTrue(
                 len(row['link_questions']) > 0 or
+                len(row['join_questions']) > 0 or
                 row['manual_question'] is not None or
                 row['scan_question'] is not None)
 
     def test_scheme_item(self):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
-        link_question = SchemeCredentialQuestionFactory.create(scheme=scheme, type=EMAIL)
-        join_question = SchemeCredentialQuestionFactory.create(
-            scheme=scheme, type=CARD_NUMBER, join_question=True, manual_question=True
-        )
+        link_question = SchemeCredentialQuestionFactory.create(scheme=scheme,
+                                                               type=EMAIL,
+                                                               options=SchemeCredentialQuestion.LINK)
+        join_question = SchemeCredentialQuestionFactory.create(scheme=scheme,
+                                                               type=CARD_NUMBER,
+                                                               options=SchemeCredentialQuestion.JOIN,
+                                                               manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
 
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
@@ -120,7 +126,9 @@ class TestSchemeModel(TestCase):
     def test_link_questions(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True)
-        email_question = SchemeCredentialQuestionFactory(type=EMAIL, scheme=scheme)
+        email_question = SchemeCredentialQuestionFactory(type=EMAIL,
+                                                         scheme=scheme,
+                                                         options=SchemeCredentialQuestion.LINK)
 
         link_questions = scheme.link_questions
         self.assertEqual(len(link_questions), 1)
@@ -128,9 +136,14 @@ class TestSchemeModel(TestCase):
 
     def test_join_questions(self):
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True, join_question=True)
+        SchemeCredentialQuestionFactory(type=BARCODE,
+                                        scheme=scheme,
+                                        manual_question=True,
+                                        options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True)
-        email_question = SchemeCredentialQuestionFactory(type=EMAIL, scheme=scheme, join_question=True)
+        email_question = SchemeCredentialQuestionFactory(type=EMAIL,
+                                                         scheme=scheme,
+                                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         join_questions = scheme.join_questions
         self.assertEqual(len(join_questions), 2)

@@ -8,6 +8,7 @@ from django.conf import settings
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
 ISSUED_JOIN_CARD_EVENT = 'issued-join-card'
 MY360_APP_EVENT = 'my360-app-event'
+JOIN_FAILED_EVENT = 'join-failed-event'
 
 
 class IntercomException(Exception):

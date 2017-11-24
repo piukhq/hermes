@@ -25,7 +25,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'join_question')
+        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'options')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
@@ -71,7 +71,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=250, required=False)
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
-    phone_number = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
@@ -356,14 +356,20 @@ class JoinSerializer(SchemeAnswerSerializer):
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
-        # Validate all join questions
+        # Validate scheme join questions
         scheme_join_question_types = [question.type for question in scheme.join_questions]
         if not scheme_join_question_types:
-            raise serializers.ValidationError('No join questions found for scheme: {}'.format(scheme.slug))
+            raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
 
+        # Validate all link questions are included in the join questions
+        scheme_link_question_types = [question.type for question in scheme.link_questions]
+        if not set(scheme_link_question_types).issubset(scheme_join_question_types):
+            raise serializers.ValidationError("Please convert all \"Link\" only credential questions "
+                                              "to \"Join & Link\" for scheme: {}".format(scheme))
+
+        # Validate request join questions
         request_join_question_types = data.keys()
         data['credentials'] = {}
-
         for question in scheme_join_question_types:
             if question not in request_join_question_types:
                 self.raise_missing_field_error(question)

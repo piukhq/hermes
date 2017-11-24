@@ -121,11 +121,11 @@ class Scheme(models.Model):
 
     @property
     def join_questions(self):
-        return self.questions.filter(join_question=True)
+        return self.questions.filter(options=F('options').bitor(1 << 1))
 
     @property
     def link_questions(self):
-        return self.questions.exclude(scan_question=True).exclude(manual_question=True)
+        return self.questions.filter(options=F('options').bitor(1 << 0))
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
@@ -203,7 +203,7 @@ class SchemeAccount(models.Model):
     WALLET_ONLY = 10
     PASSWORD_EXPIRED = 533
     JOIN = 900
-    JOIN_FAILED = 901
+    NO_SUCH_RECORD = 444
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -222,12 +222,12 @@ class SchemeAccount(models.Model):
         (AGENT_NOT_FOUND, 'Agent does not exist on midas', 'AGENT_NOT_FOUND'),
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
-        (JOIN_FAILED, 'Join failed', 'JOIN_FAILED')
+        (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, JOIN_FAILED]
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -274,7 +274,9 @@ class SchemeAccount(models.Model):
 
         A scan or manual question is an optional if one of the other exists
         """
-        required_credentials = {question.type for question in self.scheme.questions.all()}
+        required_credentials = {
+            question.type for question in self.scheme.questions.exclude(options=SchemeCredentialQuestion.JOIN)
+        }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
@@ -476,6 +478,18 @@ class SchemeAccount(models.Model):
 
 
 class SchemeCredentialQuestion(models.Model):
+    NONE = 0
+    LINK = 1 << 0
+    JOIN = 1 << 1
+    LINK_AND_JOIN = (1 << 0 | 1 << 1)
+
+    OPTIONS = (
+        (0, 'None'),
+        (LINK, 'Join'),
+        (JOIN, 'Link'),
+        (LINK | JOIN, 'Join & Link'),
+    )
+
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
@@ -485,7 +499,7 @@ class SchemeCredentialQuestion(models.Model):
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
-    join_question = models.BooleanField(default=False)
+    options = models.IntegerField(choices=OPTIONS, default=NONE)
 
     class Meta:
         ordering = ['order']
