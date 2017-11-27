@@ -43,7 +43,7 @@ class Image(models.Model):
     end_date = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     all_objects = models.Manager()
-    reward_tier = models.CharField(max_length=50, blank=True)
+    reward_tier = models.IntegerField(blank=True, default=0)
 
     def image_type_code_name(self):
         return dict(self.TYPES)[self.image_type_code]
