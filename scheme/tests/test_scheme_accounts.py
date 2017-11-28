@@ -1071,8 +1071,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(manual_answer)
         self.assertEqual(manual_answer.answer, '0123456')
 
+    @patch('scheme.views.sentry.captureException', auto_spec=True)
     @patch('intercom.intercom_api.post_intercom_event')
-    def test_update_join_endpoint_with_error(self, mock_post_intercom_event):
+    def test_update_join_endpoint_with_error(self, mock_post_intercom_event, mock_sentry_call):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
 
@@ -1098,6 +1099,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(scheme_account.status_name == 'Join')
         scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
         self.assertEqual(len(scheme_account_answers), 0)
+        self.assertTrue(mock_sentry_call.called)
 
 
 class TestSchemeAccountModel(APITestCase):

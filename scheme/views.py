@@ -303,7 +303,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         try:
             scheme_slugs = self.get_my360_schemes(credential_value) if scheme_obj.slug == 'my360' else None
             error = None
-        except:
+        except Exception:
             error = Response(
                         {'code': 400, 'message': 'Error getting schemes from My360'},
                         status=status.HTTP_400_BAD_REQUEST
@@ -353,7 +353,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             try:
                 scheme_id = Scheme.objects.get(slug=scheme).id
 
-            except:
+            except Exception:
                 sentry.captureException()
                 continue
 
@@ -401,7 +401,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
         try:
             scheme_account.delete()
             return None
-        except:
+        except Exception:
             sentry.captureException()
 
     @staticmethod
@@ -757,7 +757,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         for question, answer in credentials.items():
             try:
                 setattr(user.profile, question, answer)
-            except:
+            except Exception:
                 continue
         user.profile.save()
 
@@ -835,6 +835,6 @@ class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
             pass
 
         try:
-            raise(RuntimeError('Join error, error raised during join was: ').format(error))
-        except:
+            raise(RuntimeError('Join error, error raised during join was: {}'.format(error)))
+        except RuntimeError:
             sentry.captureException()
