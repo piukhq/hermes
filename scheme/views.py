@@ -715,6 +715,8 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 status=status.HTTP_201_CREATED,
             )
         except Exception:
+            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+            [answer.delete() for answer in scheme_account_answers]
             scheme_account.status = SchemeAccount.JOIN
             scheme_account.save()
             sentry.captureException()
