@@ -15,11 +15,11 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='paymentcardaccountimage',
             name='reward_tier',
-            field=models.IntegerField(blank=True, default=0),
+            field=models.IntegerField(default=0),
         ),
         migrations.AddField(
             model_name='paymentcardimage',
             name='reward_tier',
-            field=models.IntegerField(blank=True, default=0),
+            field=models.IntegerField(default=0),
         ),
     ]
