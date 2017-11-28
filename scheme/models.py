@@ -485,9 +485,9 @@ class SchemeCredentialQuestion(models.Model):
 
     OPTIONS = (
         (0, 'None'),
-        (LINK, 'Join'),
-        (JOIN, 'Link'),
-        (LINK | JOIN, 'Join & Link'),
+        (LINK, 'Link'),
+        (JOIN, 'Join'),
+        (LINK | JOIN, 'Link & Join'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)

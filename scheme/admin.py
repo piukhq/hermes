@@ -135,7 +135,7 @@ class ExchangeAdmin(admin.ModelAdmin):
                 queryset |= self.model.objects.filter(donor_scheme__name__contains=search_term.replace("donor:", ""))
 
             return queryset, use_distinct
-        except:
+        except Exception:
             return queryset, use_distinct
 
 
