@@ -946,7 +946,7 @@ class TestSchemeAccountViews(APITestCase):
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_create_scheme_account(self, mock_request):
         mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {'status': 'success'}
+        mock_request.return_value.json.return_value = {'message': 'success'}
 
         scheme = SchemeFactory()
         link_question = SchemeCredentialQuestionFactory(scheme=scheme,
@@ -978,7 +978,7 @@ class TestSchemeAccountViews(APITestCase):
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_saves_user_profile(self, mock_request):
         mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {'status': 'success'}
+        mock_request.return_value.json.return_value = {'message': 'success'}
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
@@ -1019,7 +1019,7 @@ class TestSchemeAccountViews(APITestCase):
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
         mock_request.return_value.status_code = 200
-        mock_request.return_value.json.return_value = {'status': 'fail'}
+        mock_request.return_value.json.return_value = {'message': 'fail'}
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme,
@@ -1041,7 +1041,10 @@ class TestSchemeAccountViews(APITestCase):
 
         resp_json = resp.json()
         self.assertIn('Error with join', resp_json['message'])
-        self.assertTrue(SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id).status_name == 'Join')
+        scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
+        self.assertTrue(scheme_account.status_name == 'Join')
+        with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
+            SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
 
     @patch('intercom.intercom_api.post_intercom_event')
     def test_update_join_endpoint_with_membership_id(self, mock_post_intercom_event):
@@ -1059,12 +1062,12 @@ class TestSchemeAccountViews(APITestCase):
 
         data = {
             'identifier': '0123456',
-            'status': 'success',
+            'message': 'success',
         }
         resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json() == {'status': 'success'})
+        self.assertTrue(resp.json() == {'message': 'success'})
         self.assertFalse(mock_post_intercom_event.called)
         manual_answer = SchemeAccountCredentialAnswer.objects.get(question=manual_question,
                                                                   scheme_account_id=scheme_account.id)
@@ -1088,12 +1091,12 @@ class TestSchemeAccountViews(APITestCase):
 
         data = {
             'identifier': None,
-            'status': 'LoginError',
+            'message': 'LoginError',
         }
         resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json() == {'status': 'success'})
+        self.assertTrue(resp.json() == {'message': 'success'})
         self.assertTrue(mock_post_intercom_event.called)
         scheme_account.refresh_from_db()
         self.assertTrue(scheme_account.status_name == 'Join')

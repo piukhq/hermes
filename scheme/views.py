@@ -698,7 +698,6 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
-
         scheme_account = self.create_join_account(data, request.user, scheme_id)
         try:
             data['id'] = scheme_account.id
@@ -715,6 +714,8 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 status=status.HTTP_201_CREATED,
             )
         except Exception:
+            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+            [answer.delete() for answer in scheme_account_answers]
             scheme_account.status = SchemeAccount.JOIN
             scheme_account.save()
             sentry.captureException()
@@ -779,9 +780,10 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
                                  json=data, headers=headers)
 
-        if not response.json().get('status') == "success":
+        message = response.json().get('message')
+        if not message == "success":
             raise RequestException(
-                'Error creating join task in Midas. Response message :{}'.format(response['status'])
+                'Error creating join task in Midas. Response message :{}'.format(message)
             )
 
 
@@ -792,17 +794,17 @@ class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
         """
         Update an existing scheme account paired to a join scheme.
         Adds membership ID to scheme credential answers.
-        In case of error, status account to JOIN and sends intercom message to user.
+        In case of error, set account status to JOIN and sends intercom message to user.
         """
         scheme_account_id = int(self.kwargs['pk'])
         scheme_account = get_object_or_404(SchemeAccount.objects, id=scheme_account_id)
         scheme = scheme_account.scheme
         if not request.data['identifier'] or request.data['identifier'] == 'None':
-            self.update_scheme_account_and_notify_user(scheme_account, scheme.name, request.data['status'])
+            self.update_scheme_account_and_notify_user(scheme_account, scheme.name, request.data['message'])
         else:
             self.set_membership_id(scheme_account, scheme, request.data['identifier'])
 
-        return Response({'status': 'success'},
+        return Response({'message': 'success'},
                         status=status.HTTP_200_OK)
 
     @staticmethod
