@@ -2,6 +2,7 @@ import csv
 import uuid
 import requests
 import socket
+import json
 
 from requests import RequestException
 from raven.contrib.django.raven_compat.models import client as sentry
@@ -13,6 +14,8 @@ from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+
+from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
@@ -771,9 +774,12 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 scheme_account=scheme_account,
                 answer=credentials_dict[question_type])
 
+        encrypted_credentials = AESCipher(
+            settings.AES_KEY.encode()).encrypt(json.dumps(credentials_dict)).decode('utf-8')
+
         data = {
             'scheme_account_id': scheme_account.id,
-            'credentials': credentials_dict,
+            'credentials': encrypted_credentials,
             'user_id': scheme_account.user.id
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
