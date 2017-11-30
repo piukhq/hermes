@@ -4,7 +4,6 @@ import requests
 import socket
 import json
 
-
 from requests import RequestException
 from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
