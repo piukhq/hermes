@@ -290,7 +290,7 @@ class SchemeAccount(models.Model):
 
     def credentials(self):
         credentials = self._collect_credentials()
-        if self.missing_credentials(credentials.keys()):
+        if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None

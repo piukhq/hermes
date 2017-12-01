@@ -1123,6 +1123,13 @@ class TestSchemeAccountModel(APITestCase):
         self.assertFalse(scheme_account.missing_credentials([BARCODE]))
         self.assertEqual(scheme_account.missing_credentials([]), {BARCODE})
 
+    def test_credential_check_for_pending_scheme_account(self):
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
+        scheme_account.credentials()
+        # We expect pending scheme accounts to be missing manual question
+        self.assertNotEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
+
     def test_card_label_from_regex(self):
         scheme = SchemeFactory(card_number_regex='^[0-9]{3}([0-9]+)', card_number_prefix='98263000')
         scheme_account = SchemeAccountFactory(scheme=scheme)
