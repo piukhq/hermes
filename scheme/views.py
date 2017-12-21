@@ -26,7 +26,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer)
+                                QuerySchemeAccountSerializer, JoinSerializer, AsyncSchemeAccountHandlerSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -793,22 +793,32 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             )
 
 
-class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
+class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
+    override_serializer_classes = {
+        'PUT': AsyncSchemeAccountHandlerSerializer,
+    }
     authentication_classes = (ServiceAuthentication,)
 
     def put(self, request, *args, **kwargs):
         """
-        Update an existing scheme account paired to a join scheme.
-        Adds membership ID to scheme credential answers.
-        In case of error, set account status to JOIN and sends intercom message to user.
+        Update an existing scheme account which was pending results from an asynchronous call.
+        Adds or updates membership ID to scheme credential answers if in request.
+        In case of error, set account status to JOIN or WALLET_ONLY (depending on original request)
+        and sends intercom message to user.
         """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
         scheme_account_id = int(self.kwargs['pk'])
         scheme_account = get_object_or_404(SchemeAccount.objects, id=scheme_account_id)
         scheme = scheme_account.scheme
-        if not request.data['identifier'] or request.data['identifier'] == 'None':
-            self.update_scheme_account_and_notify_user(scheme_account, scheme.name, request.data['message'])
+
+        if not data['identifier'] or data['identifier'] == 'None':
+            self.update_scheme_account_and_notify_user(scheme_account, scheme.name,
+                                                       data['message'], data['request_type'])
         else:
-            self.set_membership_id(scheme_account, scheme, request.data['identifier'])
+            self.set_membership_id(scheme_account, scheme, data['identifier'])
 
         return Response({'message': 'success'},
                         status=status.HTTP_200_OK)
@@ -823,11 +833,18 @@ class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
             answer=answer
         )
 
-    def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error):
+    def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error, request_type):
         scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
         [answer.delete() for answer in scheme_account_answers]
 
-        scheme_account.status = SchemeAccount.JOIN
+        if request_type == "join":
+            new_status = SchemeAccount.JOIN
+            intercom_event = intercom_api.JOIN_FAILED_EVENT
+        elif request_type == "link":
+            new_status = SchemeAccount.WALLET_ONLY
+            intercom_event = intercom_api.ASYNC_LINK_FAILED_EVENT
+
+        scheme_account.status = new_status
         scheme_account.save()
         try:
             metadata = {
@@ -836,13 +853,13 @@ class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
             intercom_api.post_intercom_event(
                 settings.INTERCOM_TOKEN,
                 self.request.user.uid,
-                intercom_api.JOIN_FAILED_EVENT,
+                intercom_event,
                 metadata
             )
         except intercom_api.IntercomException:
             pass
 
         try:
-            raise(RuntimeError('Join error, error raised during join was: {}'.format(error)))
+            raise(RuntimeError('{0} error, error raised during {0} was: {1}'.format(request_type, error)))
         except RuntimeError:
             sentry.captureException()

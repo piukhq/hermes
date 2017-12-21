@@ -381,3 +381,15 @@ class JoinSerializer(SchemeAnswerSerializer):
     @staticmethod
     def raise_missing_field_error(missing_field):
         raise serializers.ValidationError("{} field required".format(missing_field))
+
+
+class AsyncSchemeAccountHandlerSerializer(serializers.Serializer):
+    message = serializers.CharField(required=True)
+    identifier = serializers.CharField(required=True)
+    request_type = serializers.CharField(required=True)
+
+    def validate(self, data):
+        if data['request_type'] not in ['join', 'link']:
+            raise serializers.ValidationError("Invalid request_type")
+
+        return data
