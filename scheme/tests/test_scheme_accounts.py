@@ -1082,9 +1082,11 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             'identifier': '0123456',
             'message': 'success',
+            'request_type': 'join',
         }
-        resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
+        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
+
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json() == {'message': 'success'})
         self.assertFalse(mock_post_intercom_event.called)
@@ -1111,8 +1113,9 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             'identifier': None,
             'message': 'LoginError',
+            'request_type': 'join',
         }
-        resp = self.client.put('/schemes/accounts/{}/join'.format(scheme_account.id),
+        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json() == {'message': 'success'})
