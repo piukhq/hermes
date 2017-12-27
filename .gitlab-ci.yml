@@ -1,6 +1,6 @@
 stages:
   - tests
-  - deploy
+  - build
 
 tests:
   stage: tests
@@ -27,44 +27,17 @@ flake8:
   tags:
     - docker
 
-deploy-dev:
-  stage: deploy
+build-master:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build -t olympus.azurecr.io/hermes:latest .
-    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
-    - docker push olympus.azurecr.io/hermes:latest
-    - docker rmi olympus.azurecr.io/hermes:latest
-    - docker logout olympus.azurecr.io
-  environment: dev
+    - docker build --pull -t "$CI_REGISTRY/hermes:latest" .
+    - docker push "$CI_REGISTRY/hermes:latest"
   only:
     - master
   tags:
-    - shell
-
-deploy-staging:
-  stage: deploy
-  script:
-    - docker build -t olympus.azurecr.io/hermes:staging .
-    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
-    - docker push olympus.azurecr.io/hermes:staging
-    - docker rmi olympus.azurecr.io/hermes:staging
-    - docker logout olympus.azurecr.io
-  environment: staging
-  only:
-    - staging
-  tags:
-    - shell
-
-deploy-production:
-  stage: deploy
-  script:
-    - docker build -t olympus.azurecr.io/hermes:production .
-    - docker login olympus.azurecr.io -u $AZURE_LOGIN -p $AZURE_PASS
-    - docker push olympus.azurecr.io/hermes:production
-    - docker rmi olympus.azurecr.io/hermes:production
-    - docker logout olympus.azurecr.io
-  environment: production
-  only:
-    - production
-  tags:
-    - shell
+    - docker
