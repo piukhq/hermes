@@ -1097,7 +1097,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('scheme.views.sentry.captureException', auto_spec=True)
     @patch('intercom.intercom_api.post_intercom_event')
-    def test_update_join_endpoint_with_error(self, mock_post_intercom_event, mock_sentry_call):
+    def test_update_join_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
 
@@ -1120,8 +1120,41 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.json() == {'message': 'success'})
         self.assertTrue(mock_post_intercom_event.called)
+        self.assertTrue('join-failed-event' in mock_post_intercom_event.call_args[0])
         scheme_account.refresh_from_db()
-        self.assertTrue(scheme_account.status_name == 'Join')
+        self.assertEqual(scheme_account.status_name, 'Join')
+        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
+        self.assertEqual(len(scheme_account_answers), 0)
+        self.assertTrue(mock_sentry_call.called)
+
+    @patch('scheme.views.sentry.captureException', auto_spec=True)
+    @patch('intercom.intercom_api.post_intercom_event')
+    def test_update_async_link_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        SchemeCredentialAnswerFactory(
+            question=SchemeCredentialQuestionFactory(scheme=scheme,
+                                                     type=PASSWORD,
+                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
+            answer='password',
+            scheme_account=scheme_account
+        )
+
+        data = {
+            'identifier': None,
+            'message': 'LoginError',
+            'request_type': 'link',
+        }
+        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
+                               **self.auth_service_headers, data=data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.json() == {'message': 'success'})
+        self.assertTrue(mock_post_intercom_event.called)
+        self.assertTrue('async-link-failed-event' in mock_post_intercom_event.call_args[0])
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status_name, 'Wallet only card')
         scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
         self.assertEqual(len(scheme_account_answers), 0)
         self.assertTrue(mock_sentry_call.called)
