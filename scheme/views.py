@@ -834,13 +834,18 @@ class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
         )
 
     def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error, request_type):
-        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        [answer.delete() for answer in scheme_account_answers]
-
         if request_type == "join":
+            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+            [answer.delete() for answer in scheme_account_answers]
             new_status = SchemeAccount.JOIN
             intercom_event = intercom_api.JOIN_FAILED_EVENT
         elif request_type == "link":
+            link_answers = []
+            for question in scheme_account.scheme.link_questions:
+                answer = scheme_account.schemeaccountcredentialanswer_set.filter(question=question)
+                if answer:
+                    link_answers.append(answer)
+            [answer.delete() for answer in link_answers]
             new_status = SchemeAccount.WALLET_ONLY
             intercom_event = intercom_api.ASYNC_LINK_FAILED_EVENT
 
