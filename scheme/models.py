@@ -306,12 +306,14 @@ class SchemeAccount(models.Model):
             response = self._get_balance(credentials)
             self.status = response.status_code
             if response.status_code == 200:
-                if self.status == SchemeAccount.PENDING:
-                    # Pending account's status should only be updated by midas publish.status
+                points = response.json()
+
+                if points.get('pending'):
+                    self.status = SchemeAccount.PENDING
                     pass
                 else:
                     self.status = SchemeAccount.ACTIVE
-                points = response.json()
+
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
         except ConnectionError:
