@@ -855,6 +855,7 @@ class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
         try:
             metadata = {
                 'scheme name': scheme_name,
+                'error': error
             }
             intercom_api.post_intercom_event(
                 settings.INTERCOM_TOKEN,

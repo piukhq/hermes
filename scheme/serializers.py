@@ -385,7 +385,7 @@ class JoinSerializer(SchemeAnswerSerializer):
 
 class AsyncSchemeAccountHandlerSerializer(serializers.Serializer):
     message = serializers.CharField(required=True)
-    identifier = serializers.CharField(required=True)
+    identifier = serializers.CharField(required=True, allow_null=True)
     request_type = serializers.CharField(required=True)
 
     def validate(self, data):
