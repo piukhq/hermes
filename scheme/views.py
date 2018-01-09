@@ -307,6 +307,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             scheme_slugs = self.get_my360_schemes(credential_value) if scheme_obj.slug == 'my360' else None
             error = None
         except Exception:
+            scheme_slugs = []
             error = Response(
                         {'code': 400, 'message': 'Error getting schemes from My360'},
                         status=status.HTTP_400_BAD_REQUEST

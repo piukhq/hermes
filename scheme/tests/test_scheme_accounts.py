@@ -785,6 +785,25 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_1.id)), 0)
         self.assertEqual(len(SchemeAccount.objects.filter(order='788', scheme_id=scheme_2.id)), 0)
 
+    @patch.object(CreateMy360AccountsAndLink,
+                  'get_my360_schemes',
+                  side_effect=ValueError('Invalid response from My360 while getting a cards scheme list'))
+    def test_my360_handles_errors_from_get_scheme_slugs_correctly(self, mock_get_schemes):
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
+
+        data = {
+            BARCODE: '00000000000000000000000',
+            'scheme': scheme_0.id,
+            'order': 1
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+        expected_response_json = {'code': 400, 'message': 'Error getting schemes from My360'}
+
+        self.assertTrue(mock_get_schemes.called)
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), expected_response_json)
+
     @patch('intercom.intercom_api.post_intercom_event')
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
