@@ -836,7 +836,7 @@ class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
             }
             intercom_api.post_intercom_event(
                 settings.INTERCOM_TOKEN,
-                self.request.user.uid,
+                scheme_account.user.uid,
                 intercom_api.JOIN_FAILED_EVENT,
                 metadata
             )
