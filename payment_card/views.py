@@ -175,7 +175,7 @@ class ListCreatePaymentCardAccount(APIView):
     # @staticmethod
     # def supercede_old_card(account, old_account, user):
     #     # if the clients are the same but the users don't match, reject the card.
-    #     if old_account.user != user and old_account.user.client == user.client:
+    #     if old_account.user != user and old_account.user.clients == user.clients:
     #         return Response({'error': 'Fingerprint is already in use by another user.',
     #                          'code': '403'}, status=status.HTTP_403_FORBIDDEN)
     #
@@ -190,7 +190,7 @@ class ListCreatePaymentCardAccount(APIView):
     #         account.save()
     #
     #         # only delete the old card if it's on the same app
-    #         if old_account.user.client == user.client:
+    #         if old_account.user.clients == user.clients:
     #             old_account.is_deleted = True
     #             old_account.save()
     #
@@ -201,50 +201,70 @@ class ListCreatePaymentCardAccount(APIView):
         if serializer.is_valid():
             data = serializer.validated_data
             data['user'] = request.user
+            data['client'] = request.user.client
 
-            account = PaymentCardAccount(**data)
-            result = self.create_payment_card_account(account, request.user)
+            # account = PaymentCardAccount(**data)
+            result = self.create_payment_card_account(data, request.user)
 
             if not isinstance(result, PaymentCardAccount):
                 return result
 
-            self.apply_barclays_images(account)
+            self.apply_barclays_images(result)
 
             try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
+                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, result)
             except intercom_api.IntercomException:
                 sentry.captureException()
 
-            response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
+            response_serializer = serializers.PaymentCardAccountSerializer(instance=result)
             return Response(response_serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def create_payment_card_account(account, user):
-        old_account = PaymentCardAccount.all_objects.filter(fingerprint=account.fingerprint).order_by(
-            '-created').first()
+    def create_payment_card_account(account_data, user):
+        old_account = PaymentCardAccount.all_objects.filter(fingerprint=account_data['fingerprint']).order_by('-created').first()
+        if old_account:
+            return ListCreatePaymentCardAccount.supercede_old_account(account_data, old_account, user)
 
-        if old_account.exists():
-            return ListCreatePaymentCardAccount.supercede_old_account(account, old_account, user)
-
+        client = account_data.pop('clients')
+        account = PaymentCardAccount(**account_data)
         account.save()
+        account.clients.add(client)
         metis.enrol_new_payment_card(account)
 
         return account
 
     @staticmethod
-    def supercede_old_account(account, old_account, user):
+    def supercede_old_account(new_account_data, old_account, user):
+        # TODO:possible multiple clients with same PAN? will require new clients many to many field in PaymentCardAccount
 
-        account.token = old_account.token
-        account.psp_token = old_account.psp_token
+        if old_account.user != user and old_account.user.client == user.client:
+            return Response({'error': 'Fingerprint is already in use by another user.',
+                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
-        old_account.is_deleted = True
+        # # copy the tokens from the previous new_account_data
+        # new_account_data.token = old_account.token
+        # new_account_data.psp_token = old_account.psp_token
 
-        old_account.save()
-        account.save()
+        client = new_account_data.pop('client')
 
-        return
+        # to keep the old psp_token
+        new_account_data.pop('psp_token')
+
+        if client not in old_account.clients.all():
+            old_account.clients.add(client)
+            old_account.save()
+
+        PaymentCardAccount.objects.filter(fingerprint=old_account.fingerprint).update(**new_account_data)
+
+        if old_account.is_deleted:
+            # TODO: Separate actions for enrollment of existing payment cards for each provider.
+            new_account_data.save()
+            # separate enrollment processes for already 'deleted' cards based on provider
+            metis.enrol_existing_payment_card(new_account_data, new_account_data.payment_card.name)
+
+        return old_account
 
 
     @staticmethod

@@ -6,6 +6,7 @@ import base64
 import uuid
 
 from common.models import Image
+from user.models import BINK_APP_ID
 
 
 class Issuer(models.Model):
@@ -160,6 +161,8 @@ class PaymentCardAccount(models.Model):
     issuer = models.ForeignKey(Issuer)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+
+    clients = models.ManyToManyField('user.ClientApplication', default=BINK_APP_ID, blank=True)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
