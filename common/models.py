@@ -18,6 +18,7 @@ class Image(models.Model):
     REFERENCE = 5
     PERSONAL_OFFERS = 6
     PROMOTIONS = 7
+    TIER = 8
 
     TYPES = (
         (HERO, 'hero'),
@@ -27,7 +28,8 @@ class Image(models.Model):
         (ASSET, 'asset'),
         (REFERENCE, 'reference'),
         (PERSONAL_OFFERS, 'personal offers'),
-        (PROMOTIONS, 'promotions')
+        (PROMOTIONS, 'promotions'),
+        (TIER, 'tier')
     )
 
     image_type_code = models.IntegerField(choices=TYPES)
