@@ -162,7 +162,7 @@ class PaymentCardAccount(models.Model):
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
 
-    clients = models.ManyToManyField('user.ClientApplication', default=BINK_APP_ID, blank=True)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()

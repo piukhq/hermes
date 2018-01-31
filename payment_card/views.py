@@ -14,8 +14,6 @@ from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import requests
-import arrow
 from intercom import intercom_api
 
 from payment_card.forms import CSVUploadForm
@@ -88,14 +86,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         instance.is_deleted = True
         instance.save()
 
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
-            'payment_token': instance.psp_token,
-            'card_token': instance.token,
-            'partner_slug': instance.payment_card.slug,
-            'id': instance.id,
-            'date': arrow.get(instance.created).timestamp}, headers={
-                'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                'Content-Type': 'application/json'})
+        metis.delete_payment_card(instance)
 
         try:
             intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
@@ -203,8 +194,8 @@ class ListCreatePaymentCardAccount(APIView):
             data['user'] = request.user
             data['client'] = request.user.client
 
-            # account = PaymentCardAccount(**data)
-            result = self.create_payment_card_account(data, request.user)
+            account = PaymentCardAccount(**data)
+            result = self.create_payment_card_account(account, request.user)
 
             if not isinstance(result, PaymentCardAccount):
                 return result
@@ -222,50 +213,42 @@ class ListCreatePaymentCardAccount(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def create_payment_card_account(account_data, user):
-        old_account = PaymentCardAccount.all_objects.filter(fingerprint=account_data['fingerprint']).order_by('-created').first()
+    def create_payment_card_account(account, user):
+        old_account = PaymentCardAccount.all_objects.filter(fingerprint=account.fingerprint).order_by('-created').first()
         if old_account:
-            return ListCreatePaymentCardAccount.supercede_old_account(account_data, old_account, user)
+            return ListCreatePaymentCardAccount.supercede_old_account(account, old_account, user)
 
-        client = account_data.pop('clients')
-        account = PaymentCardAccount(**account_data)
         account.save()
-        account.clients.add(client)
         metis.enrol_new_payment_card(account)
 
         return account
 
     @staticmethod
-    def supercede_old_account(new_account_data, old_account, user):
-        # TODO:possible multiple clients with same PAN? will require new clients many to many field in PaymentCardAccount
+    def supercede_old_account(new_account, old_account, user):
+        # TODO:possible multiple clients with same PAN? only delete old account if it is same client
 
         if old_account.user != user and old_account.user.client == user.client:
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
-        # # copy the tokens from the previous new_account_data
-        # new_account_data.token = old_account.token
-        # new_account_data.psp_token = old_account.psp_token
-
-        client = new_account_data.pop('client')
-
-        # to keep the old psp_token
-        new_account_data.pop('psp_token')
-
-        if client not in old_account.clients.all():
-            old_account.clients.add(client)
-            old_account.save()
-
-        PaymentCardAccount.objects.filter(fingerprint=old_account.fingerprint).update(**new_account_data)
+        # copy the tokens from the previous account
+        new_account.token = old_account.token
+        new_account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
             # TODO: Separate actions for enrollment of existing payment cards for each provider.
-            new_account_data.save()
             # separate enrollment processes for already 'deleted' cards based on provider
-            metis.enrol_existing_payment_card(new_account_data, new_account_data.payment_card.name)
+            metis.enrol_existing_payment_card(new_account, new_account.payment_card.name)
 
-        return old_account
+        else:
+            new_account.status = old_account.status
 
+            if user.client == old_account.client:
+                old_account.is_deleted = True
+                old_account.save()
+
+        new_account.save()
+        return new_account
 
     @staticmethod
     def apply_barclays_images(account):
