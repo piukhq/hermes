@@ -278,7 +278,7 @@ def get_images_for_scheme_account(scheme_account):
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
 
-        if not account_image or image.image_type_code == 8:
+        if not account_image or image.image_type_code == image.TIER:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
                 id=image.id,
@@ -296,7 +296,7 @@ def get_images_for_scheme_account(scheme_account):
 
             # for images with image_type_code of 8 meaning TIER type images we have to set their object_type field as
             # scheme_account_images for the frontend logic to work.
-            object_type = 'scheme_account_image' if image.image_type_code == 8 else 'scheme_image'
+            object_type = 'scheme_account_image' if image.image_type_code == image.TIER else 'scheme_image'
 
             serializer = SchemeAccountImageSerializer(account_image)
             images.append(add_object_type_to_image_response(serializer.data, object_type))
