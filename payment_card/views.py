@@ -214,8 +214,14 @@ class ListCreatePaymentCardAccount(APIView):
 
     @staticmethod
     def create_payment_card_account(account, user):
+        # check if an account with the same fingerprint already exists
         old_account = PaymentCardAccount.all_objects.filter(fingerprint=account.fingerprint).order_by('-created').first()
         if old_account:
+            # get the latest account from the same client if it exists
+            _old_account = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
+                                                             client=user.client.pk).order_by('-created').first()
+            if _old_account:
+                old_account = _old_account
             return ListCreatePaymentCardAccount.supercede_old_account(account, old_account, user)
 
         account.save()
