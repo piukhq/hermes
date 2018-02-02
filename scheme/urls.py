@@ -70,7 +70,11 @@ urlpatterns = [
         views.Join.as_view(),
         name='create_join_scheme_account'),
 
-    url(r'^/accounts/(?P<pk>[0-9]+)/async',
-        views.AsyncSchemeAccountHandler.as_view(),
-        name='update_async_scheme_account'),
+    url(r'^/accounts/(?P<pk>[0-9]+)/async_join',
+        views.AsyncJoinHandler.as_view(),
+        name='async_join_accounts'),
+
+    url(r'^/accounts/(?P<pk>[0-9]+)/async_link',
+        views.AsyncLinkHandler.as_view(),
+        name='async_link_accounts'),
 ]

@@ -800,29 +800,14 @@ class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
     }
     authentication_classes = (ServiceAuthentication,)
 
-    def put(self, request, *args, **kwargs):
-        """
-        Update an existing scheme account which was pending results from an asynchronous call.
-        Adds or updates membership ID to scheme credential answers if in request.
-        In case of error, set account status to JOIN or WALLET_ONLY (depending on original request)
-        and sends intercom message to user.
-        """
+    def serialize_request_data(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        self.scheme_account_id = int(self.kwargs['pk'])
+        self.scheme_account = get_object_or_404(SchemeAccount.objects, id=self.scheme_account_id)
+        self.scheme = self.scheme_account.scheme
 
-        scheme_account_id = int(self.kwargs['pk'])
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=scheme_account_id)
-        scheme = scheme_account.scheme
-
-        if not data['identifier'] or data['identifier'] == 'None':
-            self.update_scheme_account_and_notify_user(scheme_account, scheme.name,
-                                                       data['message'], data['request_type'])
-        else:
-            self.set_membership_id(scheme_account, scheme, data['identifier'])
-
-        return Response({'message': 'success'},
-                        status=status.HTTP_200_OK)
+        return request.data
 
     @staticmethod
     def set_membership_id(scheme_account, scheme, answer):
@@ -834,23 +819,8 @@ class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
             answer=answer
         )
 
-    def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error, request_type):
-        if request_type == "join":
-            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-            [answer.delete() for answer in scheme_account_answers]
-            new_status = SchemeAccount.JOIN
-            intercom_event = intercom_api.JOIN_FAILED_EVENT
-        elif request_type == "link":
-            link_answers = []
-            for question in scheme_account.scheme.link_questions:
-                answer = scheme_account.schemeaccountcredentialanswer_set.filter(question=question)
-                if answer:
-                    link_answers.append(answer)
-            [answer.delete() for answer in link_answers]
-            new_status = SchemeAccount.WALLET_ONLY
-            intercom_event = intercom_api.ASYNC_LINK_FAILED_EVENT
-
-        scheme_account.status = new_status
+    def update_scheme_account_and_notify_user(self, scheme_account, updated_status, scheme_name, error, intercom_event):
+        scheme_account.status = updated_status
         scheme_account.save()
         try:
             metadata = {
@@ -867,6 +837,61 @@ class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
             pass
 
         try:
-            raise(RuntimeError('{0} error, error raised during {0} was: {1}'.format(request_type, error)))
+            raise RuntimeError(error)
         except RuntimeError:
             sentry.captureException()
+
+
+class AsyncLinkHandler(AsyncSchemeAccountHandler):
+
+    def put(self, request, *args, **kwargs):
+        """
+        Update an existing scheme account that is linking asynchronously.
+        On error, return card to a wallet only status and remove link questions.
+        """
+        data = self.serialize_request_data(request)
+
+        self.remove_link_answers(self.scheme_account)
+        error = 'Error raised during asynchronous link: {}'.format(data['message'])
+        updated_status = SchemeAccount.WALLET_ONLY
+        self.update_scheme_account_and_notify_user(self.scheme_account, updated_status, self.scheme.name, error,
+                                                   intercom_api.ASYNC_LINK_FAILED_EVENT)
+
+        return Response({'message': 'success'}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def remove_link_answers(scheme_account):
+        link_answers = []
+        for question in scheme_account.scheme.link_questions:
+            answer = scheme_account.schemeaccountcredentialanswer_set.filter(question=question)
+            if answer:
+                link_answers.append(answer)
+        [answer.delete() for answer in link_answers]
+
+
+class AsyncJoinHandler(AsyncSchemeAccountHandler):
+
+    def put(self, request, *args, **kwargs):
+        """
+        Update an existing scheme account that is joining asynchronously.
+        Adds membership ID to scheme credential answers.
+        In case of error, set account status to JOIN and sends intercom message to user.
+        """
+        data = self.serialize_request_data(request)
+        identifier = data.get('identifier')
+
+        if not identifier or identifier == 'None':
+            self.remove_all_credential_answers(self.scheme_account)
+            error = 'Error raised during asynchronous join: {}'.format(data['message'])
+            updated_status = SchemeAccount.JOIN
+            self.update_scheme_account_and_notify_user(self.scheme_account, updated_status, self.scheme.name, error,
+                                                       intercom_api.JOIN_FAILED_EVENT)
+        else:
+            self.set_membership_id(self.scheme_account, self.scheme, data['identifier'])
+
+        return Response({'message': 'success'}, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def remove_all_credential_answers(scheme_account):
+        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+        [answer.delete() for answer in scheme_account_answers]

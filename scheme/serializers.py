@@ -385,11 +385,4 @@ class JoinSerializer(SchemeAnswerSerializer):
 
 class AsyncSchemeAccountHandlerSerializer(serializers.Serializer):
     message = serializers.CharField(required=True)
-    identifier = serializers.CharField(required=True, allow_null=True)
-    request_type = serializers.CharField(required=True)
-
-    def validate(self, data):
-        if data['request_type'] not in ['join', 'link']:
-            raise serializers.ValidationError("Invalid request_type")
-
-        return data
+    identifier = serializers.CharField(required=False, allow_null=True)

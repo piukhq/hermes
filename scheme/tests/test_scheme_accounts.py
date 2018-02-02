@@ -1061,7 +1061,7 @@ class TestSchemeAccountViews(APITestCase):
         resp_json = resp.json()
         self.assertIn('Error with join', resp_json['message'])
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
-        self.assertTrue(scheme_account.status_name == 'Join')
+        self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
 
@@ -1082,13 +1082,13 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             'identifier': '0123456',
             'message': 'success',
-            'request_type': 'join',
         }
-        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
+
+        resp = self.client.put('/schemes/accounts/{}/async_join'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
 
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json() == {'message': 'success'})
+        self.assertEqual(resp.json(), {'message': 'success'})
         self.assertFalse(mock_post_intercom_event.called)
         manual_answer = SchemeAccountCredentialAnswer.objects.get(question=manual_question,
                                                                   scheme_account_id=scheme_account.id)
@@ -1100,25 +1100,25 @@ class TestSchemeAccountViews(APITestCase):
     def test_update_join_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD,
+                                                             options=SchemeCredentialQuestion.LINK_AND_JOIN),
 
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(
-            question=SchemeCredentialQuestionFactory(scheme=scheme,
-                                                     type=PASSWORD,
-                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
-            answer='password',
-            scheme_account=scheme_account
-        )
+        SchemeCredentialAnswerFactory(question=scheme.manual_question, scheme_account=scheme_account)
+        SchemeCredentialAnswerFactory(question=secondary_question[0], scheme_account=scheme_account)
+
+        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
+        self.assertEqual(len(scheme_account_answers), 2)
 
         data = {
             'identifier': None,
             'message': 'LoginError',
-            'request_type': 'join',
         }
-        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
+        resp = self.client.put('/schemes/accounts/{}/async_join'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
+
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json() == {'message': 'success'})
+        self.assertEqual(resp.json(), {'message': 'success'})
         self.assertTrue(mock_post_intercom_event.called)
         self.assertTrue('join-failed-event' in mock_post_intercom_event.call_args[0])
         scheme_account.refresh_from_db()
@@ -1131,32 +1131,32 @@ class TestSchemeAccountViews(APITestCase):
     @patch('intercom.intercom_api.post_intercom_event')
     def test_update_async_link_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
         scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+        manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD,
+                                                             options=SchemeCredentialQuestion.LINK_AND_JOIN),
 
         scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(
-            question=SchemeCredentialQuestionFactory(scheme=scheme,
-                                                     type=PASSWORD,
-                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
-            answer='password',
-            scheme_account=scheme_account
-        )
+        SchemeCredentialAnswerFactory(question=scheme.manual_question, scheme_account=scheme_account)
+        SchemeCredentialAnswerFactory(question=secondary_question[0], scheme_account=scheme_account)
+
+        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
+        self.assertEqual(len(scheme_account_answers), 2)
 
         data = {
-            'identifier': None,
             'message': 'LoginError',
-            'request_type': 'link',
         }
-        resp = self.client.put('/schemes/accounts/{}/async'.format(scheme_account.id),
+        resp = self.client.put('/schemes/accounts/{}/async_link'.format(scheme_account.id),
                                **self.auth_service_headers, data=data)
+
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.json() == {'message': 'success'})
+        self.assertEqual(resp.json(), {'message': 'success'})
         self.assertTrue(mock_post_intercom_event.called)
         self.assertTrue('async-link-failed-event' in mock_post_intercom_event.call_args[0])
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status_name, 'Wallet only card')
         scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
-        self.assertEqual(len(scheme_account_answers), 0)
+        self.assertEqual(len(scheme_account_answers), 1)
+        self.assertEqual(scheme_account_answers[0].question, manual_question)
         self.assertTrue(mock_sentry_call.called)
 
 
