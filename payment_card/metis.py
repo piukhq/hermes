@@ -12,7 +12,9 @@ def _generate_card_json(account):
         'card_token': account.token,
         'partner_slug': account.payment_card.slug,
         'id': account.id,
-        'date': arrow.get(account.created).timestamp
+        'date': arrow.get(account.created).timestamp,
+        # TODO: Remove fingerprint from here and in the draft metis changes
+        'fingerprint': account.fingerprint
     }
 
 
@@ -23,11 +25,17 @@ def enrol_new_payment_card(account):
                            'Content-Type': 'application/json'})
 
 
-def enrol_existing_payment_card(account, provider):
-    requests.post(settings.METIS_URL + '/payment_service/payment_card/update',
-                  json=_generate_card_json(account),
-                  headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                           'Content-Type': 'application/json'})
+def enrol_existing_payment_card(account):
+    provider = account.payment_card.name
+
+    if provider == 'visa' or 'amex':
+        enrol_new_payment_card(account)
+
+    elif provider == 'mastercard':
+        requests.post(settings.METIS_URL + '/payment_service/payment_card/update',
+                      json=_generate_card_json(account),
+                      headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                               'Content-Type': 'application/json'})
 
 
 def delete_payment_card(account):
@@ -35,11 +43,6 @@ def delete_payment_card(account):
 
     # only delete with provider if card is deleted from all apps.
     if not accounts:
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
-            'payment_token': account.psp_token,
-            'card_token': account.token,
-            'partner_slug': account.payment_card.slug,
-            'id': account.id,
-            'date': arrow.get(account.created).timestamp}, headers={
-            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-            'Content-Type': 'application/json'})
+        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json=_generate_card_json(account),
+                        headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                                 'Content-Type': 'application/json'})
