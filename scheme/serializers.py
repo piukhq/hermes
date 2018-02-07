@@ -3,6 +3,7 @@ from copy import copy
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
+from common.models import Image
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
     SchemeAccountImage, Exchange
 
@@ -266,7 +267,9 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_scheme_account(scheme_account):
-    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id).exclude(image_type_code=8)
+    account_images = SchemeAccountImage.objects.filter(
+        scheme_accounts__id=scheme_account.id
+    ).exclude(image_type_code=Image.TIER)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
