@@ -27,7 +27,7 @@ flake8:
   tags:
     - docker
 
-build-master:
+build-latest:
   stage: build
   image: docker:latest
   services:
@@ -38,6 +38,6 @@ build-master:
     - docker build --pull -t "$CI_REGISTRY/hermes:latest" .
     - docker push "$CI_REGISTRY/hermes:latest"
   only:
-    - master
+    - develop
   tags:
     - docker

@@ -3,6 +3,7 @@ from copy import copy
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
+from common.models import Image
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
     SchemeAccountImage, Exchange
 
@@ -266,7 +267,9 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_scheme_account(scheme_account):
-    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id)
+    account_images = SchemeAccountImage.objects.filter(
+        scheme_accounts__id=scheme_account.id
+    ).exclude(image_type_code=Image.TIER)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
@@ -277,7 +280,8 @@ def get_images_for_scheme_account(scheme_account):
 
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
-        if not account_image:
+
+        if not account_image or image.image_type_code == image.TIER:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
                 id=image.id,
@@ -293,8 +297,12 @@ def get_images_for_scheme_account(scheme_account):
                 reward_tier=image.reward_tier
             )
 
+            # for images with image_type_code of 8 meaning TIER type images we have to set their object_type field as
+            # scheme_account_images for the frontend logic to work.
+            object_type = 'scheme_account_image' if image.image_type_code == image.TIER else 'scheme_image'
+
             serializer = SchemeAccountImageSerializer(account_image)
-            images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+            images.append(add_object_type_to_image_response(serializer.data, object_type))
 
     return images
 
