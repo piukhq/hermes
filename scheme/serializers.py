@@ -138,6 +138,7 @@ class BalanceSerializer(serializers.Serializer):
     value = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     value_label = serializers.CharField(allow_null=True)
     balance = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
+    reward_tier = serializers.IntegerField(allow_null=False)
     is_stale = serializers.BooleanField()
 
 
