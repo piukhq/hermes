@@ -81,6 +81,7 @@ INSTALLED_APPS = (
     'colorful',
     'mail_templated',
     'anymail',
+    'storages',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -181,11 +182,23 @@ AUTHENTICATION_BACKENDS = (
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+NO_AZURE_STORAGE = env_var('NO_AZURE_STORAGE')
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+if not NO_AZURE_STORAGE:
+    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+    AZURE_ACCOUNT_NAME = env_var('AZURE_ACCOUNT_NAME')
+    AZURE_ACCOUNT_KEY = env_var('AZURE_ACCOUNT_KEY')
+    AZURE_CONTAINER = env_var('AZURE_CONTAINER')
+
 MEDIA_URL = env_var("HERMES_MEDIA_URL", '/media/')
+STATIC_URL = env_var('HERMES_STATIC_URL', '/static/')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder'
+]
 
 AUTH_USER_MODEL = 'user.CustomUser'
 
