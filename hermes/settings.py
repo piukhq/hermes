@@ -182,7 +182,7 @@ AUTHENTICATION_BACKENDS = (
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-NO_AZURE_STORAGE = env_var('NO_AZURE_STORAGE')
+NO_AZURE_STORAGE = env_var('NO_AZURE_STORAGE', True)
 
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
