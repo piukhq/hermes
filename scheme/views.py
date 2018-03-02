@@ -21,9 +21,9 @@ from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
                            SchemeAccountImage)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
-                                StatusSerializer, ResponseLinkSerializer,
+                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer, AsyncSchemeAccountHandlerSerializer)
@@ -146,6 +146,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         'PUT': SchemeAnswerSerializer,
         'POST': LinkSchemeSerializer,
         'OPTIONS': LinkSchemeSerializer,
+        'DELETE': DeleteCredentialSerializer,
     }
 
     def put(self, request, *args, **kwargs):
@@ -552,6 +553,99 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             queryset = queryset.filter(user=self.request.user)
         return queryset
 
+    def put(self, request, *args, **kwargs):
+        """
+        Update / Create credentials for loyalty scheme login
+        ---
+        """
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        updated_credentials = []
+
+        for credential_type in data.keys():
+            question = scheme_account.scheme.questions.get(type=credential_type)
+            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
+                                                                   defaults={'answer': data[credential_type]})
+            updated_credentials.append(credential_type)
+
+        return Response({'updated': updated_credentials}, status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        """
+        Delete scheme credential answers from a scheme account
+        ---
+        parameters:
+          - name: all
+            required: false
+            description: boolean, True will delete all scheme credential answers
+           - name: property_list
+            required: false
+            description: list, e.g. ['link_questions'] takes properties from the Schem
+          - name: type_list
+            required: false
+            description: list, True will delete all scheme credential answers
+        """
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        serializer = DeleteCredentialSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        answers_to_delete = self.collect_credentials_to_delete(scheme_account, request.data)
+        if type(answers_to_delete) is Response:
+            return answers_to_delete
+
+        response_list = [answer.question.type for answer in answers_to_delete]
+        response_list.sort()
+        for answer in answers_to_delete:
+            answer.delete()
+
+        if not response_list:
+            return Response({'message': 'No answers found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'deleted': str(response_list)}, status=status.HTTP_200_OK)
+
+    def collect_credentials_to_delete(self, scheme_account, request_data):
+        credential_list = scheme_account.schemeaccountcredentialanswer_set.all()
+        answers_to_delete = set()
+
+        if request_data.get('all'):
+            answers_to_delete.update(credential_list)
+            return answers_to_delete
+
+        for credential_property in request_data.getlist('property_list'):
+            try:
+                questions = getattr(scheme_account.scheme, credential_property)
+                answers_to_delete.update(self.get_answers_from_question_list(scheme_account, questions))
+            except AttributeError:
+                return self.invalid_data_response(credential_property)
+
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        question_list = []
+        for answer_type in request_data.getlist('type_list'):
+            if answer_type in scheme_account_types:
+                question_list.append(scheme_account.scheme.questions.get(type=answer_type))
+            else:
+                return self.invalid_data_response(answer_type)
+
+        answers_to_delete.update(self.get_answers_from_question_list(scheme_account, question_list))
+
+        return answers_to_delete
+
+
+    @staticmethod
+    def get_answers_from_question_list(scheme_account, questions):
+        answers = []
+        for question in questions:
+            credential_answer = scheme_account.schemeaccountcredentialanswer_set.get(question=question)
+            if credential_answer:
+                answers.append(credential_answer)
+
+        return answers
+
+    @staticmethod
+    def invalid_data_response(invalid_data):
+        message = {'message': 'No answers found for: {}. Not deleting any credential answers'.format(invalid_data)}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+
 
 class SchemeAccountStatusData(ListAPIView):
     """
@@ -792,106 +886,3 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             raise RequestException(
                 'Error creating join task in Midas. Response message :{}'.format(message)
             )
-
-
-class AsyncSchemeAccountHandler(SwappableSerializerMixin, GenericAPIView):
-    override_serializer_classes = {
-        'PUT': AsyncSchemeAccountHandlerSerializer,
-    }
-    authentication_classes = (ServiceAuthentication,)
-
-    def serialize_request_data(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.scheme_account_id = int(self.kwargs['pk'])
-        self.scheme_account = get_object_or_404(SchemeAccount.objects, id=self.scheme_account_id)
-        self.scheme = self.scheme_account.scheme
-
-        return request.data
-
-    @staticmethod
-    def set_membership_id(scheme_account, scheme, answer):
-        question_to_update = scheme.manual_question
-
-        SchemeAccountCredentialAnswer.objects.update_or_create(
-            question=question_to_update,
-            scheme_account=scheme_account,
-            answer=answer
-        )
-
-    def update_scheme_account_and_notify_user(self, scheme_account, updated_status, scheme_name, error, intercom_event):
-        scheme_account.status = updated_status
-        scheme_account.save()
-        try:
-            metadata = {
-                'scheme name': scheme_name,
-                'error': error
-            }
-            intercom_api.post_intercom_event(
-                settings.INTERCOM_TOKEN,
-                scheme_account.user.uid,
-                intercom_event,
-                metadata
-            )
-        except intercom_api.IntercomException:
-            pass
-
-        try:
-            raise RuntimeError(error)
-        except RuntimeError:
-            sentry.captureException()
-
-
-class AsyncLinkHandler(AsyncSchemeAccountHandler):
-
-    def put(self, request, *args, **kwargs):
-        """
-        Update an existing scheme account that is linking asynchronously.
-        On error, return card to a wallet only status and remove link questions.
-        """
-        data = self.serialize_request_data(request)
-
-        self.remove_link_answers(self.scheme_account)
-        error = 'Error raised during asynchronous link: {}'.format(data['message'])
-        updated_status = SchemeAccount.WALLET_ONLY
-        self.update_scheme_account_and_notify_user(self.scheme_account, updated_status, self.scheme.name, error,
-                                                   intercom_api.ASYNC_LINK_FAILED_EVENT)
-
-        return Response({'message': 'success'}, status=status.HTTP_200_OK)
-
-    @staticmethod
-    def remove_link_answers(scheme_account):
-        link_answers = []
-        for question in scheme_account.scheme.link_questions:
-            answer = scheme_account.schemeaccountcredentialanswer_set.filter(question=question)
-            if answer:
-                link_answers.append(answer)
-        [answer.delete() for answer in link_answers]
-
-
-class AsyncJoinHandler(AsyncSchemeAccountHandler):
-
-    def put(self, request, *args, **kwargs):
-        """
-        Update an existing scheme account that is joining asynchronously.
-        Adds membership ID to scheme credential answers.
-        In case of error, set account status to JOIN and sends intercom message to user.
-        """
-        data = self.serialize_request_data(request)
-        identifier = data.get('identifier')
-
-        if not identifier or identifier == 'None':
-            self.remove_all_credential_answers(self.scheme_account)
-            error = 'Error raised during asynchronous join: {}'.format(data['message'])
-            updated_status = SchemeAccount.JOIN
-            self.update_scheme_account_and_notify_user(self.scheme_account, updated_status, self.scheme.name, error,
-                                                       intercom_api.JOIN_FAILED_EVENT)
-        else:
-            self.set_membership_id(self.scheme_account, self.scheme, data['identifier'])
-
-        return Response({'message': 'success'}, status=status.HTTP_200_OK)
-
-    @staticmethod
-    def remove_all_credential_answers(scheme_account):
-        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        [answer.delete() for answer in scheme_account_answers]

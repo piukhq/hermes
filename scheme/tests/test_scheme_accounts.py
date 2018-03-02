@@ -1065,100 +1065,6 @@ class TestSchemeAccountViews(APITestCase):
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
 
-    @patch('intercom.intercom_api.post_intercom_event')
-    def test_update_join_endpoint_with_membership_id(self, mock_post_intercom_event):
-        scheme = SchemeFactory()
-        manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
-
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(
-            question=SchemeCredentialQuestionFactory(scheme=scheme,
-                                                     type=PASSWORD,
-                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN),
-            answer='password',
-            scheme_account=scheme_account
-        )
-
-        data = {
-            'identifier': '0123456',
-            'message': 'success',
-        }
-
-        resp = self.client.put('/schemes/accounts/{}/async_join'.format(scheme_account.id),
-                               **self.auth_service_headers, data=data)
-
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), {'message': 'success'})
-        self.assertFalse(mock_post_intercom_event.called)
-        manual_answer = SchemeAccountCredentialAnswer.objects.get(question=manual_question,
-                                                                  scheme_account_id=scheme_account.id)
-        self.assertTrue(manual_answer)
-        self.assertEqual(manual_answer.answer, '0123456')
-
-    @patch('scheme.views.sentry.captureException', auto_spec=True)
-    @patch('intercom.intercom_api.post_intercom_event')
-    def test_update_join_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
-        scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD,
-                                                             options=SchemeCredentialQuestion.LINK_AND_JOIN),
-
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(question=scheme.manual_question, scheme_account=scheme_account)
-        SchemeCredentialAnswerFactory(question=secondary_question[0], scheme_account=scheme_account)
-
-        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
-        self.assertEqual(len(scheme_account_answers), 2)
-
-        data = {
-            'identifier': None,
-            'message': 'LoginError',
-        }
-        resp = self.client.put('/schemes/accounts/{}/async_join'.format(scheme_account.id),
-                               **self.auth_service_headers, data=data)
-
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), {'message': 'success'})
-        self.assertTrue(mock_post_intercom_event.called)
-        self.assertTrue('join-failed-event' in mock_post_intercom_event.call_args[0])
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status_name, 'Join')
-        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
-        self.assertEqual(len(scheme_account_answers), 0)
-        self.assertTrue(mock_sentry_call.called)
-
-    @patch('scheme.views.sentry.captureException', auto_spec=True)
-    @patch('intercom.intercom_api.post_intercom_event')
-    def test_update_async_link_account_with_error(self, mock_post_intercom_event, mock_sentry_call):
-        scheme = SchemeFactory()
-        manual_question = SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD,
-                                                             options=SchemeCredentialQuestion.LINK_AND_JOIN),
-
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(question=scheme.manual_question, scheme_account=scheme_account)
-        SchemeCredentialAnswerFactory(question=secondary_question[0], scheme_account=scheme_account)
-
-        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
-        self.assertEqual(len(scheme_account_answers), 2)
-
-        data = {
-            'message': 'LoginError',
-        }
-        resp = self.client.put('/schemes/accounts/{}/async_link'.format(scheme_account.id),
-                               **self.auth_service_headers, data=data)
-
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json(), {'message': 'success'})
-        self.assertTrue(mock_post_intercom_event.called)
-        self.assertTrue('async-link-failed-event' in mock_post_intercom_event.call_args[0])
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status_name, 'Wallet only card')
-        scheme_account_answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_account.id)
-        self.assertEqual(len(scheme_account_answers), 1)
-        self.assertEqual(scheme_account_answers[0].question, manual_question)
-        self.assertTrue(mock_sentry_call.called)
-
 
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
@@ -1334,7 +1240,7 @@ class TestAccessTokens(APITestCase):
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                   data=data, **self.auth_headers)
+                                  data = data, ** self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
@@ -1452,3 +1358,142 @@ class TestExchange(APITestCase):
                                         scan_question=True,
                                         options=SchemeCredentialQuestion.LINK)
         return scheme
+
+class TestSchemeAccountCredentials(APITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
+                                                             type=CARD_NUMBER,
+                                                             options=SchemeCredentialQuestion.LINK)
+        password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
+                                                            type=PASSWORD,
+                                                            options=SchemeCredentialQuestion.LINK_AND_JOIN)
+
+        cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
+                                                                  scheme_account=cls.scheme_account)
+        SchemeCredentialAnswerFactory(question=secondary_question,
+                                      scheme_account=cls.scheme_account)
+        SchemeCredentialAnswerFactory(answer="testpassword",
+                                      question=password_question,
+                                      scheme_account=cls.scheme_account)
+
+        cls.scheme_account2 = SchemeAccountFactory(scheme=cls.scheme)
+        SchemeCredentialAnswerFactory(answer="testpassword",
+                                      question=password_question,
+                                      scheme_account=cls.scheme_account2)
+
+        cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
+
+        cls.user = cls.scheme_account.user
+        cls.user2 = cls.scheme_account2.user
+        cls.user3 = cls.scheme_account_no_answers.user
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user2.create_token()}
+        cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user3.create_token()}
+
+        super().setUpClass()
+
+    def send_delete_credential_request(self, data):
+        response = self.client.delete('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
+                                      data=data, **self.auth_headers)
+        return response
+
+    def test_update_new_and_existing_credentials(self):
+        response = self.client.put('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
+                                      data={
+                                          'card_number': '0123456',
+                                          'password': 'newpassword'
+                                      }, **self.auth_headers2)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['updated'], ['card_number', 'password'])
+
+        credential_list = self.scheme_account2.schemeaccountcredentialanswer_set.all()
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        self.assertEqual(['card_number', 'password'], scheme_account_types)
+        self.assertEqual(self.scheme_account2._collect_credentials()['password'], 'newpassword')
+
+    def test_update_credentials_wrong_credential_type(self):
+        response = self.client.put('/schemes/accounts/{0}/credentials'.format(self.scheme_account_no_answers.id),
+                                   data={'title': 'mr'}, **self.auth_headers3)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['non_field_errors'][0], 'field(s) not found for scheme: title')
+        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(credential_list), 0)
+
+    def test_update_credentials_bad_credential_type(self):
+        response = self.client.put('/schemes/accounts/{0}/credentials'.format(self.scheme_account_no_answers.id),
+                                   data={'user_name': 'user_name not username'}, **self.auth_headers3)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['non_field_errors'][0], 'field(s) not found for scheme: user_name')
+        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(credential_list), 0)
+
+    def test_update_credentials_bad_credential_value_type_is_converted(self):
+        response = self.client.put('/schemes/accounts/{0}/credentials'.format(self.scheme_account_no_answers.id),
+                                   data={'card_number': True}, **self.auth_headers3)
+
+        self.assertEqual(response.status_code, 200)
+
+        credential_list = self.scheme_account_no_answers.schemeaccountcredentialanswer_set.all()
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        self.assertEqual(['card_number'], scheme_account_types)
+        self.assertEqual(self.scheme_account_no_answers._collect_credentials()['card_number'], 'True')
+
+    def test_delete_credentials_by_type(self):
+        response = self.send_delete_credential_request({'type_list': ['card_number', 'username']})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['deleted'], "['card_number', 'username']")
+
+        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        self.assertTrue('card_number' not in scheme_account_types)
+
+    def test_delete_credentials_by_property(self):
+        response = self.send_delete_credential_request({'property_list': ['link_questions']})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['deleted'], "['card_number', 'password']")
+
+        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        self.assertTrue('card_number' not in scheme_account_types)
+        self.assertTrue('password' not in scheme_account_types)
+
+    def test_delete_all_credentials(self):
+        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(credential_list), 3)
+        response = self.send_delete_credential_request({'all': True})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['deleted'], "['card_number', 'password', 'username']")
+
+        new_credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(new_credential_list), 0)
+
+    def test_delete_credentials_invalid_request(self):
+        response = self.send_delete_credential_request({'all': 'not a boolean'})
+        self.assertEqual(response.status_code, 400)
+        self.assertTrue('is not a valid boolean' in str(response.json()))
+
+        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(credential_list), 3)
+
+    def test_delete_credentials_wrong_credential(self):
+        response = self.client.delete('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
+                                      data={'type_list': ['card_number', 'password']}, **self.auth_headers2)
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.json()['message'].startswith('No answers found for: card_number'))
+
+        credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
+        self.assertEqual(len(credential_list), 3)
+
+    def test_delete_credentials_with_scheme_account_without_credentials(self):
+        response = self.client.delete('/schemes/accounts/{0}/credentials'.format(self.scheme_account_no_answers.id),
+                                      data={'all': True}, **self.auth_headers3)
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(response.json()['message'].startswith('No answers found'))
