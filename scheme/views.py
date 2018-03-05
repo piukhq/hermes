@@ -26,7 +26,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer, AsyncSchemeAccountHandlerSerializer)
+                                QuerySchemeAccountSerializer, JoinSerializer)
 from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
@@ -629,7 +629,6 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         answers_to_delete.update(self.get_answers_from_question_list(scheme_account, question_list))
 
         return answers_to_delete
-
 
     @staticmethod
     def get_answers_from_question_list(scheme_account, questions):

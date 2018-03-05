@@ -1240,7 +1240,7 @@ class TestAccessTokens(APITestCase):
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                  data = data, ** self.auth_headers)
+                                   data=data, ** self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
@@ -1359,8 +1359,8 @@ class TestExchange(APITestCase):
                                         options=SchemeCredentialQuestion.LINK)
         return scheme
 
-class TestSchemeAccountCredentials(APITestCase):
 
+class TestSchemeAccountCredentials(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
@@ -1404,10 +1404,7 @@ class TestSchemeAccountCredentials(APITestCase):
 
     def test_update_new_and_existing_credentials(self):
         response = self.client.put('/schemes/accounts/{0}/credentials'.format(self.scheme_account2.id),
-                                      data={
-                                          'card_number': '0123456',
-                                          'password': 'newpassword'
-                                      }, **self.auth_headers2)
+                                   data={'card_number': '0123456', 'password': 'newpassword'}, **self.auth_headers2)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['updated'], ['card_number', 'password'])
 
