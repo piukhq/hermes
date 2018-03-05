@@ -322,7 +322,12 @@ class SchemeAccount(models.Model):
         return points
 
     def _get_balance(self, credentials):
-        parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+        parameters = {
+            'scheme_account_id': self.id,
+            'user_id': self.user.id,
+            'credentials': credentials,
+            'status': self.status_name,
+        }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)
