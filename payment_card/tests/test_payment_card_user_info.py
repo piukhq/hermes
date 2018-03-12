@@ -48,11 +48,15 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
+        self.assertEqual(data['1144**33']['first_six'], str(self.payment_card_account_1.pan_start))
+        self.assertEqual(data['1144**33']['last_four'], str(self.payment_card_account_1.pan_end))
 
         self.assertIn('3344**11', data)
         self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
         self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
         self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
+        self.assertEqual(data['3344**11']['first_six'], str(self.payment_card_account_2.pan_start))
+        self.assertEqual(data['3344**11']['last_four'], str(self.payment_card_account_2.pan_end))
 
     def test_404_scheme_unavailable(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format("unavailable_scheme"),
@@ -74,3 +78,5 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
+        self.assertEqual(data['1144**33']['first_six'], str(self.payment_card_account_1.pan_start))
+        self.assertEqual(data['1144**33']['last_four'], str(self.payment_card_account_1.pan_end))

@@ -289,6 +289,10 @@ class RetrievePaymentCardUserInfo(View):
                     'user_id': payment_cards.first().user.id,
                     'credentials': ''
                 }
+            payment_card = payment_cards[0]
+            response_data[payment_card_token]['first_six'] = payment_card.pan_start
+            response_data[payment_card_token]['last_four'] = payment_card.pan_end
+
         return JsonResponse(response_data, safe=False)
 
 
