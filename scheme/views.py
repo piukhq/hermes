@@ -582,10 +582,10 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             description: boolean, True will delete all scheme credential answers
            - name: property_list
             required: false
-            description: list, e.g. ['link_questions'] takes properties from the Schem
+            description: list, e.g. ['link_questions'] takes properties from the scheme
           - name: type_list
             required: false
-            description: list, True will delete all scheme credential answers
+            description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = DeleteCredentialSerializer(data=request.data)
