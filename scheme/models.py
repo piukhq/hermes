@@ -307,7 +307,7 @@ class SchemeAccount(models.Model):
             self.status = response.status_code
             if response.status_code == 200:
                 points = response.json()
-                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.Active
+                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
         except ConnectionError:
