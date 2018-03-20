@@ -386,3 +386,23 @@ class JoinSerializer(SchemeAnswerSerializer):
     @staticmethod
     def raise_missing_field_error(missing_field):
         raise serializers.ValidationError("{} field required".format(missing_field))
+
+
+class DeleteCredentialSerializer(serializers.Serializer):
+    all = serializers.NullBooleanField(default=False)
+    property_list = serializers.ListField(default=[])
+    type_list = serializers.ListField(default=[])
+
+
+class UpdateCredentialSerializer(SchemeAnswerSerializer):
+
+    def validate(self, credentials):
+        # Validate all credential types
+        scheme_fields = [field.type for field in self.context['scheme_account'].scheme.questions.all()]
+        unknown = set(self.initial_data) - set(scheme_fields)
+        if unknown:
+            raise serializers.ValidationError(
+                "field(s) not found for scheme: {}".format(", ".join(unknown))
+            )
+
+        return credentials

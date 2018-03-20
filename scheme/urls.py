@@ -69,8 +69,4 @@ urlpatterns = [
     url(r'^/(?P<pk>[0-9]+)/join',
         views.Join.as_view(),
         name='create_join_scheme_account'),
-
-    url(r'^/accounts/(?P<pk>[0-9]+)/join',
-        views.UpdateJoinAccount.as_view(),
-        name='update_join_account'),
 ]
