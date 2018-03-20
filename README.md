@@ -37,6 +37,8 @@
 
 ## Installation (MacOS)
  * Install Python 3 virtual environment and Postgres dependencies required for C bindings to PsycoPG2 driver
+ 	* Install Xcode from the Mac App Store
+ 	* Install [Python 3](https://www.python.org/downloads/mac-osx/) 
  	* Install [`homebrew`](https://brew.sh) if not already installed
  	* Install correct Postgres version but do not run from homebrew: `brew install postgres@9.5`
  * Install Python dependencies (Or setup PyCharm to use a Docker based Python)
