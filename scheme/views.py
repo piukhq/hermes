@@ -540,12 +540,16 @@ class SystemActionSchemeAccounts(ListAPIView):
     pagination_class = Pagination
 
 
-class SchemeAccountsCredentials(RetrieveAPIView):
+class SchemeAccountsCredentials(SwappableSerializerMixin, RetrieveAPIView):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
-    serializer_class = SchemeAccountCredentialsSerializer
+    override_serializer_classes = {
+        'GET': SchemeAccountCredentialsSerializer,
+        'PUT': UpdateCredentialSerializer,
+        'DELETE': DeleteCredentialSerializer,
+    }
 
     def get_queryset(self):
         queryset = SchemeAccount.objects
@@ -558,8 +562,8 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         Update / Create credentials for loyalty scheme login
         ---
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
-        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
+        serializer = self.get_serializer(data=request.data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         updated_credentials = []
@@ -587,8 +591,8 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             required: false
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
-        serializer = DeleteCredentialSerializer(data=request.data)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers_to_delete = self.collect_credentials_to_delete(scheme_account, request.data)
         if type(answers_to_delete) is Response:
