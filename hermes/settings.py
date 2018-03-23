@@ -37,10 +37,9 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     ".chingrewards.com",
     ".bink-dev.xyz",
-    ".bink-sandbox.xyz",
+    ".bink-dev.com",
     ".bink-sandbox.com",
     ".bink.com",
-    ".bink-hackathon.xyz",
     ".loyaltyangels.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
