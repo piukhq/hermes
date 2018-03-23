@@ -10,7 +10,6 @@ django-cors-headers==1.1.0
 django-mail-templated==2.6.2
 djangorestframework==3.6.3
 django-rest-swagger==2.1.2
-dj-database-url==0.3.0
 factory-boy==2.5.2
 fake-factory==0.5.9
 graypy==0.2.12
