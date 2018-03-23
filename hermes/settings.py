@@ -14,7 +14,6 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import raven
 from environment import env_var, read_env
-import dj_database_url
 import sys
 
 read_env()
@@ -153,8 +152,14 @@ WSGI_APPLICATION = 'hermes.wsgi.application'
 
 
 DATABASES = {
-    'default': dj_database_url.parse(
-        env_var("HERMES_DATABASE_URL", "postgres://postgres@localhost:5432/hermes"))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': env_var("HERMES_DATABASE_NAME", "hermes"),
+        'USER': env_var("HERMES_DATABASE_USER", "postgres"),
+        'PASSWORD': env_var("HERMES_DATABASE_PASS", "TFB2248hxq"),
+        'HOST': env_var("HERMES_DATABASE_HOST", "postgres"),
+        'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
+    }
 }
 
 
