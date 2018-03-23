@@ -540,16 +540,12 @@ class SystemActionSchemeAccounts(ListAPIView):
     pagination_class = Pagination
 
 
-class SchemeAccountsCredentials(SwappableSerializerMixin, RetrieveAPIView):
+class SchemeAccountsCredentials(RetrieveAPIView):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
-    override_serializer_classes = {
-        'GET': SchemeAccountCredentialsSerializer,
-        'PUT': UpdateCredentialSerializer,
-        'DELETE': DeleteCredentialSerializer,
-    }
+    serializer_class = SchemeAccountCredentialsSerializer
 
     def get_queryset(self):
         queryset = SchemeAccount.objects
@@ -563,7 +559,7 @@ class SchemeAccountsCredentials(SwappableSerializerMixin, RetrieveAPIView):
         ---
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
-        serializer = self.get_serializer(data=request.data, context={'scheme_account': scheme_account})
+        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         updated_credentials = []
@@ -592,7 +588,7 @@ class SchemeAccountsCredentials(SwappableSerializerMixin, RetrieveAPIView):
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
-        serializer = self.get_serializer(data=request.data)
+        serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         answers_to_delete = self.collect_credentials_to_delete(scheme_account, request.data)
         if type(answers_to_delete) is Response:
