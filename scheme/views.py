@@ -558,7 +558,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         Update / Create credentials for loyalty scheme login
         ---
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
         serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -587,10 +587,11 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             required: false
             description: list, e.g. ['username', 'password'] of all credential types to delete
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
         serializer = DeleteCredentialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        answers_to_delete = self.collect_credentials_to_delete(scheme_account, request.data)
+        data = serializer.validated_data
+        answers_to_delete = self.collect_credentials_to_delete(scheme_account, data)
         if type(answers_to_delete) is Response:
             return answers_to_delete
 
@@ -611,7 +612,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             answers_to_delete.update(credential_list)
             return answers_to_delete
 
-        for credential_property in request_data.getlist('property_list'):
+        for credential_property in request_data.get('property_list'):
             try:
                 questions = getattr(scheme_account.scheme, credential_property)
                 answers_to_delete.update(self.get_answers_from_question_list(scheme_account, questions))
@@ -620,7 +621,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
 
         scheme_account_types = [answer.question.type for answer in credential_list]
         question_list = []
-        for answer_type in request_data.getlist('type_list'):
+        for answer_type in request_data.get('type_list'):
             if answer_type in scheme_account_types:
                 question_list.append(scheme_account.scheme.questions.get(type=answer_type))
             else:

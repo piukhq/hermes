@@ -312,7 +312,8 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
-        self.save()
+        if self.status != SchemeAccount.PENDING:
+            self.save()
         return points
 
     def _get_balance(self, credentials):

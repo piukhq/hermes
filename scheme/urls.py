@@ -24,7 +24,7 @@ urlpatterns = [
 
     url(r'^/accounts/(?P<pk>[0-9]+)/credentials',
         views.SchemeAccountsCredentials.as_view(),
-        name='change_account_status'),
+        name='change_account_credentials'),
 
     url(r'^/accounts/(?P<pk>[0-9]+)/status/?$',
         views.UpdateSchemeAccountStatus.as_view(),
