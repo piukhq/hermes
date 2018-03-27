@@ -197,6 +197,7 @@ class SchemeAccount(models.Model):
     INCOMPLETE = 5
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
+    RESOURCE_LIMIT_REACHED = 503
     UNKNOWN_ERROR = 520
     MIDAS_UNREACHABLE = 9
     AGENT_NOT_FOUND = 404
@@ -216,6 +217,7 @@ class SchemeAccount(models.Model):
         (INCOMPLETE, 'Please check your scheme account login details.', 'INCOMPLETE'),
         (LOCKED_BY_ENDSITE, 'Account locked on end site', 'LOCKED_BY_ENDSITE'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries', 'RETRY_LIMIT_REACHED'),
+        (RESOURCE_LIMIT_REACHED, 'Too many balance requests running', 'RESOURCE_LIMIT_REACHED'),
         (UNKNOWN_ERROR, 'An unknown error has occurred', 'UNKNOWN_ERROR'),
         (MIDAS_UNREACHABLE, 'Midas unavailable', 'MIDAS_UNREACHABLE'),
         (WALLET_ONLY, 'Wallet only card', 'WALLET_ONLY'),
@@ -227,7 +229,7 @@ class SchemeAccount(models.Model):
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -306,17 +308,23 @@ class SchemeAccount(models.Model):
             response = self._get_balance(credentials)
             self.status = response.status_code
             if response.status_code == 200:
-                self.status = SchemeAccount.ACTIVE
                 points = response.json()
+                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
-        self.save()
+        if self.status != SchemeAccount.PENDING:
+            self.save()
         return points
 
     def _get_balance(self, credentials):
-        parameters = {'scheme_account_id': self.id, 'user_id': self.user.id, 'credentials': credentials}
+        parameters = {
+            'scheme_account_id': self.id,
+            'user_id': self.user.id,
+            'credentials': credentials,
+            'status': self.status_key,
+        }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)

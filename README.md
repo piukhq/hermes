@@ -35,6 +35,27 @@
    * pip install django-extensions pydotplus pygraphviz
    * Run python manage.py graph_models -a -o hermes_models.png
 
+## Installation (MacOS)
+ * Install Python 3 virtual environment and Postgres dependencies required for C bindings to PsycoPG2 driver
+ 	* Install Xcode from the Mac App Store
+ 	* Install [Python 3](https://www.python.org/downloads/mac-osx/) 
+ 	* Install [`homebrew`](https://brew.sh) if not already installed
+ 	* Install correct Postgres version but do not run from homebrew: `brew install postgres@9.5`
+ * Install Python dependencies (Or setup PyCharm to use a Docker based Python)
+   * source  ~/.virtualenvs/hermes/bin/activate
+   * cd ~/code_dir/hermes
+   * pip install -r requirements.txt
+ * Install Docker and Postgres
+ 	* Download and install [Docker](https://docs.docker.com/docker-for-mac/install/)
+ 	* Pull Docker Postgres: `docker pull postgres:9.5`
+ * Start Postgres
+ 	* `docker run --name hermes-postgres -p 127.0.0.1:5432:5432 -d postgres`
+ * Create Hermes Database
+ 	* `psql -h localhost -U postgres`
+ 	* `create database hermes;` 
+ * Run DB Migrations - ./manage.py migrate
+ * Run application - ./manage.py runserver
+
 ## Docker Configuration
 
 ### Environment Variables
