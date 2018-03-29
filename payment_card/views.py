@@ -382,3 +382,28 @@ def csv_upload(request):
 
     context = {'form': form}
     return render(request, 'admin/csv_upload_form.html', context)
+
+
+class CreateAuthTransaction(APIView):
+    authentication_classes = (ServiceAuthentication,)
+    permission_classes = (AllowService,)
+
+    def post(self, request, provider_slug):
+        try:
+            serializer_class = {
+                'amex': serializers.AmexAuthTransactionSerializer,
+                'mastercard': serializers.MastercardAuthTransactionSerializer,
+            }[provider_slug]
+        except KeyError:
+            return Response({'status': 404, 'message': 'No such provider "{}"'.format(provider_slug)}, status=404)
+        serializer = serializer_class(data=request.data)
+
+        if not serializer.is_valid():
+            return Response({'status': 400, 'message': serializer.errors}, status=400)
+
+        try:
+            serializer.save()
+        except PaymentCardAccount.DoesNotExist:
+            return Response({'status': 200, 'message': 'Request was valid but card token was not found.'})
+
+        return Response(serializer.validated_data, status=201)

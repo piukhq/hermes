@@ -213,3 +213,11 @@ class ProviderStatusMapping(models.Model):
     provider = models.ForeignKey('payment_card.PaymentCard')
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
+
+
+class AuthTransaction(models.Model):
+    payment_card_account = models.ForeignKey('PaymentCardAccount', on_delete=models.SET_NULL, null=True)
+    time = models.DateTimeField()
+    amount = models.IntegerField()
+    mid = models.CharField(max_length=100)
+    third_party_id = models.CharField(max_length=100)

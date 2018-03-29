@@ -38,5 +38,9 @@ urlpatterns = [
         views.ListProviderStatusMappings.as_view(),
         name='list_provider_status_mappings'),
 
+    url(r'^/auth_transaction/(?P<provider_slug>.+)$',
+        views.CreateAuthTransaction.as_view(),
+        name='create_auth_transaction'),
+
     # TODO: Better URL
     url(r'^/csv_upload', views.csv_upload, name='csv_upload'), ]

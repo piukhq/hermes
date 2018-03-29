@@ -7,7 +7,7 @@ from django.conf import settings
 import httpretty
 
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, AuthTransaction
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
@@ -341,3 +341,50 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[0], 'scheme_id')
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
+
+
+class TestPaymentCardAuthTransactions(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        PaymentCardAccount.objects.all().delete()
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
+        cls.payment_card = cls.payment_card_account.payment_card
+        cls.user = cls.payment_card_account.user
+        cls.issuer = cls.payment_card_account.issuer
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+
+        super(TestPaymentCardAuthTransactions, cls).setUpClass()
+
+    def test_post_valid_amex_auth_transaction(self):
+        test_time = timezone.now().replace(microsecond=0)
+        resp = self.client.post(
+            '/payment_cards/auth_transaction/amex',
+            {
+                'transaction_time': int(test_time.timestamp()),
+                'transaction_amount': 1699,
+                'cm_alias': self.payment_card_account.token,
+                'merchant_number': 'amex-test-mid',
+                'transaction_id': 'amex-test-tid'
+            },
+            **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        tx = AuthTransaction.objects.get(third_party_id='amex-test-tid')
+        self.assertEqual(tx.payment_card_account, self.payment_card_account)
+        self.assertEqual(tx.time, test_time)
+
+    def test_post_valid_mastercard_auth_transactoin(self):
+        test_time = timezone.now().replace(microsecond=0)
+        resp = self.client.post(
+            '/payment_cards/auth_transaction/mastercard',
+            {
+                'timestamp': test_time.isoformat(),
+                'transAmt': 1699,
+                'bankCustNum': self.payment_card_account.token,
+                'merchId': 'mastercard-test-mid',
+                'transId': 'mastercard-test-tid'
+            },
+            **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        tx = AuthTransaction.objects.get(third_party_id='mastercard-test-tid')
+        self.assertEqual(tx.payment_card_account, self.payment_card_account)
+        self.assertEqual(tx.time, test_time)
