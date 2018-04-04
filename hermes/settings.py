@@ -155,7 +155,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': env_var("HERMES_DATABASE_NAME", "hermes"),
         'USER': env_var("HERMES_DATABASE_USER", "postgres"),
-        'PASSWORD': env_var("HERMES_DATABASE_PASS", "TFB2248hxq"),
+        'PASSWORD': env_var("HERMES_DATABASE_PASS"),
         'HOST': env_var("HERMES_DATABASE_HOST", "postgres"),
         'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
     }
