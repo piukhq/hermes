@@ -5,6 +5,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from django.utils import timezone
 from django.conf import settings
 import httpretty
+import xmltodict
 
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount, AuthTransaction
@@ -364,7 +365,9 @@ class TestPaymentCardAuthTransactions(APITestCase):
                 'transaction_amount': 1699,
                 'cm_alias': self.payment_card_account.token,
                 'merchant_number': 'amex-test-mid',
-                'transaction_id': 'amex-test-tid'
+                'transaction_id': 'amex-test-tid',
+                'approval_code': 'amex-test-aid',
+                'transaction_currency': 'GBP',
             },
             **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
@@ -372,17 +375,20 @@ class TestPaymentCardAuthTransactions(APITestCase):
         self.assertEqual(tx.payment_card_account, self.payment_card_account)
         self.assertEqual(tx.time, test_time)
 
-    def test_post_valid_mastercard_auth_transactoin(self):
+    def test_post_valid_mastercard_auth_transaction(self):
         test_time = timezone.now().replace(microsecond=0)
         resp = self.client.post(
             '/payment_cards/auth_transaction/mastercard',
-            {
-                'timestamp': test_time.isoformat(),
-                'transAmt': 1699,
-                'bankCustNum': self.payment_card_account.token,
-                'merchId': 'mastercard-test-mid',
-                'transId': 'mastercard-test-tid'
-            },
+            data=xmltodict.unparse({
+                'data': {
+                    'timestamp': test_time.isoformat(),
+                    'transAmt': 1699,
+                    'bankCustNum': self.payment_card_account.token,
+                    'merchId': 'mastercard-test-mid',
+                    'transId': 'mastercard-test-tid'
+                }
+            }),
+            content_type='application/xml',
             **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         tx = AuthTransaction.objects.get(third_party_id='mastercard-test-tid')

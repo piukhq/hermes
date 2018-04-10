@@ -14,9 +14,9 @@ from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_xml.parsers import XMLParser
 import requests
 import arrow
-from intercom import intercom_api
 
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -24,6 +24,7 @@ from payment_card.payment_card_scheme_accounts import payment_card_scheme_accoun
 from payment_card import serializers
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
+from intercom import intercom_api
 from payment_card import metis
 
 
@@ -384,26 +385,17 @@ def csv_upload(request):
     return render(request, 'admin/csv_upload_form.html', context)
 
 
-class CreateAuthTransaction(APIView):
-    authentication_classes = (ServiceAuthentication,)
-    permission_classes = (AllowService,)
-
-    def post(self, request, provider_slug):
-        try:
-            serializer_class = {
-                'amex': serializers.AmexAuthTransactionSerializer,
-                'mastercard': serializers.MastercardAuthTransactionSerializer,
-            }[provider_slug]
-        except KeyError:
-            return Response({'status': 404, 'message': 'No such provider "{}"'.format(provider_slug)}, status=404)
-        serializer = serializer_class(data=request.data)
-
-        if not serializer.is_valid():
-            return Response({'status': 400, 'message': serializer.errors}, status=400)
-
-        try:
-            serializer.save()
-        except PaymentCardAccount.DoesNotExist:
-            return Response({'status': 200, 'message': 'Request was valid but card token was not found.'})
-
-        return Response(serializer.validated_data, status=201)
+# these parameters are used in urls.py to create generic CreateAPIView objects under /auth_transaction/:slug
+auth_transaction_views = {
+    'amex': {
+        'authentication_classes': (ServiceAuthentication,),
+        'permission_classes': (AllowService,),
+        'serializer_class': serializers.AmexAuthTransactionSerializer,
+    },
+    'mastercard': {
+        'authentication_classes': (ServiceAuthentication,),
+        'permission_classes': (AllowService,),
+        'serializer_class': serializers.MastercardAuthTransactionSerializer,
+        'parser_classes': (XMLParser,),
+    }
+}

@@ -221,3 +221,8 @@ class AuthTransaction(models.Model):
     amount = models.IntegerField()
     mid = models.CharField(max_length=100)
     third_party_id = models.CharField(max_length=100)
+    auth_code = models.CharField(max_length=100)
+    currency_code = models.CharField(max_length=3, default='GBP')
+
+    def __str__(self):
+        return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)

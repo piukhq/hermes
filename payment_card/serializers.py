@@ -147,10 +147,19 @@ class AmexAuthTransactionSerializer(serializers.ModelSerializer):
     merchant_number = serializers.CharField(source='mid')
     transaction_id = serializers.CharField(source='third_party_id')
     cm_alias = serializers.CharField(write_only=True)
+    approval_code = serializers.CharField(source='auth_code')
+    transaction_currency = serializers.CharField(source='currency_code')
 
     class Meta:
         model = models.AuthTransaction
-        fields = ('transaction_time', 'transaction_amount', 'merchant_number', 'transaction_id', 'cm_alias',)
+        fields = (
+            'transaction_time',
+            'transaction_amount',
+            'merchant_number',
+            'transaction_id',
+            'cm_alias',
+            'approval_code',
+            'transaction_currency',)
 
     def create(self, validated_data, **kwargs):
         pca = models.PaymentCardAccount.objects.get(token=validated_data.pop('cm_alias'))
