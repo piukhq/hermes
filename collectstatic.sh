@@ -1,5 +1,5 @@
 #!/bin/bash
 set -ue -o pipefail
-pip install -r /app/requirements.txt
+pip install -r requirements.txt
 python manage.py collectstatic --noinput
 
