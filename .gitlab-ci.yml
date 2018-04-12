@@ -1,6 +1,7 @@
 stages:
   - tests
   - build
+  - deploy
 
 tests:
   stage: tests
@@ -42,3 +43,30 @@ build-latest:
     - develop
   tags:
     - docker
+
+temp-build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --pull -t "$CI_REGISTRY/hermes:kube" .
+    - docker push "$CI_REGISTRY/hermes:kube"
+  only:
+    - feature/kubernetes
+
+temp-deploy:
+  stage: deploy
+  image: binkops.azurecr.io/kubedeployer:latest
+  script:
+    - bash collectstatic.sh
+    - deploystatic
+    - kubectl config use-context dev
+    - kubectl scale deploy "$SERVICE" --replicas=0
+    - kubectl scale deploy "$SERVICE" --replicas=1
+  when: manual
+  only:
+    - feature/kubernetes
+
