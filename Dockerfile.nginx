@@ -1,8 +1,0 @@
-FROM python:3.6 as build
-ADD . /app
-RUN pip install -r /app/requirements.txt
-RUN python /app/manage.py collectstatic
-
-FROM nginx:alpine
-COPY --from=build /app/static/ /usr/share/nginx/html/static/
-
