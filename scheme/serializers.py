@@ -3,6 +3,7 @@ from copy import copy
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
+from common.models import Image
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
     SchemeAccountImage, Exchange
 
@@ -137,6 +138,7 @@ class BalanceSerializer(serializers.Serializer):
     value = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     value_label = serializers.CharField(allow_null=True)
     balance = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
+    reward_tier = serializers.IntegerField(allow_null=False)
     is_stale = serializers.BooleanField()
 
 
@@ -266,7 +268,9 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_scheme_account(scheme_account):
-    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id)
+    account_images = SchemeAccountImage.objects.filter(
+        scheme_accounts__id=scheme_account.id
+    ).exclude(image_type_code=Image.TIER)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
@@ -277,6 +281,7 @@ def get_images_for_scheme_account(scheme_account):
 
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
+
         if not account_image:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
@@ -381,3 +386,23 @@ class JoinSerializer(SchemeAnswerSerializer):
     @staticmethod
     def raise_missing_field_error(missing_field):
         raise serializers.ValidationError("{} field required".format(missing_field))
+
+
+class DeleteCredentialSerializer(serializers.Serializer):
+    all = serializers.NullBooleanField(default=False)
+    property_list = serializers.ListField(default=[])
+    type_list = serializers.ListField(default=[])
+
+
+class UpdateCredentialSerializer(SchemeAnswerSerializer):
+
+    def validate(self, credentials):
+        # Validate all credential types
+        scheme_fields = [field.type for field in self.context['scheme_account'].scheme.questions.all()]
+        unknown = set(self.initial_data) - set(scheme_fields)
+        if unknown:
+            raise serializers.ValidationError(
+                "field(s) not found for scheme: {}".format(", ".join(unknown))
+            )
+
+        return credentials
