@@ -489,12 +489,14 @@ class SchemeCredentialQuestion(models.Model):
     NONE = 0
     LINK = 1 << 0
     JOIN = 1 << 1
+    OPTIONAL_JOIN = (1 << 2 | 1 << 1)
     LINK_AND_JOIN = (1 << 0 | 1 << 1)
 
     OPTIONS = (
         (0, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
+        (OPTIONAL_JOIN, 'Join (optional)'),
         (LINK | JOIN, 'Link & Join'),
     )
 
@@ -508,6 +510,10 @@ class SchemeCredentialQuestion(models.Model):
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    @property
+    def mandatory(self):
+        return self.options is self.OPTIONAL_JOIN
 
     class Meta:
         ordering = ['order']
