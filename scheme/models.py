@@ -513,7 +513,7 @@ class SchemeCredentialQuestion(models.Model):
 
     @property
     def mandatory(self):
-        return self.options is self.OPTIONAL_JOIN
+        return self.options is not self.OPTIONAL_JOIN
 
     class Meta:
         ordering = ['order']

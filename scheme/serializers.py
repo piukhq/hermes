@@ -23,6 +23,7 @@ class SchemeAccountImageSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    mandatory = serializers.BooleanField()
 
     class Meta:
         model = SchemeCredentialQuestion
