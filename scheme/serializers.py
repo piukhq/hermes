@@ -363,7 +363,7 @@ class JoinSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         # Validate scheme join questions
-        scheme_join_questions = [question.type for question in scheme.join_questions if question.required is False]
+        scheme_join_questions = [question.type for question in scheme.join_questions if question.required is True]
         if not scheme_join_questions:
             raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
 
