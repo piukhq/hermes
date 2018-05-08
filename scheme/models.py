@@ -512,7 +512,7 @@ class SchemeCredentialQuestion(models.Model):
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
     @property
-    def mandatory(self):
+    def required(self):
         return self.options is not self.OPTIONAL_JOIN
 
     class Meta:
