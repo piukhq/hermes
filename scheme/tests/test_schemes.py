@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
-from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER
+from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
@@ -140,11 +140,16 @@ class TestSchemeModel(TestCase):
                                         scheme=scheme,
                                         manual_question=True,
                                         options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True)
+        non_join_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True)
         email_question = SchemeCredentialQuestionFactory(type=EMAIL,
                                                          scheme=scheme,
                                                          options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        optional_question = SchemeCredentialQuestionFactory(type=TITLE,
+                                                            scheme=scheme,
+                                                            options=SchemeCredentialQuestion.OPTIONAL_JOIN)
 
         join_questions = scheme.join_questions
-        self.assertEqual(len(join_questions), 2)
-        self.assertTrue(email_question.id in [question.id for question in scheme.join_questions])
+        self.assertEqual(len(join_questions), 3)
+        self.assertIn(email_question.id, [question.id for question in scheme.join_questions])
+        self.assertIn(optional_question.id, [question.id for question in scheme.join_questions])
+        self.assertNotIn(non_join_question.id, [question.id for question in scheme.join_questions])
