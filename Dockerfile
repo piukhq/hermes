@@ -17,6 +17,8 @@ RUN addgroup --gid 1550 apps && \
  rm -rf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default && \
  rsync -a --remove-source-files /usr/local/src/hermes/docker_root/ / && \
  pip3 install --upgrade pip && \
+ # Fix for pip 10.0.1 bug
+ hash -r pip && \
  pip3 install uwsgi && \
  pip3 install -r /usr/local/src/hermes/requirements.txt && \
  python3 /usr/local/src/hermes/manage.py collectstatic --noinput && \
