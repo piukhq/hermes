@@ -61,9 +61,8 @@ temp-deploy:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
   script:
-    - export ENVRIONMENT=dev
     - bash collectstatic.sh
-    - deploystatic
+    - ENVIRONMENT=dev deploystatic
     - kubectl config use-context dev
     - kubectl delete po $(kubectl get --no-headers=true pods -l run=$SERVICE -o custom-columns=:metadata.name)
   when: manual
