@@ -299,7 +299,8 @@ class UserDetail(models.Model):
 
     def save(self, *args, **kwargs):
         # Converts date format of d.o.b from 'DD/MM/YYYY' (format frontend end sends) to 'YYYY-MM-DD'
-        self.date_of_birth = arrow.get(self.date_of_birth).format('YYYY-MM-DD')
+        if self.date_of_birth:
+            self.date_of_birth = arrow.get(self.date_of_birth).format('YYYY-MM-DD')
         super(UserDetail, self).save(*args, **kwargs)
 
 
