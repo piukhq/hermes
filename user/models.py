@@ -297,6 +297,11 @@ class UserDetail(models.Model):
     def __str__(self):
         return str(self.user_id)
 
+    def save(self, *args, **kwargs):
+        # Converts date format of d.o.b from 'DD/MM/YYYY' (format frontend end sends) to 'YYYY-MM-DD'
+        self.date_of_birth = arrow.get(self.date_of_birth).format('YYYY-MM-DD')
+        super(UserDetail, self).save(*args, **kwargs)
+
 
 class Referral(models.Model):
     referrer = models.ForeignKey(CustomUser, related_name='referrer')
