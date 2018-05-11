@@ -60,12 +60,14 @@ temp-build:
 temp-deploy:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
+  variables:
+    - $ENVIRONMENT == "dev"
   script:
+    - export ENVRIONMENT=dev
     - bash collectstatic.sh
     - deploystatic
     - kubectl config use-context dev
-    - kubectl scale deploy "$SERVICE" --replicas=0
-    - kubectl scale deploy "$SERVICE" --replicas=1
+    - kubectl delete po $(kubectl get --no-headers=true pods -l run=$SERVICE -o custom-columns=:metadata.name)
   when: manual
   only:
     - feature/kubernetes
