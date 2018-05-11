@@ -73,6 +73,11 @@ class SchemeAnswerSerializer(serializers.Serializer):
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
     phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    address_1 = serializers.CharField(max_length=250, required=False)
+    address_2 = serializers.CharField(max_length=250, required=False)
+    town_city = serializers.CharField(max_length=250, required=False)
+    county = serializers.CharField(max_length=250, required=False)
+    country = serializers.CharField(max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
