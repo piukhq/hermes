@@ -290,7 +290,7 @@ class RetrievePaymentCardUserInfo(View):
                     'credentials': '',
                 }
 
-            active_card = next((x for x in payment_cards if x.status == 1), None)
+            active_card = next((x for x in payment_cards if x.status == PaymentCardAccount.ACTIVE), None)
             if active_card:
                 response_data[payment_card_token]['card_information'] = {
                     'first_six': active_card.pan_start,
