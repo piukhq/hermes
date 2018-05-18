@@ -270,11 +270,6 @@ class RetrievePaymentCardUserInfo(View):
             if not payment_cards.exists():
                 continue
 
-            active_card = next((x for x in payment_cards if x.status == 1), None)
-            card_information = {
-                'first_six': active_card.pan_start,
-                'last_four': active_card.pan_end
-            }
             scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
                                                            status=SchemeAccount.ACTIVE,
                                                            user__in=(p.user for p in payment_cards))
@@ -284,8 +279,7 @@ class RetrievePaymentCardUserInfo(View):
                     'loyalty_id': scheme_account.third_party_identifier,
                     'scheme_account_id': scheme_account.id,
                     'user_id': scheme_account.user.id,
-                    'credentials': scheme_account.credentials(),
-                    'card_information': card_information
+                    'credentials': scheme_account.credentials()
                 }
             else:
                 # the user was matched but is not registered in that scheme
@@ -294,8 +288,15 @@ class RetrievePaymentCardUserInfo(View):
                     'scheme_account_id': None,
                     'user_id': payment_cards.first().user.id,
                     'credentials': '',
-                    'card_information': card_information
                 }
+
+            active_card = next((x for x in payment_cards if x.status == PaymentCardAccount.ACTIVE), None)
+            if active_card:
+                response_data[payment_card_token]['card_information'] = {
+                    'first_six': active_card.pan_start,
+                    'last_four': active_card.pan_end
+                }
+
         return JsonResponse(response_data, safe=False)
 
 
