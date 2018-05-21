@@ -65,7 +65,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     place_of_birth = serializers.CharField(max_length=250, required=False)
     email = serializers.EmailField(max_length=250, required=False)
     postcode = serializers.CharField(max_length=250, required=False)
-    memorable_date = serializers.RegexField(r"^[0-9]{2}/[0-9]{2}/[0-9]{4}$", max_length=250, required=False)
+    memorable_date = serializers.DateField(input_formats=["%d/%M/%Y"], required=False)
     pin = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
     title = serializers.CharField(max_length=250, required=False)
     first_name = serializers.CharField(max_length=250, required=False)
