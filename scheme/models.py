@@ -489,15 +489,15 @@ class SchemeCredentialQuestion(models.Model):
     NONE = 0
     LINK = 1 << 0
     JOIN = 1 << 1
-    OPTIONAL_JOIN = (1 << 2 | 1 << 1)
-    LINK_AND_JOIN = (1 << 0 | 1 << 1)
+    OPTIONAL_JOIN = (1 << 2 | JOIN)
+    LINK_AND_JOIN = (LINK | JOIN)
 
     OPTIONS = (
         (0, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
-        (LINK | JOIN, 'Link & Join'),
+        (LINK_AND_JOIN, 'Link & Join'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
