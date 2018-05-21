@@ -33,6 +33,7 @@ DEBUG = env_var("HERMES_DEBUG", True)
 CSRF_TRUSTED_ORIGINS = [
     ".chingrewards.com",
     ".bink.com",
+    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [
@@ -44,6 +45,7 @@ ALLOWED_HOSTS = [
     ".bink.com",
     ".bink-hackathon.xyz",
     ".loyaltyangels.local",
+    ".bink-staging.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
