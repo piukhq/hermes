@@ -231,7 +231,8 @@ class SchemeAccount(models.Model):
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
 
-    user = models.ForeignKey('user.CustomUser')
+    # user = models.ForeignKey('user.CustomUser')
+    prop_set = models.ManyToManyField('user.Property', 'scheme_account_set', through='scheme.SchemeAccountEntry')
     scheme = models.ForeignKey('scheme.Scheme')
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
@@ -479,10 +480,15 @@ class SchemeAccount(models.Model):
         return images
 
     def __str__(self):
-        return "{0} - {1}".format(self.user.email, self.scheme.name)
+        return "{} account".format(self.scheme.name)
 
     class Meta:
         ordering = ['order', '-created']
+
+
+class SchemeAccountEntry(models.Model):
+    scheme_account = models.ForeignKey('scheme.SchemeAccount')
+    prop = models.ForeignKey('user.Property')
 
 
 class SchemeCredentialQuestion(models.Model):

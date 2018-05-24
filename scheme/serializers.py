@@ -104,12 +104,6 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme)\
-            .exclude(status=SchemeAccount.JOIN)
-
-        if scheme_accounts.exists():
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
-
         answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
         if len(answer_types) != 1:
             raise serializers.ValidationError("You must submit one scan or manual question answer")
@@ -355,12 +349,6 @@ class JoinSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         scheme = self.context['scheme']
-        # Validate scheme account for this doesn't already exist
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme) \
-            .exclude(status=SchemeAccount.JOIN)
-
-        if scheme_accounts.exists():
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         # Validate scheme join questions
         scheme_join_question_types = [question.type for question in scheme.join_questions if question.required is True]

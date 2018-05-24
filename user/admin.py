@@ -14,9 +14,9 @@ class UserDetailInline(admin.StackedInline):
     extra = 0
 
 
-class UserSchemeAccountsInline(StackedInline):
-    model = SchemeAccount
-    extra = 0
+# class UserSchemeAccountsInline(StackedInline):
+#     model = SchemeAccount
+#     extra = 0
 
 
 class UserPaymentCardAccountInline(StackedInline):
@@ -61,7 +61,7 @@ class CustomUserDetail(UserAdmin):
     last_name.admin_order_field = 'profile__last_name'
 
     form = CustomUserModelForm
-    inlines = (UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
+#    inlines = (UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()

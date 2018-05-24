@@ -11,7 +11,7 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
-from user.models import Setting
+from user.models import Setting, Property
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -55,37 +55,20 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(answer="9999888877776666",
                                                                           question=barcode_question,
                                                                           scheme_account=cls.scheme_account1)
-        cls.user = cls.scheme_account.user
 
         cls.scheme.save()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.prop = cls.scheme_account.prop_set.first()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.scheme_account_image = SchemeAccountImageFactory()
 
         super().setUpClass()
 
-    def test_scheme_account_query(self):
-        resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user__id={}'.format(self.scheme.slug,
-                                                                                            self.user.id),
-                               **self.auth_service_headers)
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual(resp.json()[0]['id'], self.scheme_account.id)
-
-    def test_scheme_account_bad_query(self):
-        resp = self.client.get('/schemes/accounts/query?scheme=what&user=no', **self.auth_service_headers)
-        self.assertEqual(400, resp.status_code)
-
-    def test_scheme_account_query_no_results(self):
-        resp = self.client.get('/schemes/accounts/query?scheme__slug=scheme-that-doesnt-exist',
-                               **self.auth_service_headers)
-        self.assertEqual(200, resp.status_code)
-        self.assertEqual(0, len(resp.json()))
-
     def test_join_account(self):
         join_scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
-        join_account = SchemeAccountFactory(scheme=join_scheme, user=self.user, status=SchemeAccount.JOIN)
+        join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
 
         response = self.client.post('/schemes/accounts', data={
             'scheme': join_scheme.id,
@@ -116,7 +99,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
-    def test_delete_sctest_delete_schemes_accountshemes_accounts(self, mock_date, mock_update_custom_attr):
+    def test_delete_schemes_accounts(self, mock_date, mock_update_custom_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
@@ -301,7 +284,7 @@ class TestSchemeAccountViews(APITestCase):
                                                  'username': self.scheme_account_answer.answer})
 
     def test_scheme_account_encrypted_credentials_bad(self):
-        scheme_account = SchemeAccountFactory(scheme=self.scheme, user=self.user)
+        scheme_account = SchemeAccountFactory(scheme=self.scheme)
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
@@ -311,15 +294,6 @@ class TestSchemeAccountViews(APITestCase):
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
         self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
-
-    def test_unique_scheme_account(self):
-        response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
-                                                               USER_NAME: 'sdf', 'order': 0}, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data,
-                         {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
-                             str(self.scheme_account.scheme))]})
 
     def test_scheme_account_summary(self):
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
@@ -479,8 +453,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json(), {'Error': 'No paired schemes found for this card'})
 
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0)), 0)
 
     @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
     @patch.object(SchemeAccount, '_get_balance')
@@ -512,7 +486,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
 
-        SchemeAccountFactory(scheme=scheme_1, user=self.user)
+        SchemeAccountFactory(scheme=scheme_1)
 
         # When the front end requests [POST] /schemes/accounts/my360
         data = {
@@ -533,43 +507,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
         self.assertEqual(scheme_accounts[0]['status_name'], "Active")
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
-
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_my360_create_account_already_created_non_generic_my360_scheme(self, mock_get_midas_balance):
-        # Given:
-        # ['my360', 'food_cellar_slug'] schemes exist in 'Bink system'
-        # a barcode scheme credential question with one_question_link is created for the each scheme
-        # 'food_cellar_slug' scheme accounts exist in 'My360 system'
-        # 'food_cellar_slug' scheme accounts exist in 'Bink system'
-
-        scheme_0 = SchemeFactory(slug='my360', id=999)
-        scheme_1 = SchemeFactory(slug='food_cellar_slug', id=998)
-
-        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, manual_question=True, one_question_link=True)
-        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
-
-        scheme_account_1 = SchemeAccountFactory(scheme=scheme_1, user=self.user)
-
-        # When the front end requests [POST] /schemes/accounts/my360
-        data = {
-            BARCODE: '123456789',
-            'scheme': scheme_1.id,
-            'order': 1
-        }
-        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
-
-        # Then no schemes accounts are created in Bink
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(
-            response.data,
-            {
-                'non_field_errors': [
-                    "You already have an account for this scheme: '{}'".format(str(scheme_account_1.scheme))
-                ]
-            }
-        )
-
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 1)
 
     @patch('intercom.intercom_api.post_intercom_event')
     @patch.object(
@@ -630,8 +567,8 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0)), 0)
 
         self.assertEqual(mock_post_intercom_event.call_count, 1)
         self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
@@ -690,8 +627,8 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
-        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1)), 0)
+        self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0)), 0)
 
         self.assertEqual(mock_post_intercom_event.call_count, 1)
         self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
@@ -863,7 +800,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
         setting = SettingFactory(scheme=scheme, slug='join-{}'.format(scheme.slug), value_type=Setting.BOOLEAN)
-        UserSettingFactory(setting=setting, user=self.user, value='0')
+        UserSettingFactory(setting=setting, value='0')
 
         resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
                                 **self.auth_service_headers)
@@ -931,25 +868,6 @@ class TestSchemeAccountViews(APITestCase):
         json = resp.json()
         self.assertEqual(json, {'non_field_errors': ['No join questions found for scheme: {}'.format(scheme.slug)]})
 
-    def test_register_join_endpoint_account_already_created(self):
-        scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        SchemeAccountFactory(user=self.user, scheme_id=scheme.id)
-
-        data = {
-            'save_user_information': False,
-            'order': 2,
-            'username': 'testbink',
-            'password': 'password'
-
-        }
-        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
-        self.assertEqual(resp.status_code, 400)
-        json = resp.json()
-        self.assertTrue(json['non_field_errors'][0].startswith('You already have an account for this scheme'))
-
     def test_register_join_endpoint_link_join_question_mismatch(self):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
@@ -996,7 +914,7 @@ class TestSchemeAccountViews(APITestCase):
         resp_json = resp.json()
         self.assertEqual(resp_json['scheme'], scheme.id)
         self.assertEqual(len(resp_json), len(data)+1)
-        scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
+        scheme_account = SchemeAccount.objects.get(scheme_id=scheme.id)
         self.assertEqual(resp_json['id'], scheme_account.id)
         self.assertEqual('Pending', scheme_account.status_name)
         self.assertEqual(len(scheme_account.schemeaccountcredentialanswer_set.all()), 1)
@@ -1055,7 +973,7 @@ class TestSchemeAccountViews(APITestCase):
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
 
-        user = SchemeAccount.objects.filter(scheme=scheme, user=self.user).first().user
+        user = SchemeAccount.objects.filter(scheme=scheme).first().user
         user_profile = user.profile
         self.assertEqual(user_profile.phone, phone_number)
         self.assertEqual(user_profile.first_name, first_name)
@@ -1086,7 +1004,7 @@ class TestSchemeAccountViews(APITestCase):
 
         resp_json = resp.json()
         self.assertIn('Error with join', resp_json['message'])
-        scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
+        scheme_account = SchemeAccount.objects.get(scheme_id=scheme.id)
         self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
@@ -1374,7 +1292,7 @@ class TestExchange(APITestCase):
 
     @staticmethod
     def create_scheme_account(host_scheme, user):
-        scheme_account = SchemeAccountFactory(user=user, scheme=host_scheme)
+        scheme_account = SchemeAccountFactory(scheme=host_scheme)
         SchemeCredentialAnswerFactory(scheme_account=scheme_account)
         return scheme_account
 

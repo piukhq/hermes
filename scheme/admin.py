@@ -94,32 +94,32 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-@admin.register(SchemeAccount)
-class SchemeAccountAdmin(admin.ModelAdmin):
-    inlines = (SchemeAccountCredentialAnswerInline, )
-    list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
-    search_fields = ['user__email']
+# @admin.register(SchemeAccount)
+# class SchemeAccountAdmin(admin.ModelAdmin):
+#     inlines = (SchemeAccountCredentialAnswerInline, )
+#     list_filter = ('is_deleted', 'status', 'scheme',)
+#     list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
+#     search_fields = ['user__email']
 
-    def get_readonly_fields(self, request, obj=None):
-        if obj:
-            return self.readonly_fields + ('scheme', 'user', 'link_date')
-        return self.readonly_fields
+#     def get_readonly_fields(self, request, obj=None):
+#         if obj:
+#             return self.readonly_fields + ('scheme', 'user', 'link_date')
+#         return self.readonly_fields
 
 
-@admin.register(SchemeAccountImage)
-class SchemeAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('scheme', 'status', 'created')
-    search_fields = ('scheme__name', 'description')
-    raw_id_fields = ('scheme_accounts',)
+# @admin.register(SchemeAccountImage)
+# class SchemeAccountImageAdmin(admin.ModelAdmin):
+#     list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
+#     list_filter = ('scheme', 'status', 'created')
+#     search_fields = ('scheme__name', 'description')
+#     raw_id_fields = ('scheme_accounts',)
 
-    def get_queryset(self, request):
-        qs = self.model.all_objects.get_queryset()
-        ordering = self.ordering or ()
-        if ordering:
-            qs = qs.order_by(*ordering)
-        return qs
+#     def get_queryset(self, request):
+#         qs = self.model.all_objects.get_queryset()
+#         ordering = self.ordering or ()
+#         if ordering:
+#             qs = qs.order_by(*ordering)
+#         return qs
 
 
 @admin.register(Exchange)

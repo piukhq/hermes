@@ -9,7 +9,7 @@ from django.utils import timezone
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
-from user.tests.factories import UserFactory
+from user.tests.factories import PropertyFactory
 from common.models import Image
 
 
@@ -17,8 +17,8 @@ class TestSchemeImages(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        prop = PropertyFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + prop.create_token()}
         cls.image = SchemeImageFactory(status=Image.DRAFT,
                                        start_date=timezone.now() - timezone.timedelta(hours=1),
                                        end_date=timezone.now() + timezone.timedelta(hours=1))
@@ -44,8 +44,8 @@ class TestSchemeViews(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        prop = PropertyFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + prop.create_token()}
         super().setUpClass()
 
     def test_scheme_list(self):
