@@ -334,14 +334,13 @@ class TestPaymentCard(APITestCase):
 
     def test_get_payment_card_scheme_accounts(self):
         token = 'test_token_123'
-        prop = PropertyFactory()
-        SchemeAccountFactory(user=user)
-        factories.PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
+        factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
+        # factories.PaymentCardSchemeEntryFactory(payment_card_account=pcard_account)
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(len(response.data[0]), 3)
+        self.assertEqual(len(response.data[0]), 2)
         keys = list(response.data[0].keys())
         self.assertEqual(keys[0], 'scheme_id')
-        self.assertEqual(keys[1], 'user_id')
-        self.assertEqual(keys[2], 'scheme_account_id')
+        # self.assertEqual(keys[1], 'user_id')
+        self.assertEqual(keys[1], 'scheme_account_id')

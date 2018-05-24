@@ -239,8 +239,20 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
 
     def get_queryset(self):
         token = self.kwargs.get('token')
-        data = payment_card_scheme_accounts(token)
-        return data
+        # data = payment_card_scheme_accounts(token)
+        payment_card_account = PaymentCardAccount.objects.filter(token=token).first()
+        schemes = payment_card_account.scheme_account_set.all()
+
+        return [
+            {
+                'scheme_id': scheme.scheme_id,
+                'scheme_account_id': scheme.id
+            }
+            for scheme in list(schemes)
+        ]
+
+
+
 
 
 class RetrieveLoyaltyID(View):

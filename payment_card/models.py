@@ -146,6 +146,11 @@ class PaymentCardAccount(models.Model):
         related_name='payment_card_account_set',
         through='payment_card.PaymentCardAccountEntry'
     )
+    scheme_account_set = models.ManyToManyField(
+        to='scheme.SchemeAccount',
+        related_name='payment_card_account_set',
+        through='payment_card.PaymentCardSchemeEntry'
+    )
     payment_card = models.ForeignKey(PaymentCard)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
@@ -223,3 +228,8 @@ class ProviderStatusMapping(models.Model):
 class PaymentCardAccountEntry(models.Model):
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
     prop = models.ForeignKey('user.Property')
+
+
+class PaymentCardSchemeEntry(models.Model):
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
+    scheme_account = models.ForeignKey('scheme.SchemeAccount')
