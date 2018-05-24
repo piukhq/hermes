@@ -382,3 +382,9 @@ def csv_upload(request):
 
     context = {'form': form}
     return render(request, 'admin/csv_upload_form.html', context)
+
+
+class AuthTransactionView(generics.CreateAPIView):
+    authentication_classes = (ServiceAuthentication,)
+    permission_classes = (AllowService,)
+    serializer_class = serializers.AuthTransactionSerializer
