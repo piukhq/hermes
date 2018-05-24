@@ -50,6 +50,5 @@ importmagic = "*"
 yapf = "*"
 "flake8" = "*"
 pudb = "*"
+tblib = "*"
 
-[requires]
-python_version = "3.6"

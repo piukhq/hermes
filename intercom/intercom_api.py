@@ -117,7 +117,7 @@ def update_account_status_custom_attribute(token, account_entry):
     return update_user_custom_attribute(token, account_entry.prop.uid, account_entry.scheme_account.scheme.company, attr_value)
 
 
-def update_payment_account_custom_attribute(token, account):
+def update_payment_account_custom_attribute(token, account_entry):
     """
     Update payment card account user custom attribute
     Data to transfer:
@@ -133,10 +133,10 @@ def update_payment_account_custom_attribute(token, account):
         [Last Update Date e.g. pending to Active],
         [is delete status]
     :param token: Intercom API access token
-    :param account: payment card account to be send to intercom
+    :param account_entry: payment card account_entry to be send to intercom
     :return: the whole response
     """
-
+    account = account_entry.payment_card_account
     attr_value = "{},{},{},{},{},{},{},{},{},{},{}".format(
         "STS:{}".format(account.status_name),
         "CRD:{}".format(account.payment_card.system_name),
@@ -153,7 +153,7 @@ def update_payment_account_custom_attribute(token, account):
 
     key = "PAYMENT CARD {}".format(str(account.order))
 
-    return update_user_custom_attribute(token, account.user.uid, key, attr_value)
+    return update_user_custom_attribute(token, account_entry.prop.uid, key, attr_value)
 
 
 def get_user_events(token, prop_uid):

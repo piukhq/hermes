@@ -10,15 +10,15 @@ from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
-from user.tests.factories import UserFactory
+from user.tests.factories import UserFactory, PropertyFactory
 
 
 class TestPaymentCardImages(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        prop = PropertyFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + prop.create_token()}
         cls.image = factories.PaymentCardImageFactory(status=Image.DRAFT,
                                                       start_date=timezone.now() - timezone.timedelta(hours=1),
                                                       end_date=timezone.now() + timezone.timedelta(hours=1))
@@ -43,10 +43,12 @@ class TestPaymentCard(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
+        cls.pcard_entry = factories.PaymentCardAccountEntryFactory(payment_card_account=cls.payment_card_account)
+        cls.payment_card_account = cls.pcard_entry.payment_card_account
         cls.payment_card = cls.payment_card_account.payment_card
-        cls.user = cls.payment_card_account.user
+        cls.prop = cls.pcard_entry.prop
         cls.issuer = cls.payment_card_account.issuer
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.payment_card_image = factories.PaymentCardAccountImageFactory()
@@ -54,16 +56,17 @@ class TestPaymentCard(APITestCase):
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_account_query(self):
-        resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card__slug={}&user__id={}'.format(self.payment_card.slug,
-                                                                           self.user.id),
-                               **self.auth_service_headers)
+        resp = self.client.get(
+            '/payment_cards/accounts/query'
+            '?payment_card__slug={}&prop_set__pk={}'.format(self.payment_card.slug, self.prop.pk),
+            **self.auth_service_headers
+        )
         self.assertEqual(200, resp.status_code)
         self.assertEqual(resp.json()[0]['id'], self.payment_card_account.id)
 
     def test_payment_card_account_bad_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card=what&user=no',
+                               '?payment_card=what&prop_set=no',
                                **self.auth_service_headers)
         self.assertEqual(400, resp.status_code)
 
@@ -283,7 +286,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
-        data = {'user': self.user.id,
+        data = {
+                #   'user': self.user.id,
                 'issuer': self.issuer.id,
                 'status': 1,
                 'expiry_month': 4,
@@ -330,7 +334,7 @@ class TestPaymentCard(APITestCase):
 
     def test_get_payment_card_scheme_accounts(self):
         token = 'test_token_123'
-        user = UserFactory()
+        prop = PropertyFactory()
         SchemeAccountFactory(user=user)
         factories.PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
