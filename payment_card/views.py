@@ -14,7 +14,6 @@ from rest_framework import serializers as rest_framework_serializers
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_xml.parsers import XMLParser
 import requests
 import arrow
 
@@ -383,19 +382,3 @@ def csv_upload(request):
 
     context = {'form': form}
     return render(request, 'admin/csv_upload_form.html', context)
-
-
-# these parameters are used in urls.py to create generic CreateAPIView objects under /auth_transaction/:slug
-auth_transaction_views = {
-    'amex': {
-        'authentication_classes': (ServiceAuthentication,),
-        'permission_classes': (AllowService,),
-        'serializer_class': serializers.AmexAuthTransactionSerializer,
-    },
-    'mastercard': {
-        'authentication_classes': (ServiceAuthentication,),
-        'permission_classes': (AllowService,),
-        'serializer_class': serializers.MastercardAuthTransactionSerializer,
-        'parser_classes': (XMLParser,),
-    }
-}

@@ -1,4 +1,3 @@
-from datetime import datetime
 from copy import copy
 
 from rest_framework import serializers
@@ -130,62 +129,6 @@ class ProviderStatusMappingSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ProviderStatusMapping
         fields = ('provider_status_code', 'bink_status_code')
-
-
-class TimestampField(serializers.DateTimeField):
-    def to_representation(self, value):
-        return super().to_representation(value)
-
-    def to_internal_value(self, value):
-        converted = datetime.fromtimestamp(int(value))
-        return super().to_internal_value(converted)
-
-
-class AmexAuthTransactionSerializer(serializers.ModelSerializer):
-    transaction_time = TimestampField(source='time')
-    transaction_amount = serializers.IntegerField(source='amount')
-    merchant_number = serializers.CharField(source='mid')
-    transaction_id = serializers.CharField(source='third_party_id')
-    cm_alias = serializers.CharField(write_only=True)
-    approval_code = serializers.CharField(source='auth_code')
-    transaction_currency = serializers.CharField(source='currency_code')
-
-    class Meta:
-        model = models.AuthTransaction
-        fields = (
-            'transaction_time',
-            'transaction_amount',
-            'merchant_number',
-            'transaction_id',
-            'cm_alias',
-            'approval_code',
-            'transaction_currency',)
-
-    def create(self, validated_data, **kwargs):
-        pca = models.PaymentCardAccount.objects.get(token=validated_data.pop('cm_alias'))
-        tx = models.AuthTransaction.objects.create(
-            **validated_data,
-            payment_card_account=pca)
-        return tx
-
-
-class MastercardAuthTransactionSerializer(serializers.ModelSerializer):
-    timestamp = serializers.DateTimeField(source='time')
-    transAmt = serializers.IntegerField(source='amount')
-    merchId = serializers.CharField(source='mid')
-    transId = serializers.CharField(source='third_party_id')
-    bankCustNum = serializers.CharField(write_only=True)
-
-    class Meta:
-        model = models.AuthTransaction
-        fields = ('timestamp', 'transAmt', 'merchId', 'transId', 'bankCustNum',)
-
-    def create(self, validated_data, **kwargs):
-        pca = models.PaymentCardAccount.objects.get(token=validated_data.pop('bankCustNum'))
-        tx = models.AuthTransaction.objects.create(
-            **validated_data,
-            payment_card_account=pca)
-        return tx
 
 
 def add_object_type_to_image_response(data, type):
