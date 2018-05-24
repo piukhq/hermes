@@ -46,4 +46,3 @@ urlpatterns = [
         views.AuthTransactionView.as_view(),
         name='auth_transaction')
 ]
-
