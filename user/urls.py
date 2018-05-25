@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
                         ResetPassword, ApplyPromoCode, ForgotPassword, ValidateResetToken, ResetPasswordFromToken,
-                        Settings, UserSettings, IdentifyApplicationKit, VerifyToken, OrganisationTermsAndConditions,
+                        Settings, IdentifyApplicationKit, VerifyToken, OrganisationTermsAndConditions,
                         Logout)
 
 urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticate_user'),
@@ -14,7 +14,7 @@ urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticat
                url(r'^login/?$', Login.as_view(), name='login'),
                url(r'me/?$', Users.as_view(), name='user_detail'),
                url(r'me/password/?$', ResetPassword.as_view(), name='reset_password'),
-               url(r'me/settings/?$', UserSettings.as_view(), name='user_settings'),
+               # url(r'me/settings/?$', UserSettings.as_view(), name='user_settings'),
                url(r'me/logout/?$', Logout.as_view(), name='logout'),
                url(r'forgotten_password/?$', ForgotPassword.as_view(), name='forgot_password'),
                url(r'reset_password/?$', ResetPasswordFromToken.as_view(), name='reset_password_from_token'),
