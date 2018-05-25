@@ -1095,7 +1095,8 @@ class TestSchemeAccountViews(APITestCase):
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
+                                        options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER, scan_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
         self.assertEqual(scheme_account.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
