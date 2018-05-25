@@ -150,27 +150,9 @@ class ClientApplicationKit(models.Model):
         return 'ClientApplication: {} - kit: {}'.format(self.client, self.kit_name)
 
 
-class Property(models.Model):
-    uid = models.UUIDField(primary_key=True, db_index=True, default=uuid.uuid4)
-    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT)
-    salt = models.CharField(max_length=8)
-    user = models.ForeignKey('user.CustomUser', null=True)
-
-    @property
-    def is_authenticated(self):
-        return True
-
-    def create_token(self):
-        payload = {
-            'sub': str(self.uid),
-            'iat': arrow.utcnow().datetime,
-        }
-        token = jwt.encode(payload, self.client.secret + self.salt)
-        return token.decode('unicode_escape')
-
-
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, null=True, blank=True)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
@@ -179,6 +161,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
+    salt = models.CharField(max_length=8)
 
     USERNAME_FIELD = 'uid'
 
@@ -187,6 +170,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
+        unique_together = ('client', 'email',)
 
     def get_full_name(self):
         return self.email
@@ -265,6 +249,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def has_module_perms(self, app_label):
         return True
+
+    def create_token(self):
+        payload = {
+            'sub': self.id,
+            'iat': arrow.utcnow().datetime,
+        }
+        token = jwt.encode(payload, self.client.secret + self.salt)
+        return token.decode('unicode_escape')
 
     # Admin required fields
     # @property

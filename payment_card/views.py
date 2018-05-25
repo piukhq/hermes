@@ -19,14 +19,12 @@ import arrow
 from intercom import intercom_api
 
 from payment_card.forms import CSVUploadForm
-from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping, \
-    PaymentCardAccountEntry
+from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from payment_card import serializers
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from payment_card import metis
-from user.models import Property
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -62,8 +60,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.PaymentCardAccountSerializer
 
     def get_queryset(self):
-        prop = self.request.prop
-        return PaymentCardAccount.objects.filter(prop_set__in=[prop])
+        user = self.request.user
+        return PaymentCardAccount.objects.filter(user=user)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -73,11 +71,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
 
         try:
-            account_entry = PaymentCardAccountEntry.objects.filter(
-                payment_card_account=instance.id,
-                prop=request.prop
-            ).first()
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account_entry)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
             sentry.captureException()
 
@@ -104,11 +98,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
                 'Content-Type': 'application/json'})
 
         try:
-            account_entry = PaymentCardAccountEntry.objects.filter(
-                payment_card_account=instance.id,
-                prop=request.prop
-            ).first()
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account_entry)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
             sentry.captureException()
 
@@ -123,7 +113,7 @@ class ListCreatePaymentCardAccount(APIView):
         response_serializer: serializers.PaymentCardAccountSerializer
         """
         accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(prop_set__in=[request.prop])]
+                    PaymentCardAccount.objects.filter(user=request.user)]
         return Response(accounts, status=200)
 
     def post(self, request):
@@ -141,6 +131,8 @@ class ListCreatePaymentCardAccount(APIView):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
+            data['user'] = request.user
+
             account = PaymentCardAccount(**data)
 
             if account.payment_card.system != PaymentCard.MASTERCARD:
@@ -152,14 +144,14 @@ class ListCreatePaymentCardAccount(APIView):
                                      'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
             # create_payment_card_account either returns the created account, or an error response.
-            result = self.create_payment_card_account(account, request.prop)
-            if not isinstance(result, PaymentCardAccountEntry):
+            result = self.create_payment_card_account(account, request.user)
+            if not isinstance(result, PaymentCardAccount):
                 return result
 
             self.apply_barclays_images(account)
 
             try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, result)
+                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
             except intercom_api.IntercomException:
                 sentry.captureException()
 
@@ -168,30 +160,24 @@ class ListCreatePaymentCardAccount(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def create_payment_card_account(account, prop):
+    def create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
             # get the oldest matching account
             old_account = PaymentCardAccount.all_objects.filter(
                 fingerprint=account.fingerprint).order_by('-created').first()
 
             if old_account:
-                supercede_account = ListCreatePaymentCardAccount.supercede_old_card(account, old_account, prop)
-                account_entry = PaymentCardAccountEntry(payment_card_account=supercede_account, prop=prop)
-                account_entry.save()
-                return account_entry
+                return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
-        account_entry = PaymentCardAccountEntry(payment_card_account=account, prop=prop)
-        account_entry.save()
         metis.enrol_new_payment_card(account)
-        return account_entry
+        return account
 
     @staticmethod
-    def supercede_old_card(account, old_account, prop):
-        # todo needs new system for properties
+    def supercede_old_card(account, old_account, user):
         # if the clients are the same but the users don't match, reject the card.
-        # if old_account.user != user and old_account.user.client == user.client:
-        #     return Response({'error': 'Fingerprint is already in use by another user.',
-        #                      'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+        if old_account.user != user and old_account.user.client == user.client:
+            return Response({'error': 'Fingerprint is already in use by another user.',
+                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
         account.token = old_account.token
         account.psp_token = old_account.psp_token
@@ -203,12 +189,10 @@ class ListCreatePaymentCardAccount(APIView):
             account.status = old_account.status
             account.save()
 
-        PaymentCardAccountEntry(payment_card_account=account, prop=prop).save()
-
-        # only delete the old card if it's on the same app
-        # if old_account.user.client == user.client:
-        #     old_account.is_deleted = True
-        #     old_account.save()
+            # only delete the old card if it's on the same app
+            if old_account.user.client == user.client:
+                old_account.is_deleted = True
+                old_account.save()
 
         return account
 
@@ -239,20 +223,8 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
 
     def get_queryset(self):
         token = self.kwargs.get('token')
-        # data = payment_card_scheme_accounts(token)
-        payment_card_account = PaymentCardAccount.objects.filter(token=token).first()
-        schemes = payment_card_account.scheme_account_set.all()
-
-        return [
-            {
-                'scheme_id': scheme.scheme_id,
-                'scheme_account_id': scheme.id
-            }
-            for scheme in list(schemes)
-        ]
-
-
-
+        data = payment_card_scheme_accounts(token)
+        return data
 
 
 class RetrieveLoyaltyID(View):
@@ -337,7 +309,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-        # todo update permissions to use properties
         id = request.data.get('id', None)
         token = request.data.get('token', None)
 
@@ -358,10 +329,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.save()
 
         try:
-            account_entry = PaymentCardAccountEntry.objects.filter(
-                payment_card_account=payment_card_account.id
-            ).first()
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account_entry)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
         except intercom_api.IntercomException:
             sentry.captureException()
 

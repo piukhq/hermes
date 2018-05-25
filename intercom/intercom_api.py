@@ -17,16 +17,16 @@ class IntercomException(Exception):
 
 
 # metadata must be passed in as a dictionary
-def post_intercom_event(token, prop_uid, event_name, metadata):
+def post_intercom_event(token, user_id, event_name, metadata):
     """
     Submit an event to the Intercom service
     :param token: Intercom API access token
-    :param prop_uid: uuid identifier for the property
+    :param user_id: uuid identifier for the user (user.uid from CustomUser models)
     :return: the whole response
     """
     headers = _get_headers(token)
     payload = {
-        'user_id': str(prop_uid),
+        'user_id': user_id,
         'event_name': event_name,
         'created_at': int(time.time()),
         'metadata': metadata
@@ -44,17 +44,17 @@ def post_intercom_event(token, prop_uid, event_name, metadata):
     return response
 
 
-def reset_user_settings(token, prop_uid):
+def reset_user_settings(token, user_id):
     """
     Reset user custom attributes
     :param token: Intercom API access token
-    :param prop_uid: uuid identifier for the property
+    :param user_id: uuid identifier for the user
     :return: the whole response
     """
     headers = _get_headers(token)
 
     payload = {
-        'user_id': str(prop_uid),
+        'user_id': user_id,
         'custom_attributes': dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES)
     }
     response = requests.post(
@@ -69,11 +69,11 @@ def reset_user_settings(token, prop_uid):
     return response
 
 
-def update_user_custom_attribute(token, prop_uid, attr_name, attr_value):
+def update_user_custom_attribute(token, user_id, attr_name, attr_value):
     """
     Update a user custom attribute
     :param token: Intercom API access token
-    :param prop_uid: uuid identifier for the property
+    :param user_id: uuid identifier for the user
     :param attr_name: name of the attribute to be updated
     :param attr_value: new value of the attribute
     :return: the whole response
@@ -81,7 +81,7 @@ def update_user_custom_attribute(token, prop_uid, attr_name, attr_value):
     headers = _get_headers(token)
 
     payload = {
-        'user_id': str(prop_uid),
+        'user_id': user_id,
         'custom_attributes': {
             attr_name: attr_value,
         }
@@ -99,7 +99,7 @@ def update_user_custom_attribute(token, prop_uid, attr_name, attr_value):
     return response
 
 
-def update_account_status_custom_attribute(token, account_entry):
+def update_account_status_custom_attribute(token, account):
     """
     Update scheme account user custom attribute with the format:
     'scheme-slug': '{status},YYYY/mm/dd'
@@ -109,15 +109,15 @@ def update_account_status_custom_attribute(token, account_entry):
     :return: the whole response
     """
     attr_value = "{},{},{},{}".format(
-        str(account_entry.scheme_account.is_deleted).lower(),
-        account_entry.scheme_account.status_key,
+        str(account.is_deleted).lower(),
+        account.status_key,
         _get_today_datetime().strftime("%Y/%m/%d"),
-        account_entry.scheme_account.scheme.slug
+        account.scheme.slug
     )
-    return update_user_custom_attribute(token, account_entry.prop.uid, account_entry.scheme_account.scheme.company, attr_value)
+    return update_user_custom_attribute(token, account.user.uid, account.scheme.company, attr_value)
 
 
-def update_payment_account_custom_attribute(token, account_entry):
+def update_payment_account_custom_attribute(token, account):
     """
     Update payment card account user custom attribute
     Data to transfer:
@@ -133,10 +133,10 @@ def update_payment_account_custom_attribute(token, account_entry):
         [Last Update Date e.g. pending to Active],
         [is delete status]
     :param token: Intercom API access token
-    :param account_entry: payment card account_entry to be send to intercom
+    :param account: payment card account to be send to intercom
     :return: the whole response
     """
-    account = account_entry.payment_card_account
+
     attr_value = "{},{},{},{},{},{},{},{},{},{},{}".format(
         "STS:{}".format(account.status_name),
         "CRD:{}".format(account.payment_card.system_name),
@@ -153,18 +153,18 @@ def update_payment_account_custom_attribute(token, account_entry):
 
     key = "PAYMENT CARD {}".format(str(account.order))
 
-    return update_user_custom_attribute(token, account_entry.prop.uid, key, attr_value)
+    return update_user_custom_attribute(token, account.user.uid, key, attr_value)
 
 
-def get_user_events(token, prop_uid):
-    """ Retrieves the property identified with the prop_uid uuid"""
+def get_user_events(token, user_id):
+    """ Retrieves the user identified with the user_id uuid"""
     headers = _get_headers(token)
 
     return requests.get(
         '{host}/{path}?type=user&user_id={user_id}'.format(
             host=settings.INTERCOM_HOST,
             path=settings.INTERCOM_EVENTS_PATH,
-            user_id=prop_uid
+            user_id=user_id
         ),
         headers=headers
     )
