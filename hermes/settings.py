@@ -35,12 +35,11 @@ CSRF_TRUSTED_ORIGINS = [
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    ".chingrewards.com",
-    ".bink-dev.xyz",
+    "hermes",
+    ".bink.com",
+    ".bink-staging.com",
     ".bink-dev.com",
     ".bink-sandbox.com",
-    ".bink.com",
-    ".loyaltyangels.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
