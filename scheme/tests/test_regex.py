@@ -18,7 +18,7 @@ class TestInvalidRegex(TestCase):
 
         cls.scheme2 = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=cls.scheme2, type='barcode', options=SchemeCredentialQuestion.LINK)
-        cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme2)
+        cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme2, user=cls.user)
         SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account_2, question=cls.question, answer='1234')
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}

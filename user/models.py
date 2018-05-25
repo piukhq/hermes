@@ -383,35 +383,15 @@ setting_value_type_validators = {
 }
 
 
-# class UserSetting(models.Model):
-#     created_on = models.DateTimeField(auto_now_add=True)
-#     modified_on = models.DateTimeField(auto_now=True)
-#     user = models.ForeignKey(CustomUser, related_name='user')
-#     setting = models.ForeignKey(Setting, related_name='setting')
-#     value = models.CharField(max_length=255)
-#
-#     def __str__(self):
-#         return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
-#
-#     def clean(self):
-#         validate_setting_value(self.value, self.setting)
-#
-#     def to_boolean(self):
-#         try:
-#             return bool(int(self.value))
-#         except ValueError:
-#             return None
-
-
-class PropertySetting(models.Model):
+class UserSetting(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-    prop = models.ForeignKey(Property, related_name='prop')
+    user = models.ForeignKey(CustomUser, related_name='user')
     setting = models.ForeignKey(Setting, related_name='setting')
     value = models.CharField(max_length=255)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.prop.uid, self.setting.slug, self.value)
+        return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
 
     def clean(self):
         validate_setting_value(self.value, self.setting)
