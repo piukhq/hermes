@@ -1,4 +1,5 @@
-import uuid
+import base64
+import os
 
 from factory.fuzzy import FuzzyAttribute
 from django.utils import timezone
@@ -10,13 +11,6 @@ from user import models
 fake = Factory.create()
 
 
-class PropertyFactory(factory.DjangoModelFactory):
-    class Meta:
-        model = models.Property
-
-    salt = ''
-
-
 class UserFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.CustomUser
@@ -25,6 +19,7 @@ class UserFactory(factory.DjangoModelFactory):
     password = factory.PostGenerationMethodCall('set_password', 'defaultpassword')
     is_active = True
     is_staff = False
+    salt = base64.b64encode(os.urandom(16))[:8].decode('utf-8')
 
 
 class UserProfileFactory(factory.Factory):

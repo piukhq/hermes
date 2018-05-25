@@ -2,15 +2,29 @@ from django.contrib.auth.models import AnonymousUser
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from django.utils.translation import ugettext_lazy as _
 from rest_framework.permissions import BasePermission
-from user.models import Property
+from user.models import CustomUser
 from rest_framework import exceptions
 import jwt
 from django.conf import settings
 
 
 class JwtAuthentication(BaseAuthentication):
-    model = Property
+    """
+    Simple token based authentication.
 
+    Clients should authenticate by passing the token key in the "Authorization"
+    HTTP header, prepended with the string "Token ".  For example:
+
+        Authorization: Token 401f7ac837da42b97f613d789819ff93537bee6a
+    """
+
+    model = CustomUser
+    """
+    A custom token model may be used, but must have the following properties.
+
+    * key -- The string identifying the token
+    * user -- The user to which the token belongs
+    """
     @staticmethod
     def get_token(request):
         auth = get_authorization_header(request).split()
@@ -37,26 +51,30 @@ class JwtAuthentication(BaseAuthentication):
         # If its not a JWT token return none
         if not token or "." not in token:
             return None
-        prop, auth = self.authenticate_credentials(token)
-        setattr(request, 'prop', prop)
-        return prop, auth
+        return self.authenticate_credentials(token)
 
     def authenticate_credentials(self, key):
+        """
+        Verify the JWT by first extracting the User ID, then obtaining
+        the corresponding ClientApplication secret value.
+
+        Returns CustomUser instance.
+        """
         try:
             token_contents = jwt.decode(key, verify=False)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
         try:
-            prop = self.model.objects.get(uid=token_contents['sub'])
+            user = self.model.objects.get(id=token_contents['sub'])
         except self.model.DoesNotExist:
-            raise exceptions.AuthenticationFailed(_('Property does not exist.'))
+            raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
         try:
-            jwt.decode(key, prop.client.secret + prop.salt, verify=True)
+            token_contents = jwt.decode(key, user.client.secret + user.salt, verify=True)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
-        return prop, None
+        return user, None
 
     def authenticate_header(self, request):
         return 'Token'

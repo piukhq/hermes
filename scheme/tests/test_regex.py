@@ -13,15 +13,14 @@ class TestInvalidRegex(TestCase):
                                                        options=SchemeCredentialQuestion.LINK)
         cls.scheme_account_1 = SchemeAccountFactory(scheme=cls.scheme1)
         SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account_1, question=cls.question, answer='1234')
-
-        cls.prop = cls.scheme_account_1.prop_set.first()
+        cls.user = cls.scheme_account_1.user
 
         cls.scheme2 = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=cls.scheme2, type='barcode', options=SchemeCredentialQuestion.LINK)
         cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme2, user=cls.user)
         SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account_2, question=cls.question, answer='1234')
 
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super().setUpClass()
 
     def test_incorrect_regex(self):
