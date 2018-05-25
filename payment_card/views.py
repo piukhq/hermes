@@ -21,12 +21,10 @@ from intercom import intercom_api
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping, \
     PaymentCardAccountEntry
-from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from payment_card import serializers
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from payment_card import metis
-from user.models import Property
 
 
 class ListPaymentCard(generics.ListAPIView):

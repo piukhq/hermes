@@ -11,7 +11,7 @@ from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactor
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory, SchemeAccountEntryFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeAccountEntry
 from scheme.views import CreateMy360AccountsAndLink
-from user.models import Setting, Property
+from user.models import Setting
 from user.tests.factories import SettingFactory, PropertySettingFactory, PropertyFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -806,7 +806,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
         setting = SettingFactory(scheme=scheme, slug='join-{}'.format(scheme.slug), value_type=Setting.BOOLEAN)
-        PropertySettingFactory(prop= self.prop, setting=setting, value='0')
+        PropertySettingFactory(prop=self.prop, setting=setting, value='0')
 
         resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.prop.uid),
                                 **self.auth_service_headers)

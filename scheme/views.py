@@ -37,7 +37,6 @@ from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
-from user.models import CustomUser
 
 
 class BaseLinkMixin(object):

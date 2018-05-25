@@ -1,9 +1,11 @@
 import json
+
 from rest_framework.test import APITestCase
+
 from hermes import settings
 from payment_card.tests import factories as payment_card_factories
-from scheme.tests import factories as scheme_factories
 from scheme.models import SchemeCredentialQuestion
+from scheme.tests import factories as scheme_factories
 from user.tests import factories as user_factories
 
 
@@ -65,7 +67,7 @@ class TestPaymentCardUserInfo(APITestCase):
                                                                              question=cls.scheme_question)
 
         payment_card_factories.PaymentCardSchemeEntryFactory(
-            scheme_account= cls.scheme_account_1,
+            scheme_account=cls.scheme_account_1,
             payment_card_account=cls.payment_card_account_1
         )
 

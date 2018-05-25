@@ -1,14 +1,14 @@
 from unittest.mock import patch
 
+import httpretty
+from django.conf import settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from django.utils import timezone
-from django.conf import settings
-import httpretty
 
-from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
 from common.models import Image
+from payment_card.models import PaymentCardAccount
+from payment_card.tests import factories
 from user.tests.factories import PropertyFactory
 
 
@@ -107,7 +107,6 @@ class TestPaymentCard(APITestCase):
     @httpretty.activate
     @patch('intercom.intercom_api.update_user_custom_attribute')
     def test_post_payment_card_account(self, mock_update_user_custom_attribute):
-
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
 
@@ -286,20 +285,20 @@ class TestPaymentCard(APITestCase):
 
     def test_payment_card_account_token_unique(self):
         data = {
-                #   'user': self.user.id,
-                'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '088012',
-                'pan_end': '9820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token,
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
+            #   'user': self.user.id,
+            'issuer': self.issuer.id,
+            'status': 1,
+            'expiry_month': 4,
+            'expiry_year': 10,
+            'payment_card': self.payment_card.id,
+            'pan_start': '088012',
+            'pan_end': '9820',
+            'country': 'New Zealand',
+            'currency_code': 'GBP',
+            'name_on_card': 'Aron Stokes',
+            'token': self.payment_card_account.token,
+            'fingerprint': 'test-fingerprint',
+            'order': 0}
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
@@ -307,7 +306,6 @@ class TestPaymentCard(APITestCase):
     @httpretty.activate
     @patch('intercom.intercom_api.update_user_custom_attribute')
     def test_delete_payment_card_accounts(self, mock_update_user_custom_attribute):
-
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
 

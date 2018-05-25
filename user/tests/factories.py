@@ -1,9 +1,7 @@
-import uuid
-
-from factory.fuzzy import FuzzyAttribute
-from django.utils import timezone
-from faker import Factory
 import factory
+from django.utils import timezone
+from factory.fuzzy import FuzzyAttribute
+from faker import Factory
 
 from user import models
 

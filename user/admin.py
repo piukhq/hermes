@@ -4,7 +4,6 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib import admin
 
 from payment_card.models import PaymentCardAccount
-from scheme.models import SchemeAccount
 from user.models import (CustomUser, UserDetail, Referral, MarketingCode, PropertySetting, Setting,
                          Organisation, ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 
