@@ -11,22 +11,16 @@ tests:
     - py.test --cov-report term-missing --cov=.
   services:
     - postgres:9.4.4
-  tags:
-    - docker
 
 complexity:
   stage: tests
   script:
     - xenon --max-average A --max-modules B --max-absolute B .
-  tags:
-    - docker
 
 flake8:
   stage: tests
   script:
     - flake8 *
-  tags:
-    - docker
 
 build-develop:
   stage: build
