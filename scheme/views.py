@@ -54,12 +54,12 @@ class BaseLinkMixin(object):
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account_entry.scheme_account.question(answer_type),
                 scheme_account=scheme_account_entry.scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account_entry.scheme_account.get_midas_balance()
+        midas_information = scheme_account_entry.scheme_account.get_midas_balance(scheme_account_entry.prop)
         response_data = {
-            'balance': midas_information
+            'balance': midas_information,
+            'status': scheme_account_entry.scheme_account.status,
+            'status_name': scheme_account_entry.scheme_account.status_name
         }
-        response_data['status'] = scheme_account_entry.scheme_account.status
-        response_data['status_name'] = scheme_account_entry.scheme_account.status_name
         response_data.update(dict(data))
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account_entry)
