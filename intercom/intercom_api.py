@@ -114,7 +114,9 @@ def update_account_status_custom_attribute(token, account_entry):
         _get_today_datetime().strftime("%Y/%m/%d"),
         account_entry.scheme_account.scheme.slug
     )
-    return update_user_custom_attribute(token, account_entry.prop.uid, account_entry.scheme_account.scheme.company, attr_value)
+    return update_user_custom_attribute(
+        token, account_entry.prop.uid, account_entry.scheme_account.scheme.company, attr_value
+    )
 
 
 def update_payment_account_custom_attribute(token, account_entry):

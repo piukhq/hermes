@@ -4,8 +4,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.contrib import admin
 
 from payment_card.models import PaymentCardAccount
-from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting,
+from user.models import (CustomUser, UserDetail, Referral, MarketingCode, PropertySetting, Setting,
                          Organisation, ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 
 
@@ -77,9 +76,9 @@ class ReferralAdmin(admin.ModelAdmin):
     list_display = ('referrer', 'recipient', 'date',)
 
 
-@admin.register(UserSetting)
+@admin.register(PropertySetting)
 class UserSettingAdmin(admin.ModelAdmin):
-    search_fields = ('user__email', 'setting__slug', 'value')
+    search_fields = ('prop__uid', 'setting__slug', 'value')
 
 
 admin.site.register([Organisation, ClientApplication, ClientApplicationBundle, ClientApplicationKit])

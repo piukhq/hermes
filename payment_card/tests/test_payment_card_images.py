@@ -3,15 +3,16 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from payment_card.serializers import PaymentCardAccountSerializer
-from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardAccountFactory,
-                                          PaymentCardImageFactory)
+from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardImageFactory,
+                                          PaymentCardAccountEntryFactory)
 from common.models import Image
 
 
 class TestPaymentCardAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.payment_card_account = PaymentCardAccountFactory()
+        cls.payment_card_account_entry = PaymentCardAccountEntryFactory()
+        cls.payment_card_account = cls.payment_card_account_entry.payment_card_account
         cls.payment_card_account_image = PaymentCardAccountImageFactory(
             image_type_code=2,
             status=Image.PUBLISHED,
@@ -25,8 +26,8 @@ class TestPaymentCardAccountImages(APITestCase):
             PaymentCardImageFactory(image_type_code=3, payment_card=cls.payment_card_account.payment_card),
         ]
 
-        cls.user = cls.payment_card_account.user
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.prop = cls.payment_card_account_entry.prop
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         super().setUpClass()
 
     def test_image_property(self):

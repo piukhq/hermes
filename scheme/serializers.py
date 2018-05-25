@@ -237,7 +237,7 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'user', 'status', 'status_name', 'action_status')
+        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'action_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):

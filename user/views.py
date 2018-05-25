@@ -1,34 +1,31 @@
 import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
-                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
-                                   HTTP_400_BAD_REQUEST)
+from rest_framework.status import HTTP_200_OK
 from rest_framework.views import APIView
+
+from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from hermes.settings import LETHE_URL, MEDIA_URL
-from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
-                              TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer)
+                              TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -144,7 +141,7 @@ class ForgotPassword(APIView):
             user.generate_reset_token()
             send_mail('email.tpl',
                       {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
-                               'hermes_url': MEDIA_URL},
+                       'hermes_url': MEDIA_URL},
                       settings.DEFAULT_FROM_EMAIL,
                       [user.email],
                       fail_silently=False)
@@ -410,120 +407,120 @@ class Settings(ListAPIView):
     authentication_classes = (JwtAuthentication,)
 
 
-class UserSettings(APIView):
-    authentication_classes = (JwtAuthentication,)
-
-    def get(self, request):
-        """
-        View a user's app settings.
-        ---
-        response_serializer: user.serializers.UserSettingSerializer
-        """
-        user_settings = UserSetting.objects.filter(user=request.user)
-        settings = Setting.objects.all()
-
-        settings_list = []
-
-        for setting in settings:
-            user_setting = user_settings.filter(setting=setting).first()
-
-            if not user_setting:
-                user_setting = UserSetting(
-                    user=request.user,
-                    setting=setting,
-                    value=setting.default_value,
-                )
-                is_user_defined = False
-            else:
-                is_user_defined = True
-
-            data = {'is_user_defined': is_user_defined}
-            data.update(UserSettingSerializer(user_setting).data)
-            data.update(SettingSerializer(setting).data)
-            settings_list.append(data)
-
-        return Response(settings_list)
-
-    def put(self, request):
-        """
-        Change a user's app settings. Takes one or more slug-value pairs.
-        Responds with a 204 - No Content.
-        ---
-        request_serializer: user.serializers.UpdateUserSettingSerializer
-        responseMessages:
-            - code: 400
-              message: Some of the given settings are invalid.
-        """
-        bad_settings = self._filter_bad_setting_slugs(request.data)
-
-        if bad_settings:
-            return Response({
-                'error': 'Some of the given settings are invalid.',
-                'messages': bad_settings
-            }, HTTP_400_BAD_REQUEST)
-
-        validation_errors = []
-
-        for slug_key, value in request.data.items():
-            user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
-            try:
-                user_setting.full_clean()
-            except ValidationError as e:
-                validation_errors.extend(e.messages)
-            else:
-                user_setting.save()
-                if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
-                    try:
-                        intercom_api.update_user_custom_attribute(
-                            settings.INTERCOM_TOKEN,
-                            request.user.uid,
-                            slug_key,
-                            user_setting.to_boolean()
-                        )
-                    except intercom_api.IntercomException:
-                        pass
-
-        if validation_errors:
-            return Response({
-                'error': 'Some of the given settings are invalid.',
-                'messages': validation_errors,
-            }, HTTP_400_BAD_REQUEST)
-
-        return Response(status=HTTP_204_NO_CONTENT)
-
-    def delete(self, request):
-        """
-        Reset a user's app settings.
-        Responds with a 204 - No Content.
-        """
-        UserSetting.objects.filter(user=request.user).delete()
-        try:
-            intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
-        except intercom_api.IntercomException:
-            pass
-
-        return Response(status=HTTP_204_NO_CONTENT)
-
-    @staticmethod
-    def _filter_bad_setting_slugs(request_data):
-        bad_settings = []
-
-        for k, v in request_data.items():
-            setting = Setting.objects.filter(slug=k).first()
-            if not setting:
-                bad_settings.append(k)
-
-        return bad_settings
-
-    @staticmethod
-    def _create_or_update_user_setting(user, setting_slug, value):
-        user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
-        if user_setting:
-            user_setting.value = value
-        else:
-            setting = Setting.objects.filter(slug=setting_slug).first()
-            user_setting = UserSetting(user=user, setting=setting, value=value)
-        return user_setting
+# class UserSettings(APIView):
+#     authentication_classes = (JwtAuthentication,)
+#
+#     def get(self, request):
+#         """
+#         View a user's app settings.
+#         ---
+#         response_serializer: user.serializers.UserSettingSerializer
+#         """
+#         user_settings = UserSetting.objects.filter(user=request.user)
+#         settings = Setting.objects.all()
+#
+#         settings_list = []
+#
+#         for setting in settings:
+#             user_setting = user_settings.filter(setting=setting).first()
+#
+#             if not user_setting:
+#                 user_setting = UserSetting(
+#                     user=request.user,
+#                     setting=setting,
+#                     value=setting.default_value,
+#                 )
+#                 is_user_defined = False
+#             else:
+#                 is_user_defined = True
+#
+#             data = {'is_user_defined': is_user_defined}
+#             data.update(UserSettingSerializer(user_setting).data)
+#             data.update(SettingSerializer(setting).data)
+#             settings_list.append(data)
+#
+#         return Response(settings_list)
+#
+#     def put(self, request):
+#         """
+#         Change a user's app settings. Takes one or more slug-value pairs.
+#         Responds with a 204 - No Content.
+#         ---
+#         request_serializer: user.serializers.UpdateUserSettingSerializer
+#         responseMessages:
+#             - code: 400
+#               message: Some of the given settings are invalid.
+#         """
+#         bad_settings = self._filter_bad_setting_slugs(request.data)
+#
+#         if bad_settings:
+#             return Response({
+#                 'error': 'Some of the given settings are invalid.',
+#                 'messages': bad_settings
+#             }, HTTP_400_BAD_REQUEST)
+#
+#         validation_errors = []
+#
+#         for slug_key, value in request.data.items():
+#             user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
+#             try:
+#                 user_setting.full_clean()
+#             except ValidationError as e:
+#                 validation_errors.extend(e.messages)
+#             else:
+#                 user_setting.save()
+#                 if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
+#                     try:
+#                         intercom_api.update_user_custom_attribute(
+#                             settings.INTERCOM_TOKEN,
+#                             request.user.uid,
+#                             slug_key,
+#                             user_setting.to_boolean()
+#                         )
+#                     except intercom_api.IntercomException:
+#                         pass
+#
+#         if validation_errors:
+#             return Response({
+#                 'error': 'Some of the given settings are invalid.',
+#                 'messages': validation_errors,
+#             }, HTTP_400_BAD_REQUEST)
+#
+#         return Response(status=HTTP_204_NO_CONTENT)
+#
+#     def delete(self, request):
+#         """
+#         Reset a user's app settings.
+#         Responds with a 204 - No Content.
+#         """
+#         UserSetting.objects.filter(user=request.user).delete()
+#         try:
+#             intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
+#         except intercom_api.IntercomException:
+#             pass
+#
+#         return Response(status=HTTP_204_NO_CONTENT)
+#
+#     @staticmethod
+#     def _filter_bad_setting_slugs(request_data):
+#         bad_settings = []
+#
+#         for k, v in request_data.items():
+#             setting = Setting.objects.filter(slug=k).first()
+#             if not setting:
+#                 bad_settings.append(k)
+#
+#         return bad_settings
+#
+#     @staticmethod
+#     def _create_or_update_user_setting(user, setting_slug, value):
+#         user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
+#         if user_setting:
+#             user_setting.value = value
+#         else:
+#             setting = Setting.objects.filter(slug=setting_slug).first()
+#             user_setting = UserSetting(user=user, setting=setting, value=value)
+#         return user_setting
 
 
 class IdentifyApplicationKit(APIView):

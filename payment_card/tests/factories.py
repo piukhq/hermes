@@ -7,7 +7,7 @@ from faker import Factory
 from django.utils import timezone
 
 from scheme.tests.factories import SchemeAccountFactory
-from user.tests.factories import UserFactory, PropertyFactory
+from user.tests.factories import PropertyFactory
 from payment_card import models
 
 fake = Factory.create()
