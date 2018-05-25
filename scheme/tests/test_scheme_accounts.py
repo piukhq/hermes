@@ -57,7 +57,9 @@ class TestSchemeAccountViews(APITestCase):
                                                                           scheme_account=cls.scheme_account1)
 
         cls.scheme.save()
-        cls.prop = cls.scheme_account.prop_set.first()
+
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+        cls.prop = cls.scheme_account_entry.prop
         cls.prop.user = UserFactory()
         cls.prop.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
@@ -136,7 +138,6 @@ class TestSchemeAccountViews(APITestCase):
             'is_stale': False
         }
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf"}
-        SchemeAccountEntry(scheme_account=self.scheme_account, prop=self.prop)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 201)
@@ -1187,17 +1188,17 @@ class TestAccessTokens(APITestCase):
         # Test Post Method
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 201)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                     data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 404)
         # Test Put Method
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                    data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
                                    data=data, ** self.auth_headers)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):

@@ -160,7 +160,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
         scheme_account_entry = get_object_or_404(
-            SchemeAccountEntry.objects, id=self.kwargs['pk'], prop=self.request.prop
+            SchemeAccountEntry.objects, scheme_account=self.kwargs['pk'], prop=self.request.prop
         )
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account_entry)
@@ -174,7 +174,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         response_serializer: ResponseLinkSerializer
         """
         scheme_account_entry = get_object_or_404(
-            SchemeAccountEntry.objects, id=self.kwargs['pk'], prop=self.request.prop
+            SchemeAccountEntry.objects, scheme_account=self.kwargs['pk'], prop=self.request.prop
         )
         scheme_account = scheme_account_entry.scheme_account
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
