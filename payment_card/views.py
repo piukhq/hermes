@@ -252,9 +252,6 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
         ]
 
 
-
-
-
 class RetrieveLoyaltyID(View):
     authentication_classes = ServiceAuthentication,
 
@@ -268,7 +265,8 @@ class RetrieveLoyaltyID(View):
             payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
             if payment_card:
                 try:
-                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                    # todo add multiple scheme account support
+                    scheme_account = payment_card.scheme_account_set.get(scheme=scheme)
                 except ObjectDoesNotExist:
                     # the user was matched but is not registered in that scheme
                     response_data.append({payment_card_token: None})
@@ -300,13 +298,12 @@ class RetrievePaymentCardUserInfo(View):
 
             scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
                                                            status=SchemeAccount.ACTIVE,
-                                                           user__in=(p.user for p in payment_cards))
+                                                           payment_card_account_set__in=payment_cards)
             if scheme_accounts.exists():
                 scheme_account = scheme_accounts.order_by('created').first()
                 response_data[payment_card_token] = {
                     'loyalty_id': scheme_account.third_party_identifier,
                     'scheme_account_id': scheme_account.id,
-                    'user_id': scheme_account.user.id,
                     'credentials': scheme_account.credentials()
                 }
             else:

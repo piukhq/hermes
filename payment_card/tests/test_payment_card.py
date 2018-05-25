@@ -9,8 +9,7 @@ import httpretty
 from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount
 from common.models import Image
-from scheme.tests.factories import SchemeAccountFactory
-from user.tests.factories import UserFactory, PropertyFactory
+from user.tests.factories import PropertyFactory
 
 
 class TestPaymentCardImages(APITestCase):
