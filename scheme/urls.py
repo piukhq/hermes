@@ -34,10 +34,10 @@ urlpatterns = [
         views.RetrieveDeleteAccount.as_view(),
         name='retrieve_account'),
 
-    url(r'^/accounts/donor_schemes/(?P<scheme_id>[0-9]+)/(?P<prop_id>[0-9a-f\-]+)/?$',
+    url(r'^/accounts/donor_schemes/(?P<scheme_id>[0-9]+)/(?P<user_id>[0-9]+)/?$',
         views.DonorSchemes.as_view()),
 
-    url(r'^/accounts/join/(?P<scheme_slug>[a-z0-9\-]+)/(?P<prop_id>[0-9a-f\-]+)/?$',
+    url(r'^/accounts/join/(?P<scheme_slug>[a-z0-9\-]+)/(?P<user_id>[0-9]+)/?$',
         views.CreateJoinSchemeAccount.as_view()),
 
     url(r'^/?$',

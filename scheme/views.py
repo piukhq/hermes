@@ -27,7 +27,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer)
-from user.models import PropertySetting, Property
+from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -37,6 +37,7 @@ from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
+from user.models import CustomUser
 
 
 class BaseLinkMixin(object):
@@ -53,12 +54,12 @@ class BaseLinkMixin(object):
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account_entry.scheme_account.question(answer_type),
                 scheme_account=scheme_account_entry.scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account_entry.scheme_account.get_midas_balance(scheme_account_entry.prop)
+        midas_information = scheme_account_entry.scheme_account.get_midas_balance()
         response_data = {
-            'balance': midas_information,
-            'status': scheme_account_entry.scheme_account.status,
-            'status_name': scheme_account_entry.scheme_account.status_name
+            'balance': midas_information
         }
+        response_data['status'] = scheme_account_entry.scheme_account.status
+        response_data['status_name'] = scheme_account_entry.scheme_account.status_name
         response_data.update(dict(data))
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account_entry)
@@ -121,7 +122,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(prop_set__in=[self.request.prop])
+        return SchemeAccount.objects.filter(user=self.request.user)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -131,13 +132,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
-        account_entry = SchemeAccountEntry.objects.filter(
-            scheme_account=instance,
-            prop=request.prop
-        ).first()
         try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account_entry)
-            account_entry.delete()
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
         except intercom_api.IntercomException:
             pass
 
@@ -158,9 +154,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        scheme_account_entry = get_object_or_404(
-            SchemeAccountEntry.objects, scheme_account=self.kwargs['pk'], prop=self.request.prop
-        )
+        scheme_account_entry = get_object_or_404(SchemeAccountEntry.objects, id=self.kwargs['pk'], prop=self.request.prop)
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account_entry)
         out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
@@ -172,13 +166,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        scheme_account_entry = get_object_or_404(
-            SchemeAccountEntry.objects, scheme_account=self.kwargs['pk'], prop=self.request.prop
-        )
-        scheme_account = scheme_account_entry.scheme_account
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
 
-        response_data = self.link_account(serializer, scheme_account_entry)
+        response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = timezone.now()
         scheme_account.save()
 
@@ -200,8 +191,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         return super().get(self, request, *args, **kwargs)
 
     def get_queryset(self):
-
-        return SchemeAccount.objects.filter(prop_set__in=[self.request.prop])
+        return SchemeAccountEntry.objects.filter(prop=self.request.prop)
 
     def post(self, request, *args, **kwargs):
         """
@@ -224,7 +214,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 }
                 intercom_api.post_intercom_event(
                     settings.INTERCOM_TOKEN,
-                    request.prop.uid,
+                    request.user.uid,
                     intercom_api.MY360_APP_EVENT,
                     metadata
                 )
@@ -452,32 +442,31 @@ class CreateJoinSchemeAccount(APIView):
             return Response({'code': 400, 'message': 'Scheme does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            prop = Property.objects.get(uid=kwargs['prop_id'])
-        except Property.DoesNotExist:
+            user = CustomUser.objects.get(id=kwargs['user_id'])
+        except CustomUser.DoesNotExist:
             return Response({'code': 400, 'message': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # has the user disabled join cards for this scheme?
-        setting = PropertySetting.objects.filter(prop=prop, setting__scheme=scheme,
-                                                 setting__slug='join-{}'.format(scheme.slug))
+        setting = UserSetting.objects.filter(user=user, setting__scheme=scheme,
+                                             setting__slug='join-{}'.format(scheme.slug))
         if setting.exists() and setting.first().value == '0':
             return Response({'code': 200, 'message': 'User has disabled join cards for this scheme'},
                             status=status.HTTP_200_OK)
 
         # does the user have an account with the scheme already?
-        account = SchemeAccount.objects.filter(scheme=scheme, prop_set__in=[prop])
+        account = SchemeAccount.objects.filter(scheme=scheme, user=user)
         if account.exists():
             return Response({'code': 200, 'message': 'User already has an account with this scheme.'},
                             status=status.HTTP_200_OK)
 
         # create a join account.
         account = SchemeAccount(
+            user=user,
             scheme=scheme,
             status=SchemeAccount.JOIN,
             order=0,
         )
         account.save()
-        account_entry = SchemeAccountEntry(prop=prop, scheme_account=account)
-        account_entry.save()
 
         try:
             metadata = {
@@ -486,11 +475,11 @@ class CreateJoinSchemeAccount(APIView):
             }
             intercom_api.post_intercom_event(
                 settings.INTERCOM_TOKEN,
-                prop.uid,
+                user.uid,
                 intercom_api.ISSUED_JOIN_CARD_EVENT,
                 metadata
             )
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account_entry)
+            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
         except intercom_api.IntercomException:
             pass
 
@@ -565,7 +554,7 @@ class SchemeAccountsCredentials(RetrieveAPIView):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
-            queryset = queryset.filter(prop_set__in=[self.request.prop])
+            queryset = queryset.filter(user=self.request.user)
         return queryset
 
     def put(self, request, *args, **kwargs):
@@ -718,7 +707,7 @@ class DonorSchemes(APIView):
 
         """
         host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
-        scheme_accounts = SchemeAccount.objects.filter(prop_set__in=[kwargs['prop_id']], status=SchemeAccount.ACTIVE)
+        scheme_accounts = SchemeAccount.objects.filter(user__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         return_data = []
 
@@ -804,7 +793,10 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         """
         scheme_id = int(self.kwargs['pk'])
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
-        serializer = JoinSerializer(data=request.data, context={'scheme': join_scheme, 'prop': request.prop})
+        serializer = JoinSerializer(data=request.data, context={
+                                                                'scheme': join_scheme,
+                                                                'prop': request.prop
+                                                                })
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id

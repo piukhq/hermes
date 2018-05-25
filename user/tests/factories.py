@@ -1,7 +1,9 @@
-import factory
-from django.utils import timezone
+import uuid
+
 from factory.fuzzy import FuzzyAttribute
+from django.utils import timezone
 from faker import Factory
+import factory
 
 from user import models
 
@@ -56,11 +58,11 @@ class SettingFactory(factory.DjangoModelFactory):
     default_value = '0'
 
 
-class PropertySettingFactory(factory.DjangoModelFactory):
+class UserSettingFactory(factory.DjangoModelFactory):
     class Meta:
-        model = models.PropertySetting
+        model = models.UserSetting
 
-    prop = factory.SubFactory(PropertyFactory)
+    user = factory.SubFactory(UserFactory)
     setting = factory.SubFactory(SettingFactory)
     value = fake.text(max_nb_chars=255)
 
