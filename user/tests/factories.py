@@ -58,11 +58,11 @@ class SettingFactory(factory.DjangoModelFactory):
     default_value = '0'
 
 
-class UserSettingFactory(factory.DjangoModelFactory):
+class PropertySettingFactory(factory.DjangoModelFactory):
     class Meta:
-        model = models.UserSetting
+        model = models.PropertySetting
 
-    user = factory.SubFactory(UserFactory)
+    prop = factory.SubFactory(PropertyFactory)
     setting = factory.SubFactory(SettingFactory)
     value = fake.text(max_nb_chars=255)
 

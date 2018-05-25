@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
-from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
+from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, PropertySettingFactory,
                                   MarketingCodeFactory)
 from unittest import mock
 
@@ -946,7 +946,7 @@ class TestUserSettings(APITestCase):
 
     def test_list_user_settings(self):
         setting = SettingFactory(category=Setting.MARKETING)
-        UserSettingFactory(user=self.user, value='1', setting=setting)
+        PropertySettingFactory(user=self.user, value='1', setting=setting)
 
         SettingFactory()
 
@@ -968,8 +968,8 @@ class TestUserSettings(APITestCase):
     @mock.patch('intercom.intercom_api.reset_user_settings')
     def test_delete_user_settings(self, mock_update_custom_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        PropertySettingFactory(user=self.user, value='1', setting=settings[0])
+        PropertySettingFactory(user=self.user, value='0', setting=settings[1])
 
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 2)
@@ -986,8 +986,8 @@ class TestUserSettings(APITestCase):
     @mock.patch('intercom.intercom_api.update_user_custom_attribute')
     def test_update_intercom_user_settings(self, mock_update_custom_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        PropertySettingFactory(user=self.user, value='1', setting=settings[0])
+        PropertySettingFactory(user=self.user, value='0', setting=settings[1])
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
         self.assertEqual(user_setting.value, '1')
@@ -1026,8 +1026,8 @@ class TestUserSettings(APITestCase):
     @mock.patch('intercom.intercom_api.update_user_custom_attribute')
     def test_update_non_intercom_user_settings(self, mock_update_custom_attribute):
         settings = [SettingFactory(), SettingFactory()]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        PropertySettingFactory(user=self.user, value='1', setting=settings[0])
+        PropertySettingFactory(user=self.user, value='0', setting=settings[1])
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
         self.assertEqual(user_setting.value, '1')

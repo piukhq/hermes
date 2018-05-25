@@ -8,11 +8,11 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
-from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
+    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory, SchemeAccountEntryFactory
+from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeAccountEntry
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting, Property
-from user.tests.factories import SettingFactory, UserSettingFactory
+from user.tests.factories import SettingFactory, PropertySettingFactory, PropertyFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
@@ -26,38 +26,39 @@ class TestSchemeAccountViews(APITestCase):
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
         cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
-        SchemeCredentialQuestionFactory(scheme=cls.scheme,
-                                        type=USER_NAME,
-                                        manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
-                                                             type=CARD_NUMBER,
-                                                             third_party_identifier=True,
-                                                             options=SchemeCredentialQuestion.LINK)
-        password_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
-                                                            type=PASSWORD,
-                                                            options=SchemeCredentialQuestion.LINK_AND_JOIN)
-
+        SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, type=USER_NAME, manual_question=True
+        )
+        secondary_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, type=CARD_NUMBER, third_party_identifier=True, options=SchemeCredentialQuestion.LINK
+        )
+        password_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN
+        )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
-                                                                  scheme_account=cls.scheme_account)
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
-                                                                         scheme_account=cls.scheme_account)
-
-        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password",
-                                                                           question=password_question,
-                                                                           scheme_account=cls.scheme_account)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=cls.scheme.manual_question, scheme_account=cls.scheme_account
+        )
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=secondary_question, scheme_account=cls.scheme_account
+        )
+        cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(
+            answer="test_password", question=password_question, scheme_account=cls.scheme_account
+        )
         cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
-        barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
-                                                           type=BARCODE,
-                                                           options=SchemeCredentialQuestion.LINK)
+        barcode_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme1, type=BARCODE, options=SchemeCredentialQuestion.LINK
+        )
         SchemeCredentialQuestionFactory(scheme=cls.scheme1, type=CARD_NUMBER, third_party_identifier=True)
-        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(answer="9999888877776666",
-                                                                          question=barcode_question,
-                                                                          scheme_account=cls.scheme_account1)
+        cls.scheme_account_answer_barcode = SchemeCredentialAnswerFactory(
+            answer="9999888877776666", question=barcode_question, scheme_account=cls.scheme_account1
+        )
 
         cls.scheme.save()
         cls.prop = cls.scheme_account.prop_set.first()
+        cls.prop.user = UserFactory()
+        cls.prop.save()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
@@ -69,7 +70,7 @@ class TestSchemeAccountViews(APITestCase):
         join_scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
-
+        SchemeAccountEntryFactory(scheme_account=join_account, prop=self.prop)
         response = self.client.post('/schemes/accounts', data={
             'scheme': join_scheme.id,
             'order': 0,
@@ -257,7 +258,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('scheme', response.data)
         self.assertIn('action_status', response.data)
         self.assertIn('status_name', response.data)
-        self.assertIn('user', response.data)
+        # self.assertIn('user', response.data)
         self.assertIn('id', response.data)
 
     def test_get_scheme_accounts_credentials_user(self):
@@ -486,7 +487,8 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, manual_question=True, one_question_link=True)
         SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, manual_question=True, one_question_link=True)
 
-        SchemeAccountFactory(scheme=scheme_1)
+        account = SchemeAccountFactory(scheme=scheme_1)
+        SchemeAccountEntryFactory(scheme_account=account, prop=self.prop)
 
         # When the front end requests [POST] /schemes/accounts/my360
         data = {
@@ -760,7 +762,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
-        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
+        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.prop.uid),
                                 **self.auth_service_headers)
 
         self.assertEqual(resp.status_code, 201)
@@ -776,7 +778,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('order', json)
         self.assertIn('scheme', json)
         self.assertIn('status', json)
-        self.assertIn('user', json)
+        # self.assertIn('user', json)
 
         self.assertEqual(mock_post_intercom_event.call_count, 1)
         self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
@@ -800,9 +802,9 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
         setting = SettingFactory(scheme=scheme, slug='join-{}'.format(scheme.slug), value_type=Setting.BOOLEAN)
-        UserSettingFactory(setting=setting, value='0')
+        PropertySettingFactory(prop= self.prop, setting=setting, value='0')
 
-        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
+        resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.prop.uid),
                                 **self.auth_service_headers)
 
         self.assertEqual(resp.status_code, 200)
@@ -893,10 +895,9 @@ class TestSchemeAccountViews(APITestCase):
         mock_request.return_value.json.return_value = {'message': 'success'}
 
         scheme = SchemeFactory()
-        link_question = SchemeCredentialQuestionFactory(scheme=scheme,
-                                                        type=USER_NAME,
-                                                        manual_question=True,
-                                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        link_question = SchemeCredentialQuestionFactory(
+            scheme=scheme, type=USER_NAME, manual_question=True, options=SchemeCredentialQuestion.LINK_AND_JOIN
+        )
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
 
@@ -915,7 +916,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(resp_json['scheme'], scheme.id)
         self.assertEqual(len(resp_json), len(data)+1)
         scheme_account = SchemeAccount.objects.get(scheme_id=scheme.id)
-        self.assertEqual(resp_json['id'], scheme_account.id)
+        scheme_account_entry = SchemeAccountEntry.objects.get(scheme_account=scheme_account, prop=self.prop)
+        self.assertEqual(resp_json['id'], scheme_account_entry.id)
         self.assertEqual('Pending', scheme_account.status_name)
         self.assertEqual(len(scheme_account.schemeaccountcredentialanswer_set.all()), 1)
         self.assertTrue(scheme_account.schemeaccountcredentialanswer_set.filter(question=link_question))
@@ -946,10 +948,9 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme,
-                                        type=EMAIL,
-                                        manual_question=True,
-                                        options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(
+            scheme=scheme, type=EMAIL, manual_question=True, options=SchemeCredentialQuestion.JOIN
+        )
         SchemeCredentialQuestionFactory(scheme=scheme, type=PHONE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=TITLE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=FIRST_NAME, options=SchemeCredentialQuestion.JOIN)
@@ -973,7 +974,7 @@ class TestSchemeAccountViews(APITestCase):
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
 
-        user = SchemeAccount.objects.filter(scheme=scheme).first().user
+        user = SchemeAccount.objects.filter(scheme=scheme).first().prop_set.first().user
         user_profile = user.profile
         self.assertEqual(user_profile.phone, phone_number)
         self.assertEqual(user_profile.first_name, first_name)
@@ -1107,7 +1108,8 @@ class TestAccessTokens(APITestCase):
     @classmethod
     def setUpClass(cls):
         # Scheme Account 3
-        cls.scheme_account = SchemeAccountFactory()
+        cls.scheme_account_entry = SchemeAccountEntryFactory()
+        cls.scheme_account = cls.scheme_account_entry.scheme_account
         question = SchemeCredentialQuestionFactory(type=CARD_NUMBER,
                                                    scheme=cls.scheme_account.scheme,
                                                    options=SchemeCredentialQuestion.LINK)
@@ -1115,10 +1117,12 @@ class TestAccessTokens(APITestCase):
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
 
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account, question=question)
-        cls.user = cls.scheme_account.user
+        # cls.user = cls.scheme_account.user
+        cls.prop = cls.scheme_account_entry.prop
 
         # Scheme Account 2
-        cls.scheme_account2 = SchemeAccountFactory()
+        cls.scheme_account_entry2 = SchemeAccountEntryFactory()
+        cls.scheme_account2 = cls.scheme_account_entry2.scheme_account
         question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.scheme_account2.scheme)
 
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
@@ -1130,9 +1134,10 @@ class TestAccessTokens(APITestCase):
         SchemeCredentialQuestionFactory(scheme=cls.scheme2, type=USER_NAME, manual_question=True)
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
                                                                    question=cls.scheme2.manual_question)
-        cls.user2 = cls.scheme_account2.user
+        # cls.user2 = cls.scheme_account2.user
+        cls.prop2 = cls.scheme_account_entry2.prop
 
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestAccessTokens, cls).setUpClass()
 
@@ -1217,7 +1222,8 @@ class TestAccessTokens(APITestCase):
 class TestSchemeAccountImages(APITestCase):
     @classmethod
     def setUpClass(cls):
-        cls.scheme_account = SchemeAccountFactory()
+        cls.scheme_account_entry = SchemeAccountEntryFactory()
+        cls.scheme_account = cls.scheme_account_entry.scheme_account
         cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
         cls.scheme_account_image.scheme_accounts.add(cls.scheme_account)
 
@@ -1227,8 +1233,8 @@ class TestSchemeAccountImages(APITestCase):
             SchemeImageFactory(image_type_code=3, scheme=cls.scheme_account.scheme),
         ]
 
-        cls.user = cls.scheme_account.user
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.prop = cls.scheme_account_entry.prop
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
         super().setUpClass()
 
     def test_image_property(self):
@@ -1259,18 +1265,18 @@ class TestExchange(APITestCase):
         donor_scheme_1 = self.create_scheme()
         donor_scheme_2 = self.create_scheme()
 
-        user = UserFactory()
+        prop = PropertyFactory()
 
-        self.create_scheme_account(host_scheme, user)
-        self.create_scheme_account(donor_scheme_2, user)
-        self.create_scheme_account(donor_scheme_1, user)
+        self.create_scheme_account(host_scheme, prop)
+        self.create_scheme_account(donor_scheme_2, prop)
+        self.create_scheme_account(donor_scheme_1, prop)
 
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_1)
         ExchangeFactory(host_scheme=host_scheme, donor_scheme=donor_scheme_2)
 
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
-        resp = self.client.get('/schemes/accounts/donor_schemes/{}/{}'.format(host_scheme.id, user.id), **auth_headers)
+        resp = self.client.get('/schemes/accounts/donor_schemes/{}/{}'.format(host_scheme.id, prop.uid), **auth_headers)
         self.assertEqual(resp.status_code, 200)
 
         json = resp.json()
@@ -1291,8 +1297,9 @@ class TestExchange(APITestCase):
         self.assertIn('point_name', json[0]['host_scheme'])
 
     @staticmethod
-    def create_scheme_account(host_scheme, user):
+    def create_scheme_account(host_scheme, prop):
         scheme_account = SchemeAccountFactory(scheme=host_scheme)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, prop=prop)
         SchemeCredentialAnswerFactory(scheme_account=scheme_account)
         return scheme_account
 
@@ -1334,12 +1341,12 @@ class TestSchemeAccountCredentials(APITestCase):
 
         cls.scheme_account_no_answers = SchemeAccountFactory(scheme=cls.scheme)
 
-        cls.user = cls.scheme_account.user
-        cls.user2 = cls.scheme_account2.user
-        cls.user3 = cls.scheme_account_no_answers.user
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user2.create_token()}
-        cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user3.create_token()}
+        cls.prop = cls.scheme_account.prop_set.first()
+        cls.prop2 = cls.scheme_account2.prop_set.first()
+        cls.prop3 = cls.scheme_account_no_answers.prop_set.first()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop.create_token()}
+        cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop2.create_token()}
+        cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.prop3.create_token()}
 
         super().setUpClass()
 

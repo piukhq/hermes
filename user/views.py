@@ -23,12 +23,12 @@ from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
 from intercom import intercom_api
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, PropertySetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer)
+                              PropertySettingSerializer)
 
 
 class OpenAuthentication(SessionAuthentication):

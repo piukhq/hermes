@@ -7,7 +7,7 @@ from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
+from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, PropertySetting,
                          ClientApplicationBundle)
 
 
@@ -254,13 +254,13 @@ class SettingSerializer(serializers.ModelSerializer):
         return setting.category_name
 
 
-class UserSettingSerializer(serializers.ModelSerializer):
+class PropertySettingSerializer(serializers.ModelSerializer):
     class Meta:
-        model = UserSetting
-        fields = ('user', 'value')
+        model = PropertySetting
+        fields = ('prop', 'value')
 
 
-class UpdateUserSettingSerializer(serializers.Serializer):
+class UpdatePropertySettingSerializer(serializers.Serializer):
     slug1 = serializers.SlugField(required=True)
     slug2 = serializers.SlugField(required=False)
     slug3 = serializers.SlugField(required=False)
