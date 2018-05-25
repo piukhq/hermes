@@ -28,7 +28,7 @@ flake8:
   tags:
     - docker
 
-build-latest:
+build-develop:
   stage: build
   image: docker:latest
   services:
@@ -36,15 +36,12 @@ build-latest:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:latest" . -f Dockerfile.hermes
-    - docker build --pull -t "$CI_REGISTRY/hermes-nginx:latest" . -f Dockerfile.nginx
+    - docker build --pull -t "$CI_REGISTRY/hermes:latest" .
     - docker push "$CI_REGISTRY/hermes:latest"
   only:
     - develop
-  tags:
-    - docker
 
-temp-build:
+build-master:
   stage: build
   image: docker:latest
   services:
@@ -52,20 +49,38 @@ temp-build:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:kube" .
-    - docker push "$CI_REGISTRY/hermes:kube"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" .
+    - docker push "$CI_REGISTRY/hermes:$CI_COMMIT_TAG"
   only:
-    - feature/kubernetes
+    - tags
 
-temp-deploy:
+deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
+  environment: dev
   script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=dev deploystatic
     - kubectl config use-context dev
-    - kubectl delete po $(kubectl get --no-headers=true pods -l run=$SERVICE -o custom-columns=:metadata.name)
+    - kubectl delete po $(kubectl get po --no-headers=true pods -l run=hermes -o custom-columns=:metadata.name)
+  only:
+    - develop
+
+deploy-staging:
+  stage: deploy
+  image: binkops.azurecr.io/kubedeployer:latest
+  environment: staging
+  script:
+    - kubectl config use-context staging
+    - kubectl set image deployment/hermes:$CI_COMMIT_TAG
+  only:
+    - tags
+
+deploy-prod:
+  stage: deploy
+  image: binkops.azurecr.io/kubedeployer:latest
+  environment: prod
+  script:
+    - kubectl config use-context prod
+    - kubectl set image deployment/hermes:$CI_COMMIT_TAG
   when: manual
   only:
-    - feature/kubernetes
-
+    - tags
