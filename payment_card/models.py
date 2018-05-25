@@ -140,7 +140,17 @@ class PaymentCardAccount(models.Model):
         (UNKNOWN, 'unknown')
     )
 
-    user = models.ForeignKey('user.CustomUser')
+    # user = models.ForeignKey('user.CustomUser')
+    prop_set = models.ManyToManyField(
+        to='user.Property',
+        related_name='payment_card_account_set',
+        through='payment_card.PaymentCardAccountEntry'
+    )
+    scheme_account_set = models.ManyToManyField(
+        to='scheme.SchemeAccount',
+        related_name='payment_card_account_set',
+        through='payment_card.PaymentCardSchemeEntry'
+    )
     payment_card = models.ForeignKey(PaymentCard)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
@@ -165,8 +175,8 @@ class PaymentCardAccount(models.Model):
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return '({}) {} - {}'.format(
-            self.user.email,
+        return '{} - {}'.format(
+            # self.user.email,
             self.payment_card.name,
             self.name_on_card
         )
@@ -213,3 +223,13 @@ class ProviderStatusMapping(models.Model):
     provider = models.ForeignKey('payment_card.PaymentCard')
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
+
+
+class PaymentCardAccountEntry(models.Model):
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
+    prop = models.ForeignKey('user.Property')
+
+
+class PaymentCardSchemeEntry(models.Model):
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
+    scheme_account = models.ForeignKey('scheme.SchemeAccount')

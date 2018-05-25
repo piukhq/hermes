@@ -29,14 +29,6 @@ class TestCreateSchemeAccountSerializer(TestCase):
             self.serializer.validate({'scheme': 2342342})
         self.assertEqual(e.exception.detail[0], "Scheme '2342342' does not exist")
 
-    def test_validate_existing_scheme_account(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme, user=self.user)
-        self.serializer.context['view'] = ''
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({'scheme': scheme_account.scheme.id})
-        self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))
-
     def test_validate_answer_types(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
         with self.assertRaises(ValidationError) as e:

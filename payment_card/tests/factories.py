@@ -6,7 +6,8 @@ from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 from django.utils import timezone
 
-from user.tests.factories import UserFactory
+from scheme.tests.factories import SchemeAccountFactory
+from user.tests.factories import UserFactory, PropertyFactory
 from payment_card import models
 
 fake = Factory.create()
@@ -35,7 +36,15 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccount
 
-    user = factory.SubFactory(UserFactory)
+    # user = factory.SubFactory(UserFactory)
+    prop_set = factory.RelatedFactory(
+        'payment_card.tests.factories.PaymentCardAccountEntryFactory',
+        'payment_card_account'
+    )
+    scheme_set = factory.RelatedFactory(
+        'payment_card.tests.factories.PaymentCardSchemeEntryFactory',
+        'payment_card_account'
+    )
     payment_card = factory.SubFactory(PaymentCardFactory)
     name_on_card = fake.name()
     start_month = fake.month()
@@ -47,6 +56,22 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)
+
+
+class PaymentCardAccountEntryFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.PaymentCardAccountEntry
+
+    payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
+    prop = factory.SubFactory(PropertyFactory)
+
+
+class PaymentCardSchemeEntryFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.PaymentCardSchemeEntry
+
+    payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):

@@ -7,7 +7,7 @@ from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
 
-from user.tests.factories import UserFactory
+from user.tests.factories import PropertyFactory
 
 
 fake = Factory.create()
@@ -46,10 +46,18 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccount
 
-    user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
+    prop_set = factory.RelatedFactory('scheme.tests.factories.SchemeAccountEntryFactory', 'scheme_account')
+
+
+class SchemeAccountEntryFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeAccountEntry
+
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
+    prop = factory.SubFactory(PropertyFactory)
 
 
 class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
