@@ -7,7 +7,7 @@ from django.conf import settings
 import httpretty
 
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, AuthTransaction
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
 from user.tests.factories import UserFactory
@@ -341,3 +341,36 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[0], 'scheme_id')
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
+
+
+class TestAuthTransactions(APITestCase):
+    def setUp(self):
+        self.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        self.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
+
+    def test_create_auth_transaction_endpoint(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "token",
+            "auth_code": "1",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '1',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.all().first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.all().first())
