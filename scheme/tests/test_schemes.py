@@ -129,10 +129,14 @@ class TestSchemeModel(TestCase):
         email_question = SchemeCredentialQuestionFactory(type=EMAIL,
                                                          scheme=scheme,
                                                          options=SchemeCredentialQuestion.LINK)
+        phone_question = SchemeCredentialQuestionFactory(type=TITLE,
+                                                         scheme=scheme,
+                                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         link_questions = scheme.link_questions
-        self.assertEqual(len(link_questions), 1)
-        self.assertEqual(link_questions[0].id, email_question.id)
+        self.assertEqual(len(link_questions), 2)
+        self.assertEqual(link_questions[0].id, phone_question.id)
+        self.assertEqual(link_questions[1].id, email_question.id)
 
     def test_join_questions(self):
         scheme = SchemeFactory()
