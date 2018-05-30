@@ -23,6 +23,7 @@ class SchemeAccountImageSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    required = serializers.BooleanField()
 
     class Meta:
         model = SchemeCredentialQuestion
@@ -371,7 +372,7 @@ class JoinSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         # Validate scheme join questions
-        scheme_join_question_types = [question.type for question in scheme.join_questions]
+        scheme_join_question_types = [question.type for question in scheme.join_questions if question.required is True]
         if not scheme_join_question_types:
             raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
 

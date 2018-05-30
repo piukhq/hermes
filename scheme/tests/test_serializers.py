@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
-from scheme.credentials import BARCODE, PASSWORD
+from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE
 from scheme.models import SchemeCredentialQuestion
 from unittest.mock import MagicMock, patch
 
@@ -99,9 +99,21 @@ class TestSchemeSerializer(TestCase):
                                                    scheme=scheme,
                                                    options=SchemeCredentialQuestion.LINK_AND_JOIN,
                                                    manual_question=True)
-        SchemeCredentialQuestionFactory(type=PASSWORD, scheme=scheme, options=SchemeCredentialQuestion.LINK)
+        question2 = SchemeCredentialQuestionFactory(type=LAST_NAME,
+                                                    scheme=scheme,
+                                                    options=SchemeCredentialQuestion.OPTIONAL_JOIN)
+        question3 = SchemeCredentialQuestionFactory(type=PASSWORD,
+                                                    scheme=scheme,
+                                                    options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(type=FIRST_NAME, scheme=scheme, options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme, options=SchemeCredentialQuestion.NONE)
         serializer = SchemeSerializer()
 
         data = serializer.get_join_questions(scheme)
-        self.assertEqual(data[0]['id'], question.id)
-        self.assertEqual(data[0]['type'], BARCODE)
+        self.assertEqual(data[2]['id'], question.id)
+        self.assertEqual(data[2]['type'], BARCODE)
+        self.assertEqual(data[1]['id'], question2.id)
+        self.assertEqual(data[1]['type'], LAST_NAME)
+        self.assertEqual(data[0]['id'], question3.id)
+        self.assertEqual(data[0]['type'], PASSWORD)
+        self.assertEqual(len(data), 3)

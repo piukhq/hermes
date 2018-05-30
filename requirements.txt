@@ -10,7 +10,6 @@ django-cors-headers==1.1.0
 django-mail-templated==2.6.2
 djangorestframework==3.6.3
 django-rest-swagger==2.1.2
-dj-database-url==0.3.0
 factory-boy==2.5.2
 fake-factory==0.5.9
 graypy==0.2.12
@@ -24,7 +23,7 @@ path.py==8.1.1
 pexpect==3.3
 pickleshare==0.5
 Pillow==2.9.0
-psycopg2==2.6.1
+psycopg2-binary==2.7.4
 pycrypto==2.6.1
 PyJWT==1.4.0
 python-dateutil==2.4.2
@@ -36,3 +35,5 @@ simplegeneric==0.8.1
 six==1.10.0
 traitlets==4.0.0
 django-admin-env-notice==0.1.4
+git+https://github.com/BackwardSpy/django-storages.git
+azure-storage-blob==1.1.0

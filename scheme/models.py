@@ -121,11 +121,11 @@ class Scheme(models.Model):
 
     @property
     def join_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 1))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.JOIN))
 
     @property
     def link_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 0))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
@@ -277,7 +277,9 @@ class SchemeAccount(models.Model):
         A scan or manual question is an optional if one of the other exists
         """
         required_credentials = {
-            question.type for question in self.scheme.questions.exclude(options=SchemeCredentialQuestion.JOIN)
+            question.type for question in self.scheme.questions.filter(
+                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+            )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
@@ -489,13 +491,15 @@ class SchemeCredentialQuestion(models.Model):
     NONE = 0
     LINK = 1 << 0
     JOIN = 1 << 1
-    LINK_AND_JOIN = (1 << 0 | 1 << 1)
+    OPTIONAL_JOIN = (1 << 2 | JOIN)
+    LINK_AND_JOIN = (LINK | JOIN)
 
     OPTIONS = (
         (0, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
-        (LINK | JOIN, 'Link & Join'),
+        (OPTIONAL_JOIN, 'Join (optional)'),
+        (LINK_AND_JOIN, 'Link & Join'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -508,6 +512,10 @@ class SchemeCredentialQuestion(models.Model):
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    @property
+    def required(self):
+        return self.options is not self.OPTIONAL_JOIN
 
     class Meta:
         ordering = ['order']

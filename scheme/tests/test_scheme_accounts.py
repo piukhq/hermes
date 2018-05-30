@@ -980,13 +980,14 @@ class TestSchemeAccountViews(APITestCase):
                                                         manual_question=True,
                                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
 
         data = {
             'save_user_information': False,
             'order': 2,
             'username': 'testbink',
-            'password': 'password'
-
+            'password': 'password',
+            'barcode': 'barcode'
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
@@ -1000,6 +1001,24 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual('Pending', scheme_account.status_name)
         self.assertEqual(len(scheme_account.schemeaccountcredentialanswer_set.all()), 1)
         self.assertTrue(scheme_account.schemeaccountcredentialanswer_set.filter(question=link_question))
+
+    @patch('requests.post', auto_spec=True, return_value=MagicMock())
+    def test_register_join_endpoint_optional_join_not_required(self, mock_request):
+        mock_request.return_value.status_code = 200
+        mock_request.return_value.json.return_value = {'message': 'success'}
+
+        scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
+
+        data = {
+            'save_user_information': False,
+            'order': 2,
+            'username': 'testbink',
+        }
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        self.assertEqual(resp.status_code, 201)
 
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_saves_user_profile(self, mock_request):
@@ -1076,7 +1095,8 @@ class TestSchemeAccountViews(APITestCase):
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
-        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
+                                        options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER, scan_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
         self.assertEqual(scheme_account.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
