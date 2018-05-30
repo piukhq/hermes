@@ -367,10 +367,10 @@ class TestAuthTransactions(APITestCase):
             'auth_code': '1',
             'currency_code': 'GBP'
         }
-        self.assertIsNone(AuthTransaction.objects.all().first())
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
 
         resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
 
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data, expected_resp)
-        self.assertIsNotNone(AuthTransaction.objects.all().first())
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
