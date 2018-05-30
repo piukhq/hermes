@@ -31,6 +31,8 @@ DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
     ".chingrewards.com",
+    ".bink.com",
+    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [

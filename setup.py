@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='hermes',
-    version='1.2',
+    version='1.5',
     description='Bink loyalty cards, payment cards, and users API.',
     url='https://git.bink.com/Olympus/hermes',
     author='Chris Latham',

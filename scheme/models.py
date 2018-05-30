@@ -121,11 +121,11 @@ class Scheme(models.Model):
 
     @property
     def join_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 1))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.JOIN))
 
     @property
     def link_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 0))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
@@ -197,6 +197,7 @@ class SchemeAccount(models.Model):
     INCOMPLETE = 5
     LOCKED_BY_ENDSITE = 434
     RETRY_LIMIT_REACHED = 429
+    RESOURCE_LIMIT_REACHED = 503
     UNKNOWN_ERROR = 520
     MIDAS_UNREACHABLE = 9
     AGENT_NOT_FOUND = 404
@@ -216,6 +217,7 @@ class SchemeAccount(models.Model):
         (INCOMPLETE, 'Please check your scheme account login details.', 'INCOMPLETE'),
         (LOCKED_BY_ENDSITE, 'Account locked on end site', 'LOCKED_BY_ENDSITE'),
         (RETRY_LIMIT_REACHED, 'Cannot connect, too many retries', 'RETRY_LIMIT_REACHED'),
+        (RESOURCE_LIMIT_REACHED, 'Too many balance requests running', 'RESOURCE_LIMIT_REACHED'),
         (UNKNOWN_ERROR, 'An unknown error has occurred', 'UNKNOWN_ERROR'),
         (MIDAS_UNREACHABLE, 'Midas unavailable', 'MIDAS_UNREACHABLE'),
         (WALLET_ONLY, 'Wallet only card', 'WALLET_ONLY'),
@@ -227,7 +229,7 @@ class SchemeAccount(models.Model):
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -275,7 +277,9 @@ class SchemeAccount(models.Model):
         A scan or manual question is an optional if one of the other exists
         """
         required_credentials = {
-            question.type for question in self.scheme.questions.exclude(options=SchemeCredentialQuestion.JOIN)
+            question.type for question in self.scheme.questions.filter(
+                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+            )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
@@ -312,7 +316,8 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
-        self.save()
+        if self.status != SchemeAccount.PENDING:
+            self.save()
         return points
 
     def _get_balance(self, credentials):
@@ -486,13 +491,15 @@ class SchemeCredentialQuestion(models.Model):
     NONE = 0
     LINK = 1 << 0
     JOIN = 1 << 1
-    LINK_AND_JOIN = (1 << 0 | 1 << 1)
+    OPTIONAL_JOIN = (1 << 2 | JOIN)
+    LINK_AND_JOIN = (LINK | JOIN)
 
     OPTIONS = (
         (0, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
-        (LINK | JOIN, 'Link & Join'),
+        (OPTIONAL_JOIN, 'Join (optional)'),
+        (LINK_AND_JOIN, 'Link & Join'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -505,6 +512,10 @@ class SchemeCredentialQuestion(models.Model):
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    @property
+    def required(self):
+        return self.options is not self.OPTIONAL_JOIN
 
     class Meta:
         ordering = ['order']
