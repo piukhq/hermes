@@ -14,6 +14,7 @@ from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
+from rest_framework.status import HTTP_400_BAD_REQUEST
 
 from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
@@ -38,6 +39,7 @@ from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
+from user.views import process_preferences
 
 
 class BaseLinkMixin(object):
@@ -787,7 +789,14 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         Register a new loyalty account on the requested scheme,
         Link the newly created loyalty account with the created scheme account.
         """
+
         scheme_id = int(self.kwargs['pk'])
+        bad_settings = process_preferences(request, scheme_id)
+        if bad_settings:
+            return Response({
+                'error': 'Some of the given settings are invalid.',
+                'messages': bad_settings
+            }, HTTP_400_BAD_REQUEST)
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
         serializer = JoinSerializer(data=request.data, context={
                                                                 'scheme': join_scheme,
