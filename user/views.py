@@ -420,7 +420,7 @@ class UserSettings(APIView):
         response_serializer: user.serializers.UserSettingSerializer
         """
         user_settings = UserSetting.objects.filter(user=request.user)
-        settings = Setting.objects.all()
+        settings = Setting.objects.exclude(category=Setting.PREFERENCES)
 
         settings_list = []
 

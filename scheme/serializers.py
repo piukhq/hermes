@@ -1,11 +1,11 @@
 from copy import copy
-
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
     SchemeAccountImage, Exchange
+from user.models import Setting
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -30,6 +30,13 @@ class QuestionSerializer(serializers.ModelSerializer):
         exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'options')
 
 
+class PreferencesSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Setting
+        exclude = ('is_enabled', 'date', 'scheme')
+
+
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
@@ -37,18 +44,37 @@ class SchemeSerializer(serializers.ModelSerializer):
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
+    preferences = serializers.SerializerMethodField()
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
-    def get_link_questions(self, obj):
+    @staticmethod
+    def get_link_questions(obj):
         serializer = QuestionSerializer(obj.link_questions, many=True)
         return serializer.data
 
-    def get_join_questions(self, obj):
+    @staticmethod
+    def get_join_questions(obj):
         serializer = QuestionSerializer(obj.join_questions, many=True)
         return serializer.data
+
+    @staticmethod
+    def get_preferences(obj):
+        serializer = PreferencesSerializer(obj.preferences, many=True)
+        # Sort ordered returned data into 2 lists
+        join = []
+        link = []
+        for opt_in in serializer.data:
+            journey = opt_in['journey']
+            del opt_in['journey']           # Now we have the value we can delete it as is redundant output
+            if Setting.JOIN == journey or journey == Setting.LINK_JOIN:
+                join.append(opt_in)
+            if Setting.LINK == journey or journey == Setting.LINK_JOIN:
+                link.append(opt_in)
+
+        return {'join': join, 'link': link}
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):

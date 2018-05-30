@@ -330,29 +330,49 @@ class Setting(models.Model):
     NUMBER = 0
     STRING = 1
     BOOLEAN = 2
+    TEXT_MESSAGE = 3
 
     VALUE_TYPES = (
         (NUMBER, 'number'),
         (STRING, 'string'),
         (BOOLEAN, 'boolean'),
+        (TEXT_MESSAGE, 'text message')
     )
 
     GENERAL = 0
     MARKETING = 1
     SCHEME = 2
+    PREFERENCES = 3
 
     CATEGORIES = (
         (GENERAL, 'General'),
         (MARKETING, 'Marketing'),
         (SCHEME, 'Loyalty Scheme'),
+        (PREFERENCES, 'Preferences')
+    )
+
+    JOIN = 0
+    LINK = 1
+    LINK_JOIN = 2
+
+    journeys = (
+        (JOIN, 'join'),
+        (LINK, 'link'),
+        (LINK_JOIN, 'link and join')
     )
 
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
-    default_value = models.CharField(max_length=255)
+    default_value = models.CharField(max_length=500)
     scheme = models.ForeignKey(Scheme, null=True, blank=True)
     label = models.CharField(max_length=255, null=True, blank=True)
     category = models.IntegerField(choices=CATEGORIES, null=True, blank=True)
+    # New fields for merchant opts-ins
+    is_enabled = models.NullBooleanField(null=True, blank=True)
+    required = models.NullBooleanField(null=True, blank=True)
+    order = models.IntegerField(null=True, blank=True)
+    journey = models.IntegerField(choices=journeys, null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     @property
     def value_type_name(self):

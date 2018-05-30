@@ -16,6 +16,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
+from django.apps import apps
 
 
 class Category(models.Model):
@@ -106,6 +107,11 @@ class Scheme(models.Model):
                                       help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    @property
+    def preferences(self):
+        setting = apps.get_model('user', 'Setting')
+        return setting.objects.filter(category=setting.PREFERENCES, scheme=self.id, is_enabled=True).order_by('order')
 
     @property
     def manual_question(self):
