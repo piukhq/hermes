@@ -42,6 +42,7 @@ ALLOWED_HOSTS = [
     ".bink-staging.com",
     ".bink-dev.com",
     ".bink-sandbox.com",
+    ".chingrewards.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
