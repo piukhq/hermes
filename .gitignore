@@ -1,6 +1,8 @@
 *.pyc
 .idea
 aes
+.pytest_cache/
+.vscode/
 *.ipynb
 .coverage
 static
