@@ -168,6 +168,13 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
+        bad_settings = process_preferences(request)
+        if bad_settings:
+            return Response({
+                'error': 'Some of the given settings are invalid.',
+                'messages': bad_settings
+            }, HTTP_400_BAD_REQUEST)
+
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
 
@@ -791,7 +798,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         """
 
         scheme_id = int(self.kwargs['pk'])
-        bad_settings = process_preferences(request, scheme_id)
+        bad_settings = process_preferences(request)
         if bad_settings:
             return Response({
                 'error': 'Some of the given settings are invalid.',

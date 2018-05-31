@@ -403,13 +403,12 @@ def social_login(social_id, email, service):
     return status, user
 
 
-def process_preferences(request, scheme_id):
+def process_preferences(request):
     """ Removes preference from link and join api.
     This has same effect as UserSettings API call but applied to a prefences section in the POST to the Schemes APIs
-    The prefernces section is removed from request data
+    The preferences section is removed from request data
 
     :param request:    as processed by rest framework
-    :param scheme_id:  scheme id to verify slug
     :return: returns a list of bad settings if any, 'preferences' from request
     """
     bad_settings = []
