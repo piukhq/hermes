@@ -6,11 +6,12 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, SettingsFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
+from user.models import Setting
 
 
 class TestSchemeImages(APITestCase):
@@ -59,6 +60,10 @@ class TestSchemeViews(APITestCase):
         self.assertIn('has_transactions', response.data[0])
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
+        self.assertIn('preferences', response.data[0])
+
+        self.assertIn('join', response.data[0]['preferences'])
+        self.assertIn('link', response.data[0]['preferences'])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
@@ -67,6 +72,45 @@ class TestSchemeViews(APITestCase):
                 len(row['join_questions']) > 0 or
                 row['manual_question'] is not None or
                 row['scan_question'] is not None)
+
+    def test_scheme_preferences(self):
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+
+        link_message = "Link Message"
+        join_message = "Join Message"
+        test_string = "Test default String"
+        test_string2 = "Test disabled default String"
+        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm1", order=2,
+                               value_type=Setting.STRING,
+                               default_value=test_string)
+        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm2", order=3, is_enabled = False,
+                               value_type=Setting.STRING,
+                               default_value=test_string2)
+        SettingsFactory.create(scheme=scheme, journey=Setting.LINK, default_value=link_message)
+        SettingsFactory.create(scheme=scheme, journey=Setting.JOIN, default_value=join_message)
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        self.assertIn('preferences', response.data)
+        join_data = response.data['preferences']['join']
+        link_data = response.data['preferences']['link']
+        self.assertEqual(join_data[0]['default_value'], join_message)
+        self.assertEqual(link_data[0]['default_value'], link_message)
+        self.assertEqual(join_data[1]['default_value'], test_string)
+        self.assertEqual(link_data[1]['default_value'], test_string)
+        self.assertEqual(join_data[1]['slug'], "tm1")
+        self.assertEqual(link_data[1]['slug'], "tm1")
+        self.assertEqual(len(link_data), 2, "Disabled Field present in link preferences")
+        self.assertEqual(len(join_data), 2, "Disabled Field present in join preferences")
 
     def test_scheme_item(self):
         scheme = SchemeFactory()

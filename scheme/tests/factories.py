@@ -3,6 +3,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
+from user.models import Setting
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -40,6 +41,23 @@ class SchemeFactory(factory.DjangoModelFactory):
     identifier = ''
     card_number_regex = ''
     barcode_prefix = ''
+
+
+class SettingsFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = Setting
+
+    slug = FuzzyAttribute(fake.slug)
+    value_type = Setting.TEXT_MESSAGE
+    default_value = fake.sentence()
+    scheme = factory.SubFactory(SchemeFactory)
+    label = ""
+    category = Setting.PREFERENCES
+    # New fields for merchant opts-ins
+    is_enabled = True
+    required = True
+    order = 1
+    journey = Setting.LINK_JOIN
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
