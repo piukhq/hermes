@@ -74,6 +74,20 @@ class TestSchemeViews(APITestCase):
                 row['scan_question'] is not None)
 
     def test_scheme_preferences(self):
+        scheme2 = SchemeFactory()
+        SchemeImageFactory(scheme=scheme2)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme2,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme2,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme2, type=BARCODE, manual_question=True)
+        SettingsFactory.create(scheme=scheme2)
+
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
         SchemeCredentialQuestionFactory.create(
