@@ -65,7 +65,7 @@ deploy-staging:
   script:
     - kubectl config use-context staging
     - 'kubectl patch deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes\:$CI_COMMIT_TAG\"}]}}}}"'
-    - kubectl set image deployment/hermes migrate=olympus.azurecr.io/hermes:latest
+    - kubectl set image deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   only:
     - tags
 
@@ -76,7 +76,7 @@ deploy-prod:
   script:
     - kubectl config use-context prod
     - 'kubectl patch deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes\:$CI_COMMIT_TAG\"}]}}}}"'
-    - kubectl set image deployment/hermes migrate=olympus.azurecr.io/hermes:latest
+    - kubectl set image deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   when: manual
   only:
     - tags
