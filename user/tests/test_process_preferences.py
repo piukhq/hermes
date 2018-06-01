@@ -5,7 +5,7 @@ from scheme.tests.factories import SchemeCredentialQuestionFactory
 from scheme.tests.factories import SchemeImageFactory
 from scheme.tests.factories import SchemeFactory
 from scheme.tests.factories import SettingsFactory
-from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER
+from scheme.credentials import BARCODE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from user.models import UserSetting
@@ -13,6 +13,7 @@ from faker import Factory
 import random
 
 fake = Factory.create()
+
 
 class SimulatedRequest:
     def __init__(self, user,  values):
@@ -42,9 +43,9 @@ class TestProcessPreferences(TestCase):
     def test_preferences_are_set(self):
         scheme = create_scheme()
         test_default_string = fake.text(max_nb_chars=255)
-        test_default_number = random.randint(0,10000)
+        test_default_number = random.randint(0, 10000)
         test_actual_string = fake.text(max_nb_chars=255)
-        test_actual_number = random.randint(0,10000)
+        test_actual_number = random.randint(0, 10000)
         user = UserFactory()
         setting1 = SettingsFactory.create(
             scheme=scheme, journey=Setting.LINK_JOIN, slug="pref1", order=1, value_type=Setting.STRING,
@@ -89,4 +90,3 @@ class TestProcessPreferences(TestCase):
         self.assertEqual(result, ['bad_pref'], "Setting preferences found unexpected errors bad slugs?")
         set_values = UserSetting.objects.filter(user=user).values()
         self.assertEqual(len(set_values), 0, "Everything should have been rejected")
-
