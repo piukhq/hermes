@@ -161,7 +161,7 @@ class TestSchemeAccountViews(APITestCase):
             default_value=test_default_string
         )
 
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "preferences":{"pref1": test_actual_string}}
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "preferences": {"pref1": test_actual_string}}
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
