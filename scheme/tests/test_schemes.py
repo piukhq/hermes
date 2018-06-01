@@ -62,8 +62,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('join_questions', response.data[0])
         self.assertIn('preferences', response.data[0])
 
-        self.assertIn('join', response.data[0]['preferences'])
-        self.assertIn('link', response.data[0]['preferences'])
+        self.assertIn('join', response.data[0]['preferences'], "no join section in preferences")
+        self.assertIn('link', response.data[0]['preferences'], "no link section in preferences")
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
@@ -108,21 +108,21 @@ class TestSchemeViews(APITestCase):
         SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm1", order=2,
                                value_type=Setting.STRING,
                                default_value=test_string)
-        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm2", order=3, is_enabled = False,
+        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm2", order=3, is_enabled=False,
                                value_type=Setting.STRING,
                                default_value=test_string2)
         SettingsFactory.create(scheme=scheme, journey=Setting.LINK, default_value=link_message)
         SettingsFactory.create(scheme=scheme, journey=Setting.JOIN, default_value=join_message)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
-        self.assertIn('preferences', response.data)
+        self.assertIn('preferences', response.data, "no preferences section")
         join_data = response.data['preferences']['join']
         link_data = response.data['preferences']['link']
-        self.assertEqual(join_data[0]['default_value'], join_message)
-        self.assertEqual(link_data[0]['default_value'], link_message)
-        self.assertEqual(join_data[1]['default_value'], test_string)
-        self.assertEqual(link_data[1]['default_value'], test_string)
-        self.assertEqual(join_data[1]['slug'], "tm1")
-        self.assertEqual(link_data[1]['slug'], "tm1")
+        self.assertEqual(join_data[0]['default_value'], join_message, "Missing Join TEXT preferences")
+        self.assertEqual(link_data[0]['default_value'], link_message, "Missing Link TEXT preferences")
+        self.assertEqual(join_data[1]['default_value'], test_string, "Missing Join default String preference")
+        self.assertEqual(link_data[1]['default_value'], test_string, "Missing Link default String preference")
+        self.assertEqual(join_data[1]['slug'], "tm1", "Incorrect Join preference slug")
+        self.assertEqual(link_data[1]['slug'], "tm1", "Incorrect Link preference slug")
         self.assertEqual(len(link_data), 2, "Disabled Field present in link preferences")
         self.assertEqual(len(join_data), 2, "Disabled Field present in join preferences")
 
