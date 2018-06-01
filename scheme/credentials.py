@@ -22,6 +22,7 @@ TOWN_CITY = 'town_city'
 COUNTY = 'county'
 COUNTRY = 'country'
 REGULAR_RESTAURANT = 'regular_restaurant'
+MERCHANT_SCHEME_ID2 = 'merchant_scheme_id2'
 
 CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
@@ -48,6 +49,7 @@ CREDENTIAL_TYPES = (
     (COUNTY, 'county'),
     (COUNTRY, 'country'),
     (REGULAR_RESTAURANT, 'regular restaurant'),
+    (MERCHANT_SCHEME_ID2, 'merchant scheme id2')
 )
 
 ENCRYPTED_CREDENTIALS = (
@@ -62,4 +64,13 @@ ENCRYPTED_CREDENTIALS = (
     FAVOURITE_PLACE,
     DATE_OF_BIRTH,
     PHONE,
+    PHONE_2,
+    GENDER,
+    ADDRESS_1,
+    ADDRESS_2,
+    ADDRESS_3,
+    TOWN_CITY,
+    COUNTY,
+    COUNTRY,
+    REGULAR_RESTAURANT,
 )

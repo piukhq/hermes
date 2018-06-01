@@ -83,6 +83,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     county = serializers.CharField(max_length=250, required=False)
     country = serializers.CharField(max_length=250, required=False)
     regular_restaurant = serializers.CharField(max_length=250, required=False)
+    merchant_scheme_id2 = serializers.CharField(max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
@@ -389,7 +390,7 @@ class JoinSerializer(SchemeAnswerSerializer):
             if question not in request_join_question_types:
                 self.raise_missing_field_error(question)
             else:
-                data['credentials'][question] = data[question]
+                data['credentials'][question] = str(data[question])
 
         return data
 
