@@ -22,7 +22,7 @@ TOWN_CITY = 'town_city'
 COUNTY = 'county'
 COUNTRY = 'country'
 REGULAR_RESTAURANT = 'regular_restaurant'
-MERCHANT_SCHEME_ID2 = 'merchant_scheme_id2'
+MERCHANT_IDENTIFIER = 'merchant_identifier'
 
 CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
@@ -49,7 +49,7 @@ CREDENTIAL_TYPES = (
     (COUNTY, 'county'),
     (COUNTRY, 'country'),
     (REGULAR_RESTAURANT, 'regular restaurant'),
-    (MERCHANT_SCHEME_ID2, 'merchant scheme id2')
+    (MERCHANT_IDENTIFIER, 'merchant identifier')
 )
 
 ENCRYPTED_CREDENTIALS = (

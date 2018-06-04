@@ -83,7 +83,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     county = serializers.CharField(max_length=250, required=False)
     country = serializers.CharField(max_length=250, required=False)
     regular_restaurant = serializers.CharField(max_length=250, required=False)
-    merchant_scheme_id2 = serializers.CharField(max_length=250, required=False)
+    merchant_identifier = serializers.CharField(max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
