@@ -344,9 +344,12 @@ class TestPaymentCard(APITestCase):
 
 
 class TestAuthTransactions(APITestCase):
-    def setUp(self):
-        self.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        self.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
+    @classmethod
+    def setUpClass(cls):
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='234rghjcewerg4gf3ef23v')
+
+        super(TestAuthTransactions, cls).setUpClass()
 
     def test_create_auth_transaction_endpoint(self):
         payload = {
@@ -354,7 +357,7 @@ class TestAuthTransactions(APITestCase):
             "amount": 1260,
             "mid": "1",
             "third_party_id": "1",
-            "payment_card_token": "token",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
             "auth_code": "1",
             "currency_code": "GBP"
         }
