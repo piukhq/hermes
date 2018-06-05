@@ -3,7 +3,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
-from user.models import Setting
+from scheme.models import Consent
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -43,21 +43,18 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_prefix = ''
 
 
-class SettingsFactory(factory.DjangoModelFactory):
+class ConsentFactory(factory.DjangoModelFactory):
     class Meta:
-        model = Setting
+        model = Consent
 
     slug = FuzzyAttribute(fake.slug)
-    value_type = Setting.TEXT_MESSAGE
-    default_value = fake.sentence()
+    text = fake.sentence()
     scheme = factory.SubFactory(SchemeFactory)
-    label = ""
-    category = Setting.PREFERENCES
-    # New fields for merchant opts-ins
+    check_box = True
     is_enabled = True
     required = True
     order = 1
-    journey = Setting.LINK_JOIN
+    journey = Consent.LINK
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):

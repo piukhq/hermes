@@ -403,33 +403,6 @@ def social_login(social_id, email, service):
     return status, user
 
 
-def process_preferences(request):
-    """ Removes preference from link and join api.
-    This has same effect as UserSettings API call but applied to a prefences section in the POST to the Schemes APIs
-    The preferences section is removed from request data
-
-    :param request:    as processed by rest framework
-    :return: returns a list of bad settings if any, 'preferences' from request
-    """
-    bad_settings = []
-    if 'preferences' in request.data:
-        preferences = request.data['preferences']
-        del request.data['preferences']
-        bad_settings = filter_bad_setting_slugs(preferences)
-        if bad_settings:
-            return bad_settings
-
-        for slug_key, value in preferences.items():
-            user_setting = create_or_update_user_setting(request.user, slug_key, value)
-            try:
-                user_setting.full_clean()
-            except ValidationError as e:
-                bad_settings.extend(e.messages)
-            else:
-                user_setting.save()
-    return bad_settings
-
-
 def filter_bad_setting_slugs(request_data):
     bad_settings = []
 
@@ -470,11 +443,11 @@ class UserSettings(APIView):
         response_serializer: user.serializers.UserSettingSerializer
         """
         user_settings = UserSetting.objects.filter(user=request.user)
-        setting_options = Setting.objects.exclude(category=Setting.PREFERENCES)
+        settings = Setting.objects.all()
 
         settings_list = []
 
-        for setting in setting_options:
+        for setting in settings:
             user_setting = user_settings.filter(setting=setting).first()
 
             if not user_setting:
@@ -504,7 +477,7 @@ class UserSettings(APIView):
             - code: 400
               message: Some of the given settings are invalid.
         """
-        bad_settings = filter_bad_setting_slugs(request.data)
+        bad_settings = self._filter_bad_setting_slugs(request.data)
 
         if bad_settings:
             return Response({
@@ -515,7 +488,7 @@ class UserSettings(APIView):
         validation_errors = []
 
         for slug_key, value in request.data.items():
-            user_setting = create_or_update_user_setting(request.user, slug_key, value)
+            user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
             try:
                 user_setting.full_clean()
             except ValidationError as e:
@@ -553,6 +526,28 @@ class UserSettings(APIView):
             pass
 
         return Response(status=HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _filter_bad_setting_slugs(request_data):
+        bad_settings = []
+
+        for k, v in request_data.items():
+            setting = Setting.objects.filter(slug=k).first()
+            if not setting:
+                bad_settings.append(k)
+
+        return bad_settings
+
+    @staticmethod
+    def _create_or_update_user_setting(user, setting_slug, value):
+        user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
+        if user_setting:
+            user_setting.value = value
+        else:
+            setting = Setting.objects.filter(slug=setting_slug).first()
+            user_setting = UserSetting(user=user, setting=setting, value=value)
+        return user_setting
+
 
 
 class IdentifyApplicationKit(APIView):

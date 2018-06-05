@@ -13,7 +13,10 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
 from django.utils import timezone
+from user.validators import validate_boolean
+from django.utils.translation import ugettext_lazy as _
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 from django.apps import apps
@@ -109,9 +112,9 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
-    def preferences(self):
-        setting = apps.get_model('user', 'Setting')
-        return setting.objects.filter(category=setting.PREFERENCES, scheme=self.id, is_enabled=True).order_by('order')
+    def consents(self):
+        consent = apps.get_model('scheme', 'Consent')
+        return consent.objects.filter(is_enabled=True).order_by('order')
 
     @property
     def manual_question(self):
@@ -135,6 +138,29 @@ class Scheme(models.Model):
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
+
+
+class Consent(models.Model):
+    JOIN = 0
+    LINK = 1
+
+    journeys = (
+        (JOIN, 'join'),
+        (LINK, 'link'),
+    )
+
+    slug = models.SlugField(unique=True)
+    check_box = models.BooleanField(default=True)
+    text = models.CharField(max_length=500)
+    scheme = models.ForeignKey(Scheme, null=True, blank=True)
+    is_enabled = models.BooleanField(default=True )
+    required = models.BooleanField(default=True)
+    order = models.IntegerField(null=True, blank=True)
+    journey = models.IntegerField(choices=journeys, null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    def __str__(self):
+        return '({}) {} {}: {}'.format(self.scheme.slug, self.is_enabled, self.order, self.slug)
 
 
 class Exchange(models.Model):
@@ -553,3 +579,32 @@ def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         instance.answer = encrypted_answer
+
+
+class UserConsent(models.Model):
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey('user.CustomUser', related_name='consent_user')
+    consent = models.ForeignKey(Consent, related_name='consent')
+    value = models.CharField(max_length=255)
+
+    def __str__(self):
+        return '{} - {}: {}'.format(self.user.email, self.consent.slug, self.value)
+
+    def clean(self):
+        if not validate_boolean(self.value):
+            raise ValidationError(
+                _('Consent is not a Boolean value'),
+                code='invalid_value',
+                params={
+                    'value': self.value,
+                    'value_type': type(self.value)
+                }
+            )
+
+    def to_boolean(self):
+        try:
+            return bool(int(self.value))
+        except ValueError:
+            return None
+

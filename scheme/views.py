@@ -8,6 +8,7 @@ from requests import RequestException
 from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
@@ -20,7 +21,7 @@ from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage)
+                           SchemeAccountImage, Consent)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -29,6 +30,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer)
 from user.models import UserSetting
+from scheme.models import UserConsent
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -39,7 +41,6 @@ from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
 from user.models import CustomUser
-from user.views import process_preferences
 
 
 class BaseLinkMixin(object):
@@ -168,11 +169,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        bad_settings = process_preferences(request)
-        if bad_settings:
+        bad_consents = process_consents(request)
+        if bad_consents:
             return Response({
-                'error': 'Some of the given settings are invalid.',
-                'messages': bad_settings
+                'error': 'Some of the given consents are invalid.',
+                'messages': bad_consents
             }, HTTP_400_BAD_REQUEST)
 
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
@@ -785,6 +786,49 @@ class IdentifyCard(APIView):
         }, status=200)
 
 
+def process_consents(request):
+    """ Removes Consent from link and join api.
+    This has same effect as UserSettings API call but applied to a prefences section in the POST to the Schemes APIs
+    The consents section is removed from request data
+
+    :param request:    as processed by rest framework
+    :return: returns a list of bad settings if any, 'consents' from request
+    """
+    bad_consents = []
+    if 'consents' in request.data:
+        consents = request.data['consents']
+        del request.data['consents']
+        bad_consents = filter_bad_consents_slugs(consents)
+        if bad_consents:
+            return bad_consents
+
+        for slug_key, value in consents.items():
+            user_consent = UserConsent.objects.filter(user=request.user, consent__slug=slug_key).first()
+            if user_consent:
+                user_consent.value = value
+            else:
+                consent = Consent.objects.filter(slug=slug_key).first()
+                user_consent = UserConsent(user=request.user, consent=consent, value=value)
+            try:
+                user_consent.full_clean()
+            except ValidationError as e:
+                bad_consents.extend(e.messages)
+            else:
+                user_consent.save()
+    return bad_consents
+
+
+def filter_bad_consents_slugs(request_data):
+    bad_consents = []
+
+    for k, v in request_data.items():
+        setting = Consent.objects.filter(slug=k).first()
+        if not setting:
+            bad_consents.append(k)
+
+    return bad_consents
+
+
 class Join(SwappableSerializerMixin, GenericAPIView):
     override_serializer_classes = {
         'POST': JoinSerializer,
@@ -798,11 +842,11 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         """
 
         scheme_id = int(self.kwargs['pk'])
-        bad_settings = process_preferences(request)
-        if bad_settings:
+        bad_consents = process_consents(request)
+        if bad_consents:
             return Response({
-                'error': 'Some of the given settings are invalid.',
-                'messages': bad_settings
+                'error': 'Some of the given consents are invalid.',
+                'messages': bad_consents
             }, HTTP_400_BAD_REQUEST)
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
         serializer = JoinSerializer(data=request.data, context={

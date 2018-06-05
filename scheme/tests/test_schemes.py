@@ -6,12 +6,12 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, SettingsFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
-from user.models import Setting
+from scheme.models import Consent
 
 
 class TestSchemeImages(APITestCase):
@@ -86,7 +86,7 @@ class TestSchemeViews(APITestCase):
             options=SchemeCredentialQuestion.JOIN,
             manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme2, type=BARCODE, manual_question=True)
-        SettingsFactory.create(scheme=scheme2)
+        ConsentFactory.create(scheme=scheme2)
 
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
@@ -105,14 +105,15 @@ class TestSchemeViews(APITestCase):
         join_message = "Join Message"
         test_string = "Test default String"
         test_string2 = "Test disabled default String"
-        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm1", order=2,
-                               value_type=Setting.STRING,
-                               default_value=test_string)
-        SettingsFactory.create(scheme=scheme, journey=Setting.LINK_JOIN, slug="tm2", order=3, is_enabled=False,
-                               value_type=Setting.STRING,
-                               default_value=test_string2)
-        SettingsFactory.create(scheme=scheme, journey=Setting.LINK, default_value=link_message)
-        SettingsFactory.create(scheme=scheme, journey=Setting.JOIN, default_value=join_message)
+        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, slug="tm1", order=2,
+                              check_box=True, text=link_message)
+
+        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, slug="tm2", order=3, is_enabled=False,
+                              check_box=True,
+                              text=test_string2
+                              )
+        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, default_value=link_message)
+        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, default_value=join_message)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertIn('preferences', response.data, "no preferences section")
         join_data = response.data['preferences']['join']
