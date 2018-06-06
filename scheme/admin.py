@@ -140,9 +140,15 @@ class ExchangeAdmin(admin.ModelAdmin):
 
 
 @admin.register(UserConsent)
-class UserSettingAdmin(admin.ModelAdmin):
-    search_fields = ('user__email', 'setting__slug', 'value')
+class UserConsentAdmin(admin.ModelAdmin):
+    search_fields = ('user__email', 'consent__slug', 'value')
+    list_filter = ('consent__scheme__slug', )
 
+
+@admin.register(Consent)
+class ConsentAdmin(admin.ModelAdmin):
+    search_fields = ('slug', 'scheme__slug', 'check_box', 'date')
+    list_filter = ('scheme__slug', 'journey', 'check_box', 'order', 'required', 'is_enabled')
 
 admin.site.register(Category)
-admin.site.register(Consent)
+
