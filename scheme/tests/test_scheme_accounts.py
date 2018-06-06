@@ -158,11 +158,10 @@ class TestSchemeAccountViews(APITestCase):
         consent1 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
             journey=Consent.LINK,
-            slug="prefLink1",
             order=1
         )
 
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "consents": {"prefLink1": test_reply}}
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "consents": {"{}".format(consent1.id): test_reply}}
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
@@ -1007,7 +1006,6 @@ class TestSchemeAccountViews(APITestCase):
         consent1 = ConsentFactory.create(
             scheme=scheme,
             journey=Consent.JOIN,
-            slug="pref1",
             order=1
         )
 
@@ -1017,7 +1015,7 @@ class TestSchemeAccountViews(APITestCase):
             'username': 'testbink',
             'password': 'password',
             'barcode': 'barcode',
-            "consents": {"pref1": test_reply}
+            "consents": {"{}".format(consent1.id): test_reply}
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 

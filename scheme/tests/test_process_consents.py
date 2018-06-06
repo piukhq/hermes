@@ -45,17 +45,12 @@ class TestProcessConsents(TestCase):
         test_default_string = fake.text(max_nb_chars=255)
 
         user = UserFactory()
-        consent1 = ConsentFactory.create(
-            scheme=scheme, journey=Consent.LINK, slug="pref1", order=1,
-            text=test_default_string
-        )
-        consent2 = ConsentFactory.create(
-            scheme=scheme, journey=Consent.JOIN, slug="pref2", order=2,
-        )
-        mock_request = SimulatedRequest(user, {"pref1": '0', "pref2": '1'})
+        consent1 = ConsentFactory.create(scheme=scheme, journey=Consent.LINK, order=1, text=test_default_string)
+        consent2 = ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, order=2)
+        mock_request = SimulatedRequest(user, {"{}".format(consent1.id): 0, "{}".format(consent2.id): '1'})
         result = process_consents(mock_request)
         self.assertNotIn('consents', mock_request.data, "Consents not removed from request")
-        self.assertEqual(result, [], "Consents were found ie unexpected errors bad slugs?")
+        self.assertEqual(result, [], "Bad or invalid Consents were found")
         set_values = UserConsent.objects.filter(user=user).values()
         self.assertEqual(len(set_values), 2, "Did not find expected number of consents in UserConsent table")
         for set_value in set_values:
@@ -68,18 +63,19 @@ class TestProcessConsents(TestCase):
 
     def test_for_unknown_preferences_slugs(self):
         scheme = create_scheme()
-        test_actual_string = fake.text(max_nb_chars=255)
-        test_actual_number = random.randint(0, 10000)
         user = UserFactory()
-        ConsentFactory.create(
-            scheme=scheme, journey=Consent.LINK, slug="pref1", order=1,
+        pref1 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.LINK, order=1,
         )
-        ConsentFactory.create(
-            scheme=scheme, journey=Consent.JOIN, slug="pref2", order=2,
+        pref2 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.JOIN, order=2,
         )
-        mock_request = SimulatedRequest(user, {"bad_pref": test_actual_string, "pref2": test_actual_number})
+        bad_id = pref2.id + 100
+        mock_request = SimulatedRequest(
+            user, {"{}".format(bad_id): 1, "{}".format(pref1.id): "string instead of number"}
+        )
         result = process_consents(mock_request)
         self.assertNotIn('consents', mock_request.data, "Consents not removed from request")
-        self.assertEqual(result, ['bad_pref'], "Unexpected Consent found: bad slug?")
+        self.assertEqual(result, ["{}".format(bad_id)], "Unexpected Consent found: bad slug?")
         set_values = UserConsent.objects.filter(user=user).values()
         self.assertEqual(len(set_values), 0, "Everything should have been rejected")

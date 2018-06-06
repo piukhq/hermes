@@ -47,7 +47,6 @@ class ConsentFactory(factory.DjangoModelFactory):
     class Meta:
         model = Consent
 
-    slug = FuzzyAttribute(fake.slug)
     text = fake.sentence()
     scheme = factory.SubFactory(SchemeFactory)
     check_box = True

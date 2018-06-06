@@ -101,13 +101,15 @@ class TestSchemeViews(APITestCase):
         link_message = "Link Message"
         join_message = "Join Message"
         test_string = "Test disabled default String"
-        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, slug="tm1", order=2,
-                              check_box=True, text=link_message, required=False)
+        tm1 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.LINK, order=2,
+            check_box=True, text=link_message, required=False
+        )
 
-        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, slug="tm2", order=3, is_enabled=False,
-                              check_box=True,
-                              text=test_string
-                              )
+        tm2 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.JOIN, order=3, is_enabled=False,
+            check_box=True, text=test_string
+        )
         ConsentFactory.create(scheme=scheme, journey=Consent.LINK, text=link_message)
         ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, text=join_message)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
@@ -115,17 +117,17 @@ class TestSchemeViews(APITestCase):
 
         found = False
         for consent in response.data['consents']:
-            if consent['slug'] == 'tm1':
+            if consent['id'] == tm1.id:
                 self.assertEqual(consent['text'], link_message, "Missing/incorrect Link TEXT consents")
                 self.assertEqual(consent['check_box'], True, "Missing/incorrect check box in consents")
                 self.assertEqual(consent['journey'], Consent.LINK, "Missing/incorrect journey in consents")
                 self.assertEqual(consent['required'], False, "Missing/incorrect required in consents")
                 self.assertEqual(consent['order'], 2, "Missing/incorrect required in consents")
                 found = True
-            elif consent['slug'] == 'tm2':
+            elif consent['id'] == tm2.id:
                 self.assertTrue(False, "Disabled slug present")
 
-        self.assertTrue(found, "Slug tm1 not found in /scheme/#")
+        self.assertTrue(found, "Test consent not found in /scheme/#")
 
     def test_scheme_item(self):
         scheme = SchemeFactory()

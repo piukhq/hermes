@@ -33,7 +33,7 @@ class ConsentsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Consent
-        exclude = ('is_enabled', 'date', 'scheme')
+        exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on' )
 
 
 class SchemeSerializer(serializers.ModelSerializer):

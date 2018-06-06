@@ -8,7 +8,7 @@ from requests import RequestException
 from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db.utils import Error
 from django.shortcuts import render, redirect
 from django.utils import timezone
@@ -799,16 +799,16 @@ def process_consents(request):
     if 'consents' in request.data:
         consents = request.data['consents']
         del request.data['consents']
-        bad_consents = filter_bad_consents_slugs(consents)
+        bad_consents = filter_bad_consent_ids(consents)
         if bad_consents:
             return bad_consents
 
-        for slug_key, value in consents.items():
-            user_consent = UserConsent.objects.filter(user=request.user, consent__slug=slug_key).first()
+        for consent_id, value in consents.items():
+            user_consent = UserConsent.objects.filter(user=request.user, consent__id=consent_id).first()
             if user_consent:
                 user_consent.value = value
             else:
-                consent = Consent.objects.filter(slug=slug_key).first()
+                consent = Consent.objects.get(id=consent_id)
                 user_consent = UserConsent(user=request.user, consent=consent, value=value)
             try:
                 user_consent.full_clean()
@@ -823,14 +823,15 @@ def process_consents(request):
     return bad_consents
 
 
-def filter_bad_consents_slugs(request_data):
+def filter_bad_consent_ids(request_data):
     bad_consents = []
-
-    for k, v in request_data.items():
-        setting = Consent.objects.filter(slug=k).first()
-        if not setting:
+    for k in request_data.keys():
+        try:
+            consent = Consent.objects.get(id=k)
+            if not consent:
+                bad_consents.append(k)
+        except (Error, ObjectDoesNotExist):
             bad_consents.append(k)
-
     return bad_consents
 
 
