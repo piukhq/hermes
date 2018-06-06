@@ -10,6 +10,7 @@ from payment_card.tests import factories
 from payment_card.models import PaymentCardAccount, AuthTransaction
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
+from user.models import Organisation, ClientApplication
 from user.tests.factories import UserFactory
 
 
@@ -377,3 +378,15 @@ class TestAuthTransactions(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data, expected_resp)
         self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_list_payment_card_client_apps(self):
+        amex = Organisation.objects.create(name='American Express')
+        mc = Organisation.objects.create(name='Master Card')
+
+        ClientApplication.objects.create(name='Amex Auth Transactions', organisation=amex)
+        ClientApplication.objects.create(name='MC Auth Transactions', organisation=mc)
+
+        resp = self.client.get('/payment_cards/client_apps', **self.auth_service_headers)
+
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(len(resp.data), 2)
