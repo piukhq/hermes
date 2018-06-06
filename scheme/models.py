@@ -149,18 +149,18 @@ class Consent(models.Model):
         (LINK, 'link'),
     )
 
-    slug = models.SlugField(unique=True)
-    check_box = models.BooleanField(default=True)
+    check_box = models.BooleanField()
     text = models.CharField(max_length=500)
-    scheme = models.ForeignKey(Scheme, null=True, blank=True)
+    scheme = models.ForeignKey(Scheme)
     is_enabled = models.BooleanField(default=True)
-    required = models.BooleanField(default=True)
-    order = models.IntegerField(null=True, blank=True)
-    journey = models.IntegerField(choices=journeys, null=True, blank=True)
-    date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    required = models.BooleanField()
+    order = models.IntegerField()
+    journey = models.IntegerField(choices=journeys)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return '({}) {} {}: {}'.format(self.scheme.slug, self.is_enabled, self.order, self.slug)
+        return '({}) {}: {}'.format(self.scheme.slug, self.id, self.text[:15])
 
 
 class Exchange(models.Model):
@@ -589,7 +589,7 @@ class UserConsent(models.Model):
     value = models.CharField(max_length=255)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.user.email, self.consent.slug, self.value)
+        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
 
     def clean(self):
         if not validate_boolean(self.value):
