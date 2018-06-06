@@ -46,7 +46,7 @@ class TestProcessConsents(TestCase):
         user = UserFactory()
         consent1 = ConsentFactory.create(scheme=scheme, journey=Consent.LINK, order=1, text=test_default_string)
         consent2 = ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, order=2)
-        mock_request = SimulatedRequest(user, {"{}".format(consent1.id): 0, "{}".format(consent2.id): '1'})
+        mock_request = SimulatedRequest(user, {"{}".format(consent1.id): 0, "{}".format(consent2.id): 1})
         result = process_consents(mock_request)
         self.assertNotIn('consents', mock_request.data, "Consents not removed from request")
         self.assertEqual(result, [], "Bad or invalid Consents were found")
@@ -54,9 +54,9 @@ class TestProcessConsents(TestCase):
         self.assertEqual(len(set_values), 2, "Did not find expected number of consents in UserConsent table")
         for set_value in set_values:
             if set_value['consent_id'] == consent1.id:
-                self.assertEqual(set_value['value'], '0')
+                self.assertEqual(set_value['value'], 0)
             elif set_value['consent_id'] == consent2.id:
-                self.assertEqual(set_value['value'], '1')
+                self.assertEqual(set_value['value'], 1)
             else:
                 self.assertTrue(False, "Unknown preference found")
 

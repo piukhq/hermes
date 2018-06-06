@@ -22,7 +22,7 @@ from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage, Consent)
+                           SchemeAccountImage, Consent, UserConsent)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -30,8 +30,6 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer)
-from user.models import UserSetting
-from scheme.models import UserConsent
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -41,7 +39,7 @@ from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
-from user.models import CustomUser
+from user.models import CustomUser, UserSetting
 
 
 class BaseLinkMixin(object):
@@ -797,8 +795,7 @@ def process_consents(request):
     """
     bad_consents = []
     if 'consents' in request.data:
-        consents = request.data['consents']
-        del request.data['consents']
+        consents = request.data.pop('consents')
         bad_consents = filter_bad_consent_ids(consents)
         if bad_consents:
             return bad_consents
@@ -810,14 +807,10 @@ def process_consents(request):
             else:
                 consent = Consent.objects.get(id=consent_id)
                 user_consent = UserConsent(user=request.user, consent=consent, value=value)
-            try:
-                user_consent.full_clean()
-            except ValidationError as e:
-                bad_consents.extend(e.messages)
 
             try:
                 user_consent.save()
-            except Error as e:
+            except (Error, ValidationError) as e:
                 bad_consents.extend(e.messages)
 
     return bad_consents

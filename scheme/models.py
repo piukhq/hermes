@@ -591,24 +591,8 @@ class UserConsent(models.Model):
     modified_on = models.DateTimeField(auto_now=True)
     user = models.ForeignKey('user.CustomUser', related_name='consent_user')
     consent = models.ForeignKey(Consent, related_name='consent')
-    value = models.CharField(max_length=255)
+    value = models.BooleanField()
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
 
-    def clean(self):
-        if not validate_boolean(self.value):
-            raise ValidationError(
-                _('Consent is not a Boolean value'),
-                code='invalid_value',
-                params={
-                    'value': self.value,
-                    'value_type': type(self.value)
-                }
-            )
-
-    def to_boolean(self):
-        try:
-            return bool(int(self.value))
-        except ValueError:
-            return None

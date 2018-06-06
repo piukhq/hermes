@@ -166,7 +166,6 @@ class Users(RetrieveUpdateAPIView):
         return obj
 
 
-# noinspection PyUnusedLocal
 class VerifyToken(APIView):
     """
     Basic view to check that a token is valid.
@@ -305,7 +304,6 @@ class TwitterLogin(CreateAPIView):
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
 
 
-# noinspection PyUnusedLocal
 class Logout(APIView):
     def post(self, request, *args, **kwargs):
         request.user.generate_salt()
@@ -401,27 +399,6 @@ def social_login(social_id, email, service):
             user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id})
             status = 201
     return status, user
-
-
-def filter_bad_setting_slugs(request_data):
-    bad_settings = []
-
-    for k, v in request_data.items():
-        setting = Setting.objects.filter(slug=k).first()
-        if not setting:
-            bad_settings.append(k)
-
-    return bad_settings
-
-
-def create_or_update_user_setting(user, setting_slug, value):
-    user_setting = UserSetting.objects.filter(user=user, setting__slug=setting_slug).first()
-    if user_setting:
-        user_setting.value = value
-    else:
-        setting = Setting.objects.filter(slug=setting_slug).first()
-        user_setting = UserSetting(user=user, setting=setting, value=value)
-    return user_setting
 
 
 class Settings(ListAPIView):
