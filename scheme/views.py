@@ -9,6 +9,7 @@ from raven.contrib.django.raven_compat.models import client as sentry
 from collections import OrderedDict
 from django.http import HttpResponseBadRequest
 from django.core.exceptions import ValidationError
+from django.db.utils import Error
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
@@ -813,8 +814,12 @@ def process_consents(request):
                 user_consent.full_clean()
             except ValidationError as e:
                 bad_consents.extend(e.messages)
-            else:
+
+            try:
                 user_consent.save()
+            except Error as e:
+                bad_consents.extend(e.messages)
+
     return bad_consents
 
 

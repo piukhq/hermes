@@ -14,6 +14,7 @@ from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCr
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
 from scheme.models import Consent
+from scheme.models import UserConsent
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -21,7 +22,7 @@ from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPE
     TITLE, FIRST_NAME, LAST_NAME
 
 from user.tests.factories import UserFactory
-from user.models import UserSetting
+
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -153,10 +154,12 @@ class TestSchemeAccountViews(APITestCase):
             'is_stale': False
         }
 
-        test_reply = True
+        test_reply = 1
 
-        setting1 = ConsentFactory.create(
-            scheme=self.scheme_account.scheme, journey=Consent.LINK, slug="prefLink1",
+        consent1 = ConsentFactory.create(
+            scheme=self.scheme_account.scheme,
+            journey=Consent.LINK,
+            slug="prefLink1",
             order=1
         )
 
@@ -164,11 +167,11 @@ class TestSchemeAccountViews(APITestCase):
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
-        set_values = UserSetting.objects.filter(user=self.user).values()
+        set_values = UserConsent.objects.filter(user=self.user).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
-            if set_value['setting_id'] == setting1.id:
-                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
+            if set_value['consent_id'] == consent1.id:
+                self.assertEqual(int(set_value['value']), test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
         self.assertEqual(response.status_code, 201)
@@ -1001,9 +1004,11 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
 
-        test_reply = True
-        setting1 = ConsentFactory.create(
-            scheme=scheme, journey=Consent.JOIN, slug="pref1",
+        test_reply = 1
+        consent1 = ConsentFactory.create(
+            scheme=scheme,
+            journey=Consent.JOIN,
+            slug="pref1",
             order=1
         )
 
@@ -1017,11 +1022,11 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
-        set_values = UserSetting.objects.filter(user=self.user).values()
+        set_values = UserConsent.objects.filter(user=self.user).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
-            if set_value['setting_id'] == setting1.id:
-                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
+            if set_value['consent_id'] == consent1.id:
+                self.assertEqual(int(set_value['value']), test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consent not set")
 

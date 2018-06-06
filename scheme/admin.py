@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent)
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -137,6 +137,11 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
         except Exception:
             return queryset, use_distinct
+
+
+@admin.register(UserConsent)
+class UserSettingAdmin(admin.ModelAdmin):
+    search_fields = ('user__email', 'setting__slug', 'value')
 
 
 admin.site.register(Category)

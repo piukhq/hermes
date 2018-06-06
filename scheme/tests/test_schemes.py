@@ -60,10 +60,7 @@ class TestSchemeViews(APITestCase):
         self.assertIn('has_transactions', response.data[0])
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
-        self.assertIn('preferences', response.data[0])
-
-        self.assertIn('join', response.data[0]['preferences'], "no join section in preferences")
-        self.assertIn('link', response.data[0]['preferences'], "no link section in preferences")
+        self.assertIn('consents', response.data[0])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
@@ -73,7 +70,7 @@ class TestSchemeViews(APITestCase):
                 row['manual_question'] is not None or
                 row['scan_question'] is not None)
 
-    def test_scheme_preferences(self):
+    def test_scheme_consents(self):
         scheme2 = SchemeFactory()
         SchemeImageFactory(scheme=scheme2)
         SchemeCredentialQuestionFactory.create(
@@ -103,29 +100,33 @@ class TestSchemeViews(APITestCase):
 
         link_message = "Link Message"
         join_message = "Join Message"
-        test_string = "Test default String"
-        test_string2 = "Test disabled default String"
+        test_string = "Test disabled default String"
         ConsentFactory.create(scheme=scheme, journey=Consent.LINK, slug="tm1", order=2,
-                              check_box=True, text=link_message)
+                              check_box=True, text=link_message, required=False)
 
         ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, slug="tm2", order=3, is_enabled=False,
                               check_box=True,
-                              text=test_string2
+                              text=test_string
                               )
-        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, default_value=link_message)
-        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, default_value=join_message)
+        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, text=link_message)
+        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, text=join_message)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
-        self.assertIn('preferences', response.data, "no preferences section")
-        join_data = response.data['preferences']['join']
-        link_data = response.data['preferences']['link']
-        self.assertEqual(join_data[0]['default_value'], join_message, "Missing Join TEXT preferences")
-        self.assertEqual(link_data[0]['default_value'], link_message, "Missing Link TEXT preferences")
-        self.assertEqual(join_data[1]['default_value'], test_string, "Missing Join default String preference")
-        self.assertEqual(link_data[1]['default_value'], test_string, "Missing Link default String preference")
-        self.assertEqual(join_data[1]['slug'], "tm1", "Incorrect Join preference slug")
-        self.assertEqual(link_data[1]['slug'], "tm1", "Incorrect Link preference slug")
-        self.assertEqual(len(link_data), 2, "Disabled Field present in link preferences")
-        self.assertEqual(len(join_data), 2, "Disabled Field present in join preferences")
+        self.assertIn('consents', response.data, "no consents section in /schemes/# ")
+
+        found = False
+        for consent in response.data['consents']:
+            if consent['slug'] == 'tm1':
+                self.assertEqual(consent['text'], link_message, "Missing/incorrect Link TEXT consents")
+                self.assertEqual(consent['check_box'], True, "Missing/incorrect check box in consents")
+                self.assertEqual(consent['journey'], Consent.LINK, "Missing/incorrect journey in consents")
+                self.assertEqual(consent['required'], False, "Missing/incorrect required in consents")
+                self.assertEqual(consent['order'], 2, "Missing/incorrect required in consents")
+                found = True
+            elif consent['slug'] == 'tm2':
+                self.assertTrue(False, "Disabled slug present")
+
+        self.assertTrue(found, "Slug tm1 not found in /scheme/#")
+
 
     def test_scheme_item(self):
         scheme = SchemeFactory()
