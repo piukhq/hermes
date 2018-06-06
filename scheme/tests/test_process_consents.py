@@ -10,7 +10,6 @@ from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from scheme.models import UserConsent
 from faker import Factory
-import random
 
 fake = Factory.create()
 

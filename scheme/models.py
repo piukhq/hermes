@@ -15,6 +15,7 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.template.defaultfilters import truncatewords
 from user.validators import validate_boolean
 from django.utils.translation import ugettext_lazy as _
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
@@ -159,8 +160,12 @@ class Consent(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
+    @property
+    def short_text(self):
+        return truncatewords(self.text, 5)
+
     def __str__(self):
-        return '({}) {}: {}'.format(self.scheme.slug, self.id, self.text[:15])
+        return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
 
 
 class Exchange(models.Model):
