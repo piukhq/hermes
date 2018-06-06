@@ -21,10 +21,12 @@ from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
 from payment_card import serializers
+from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from intercom import intercom_api
 from payment_card import metis
+from user.models import Organisation, ClientApplication
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -388,3 +390,21 @@ class AuthTransactionView(generics.CreateAPIView):
     authentication_classes = (ServiceAuthentication,)
     permission_classes = (AllowService,)
     serializer_class = serializers.AuthTransactionSerializer
+
+
+class ListPaymentCardClientApplication(generics.ListAPIView):
+    authentication_classes = (ServiceAuthentication,)
+    permission_classes = (AllowService,)
+    serializer_class = PaymentCardClientSerializer
+
+    def get_queryset(self):
+        clients = []
+        for system in PaymentCard.SYSTEMS:
+            try:
+                organisation = Organisation.objects.get(name=system[1])
+                client = ClientApplication.objects.get(organisation=organisation, name__contains='Auth Transactions')
+                clients.append(client)
+            except (Organisation.DoesNotExist, ClientApplication.DoesNotExist):
+                pass
+
+        return clients

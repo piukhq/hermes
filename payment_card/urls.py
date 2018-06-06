@@ -44,5 +44,9 @@ urlpatterns = [
 
     url(r'^/auth_transaction$',
         views.AuthTransactionView.as_view(),
-        name='auth_transaction')
+        name='auth_transaction'),
+
+    url(r'^/client_apps$',
+        views.ListPaymentCardClientApplication.as_view(),
+        name='list_payment_card_client_apps')
 ]

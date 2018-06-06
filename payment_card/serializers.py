@@ -5,6 +5,7 @@ from rest_framework.validators import UniqueValidator
 
 from payment_card import models
 from payment_card.models import PaymentCardAccount
+from user.models import ClientApplication
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
@@ -152,6 +153,14 @@ class AuthTransactionSerializer(serializers.ModelSerializer):
             'payment_card_token': {'write_only': True}
         }
         depth = 1
+
+
+class PaymentCardClientSerializer(serializers.ModelSerializer):
+    organisation = serializers.SlugRelatedField(read_only=True, slug_field='name')
+
+    class Meta:
+        model = ClientApplication
+        fields = ('client_id', 'secret', 'organisation')
 
 
 def add_object_type_to_image_response(data, type):
