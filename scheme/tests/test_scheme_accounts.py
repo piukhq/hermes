@@ -24,7 +24,6 @@ from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPE
 from user.tests.factories import UserFactory
 
 
-
 class TestSchemeAccountViews(APITestCase):
     @classmethod
     def setUpClass(cls):

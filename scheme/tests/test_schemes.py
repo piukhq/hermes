@@ -127,7 +127,6 @@ class TestSchemeViews(APITestCase):
 
         self.assertTrue(found, "Slug tm1 not found in /scheme/#")
 
-
     def test_scheme_item(self):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)

@@ -150,5 +150,5 @@ class ConsentAdmin(admin.ModelAdmin):
     search_fields = ('slug', 'scheme__slug', 'check_box', 'date')
     list_filter = ('scheme__slug', 'journey', 'check_box', 'order', 'required', 'is_enabled')
 
-admin.site.register(Category)
 
+admin.site.register(Category)

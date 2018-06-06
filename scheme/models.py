@@ -153,7 +153,7 @@ class Consent(models.Model):
     check_box = models.BooleanField(default=True)
     text = models.CharField(max_length=500)
     scheme = models.ForeignKey(Scheme, null=True, blank=True)
-    is_enabled = models.BooleanField(default=True )
+    is_enabled = models.BooleanField(default=True)
     required = models.BooleanField(default=True)
     order = models.IntegerField(null=True, blank=True)
     journey = models.IntegerField(choices=journeys, null=True, blank=True)
@@ -607,4 +607,3 @@ class UserConsent(models.Model):
             return bool(int(self.value))
         except ValueError:
             return None
-

@@ -549,7 +549,6 @@ class UserSettings(APIView):
         return user_setting
 
 
-
 class IdentifyApplicationKit(APIView):
     """
     App "phonehome" logic. If a ClientApplication is not paired with a known
