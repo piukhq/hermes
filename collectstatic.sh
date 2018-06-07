@@ -1,4 +1,4 @@
 #!/bin/bash
 set -ue -o pipefail
-pip install $(egrep '^Django==|^django-colorful==|^djangorestframework==' requirements.txt)
+pip install -r collect-static-requirements.txt
 python manage.py collectstatic --noinput
