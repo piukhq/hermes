@@ -1,4 +1,5 @@
 Django==1.11.1
 django-colorful==1.1.0
 djangorestframework==3.6.3
+graypy==0.2.12
 raven==6.0.0
