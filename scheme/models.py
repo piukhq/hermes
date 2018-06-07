@@ -111,8 +111,7 @@ class Scheme(models.Model):
 
     @property
     def consents(self):
-        consent = apps.get_model('scheme', 'Consent')
-        return consent.objects.filter(is_enabled=True).order_by('order')
+        return Consent.objects.filter(scheme=self.id, is_enabled=True).order_by('order')
 
     @property
     def manual_question(self):
@@ -586,8 +585,8 @@ def encryption_handler(sender, instance, **kwargs):
 class UserConsent(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey('user.CustomUser', related_name='consent_user')
-    consent = models.ForeignKey(Consent, related_name='consent')
+    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
+    consent = models.ForeignKey(Consent, related_name='user_consent')
     value = models.BooleanField()
 
     def __str__(self):

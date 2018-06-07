@@ -43,7 +43,7 @@ class SchemeSerializer(serializers.ModelSerializer):
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
-    consents = serializers.SerializerMethodField()
+    consents = ConsentsSerializer(many=True)
 
     class Meta:
         model = Scheme
@@ -57,11 +57,6 @@ class SchemeSerializer(serializers.ModelSerializer):
     @staticmethod
     def get_join_questions(obj):
         serializer = QuestionSerializer(obj.join_questions, many=True)
-        return serializer.data
-
-    @staticmethod
-    def get_consents(obj):
-        serializer = ConsentsSerializer(obj.consents, many=True)
         return serializer.data
 
 
