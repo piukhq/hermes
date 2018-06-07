@@ -14,6 +14,7 @@ from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.template.defaultfilters import truncatewords
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 
@@ -108,6 +109,10 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
+    def consents(self):
+        return Consent.objects.filter(scheme=self.id, is_enabled=True).order_by('order')
+
+    @property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
 
@@ -129,6 +134,33 @@ class Scheme(models.Model):
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
+
+
+class Consent(models.Model):
+    JOIN = 0
+    LINK = 1
+
+    journeys = (
+        (JOIN, 'join'),
+        (LINK, 'link'),
+    )
+
+    check_box = models.BooleanField()
+    text = models.CharField(max_length=500)
+    scheme = models.ForeignKey(Scheme)
+    is_enabled = models.BooleanField(default=True)
+    required = models.BooleanField()
+    order = models.IntegerField()
+    journey = models.IntegerField(choices=journeys)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+
+    @property
+    def short_text(self):
+        return truncatewords(self.text, 5)
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
 
 
 class Exchange(models.Model):
@@ -547,3 +579,14 @@ def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         instance.answer = encrypted_answer
+
+
+class UserConsent(models.Model):
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
+    consent = models.ForeignKey(Consent, related_name='user_consent')
+    value = models.BooleanField()
+
+    def __str__(self):
+        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
