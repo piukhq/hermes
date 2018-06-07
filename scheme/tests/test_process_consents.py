@@ -54,9 +54,9 @@ class TestProcessConsents(TestCase):
         self.assertEqual(len(set_values), 2, "Did not find expected number of consents in UserConsent table")
         for set_value in set_values:
             if set_value['consent_id'] == consent1.id:
-                self.assertEqual(set_value['value'], 0)
+                self.assertFalse(set_value['value'])
             elif set_value['consent_id'] == consent2.id:
-                self.assertEqual(set_value['value'], 1)
+                self.assertTrue(set_value['value'])
             else:
                 self.assertTrue(False, "Unknown preference found")
 

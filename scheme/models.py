@@ -13,11 +13,8 @@ from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.template.defaultfilters import truncatewords
-from user.validators import validate_boolean
-from django.utils.translation import ugettext_lazy as _
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 from django.apps import apps
@@ -595,4 +592,3 @@ class UserConsent(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
-

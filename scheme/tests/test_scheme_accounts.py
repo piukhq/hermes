@@ -169,7 +169,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
             if set_value['consent_id'] == consent1.id:
-                self.assertEqual(int(set_value['value']), test_reply, "Incorrect Consent value set")
+                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
         self.assertEqual(response.status_code, 201)
@@ -1023,7 +1023,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
             if set_value['consent_id'] == consent1.id:
-                self.assertEqual(int(set_value['value']), test_reply, "Incorrect Consent value set")
+                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consent not set")
 
