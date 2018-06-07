@@ -17,7 +17,6 @@ from django.utils import timezone
 from django.template.defaultfilters import truncatewords
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
-from django.apps import apps
 
 
 class Category(models.Model):
