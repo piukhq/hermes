@@ -109,8 +109,8 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
-    def consents(self):
-        return Consent.objects.filter(scheme=self.id, is_enabled=True).order_by('order')
+    def valid_consents(self):
+        return self.consents.filter(is_enabled=True).order_by('order')
 
     @property
     def manual_question(self):
@@ -136,6 +136,13 @@ class Scheme(models.Model):
         return '{} ({})'.format(self.name, self.company)
 
 
+class ConsentsManager(models.Manager):
+
+    def get_queryset(self):
+        consent_query = super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('order')
+        return consent_query
+
+
 class Consent(models.Model):
     JOIN = 0
     LINK = 1
@@ -147,13 +154,16 @@ class Consent(models.Model):
 
     check_box = models.BooleanField()
     text = models.CharField(max_length=500)
-    scheme = models.ForeignKey(Scheme)
+    scheme = models.ForeignKey(Scheme, related_name="consents")
     is_enabled = models.BooleanField(default=True)
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
+
+    objects = ConsentsManager()
+    all_objects = models.Manager()
 
     @property
     def short_text(self):

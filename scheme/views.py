@@ -168,15 +168,12 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        bad_consents = process_consents(request)
-        if bad_consents:
-            return Response({
-                'error': 'Some of the given consents are invalid.',
-                'messages': bad_consents
-            }, HTTP_400_BAD_REQUEST)
-
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
-        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
+                                                                      'user': request.user})
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()                                   # Save consents
 
         response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = timezone.now()
@@ -785,49 +782,6 @@ class IdentifyCard(APIView):
         }, status=200)
 
 
-def process_consents(request):
-    """ Removes Consent from link and join api.
-    This has same effect as UserSettings API call but applied to a prefences section in the POST to the Schemes APIs
-    The consents section is removed from request data
-
-    :param request:    as processed by rest framework
-    :return: returns a list of bad settings if any, 'consents' from request
-    """
-    bad_consents = []
-    if 'consents' in request.data:
-        consents = request.data.pop('consents')
-        bad_consents = filter_bad_consent_ids(consents)
-        if bad_consents:
-            return bad_consents
-
-        for consent_id, value in consents.items():
-            user_consent = UserConsent.objects.filter(user=request.user, consent__id=consent_id).first()
-            if user_consent:
-                user_consent.value = value
-            else:
-                consent = Consent.objects.get(id=consent_id)
-                user_consent = UserConsent(user=request.user, consent=consent, value=value)
-
-            try:
-                user_consent.save()
-            except (Error, ValidationError) as e:
-                bad_consents.extend(e.messages)
-
-    return bad_consents
-
-
-def filter_bad_consent_ids(request_data):
-    bad_consents = []
-    for k in request_data.keys():
-        try:
-            consent = Consent.objects.get(id=k)
-            if not consent:
-                bad_consents.append(k)
-        except (Error, ObjectDoesNotExist):
-            bad_consents.append(k)
-    return bad_consents
-
-
 class Join(SwappableSerializerMixin, GenericAPIView):
     override_serializer_classes = {
         'POST': JoinSerializer,
@@ -841,18 +795,13 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         """
 
         scheme_id = int(self.kwargs['pk'])
-        bad_consents = process_consents(request)
-        if bad_consents:
-            return Response({
-                'error': 'Some of the given consents are invalid.',
-                'messages': bad_consents
-            }, HTTP_400_BAD_REQUEST)
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
         serializer = JoinSerializer(data=request.data, context={
                                                                 'scheme': join_scheme,
                                                                 'user': request.user
                                                                 })
         serializer.is_valid(raise_exception=True)
+        serializer.save()                           # Save consents
         data = serializer.validated_data
         data['scheme'] = scheme_id
         scheme_account = self.create_join_account(data, request.user, scheme_id)

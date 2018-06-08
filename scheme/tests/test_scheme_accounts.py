@@ -161,7 +161,9 @@ class TestSchemeAccountViews(APITestCase):
             order=1
         )
 
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "consents": {"{}".format(consent1.id): test_reply}}
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
+                "consents": [{"id": "{}".format(consent1.id), "value": test_reply}]
+                }
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
@@ -1015,7 +1017,7 @@ class TestSchemeAccountViews(APITestCase):
             'username': 'testbink',
             'password': 'password',
             'barcode': 'barcode',
-            "consents": {"{}".format(consent1.id): test_reply}
+            "consents": [{ "id": "{}".format(consent1.id), "value": test_reply}]
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
