@@ -9,9 +9,12 @@ from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
+from scheme.tests.factories import ConsentFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
+from scheme.models import Consent
+from scheme.models import UserConsent
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
@@ -149,9 +152,26 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf"}
+
+        test_reply = 1
+
+        consent1 = ConsentFactory.create(
+            scheme=self.scheme_account.scheme,
+            journey=Consent.LINK,
+            order=1
+        )
+
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "consents": {"{}".format(consent1.id): test_reply}}
+
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                    data=data, **self.auth_headers)
+                                    data=data, **self.auth_headers, format='json')
+        set_values = UserConsent.objects.filter(user=self.user).values()
+        self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
+        for set_value in set_values:
+            if set_value['consent_id'] == consent1.id:
+                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
+            else:
+                self.assertTrue(False, "Consents not set")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
@@ -994,20 +1014,37 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
 
+        test_reply = 1
+        consent1 = ConsentFactory.create(
+            scheme=scheme,
+            journey=Consent.JOIN,
+            order=1
+        )
+
         data = {
             'save_user_information': False,
             'order': 2,
             'username': 'testbink',
             'password': 'password',
-            'barcode': 'barcode'
+            'barcode': 'barcode',
+            "consents": {"{}".format(consent1.id): test_reply}
         }
-        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
+        resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
+
+        set_values = UserConsent.objects.filter(user=self.user).values()
+        self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
+        for set_value in set_values:
+            if set_value['consent_id'] == consent1.id:
+                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
+            else:
+                self.assertTrue(False, "Consent not set")
+
         self.assertEqual(resp.status_code, 201)
         self.assertTrue(mock_request.called)
 
         resp_json = resp.json()
         self.assertEqual(resp_json['scheme'], scheme.id)
-        self.assertEqual(len(resp_json), len(data)+1)
+        self.assertEqual(len(resp_json), len(data))      # one key added and one removed by consents so not data+1
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
         self.assertEqual(resp_json['id'], scheme_account.id)
         self.assertEqual('Pending', scheme_account.status_name)

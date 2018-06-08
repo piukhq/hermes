@@ -1,11 +1,10 @@
 from copy import copy
-
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange
+    SchemeAccountImage, Exchange, Consent
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -30,6 +29,13 @@ class QuestionSerializer(serializers.ModelSerializer):
         exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'options')
 
 
+class ConsentsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Consent
+        exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
+
+
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
@@ -37,16 +43,19 @@ class SchemeSerializer(serializers.ModelSerializer):
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
+    consents = ConsentsSerializer(many=True)
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
-    def get_link_questions(self, obj):
+    @staticmethod
+    def get_link_questions(obj):
         serializer = QuestionSerializer(obj.link_questions, many=True)
         return serializer.data
 
-    def get_join_questions(self, obj):
+    @staticmethod
+    def get_join_questions(obj):
         serializer = QuestionSerializer(obj.join_questions, many=True)
         return serializer.data
 

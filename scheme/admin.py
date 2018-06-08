@@ -2,8 +2,9 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
+
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage)
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -137,6 +138,21 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
         except Exception:
             return queryset, use_distinct
+
+
+@admin.register(UserConsent)
+class UserConsentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'consent', 'value', 'created_on', 'modified_on')
+    search_fields = ('user__email', 'consent__scheme__slug', 'value')
+    list_filter = ('consent__scheme__slug', 'value', 'consent__journey', 'consent__required', 'consent__is_enabled')
+
+
+@admin.register(Consent)
+class ConsentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'check_box', 'short_text', 'scheme', 'is_enabled', 'required', 'order',
+                    'journey', 'created_on', 'modified_on')
+    search_fields = ('scheme__slug', 'text')
+    list_filter = ('scheme__slug', 'journey', 'check_box', 'order', 'required', 'is_enabled')
 
 
 admin.site.register(Category)
