@@ -92,21 +92,22 @@ class UserConsentSerializer(serializers.Serializer):
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
-    consents = UserConsentSerializer(many=True, write_only=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
     def save(self):
-        consents = self.validated_data.pop('consents')
-        user = self.context['user']
+        if 'consents' in self.validated_data:
+            consents = self.validated_data.pop('consents')
+            user = self.context['user']
 
-        for consent in consents:
-            value = consent['value']
-            consent = get_object_or_404(Consent, pk=consent['id'])
-            user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
-            if user_consent:
-                user_consent.value = value
-            else:
-                user_consent = UserConsent(user=user, consent=consent, value=value)
-            user_consent.save()
+            for consent in consents:
+                value = consent['value']
+                consent = get_object_or_404(Consent, pk=consent['id'])
+                user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
+                if user_consent:
+                    user_consent.value = value
+                else:
+                    user_consent = UserConsent(user=user, consent=consent, value=value)
+                user_consent.save()
 
     def validate(self, data):
         # Validate no manual answer
@@ -382,22 +383,22 @@ class IdentifyCardSerializer(serializers.Serializer):
 class JoinSerializer(SchemeAnswerSerializer):
     save_user_information = serializers.NullBooleanField(required=True)
     order = serializers.IntegerField(required=True)
-    consents = UserConsentSerializer(many=True, write_only=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required = False)
 
     def save(self):
-        consents = self.validated_data.pop('consents')
-        user = self.context['user']
+        if 'consents' in self.validated_data:
+            consents = self.validated_data.pop('consents')
+            user = self.context['user']
 
-        for consent in consents:
-            value = consent['value']
-            consent = get_object_or_404(Consent, pk=consent['id'])
-            user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
-            if user_consent:
-                user_consent.value = value
-            else:
-                user_consent = UserConsent(user=user, consent=consent, value=value)
-            user_consent.save()
-            #UserConsent.objects.create(user=user, consent=get_object_or_404(Consent, pk=consent['id']), value=value)
+            for consent in consents:
+                value = consent['value']
+                consent = get_object_or_404(Consent, pk=consent['id'])
+                user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
+                if user_consent:
+                    user_consent.value = value
+                else:
+                    user_consent = UserConsent(user=user, consent=consent, value=value)
+                user_consent.save()
 
     def validate(self, data):
         scheme = self.context['scheme']
