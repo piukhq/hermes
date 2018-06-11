@@ -109,10 +109,6 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
-    def valid_consents(self):
-        return self.consents.filter(is_enabled=True).order_by('order')
-
-    @property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
 
