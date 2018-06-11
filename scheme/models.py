@@ -139,8 +139,7 @@ class Scheme(models.Model):
 class ConsentsManager(models.Manager):
 
     def get_queryset(self):
-        consent_query = super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('order')
-        return consent_query
+        return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
 class Consent(models.Model):

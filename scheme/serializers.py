@@ -386,11 +386,11 @@ class IdentifyCardSerializer(serializers.Serializer):
 class JoinSerializer(SchemeAnswerSerializer):
     save_user_information = serializers.NullBooleanField(required=True)
     order = serializers.IntegerField(required=True)
-    consents = UserConsentSerializer(many=True, write_only=True, required = False)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
     def save(self):
         if 'consents' in self.validated_data:
-            UserConsentSerializer.consents_save(self.context['user'], self.validated_data['consents'])
+            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         scheme = self.context['scheme']
