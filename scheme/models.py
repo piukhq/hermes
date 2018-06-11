@@ -153,7 +153,7 @@ class Consent(models.Model):
     )
 
     check_box = models.BooleanField()
-    text = models.CharField(max_length=500)
+    text = models.TextField()
     scheme = models.ForeignKey(Scheme, related_name="consents")
     is_enabled = models.BooleanField(default=True)
     required = models.BooleanField()

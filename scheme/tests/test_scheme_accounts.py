@@ -332,7 +332,11 @@ class TestSchemeAccountViews(APITestCase):
         """
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
-        self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
+        expected_fields = dict(CREDENTIAL_TYPES)
+        expected_fields['consents'] = None              # Add consents
+        self.assertEqual(set(expected_fields.keys()),
+                         set(LinkSchemeSerializer._declared_fields.keys())
+                         )
 
     def test_unique_scheme_account(self):
         response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
@@ -1017,7 +1021,7 @@ class TestSchemeAccountViews(APITestCase):
             'username': 'testbink',
             'password': 'password',
             'barcode': 'barcode',
-            "consents": [{ "id": "{}".format(consent1.id), "value": test_reply}]
+            "consents": [{"id": "{}".format(consent1.id), "value": test_reply}]
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
@@ -1034,7 +1038,7 @@ class TestSchemeAccountViews(APITestCase):
 
         resp_json = resp.json()
         self.assertEqual(resp_json['scheme'], scheme.id)
-        self.assertEqual(len(resp_json), len(data))      # one key added and one removed by consents so not data+1
+        self.assertEqual(len(resp_json), len(data)+1)
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
         self.assertEqual(resp_json['id'], scheme_account.id)
         self.assertEqual('Pending', scheme_account.status_name)
