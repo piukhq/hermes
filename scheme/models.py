@@ -73,7 +73,7 @@ class Scheme(models.Model):
     link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
-    transaction_headers = models.CharField(max_length=40, default="Date,Reference,Points")
+    # transaction_headers = models.CharField(max_length=40, default="Date,Reference,Points")
 
     ios_scheme = models.CharField(max_length=255, blank=True, verbose_name='iOS scheme')
     itunes_url = models.URLField(blank=True, verbose_name='iTunes URL')
