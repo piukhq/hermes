@@ -153,7 +153,8 @@ class TestSchemeAccountViews(APITestCase):
             'is_stale': False
         }
 
-        test_reply = 1
+        test_reply = True
+        test_reply2 = False
 
         consent1 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
@@ -161,15 +162,31 @@ class TestSchemeAccountViews(APITestCase):
             order=1
         )
 
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf", "consents": {"{}".format(consent1.id): test_reply}}
+        consent2 = ConsentFactory.create(
+            scheme=self.scheme_account.scheme,
+            journey=Consent.LINK,
+            order=2
+        )
+
+        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
+                "consents": [
+                    {"id": "{}".format(consent1.id), "value": test_reply},
+                    {"id": "{}".format(consent2.id), "value": test_reply2}
+                ]
+                }
+
+        # add an existing conesent to user consents to verify updates correctly
+        UserConsent.objects.create(user=self.user, consent=consent2, value=not test_reply2)
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
         set_values = UserConsent.objects.filter(user=self.user).values()
-        self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
+        self.assertEqual(len(set_values), 2, "Incorrect number of consents found expected 2")
         for set_value in set_values:
             if set_value['consent_id'] == consent1.id:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
+            elif set_value['consent_id'] == consent2.id:
+                self.assertEqual(set_value['value'], test_reply2, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
         self.assertEqual(response.status_code, 201)
@@ -342,7 +359,11 @@ class TestSchemeAccountViews(APITestCase):
         """
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
-        self.assertEqual(set(dict(CREDENTIAL_TYPES).keys()), set(LinkSchemeSerializer._declared_fields.keys()))
+        expected_fields = dict(CREDENTIAL_TYPES)
+        expected_fields['consents'] = None              # Add consents
+        self.assertEqual(set(expected_fields.keys()),
+                         set(LinkSchemeSerializer._declared_fields.keys())
+                         )
 
     def test_unique_scheme_account(self):
         response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
@@ -1027,7 +1048,7 @@ class TestSchemeAccountViews(APITestCase):
             'username': 'testbink',
             'password': 'password',
             'barcode': 'barcode',
-            "consents": {"{}".format(consent1.id): test_reply}
+            "consents": [{"id": "{}".format(consent1.id), "value": test_reply}]
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
@@ -1044,7 +1065,7 @@ class TestSchemeAccountViews(APITestCase):
 
         resp_json = resp.json()
         self.assertEqual(resp_json['scheme'], scheme.id)
-        self.assertEqual(len(resp_json), len(data))      # one key added and one removed by consents so not data+1
+        self.assertEqual(len(resp_json), len(data))       # not +1 to data since consents have been added
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
         self.assertEqual(resp_json['id'], scheme_account.id)
         self.assertEqual('Pending', scheme_account.status_name)
