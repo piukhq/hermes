@@ -141,10 +141,12 @@ class ConsentsManager(models.Manager):
 class Consent(models.Model):
     JOIN = 0
     LINK = 1
+    ADD = 2
 
     journeys = (
         (JOIN, 'join'),
         (LINK, 'link'),
+        (ADD, 'add'),
     )
 
     check_box = models.BooleanField()
