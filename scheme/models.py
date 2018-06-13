@@ -37,8 +37,10 @@ class ActiveSchemeManager(models.Manager):
                 schemes_without_questions.append(scheme.id)
         return schemes.exclude(id__in=schemes_without_questions)
 
+
 def _default_transaction_headers():
     return ["Date", "Reference", "Points"]
+
 
 class Scheme(models.Model):
     TIERS = (
