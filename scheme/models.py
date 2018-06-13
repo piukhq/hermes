@@ -37,6 +37,8 @@ class ActiveSchemeManager(models.Manager):
                 schemes_without_questions.append(scheme.id)
         return schemes.exclude(id__in=schemes_without_questions)
 
+def _default_transaction_headers():
+    return ["Date", "Reference", "Points"]
 
 class Scheme(models.Model):
     TIERS = (
@@ -74,7 +76,7 @@ class Scheme(models.Model):
     link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
-    transaction_headers = ArrayField(models.CharField(max_length=40), default=list(("Date", "Reference", "Points")))
+    transaction_headers = ArrayField(models.CharField(max_length=40), default=_default_transaction_headers)
 
     ios_scheme = models.CharField(max_length=255, blank=True, verbose_name='iOS scheme')
     itunes_url = models.URLField(blank=True, verbose_name='iTunes URL')
