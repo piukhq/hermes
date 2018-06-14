@@ -276,8 +276,16 @@ class RetrievePaymentCardUserInfo(View):
                     'loyalty_id': None,
                     'scheme_account_id': None,
                     'user_id': payment_cards.first().user.id,
-                    'credentials': ''
+                    'credentials': '',
                 }
+
+            active_card = next((x for x in payment_cards if x.status == PaymentCardAccount.ACTIVE), None)
+            if active_card:
+                response_data[payment_card_token]['card_information'] = {
+                    'first_six': active_card.pan_start,
+                    'last_four': active_card.pan_end
+                }
+
         return JsonResponse(response_data, safe=False)
 
 

@@ -14,20 +14,18 @@ from intercom import intercom_api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
-
 from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
                            SchemeAccountImage)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
-                                StatusSerializer, ResponseLinkSerializer,
+                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer)
-from user.models import UserSetting
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -37,7 +35,7 @@ from django.db import transaction
 from scheme.account_status_summary import scheme_account_status_data
 from io import StringIO
 from django.conf import settings
-from user.models import CustomUser
+from user.models import CustomUser, UserSetting
 
 
 class BaseLinkMixin(object):
@@ -146,6 +144,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         'PUT': SchemeAnswerSerializer,
         'POST': LinkSchemeSerializer,
         'OPTIONS': LinkSchemeSerializer,
+        'DELETE': DeleteCredentialSerializer,
     }
 
     def put(self, request, *args, **kwargs):
@@ -166,7 +165,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         response_serializer: ResponseLinkSerializer
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
-        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account})
+        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
+                                                                      'user': request.user})
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()                                   # Save consents
 
         response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = timezone.now()
@@ -552,6 +555,99 @@ class SchemeAccountsCredentials(RetrieveAPIView):
             queryset = queryset.filter(user=self.request.user)
         return queryset
 
+    def put(self, request, *args, **kwargs):
+        """
+        Update / Create credentials for loyalty scheme login
+        ---
+        """
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
+        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        updated_credentials = []
+
+        for credential_type in data.keys():
+            question = scheme_account.scheme.questions.get(type=credential_type)
+            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
+                                                                   defaults={'answer': data[credential_type]})
+            updated_credentials.append(credential_type)
+
+        return Response({'updated': updated_credentials}, status=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        """
+        Delete scheme credential answers from a scheme account
+        ---
+        parameters:
+          - name: all
+            required: false
+            description: boolean, True will delete all scheme credential answers
+           - name: property_list
+            required: false
+            description: list, e.g. ['link_questions'] takes properties from the scheme
+          - name: type_list
+            required: false
+            description: list, e.g. ['username', 'password'] of all credential types to delete
+        """
+        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
+        serializer = DeleteCredentialSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        answers_to_delete = self.collect_credentials_to_delete(scheme_account, data)
+        if type(answers_to_delete) is Response:
+            return answers_to_delete
+
+        response_list = [answer.question.type for answer in answers_to_delete]
+        response_list.sort()
+        for answer in answers_to_delete:
+            answer.delete()
+
+        if not response_list:
+            return Response({'message': 'No answers found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({'deleted': str(response_list)}, status=status.HTTP_200_OK)
+
+    def collect_credentials_to_delete(self, scheme_account, request_data):
+        credential_list = scheme_account.schemeaccountcredentialanswer_set.all()
+        answers_to_delete = set()
+
+        if request_data.get('all'):
+            answers_to_delete.update(credential_list)
+            return answers_to_delete
+
+        for credential_property in request_data.get('property_list'):
+            try:
+                questions = getattr(scheme_account.scheme, credential_property)
+                answers_to_delete.update(self.get_answers_from_question_list(scheme_account, questions))
+            except AttributeError:
+                return self.invalid_data_response(credential_property)
+
+        scheme_account_types = [answer.question.type for answer in credential_list]
+        question_list = []
+        for answer_type in request_data.get('type_list'):
+            if answer_type in scheme_account_types:
+                question_list.append(scheme_account.scheme.questions.get(type=answer_type))
+            else:
+                return self.invalid_data_response(answer_type)
+
+        answers_to_delete.update(self.get_answers_from_question_list(scheme_account, question_list))
+
+        return answers_to_delete
+
+    @staticmethod
+    def get_answers_from_question_list(scheme_account, questions):
+        answers = []
+        for question in questions:
+            credential_answer = scheme_account.schemeaccountcredentialanswer_set.get(question=question)
+            if credential_answer:
+                answers.append(credential_answer)
+
+        return answers
+
+    @staticmethod
+    def invalid_data_response(invalid_data):
+        message = {'message': 'No answers found for: {}. Not deleting any credential answers'.format(invalid_data)}
+        return Response(message, status=status.HTTP_404_NOT_FOUND)
+
 
 class SchemeAccountStatusData(ListAPIView):
     """
@@ -693,6 +789,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         Register a new loyalty account on the requested scheme,
         Link the newly created loyalty account with the created scheme account.
         """
+
         scheme_id = int(self.kwargs['pk'])
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
         serializer = JoinSerializer(data=request.data, context={
@@ -700,6 +797,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                                                                 'user': request.user
                                                                 })
         serializer.is_valid(raise_exception=True)
+        serializer.save()                           # Save consents
         data = serializer.validated_data
         data['scheme'] = scheme_id
         scheme_account = self.create_join_account(data, request.user, scheme_id)
@@ -792,58 +890,3 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             raise RequestException(
                 'Error creating join task in Midas. Response message :{}'.format(message)
             )
-
-
-class UpdateJoinAccount(SwappableSerializerMixin, GenericAPIView):
-    authentication_classes = (ServiceAuthentication,)
-
-    def put(self, request, *args, **kwargs):
-        """
-        Update an existing scheme account paired to a join scheme.
-        Adds membership ID to scheme credential answers.
-        In case of error, set account status to JOIN and sends intercom message to user.
-        """
-        scheme_account_id = int(self.kwargs['pk'])
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=scheme_account_id)
-        scheme = scheme_account.scheme
-        if not request.data['identifier'] or request.data['identifier'] == 'None':
-            self.update_scheme_account_and_notify_user(scheme_account, scheme.name, request.data['message'])
-        else:
-            self.set_membership_id(scheme_account, scheme, request.data['identifier'])
-
-        return Response({'message': 'success'},
-                        status=status.HTTP_200_OK)
-
-    @staticmethod
-    def set_membership_id(scheme_account, scheme, answer):
-        question_to_update = scheme.manual_question
-
-        SchemeAccountCredentialAnswer.objects.update_or_create(
-            question=question_to_update,
-            scheme_account=scheme_account,
-            answer=answer
-        )
-
-    def update_scheme_account_and_notify_user(self, scheme_account, scheme_name, error):
-        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        [answer.delete() for answer in scheme_account_answers]
-
-        scheme_account.status = SchemeAccount.JOIN
-        scheme_account.save()
-        try:
-            metadata = {
-                'scheme name': scheme_name,
-            }
-            intercom_api.post_intercom_event(
-                settings.INTERCOM_TOKEN,
-                scheme_account.user.uid,
-                intercom_api.JOIN_FAILED_EVENT,
-                metadata
-            )
-        except intercom_api.IntercomException:
-            pass
-
-        try:
-            raise(RuntimeError('Join error, error raised during join was: {}'.format(error)))
-        except RuntimeError:
-            sentry.captureException()

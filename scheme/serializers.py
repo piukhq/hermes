@@ -1,10 +1,11 @@
 from copy import copy
-
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
+from common.models import Image
+from django.shortcuts import get_object_or_404
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange
+    SchemeAccountImage, Exchange, Consent, UserConsent
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -22,10 +23,18 @@ class SchemeAccountImageSerializer(serializers.ModelSerializer):
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    required = serializers.BooleanField()
 
     class Meta:
         model = SchemeCredentialQuestion
         exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'options')
+
+
+class ConsentsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Consent
+        exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
 class SchemeSerializer(serializers.ModelSerializer):
@@ -35,16 +44,19 @@ class SchemeSerializer(serializers.ModelSerializer):
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
+    consents = ConsentsSerializer(many=True, read_only=True)
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
-    def get_link_questions(self, obj):
+    @staticmethod
+    def get_link_questions(obj):
         serializer = QuestionSerializer(obj.link_questions, many=True)
         return serializer.data
 
-    def get_join_questions(self, obj):
+    @staticmethod
+    def get_join_questions(obj):
         serializer = QuestionSerializer(obj.join_questions, many=True)
         return serializer.data
 
@@ -74,7 +86,31 @@ class SchemeAnswerSerializer(serializers.Serializer):
     phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
 
 
+class UserConsentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    value = serializers.BooleanField()
+
+    @staticmethod
+    def consents_save(user, consents):
+        for consent in consents:
+            value = consent['value']
+            consent = get_object_or_404(Consent, pk=consent['id'])
+            user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
+            if user_consent:
+                user_consent.value = value
+            else:
+                user_consent = UserConsent(user=user, consent=consent, value=value)
+            user_consent.save()
+
+
 class LinkSchemeSerializer(SchemeAnswerSerializer):
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
+
+    def save(self):
+        if 'consents' in self.validated_data:
+            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
+            # note needed to remove consents using POP and not GET so as to allow test cases to pass
+            # this may require further investigation and refactor as too much processing in views
 
     def validate(self, data):
         # Validate no manual answer
@@ -137,6 +173,7 @@ class BalanceSerializer(serializers.Serializer):
     value = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
     value_label = serializers.CharField(allow_null=True)
     balance = serializers.DecimalField(max_digits=30, decimal_places=2, allow_null=True)
+    reward_tier = serializers.IntegerField(allow_null=False)
     is_stale = serializers.BooleanField()
 
 
@@ -266,7 +303,9 @@ def add_object_type_to_image_response(data, type):
 
 
 def get_images_for_scheme_account(scheme_account):
-    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id)
+    account_images = SchemeAccountImage.objects.filter(
+        scheme_accounts__id=scheme_account.id
+    ).exclude(image_type_code=Image.TIER)
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
@@ -277,6 +316,7 @@ def get_images_for_scheme_account(scheme_account):
 
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
+
         if not account_image:
             # we have to turn the SchemeImage instance into a SchemeAccountImage
             account_image = SchemeAccountImage(
@@ -346,6 +386,11 @@ class IdentifyCardSerializer(serializers.Serializer):
 class JoinSerializer(SchemeAnswerSerializer):
     save_user_information = serializers.NullBooleanField(required=True)
     order = serializers.IntegerField(required=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
+
+    def save(self):
+        if 'consents' in self.validated_data:
+            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         scheme = self.context['scheme']
@@ -357,7 +402,7 @@ class JoinSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
         # Validate scheme join questions
-        scheme_join_question_types = [question.type for question in scheme.join_questions]
+        scheme_join_question_types = [question.type for question in scheme.join_questions if question.required is True]
         if not scheme_join_question_types:
             raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
 
@@ -381,3 +426,23 @@ class JoinSerializer(SchemeAnswerSerializer):
     @staticmethod
     def raise_missing_field_error(missing_field):
         raise serializers.ValidationError("{} field required".format(missing_field))
+
+
+class DeleteCredentialSerializer(serializers.Serializer):
+    all = serializers.NullBooleanField(default=False)
+    property_list = serializers.ListField(default=[])
+    type_list = serializers.ListField(default=[])
+
+
+class UpdateCredentialSerializer(SchemeAnswerSerializer):
+
+    def validate(self, credentials):
+        # Validate all credential types
+        scheme_fields = [field.type for field in self.context['scheme_account'].scheme.questions.all()]
+        unknown = set(self.initial_data) - set(scheme_fields)
+        if unknown:
+            raise serializers.ValidationError(
+                "field(s) not found for scheme: {}".format(", ".join(unknown))
+            )
+
+        return credentials

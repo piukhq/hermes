@@ -24,7 +24,7 @@ urlpatterns = [
 
     url(r'^/accounts/(?P<pk>[0-9]+)/credentials',
         views.SchemeAccountsCredentials.as_view(),
-        name='change_account_status'),
+        name='change_account_credentials'),
 
     url(r'^/accounts/(?P<pk>[0-9]+)/status/?$',
         views.UpdateSchemeAccountStatus.as_view(),
@@ -69,8 +69,4 @@ urlpatterns = [
     url(r'^/(?P<pk>[0-9]+)/join',
         views.Join.as_view(),
         name='create_join_scheme_account'),
-
-    url(r'^/accounts/(?P<pk>[0-9]+)/join',
-        views.UpdateJoinAccount.as_view(),
-        name='update_join_account'),
 ]
