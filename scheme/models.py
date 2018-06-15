@@ -128,6 +128,20 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
+    @property
+    def question_choices(self):
+        choice_dict = {}
+        for question in self.questions.all():
+            try:
+                choice_values = [str(x) for x in question.choices.choice_values.all()]
+            except SchemeCredentialQuestionChoice.DoesNotExist:
+                continue
+
+            if choice_values:
+                choice_dict[question] = choice_values
+
+        return choice_dict
+
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
 
@@ -558,12 +572,32 @@ class SchemeCredentialQuestion(models.Model):
     def required(self):
         return self.options is not self.OPTIONAL_JOIN
 
+    @property
+    def question_choices(self):
+        return [str(x) for x in self.choices.choice_values.all()]
+
     class Meta:
         ordering = ['order']
         unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
+
+
+class SchemeCredentialQuestionChoice(models.Model):
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    scheme_question = models.OneToOneField('SchemeCredentialQuestion', related_name='choices', on_delete=models.CASCADE)
+
+
+class SchemeCredentialQuestionChoiceValue(models.Model):
+    choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
+    value = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        ordering = ['value']
 
 
 class SchemeAccountCredentialAnswer(models.Model):
