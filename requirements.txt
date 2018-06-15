@@ -35,5 +35,5 @@ simplegeneric==0.8.1
 six==1.10.0
 traitlets==4.0.0
 django-admin-env-notice==0.1.4
-git+https://github.com/BackwardSpy/django-storages.git
+git+https://github.com/BackwardSpy/django-storages.git@1.7#egg=storages
 azure-storage-blob==1.1.0
