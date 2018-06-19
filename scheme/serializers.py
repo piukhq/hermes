@@ -46,7 +46,6 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
-    question_choices = serializers.DictField()
 
     class Meta:
         model = Scheme

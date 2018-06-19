@@ -134,20 +134,6 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
-    @property
-    def question_choices(self):
-        choice_dict = {}
-        for question in self.questions.all():
-            try:
-                choice_values = [str(x) for x in question.choices.choice_values.all()]
-            except SchemeCredentialQuestionChoice.DoesNotExist:
-                continue
-
-            if choice_values:
-                choice_dict[question] = choice_values
-
-        return choice_dict
-
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
 
@@ -580,7 +566,10 @@ class SchemeCredentialQuestion(models.Model):
 
     @property
     def question_choices(self):
-        return [str(x) for x in self.choices.choice_values.all()]
+        try:
+            return self.choices.values
+        except SchemeCredentialQuestionChoice.DoesNotExist:
+            return []
 
     class Meta:
         ordering = ['order']
@@ -593,6 +582,11 @@ class SchemeCredentialQuestion(models.Model):
 class SchemeCredentialQuestionChoice(models.Model):
     scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
     scheme_question = models.OneToOneField('SchemeCredentialQuestion', related_name='choices', on_delete=models.CASCADE)
+
+    @property
+    def values(self):
+        choice_values = self.choice_values.all()
+        return [str(value).lower() for value in choice_values]
 
 
 class SchemeCredentialQuestionChoiceValue(models.Model):

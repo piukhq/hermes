@@ -174,4 +174,5 @@ class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
     form = ModelForm
     search_fields = ['scheme']
 
+
 admin.site.register(Category)
