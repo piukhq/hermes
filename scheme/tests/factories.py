@@ -142,3 +142,19 @@ class ExchangeFactory(factory.DjangoModelFactory):
     info_url = fake.url()
 
     flag_auto_tip_in = 0
+
+
+class SchemeCredentialQuestionChoiceFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeCredentialQuestionChoice
+
+    scheme = factory.SubFactory(SchemeFactory)
+    scheme_question = factory.SubFactory(SchemeCredentialQuestionFactory)
+
+
+class SchemeCredentialQuestionChoiceValueFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeCredentialQuestionChoiceValue
+
+    choice = factory.SubFactory(SchemeCredentialQuestionChoiceFactory)
+    value = fake.slug()
