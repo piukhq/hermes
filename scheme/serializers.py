@@ -36,10 +36,27 @@ class ConsentsSerializer(serializers.ModelSerializer):
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
+class TransactionHeaderSerializer(serializers.Serializer):
+    """ This serializer is required to convert a list of header titles into a
+    form which the front end requires. This is a departure from rest mapping to
+    the model and will require Scheme model based serializers to use this serializer
+    when to produce this conversion. The change was agreed with Paul Batty.
+    Instead of just a header name, a key: value pairs are returned where the
+    key is called "name"
+
+    """
+    transaction_headers = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_transaction_headers(obj):
+        return [{"name": i} for i in obj]
+
+
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
     join_questions = serializers.SerializerMethodField()
+    transaction_headers = TransactionHeaderSerializer()
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
@@ -61,6 +78,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
+    transaction_headers = TransactionHeaderSerializer()
 
     class Meta:
         model = Scheme
