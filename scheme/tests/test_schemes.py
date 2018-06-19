@@ -9,7 +9,7 @@ from django.utils import timezone
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory, \
     SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
-from scheme.models import SchemeCredentialQuestion, SchemeCredentialQuestionChoiceValue
+from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
 from scheme.models import Consent
@@ -252,11 +252,11 @@ class TestSchemeModel(TestCase):
     def test_scheme_question_choices(self):
         scheme = SchemeFactory()
         question_1 = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True,
-                                        options=SchemeCredentialQuestion.LINK)
+                                                     options=SchemeCredentialQuestion.LINK)
         question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme,
-                                        options=SchemeCredentialQuestion.JOIN)
+                                                     options=SchemeCredentialQuestion.JOIN)
         question_3 = SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme,
-                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
         choice_1 = SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=question_3)
         SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=question_2)
