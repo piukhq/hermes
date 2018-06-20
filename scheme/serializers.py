@@ -101,11 +101,16 @@ class SchemeAnswerSerializer(serializers.Serializer):
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.DateField(input_formats=["%d/%M/%Y"], required=False)
     phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    phone_2 = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    gender = serializers.CharField(max_length=250, required=False)
     address_1 = serializers.CharField(max_length=250, required=False)
     address_2 = serializers.CharField(max_length=250, required=False)
+    address_3 = serializers.CharField(max_length=250, required=False)
     town_city = serializers.CharField(max_length=250, required=False)
     county = serializers.CharField(max_length=250, required=False)
     country = serializers.CharField(max_length=250, required=False)
+    regular_restaurant = serializers.CharField(max_length=250, required=False)
+    merchant_identifier = serializers.CharField(max_length=250, required=False)
 
 
 class UserConsentSerializer(serializers.Serializer):
@@ -441,7 +446,7 @@ class JoinSerializer(SchemeAnswerSerializer):
             if question not in request_join_question_types:
                 self.raise_missing_field_error(question)
             else:
-                data['credentials'][question] = data[question]
+                data['credentials'][question] = str(data[question])
 
         return data
 

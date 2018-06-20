@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
-from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE
+from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion
 from unittest.mock import MagicMock, patch
 
@@ -87,33 +87,38 @@ class TestSchemeSerializer(TestCase):
     def test_get_link_questions(self):
         scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, options=SchemeCredentialQuestion.LINK)
+        merchant_identifier_question = SchemeCredentialQuestionFactory(
+            type=TITLE, scheme=scheme, options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER
+        )
         serializer = SchemeSerializer()
 
         data = serializer.get_link_questions(scheme)
-        self.assertEqual(data[0]['id'], question.id)
-        self.assertEqual(data[0]['type'], BARCODE)
+        question_ids = [x['id'] for x in data]
+        question_types = [x['type'] for x in data]
+        self.assertIn(question.id, question_ids)
+        self.assertNotIn(merchant_identifier_question.id, question_ids)
+        self.assertIn(BARCODE, question_types)
+        self.assertNotIn(TITLE, question_types)
 
     def test_get_join_questions(self):
         scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(type=BARCODE,
-                                                   scheme=scheme,
-                                                   options=SchemeCredentialQuestion.LINK_AND_JOIN,
-                                                   manual_question=True)
-        question2 = SchemeCredentialQuestionFactory(type=LAST_NAME,
-                                                    scheme=scheme,
+        question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
+                                                   options=SchemeCredentialQuestion.LINK_AND_JOIN, manual_question=True)
+        question2 = SchemeCredentialQuestionFactory(type=LAST_NAME, scheme=scheme,
                                                     options=SchemeCredentialQuestion.OPTIONAL_JOIN)
-        question3 = SchemeCredentialQuestionFactory(type=PASSWORD,
-                                                    scheme=scheme,
-                                                    options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(type=FIRST_NAME, scheme=scheme, options=SchemeCredentialQuestion.LINK)
-        SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme, options=SchemeCredentialQuestion.NONE)
+        question3 = SchemeCredentialQuestionFactory(type=PASSWORD, scheme=scheme, options=SchemeCredentialQuestion.JOIN)
+        link_question = SchemeCredentialQuestionFactory(type=FIRST_NAME, scheme=scheme,
+                                                        options=SchemeCredentialQuestion.LINK)
+        none_question = SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme,
+                                                        options=SchemeCredentialQuestion.NONE)
+        merchant_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme,
+                                                            options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER)
         serializer = SchemeSerializer()
 
         data = serializer.get_join_questions(scheme)
-        self.assertEqual(data[2]['id'], question.id)
-        self.assertEqual(data[2]['type'], BARCODE)
-        self.assertEqual(data[1]['id'], question2.id)
-        self.assertEqual(data[1]['type'], LAST_NAME)
-        self.assertEqual(data[0]['id'], question3.id)
-        self.assertEqual(data[0]['type'], PASSWORD)
-        self.assertEqual(len(data), 3)
+        data_types = [x['type'] for x in data]
+        join_question_types = [question.type, question2.type, question3.type]
+        not_join_questions_types = [link_question.type, none_question.type, merchant_question.type]
+
+        self.assertTrue(all(x in join_question_types for x in data_types))
+        self.assertFalse(any(x in not_join_questions_types for x in data_types))
