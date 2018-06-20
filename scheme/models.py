@@ -564,12 +564,40 @@ class SchemeCredentialQuestion(models.Model):
     def required(self):
         return self.options is not self.OPTIONAL_JOIN
 
+    @property
+    def question_choices(self):
+        try:
+            return self.choices.values
+        except SchemeCredentialQuestionChoice.DoesNotExist:
+            return []
+
     class Meta:
         ordering = ['order']
         unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
+
+
+class SchemeCredentialQuestionChoice(models.Model):
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    scheme_question = models.OneToOneField('SchemeCredentialQuestion', related_name='choices', on_delete=models.CASCADE)
+
+    @property
+    def values(self):
+        choice_values = self.choice_values.all()
+        return [str(value).lower() for value in choice_values]
+
+
+class SchemeCredentialQuestionChoiceValue(models.Model):
+    choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
+    value = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        ordering = ['value']
 
 
 class SchemeAccountCredentialAnswer(models.Model):

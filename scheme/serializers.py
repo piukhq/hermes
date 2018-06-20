@@ -24,6 +24,7 @@ class SchemeAccountImageSerializer(serializers.ModelSerializer):
 
 class QuestionSerializer(serializers.ModelSerializer):
     required = serializers.BooleanField()
+    question_choices = serializers.ListField()
 
     class Meta:
         model = SchemeCredentialQuestion

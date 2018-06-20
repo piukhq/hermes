@@ -4,7 +4,8 @@ from django.forms import BaseInlineFormSet, ModelForm
 
 
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent)
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -156,6 +157,22 @@ class ConsentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Consent.all_objects.all()
+
+
+class SchemeCredentialQuestionChoiceValueInline(admin.TabularInline):
+    model = SchemeCredentialQuestionChoiceValue
+    formset = BaseInlineFormSet
+    extra = 0
+
+
+@admin.register(SchemeCredentialQuestionChoice)
+class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
+    inlines = (SchemeCredentialQuestionChoiceValueInline,)
+    exclude = []
+    list_display = ('scheme_question',)
+    raw_id_fields = ('scheme',)
+    form = ModelForm
+    search_fields = ['scheme']
 
 
 admin.site.register(Category)

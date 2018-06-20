@@ -6,7 +6,8 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory, \
+    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
@@ -168,6 +169,35 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
         self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
 
+    def test_scheme_item_with_question_choices(self):
+        scheme = SchemeFactory()
+        manual_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True,
+                                                          options=SchemeCredentialQuestion.NONE)
+        link_question = SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme,
+                                                        options=SchemeCredentialQuestion.LINK)
+        join_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
+                                                        options=SchemeCredentialQuestion.JOIN)
+
+        choice_1 = SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=link_question)
+        SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=join_question)
+
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='Mr')
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='MRS')
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='miss')
+
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        data = response.json()
+
+        self.assertEqual(data['link_questions'][0]['id'], link_question.id)
+        self.assertEqual(set(data['link_questions'][0]['question_choices']), {'mr', 'mrs', 'miss'})
+        self.assertEqual(len(data['link_questions'][0]['question_choices']), 3)
+
+        self.assertEqual(data['join_questions'][0]['id'], join_question.id)
+        self.assertEqual(len(data['join_questions'][0]['question_choices']), 0)
+
+        self.assertEqual(data['manual_question']['id'], manual_question.id)
+        self.assertEqual(len(data['manual_question']['question_choices']), 0)
+
     def test_get_reference_images(self):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme, image_type_code=5)
@@ -236,3 +266,23 @@ class TestSchemeModel(TestCase):
         self.assertIn(email_question.id, [question.id for question in scheme.join_questions])
         self.assertIn(optional_question.id, [question.id for question in scheme.join_questions])
         self.assertNotIn(non_join_question.id, [question.id for question in scheme.join_questions])
+
+    def test_scheme_question_choices(self):
+        scheme = SchemeFactory()
+        question_1 = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, manual_question=True,
+                                                     options=SchemeCredentialQuestion.LINK)
+        question_2 = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme,
+                                                     options=SchemeCredentialQuestion.JOIN)
+        question_3 = SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme,
+                                                     options=SchemeCredentialQuestion.LINK_AND_JOIN)
+
+        choice_1 = SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=question_3)
+        SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=question_2)
+
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='Mr')
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='Mrs')
+        SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='Miss')
+
+        self.assertEqual(len(question_1.question_choices), 0)
+        self.assertEqual(len(question_2.question_choices), 0)
+        self.assertEqual(len(question_3.question_choices), 3)
