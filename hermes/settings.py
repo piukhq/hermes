@@ -14,7 +14,6 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import raven
 from environment import env_var, read_env
-import dj_database_url
 import sys
 
 read_env()
@@ -32,17 +31,18 @@ DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
     ".chingrewards.com",
+    ".bink.com",
+    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
-    ".chingrewards.com",
-    ".bink-dev.xyz",
-    ".bink-sandbox.xyz",
-    ".bink-sandbox.com",
+    "hermes",
     ".bink.com",
-    ".bink-hackathon.xyz",
-    ".loyaltyangels.local",
+    ".bink-staging.com",
+    ".bink-dev.com",
+    ".bink-sandbox.com",
+    ".chingrewards.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
@@ -81,6 +81,7 @@ INSTALLED_APPS = (
     'colorful',
     'mail_templated',
     'anymail',
+    'storages',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -153,8 +154,14 @@ WSGI_APPLICATION = 'hermes.wsgi.application'
 
 
 DATABASES = {
-    'default': dj_database_url.parse(
-        env_var("HERMES_DATABASE_URL", "postgres://postgres@localhost:5432/hermes"))
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': env_var("HERMES_DATABASE_NAME", "hermes"),
+        'USER': env_var("HERMES_DATABASE_USER", "postgres"),
+        'PASSWORD': env_var("HERMES_DATABASE_PASS"),
+        'HOST': env_var("HERMES_DATABASE_HOST", "postgres"),
+        'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
+    }
 }
 
 
@@ -181,11 +188,19 @@ AUTHENTICATION_BACKENDS = (
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
-STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+NO_AZURE_STORAGE = env_var('NO_AZURE_STORAGE', True)
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+if not NO_AZURE_STORAGE:
+    DEFAULT_FILE_STORAGE = 'storages.backends.azure_storage.AzureStorage'
+    AZURE_ACCOUNT_NAME = env_var('AZURE_ACCOUNT_NAME')
+    AZURE_ACCOUNT_KEY = env_var('AZURE_ACCOUNT_KEY')
+    AZURE_CONTAINER = env_var('AZURE_CONTAINER')
+    AZURE_CUSTOM_DOMAIN = env_var('AZURE_CUSTOM_DOMAIN')
+
 MEDIA_URL = env_var("HERMES_MEDIA_URL", '/media/')
+STATIC_URL = env_var('HERMES_STATIC_URL', '/static/')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 
 AUTH_USER_MODEL = 'user.CustomUser'
 
