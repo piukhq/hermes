@@ -46,12 +46,10 @@ class TransactionHeaderSerializer(serializers.Serializer):
     key is called "name"
 
     """
-    transaction_headers = serializers.SerializerMethodField()
 
     @staticmethod
-    def get_transaction_headers(obj):
+    def to_representation(obj):
         return [{"name": i} for i in obj]
-
 
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)

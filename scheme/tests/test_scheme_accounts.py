@@ -239,6 +239,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('barcode', response.data[0])
         self.assertIn('card_label', response.data[0])
         self.assertNotIn('barcode_regex', response.data[0]['scheme'])
+        expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
+        self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
+
 
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
