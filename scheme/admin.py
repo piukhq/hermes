@@ -154,5 +154,8 @@ class ConsentAdmin(admin.ModelAdmin):
     search_fields = ('scheme__slug', 'text')
     list_filter = ('scheme__slug', 'journey', 'check_box', 'order', 'required', 'is_enabled')
 
+    def get_queryset(self, request):
+        return Consent.all_objects.all()
+
 
 admin.site.register(Category)
