@@ -39,12 +39,12 @@ class ConsentsSerializer(serializers.ModelSerializer):
 
 class TransactionHeaderSerializer(serializers.Serializer):
     """ This serializer is required to convert a list of header titles into a
-    form which the front end requires. This is a departure from rest mapping to
-    the model and will require Scheme model based serializers to use this serializer
-    when to produce this conversion. The change was agreed with Paul Batty.
-    Instead of just a header name, a key: value pairs are returned where the
-    key is called "name"
-
+    form which the front end requires ie a list of key pairs where the key is
+    a keyword "name" and the value is the header title.
+    This is a departure from rest mapping to the model and was agreed with Paul Batty.
+    Any serializer requiring transaction headers in this form should use
+    transaction_headers = TransactionHeaderSerializer() otherwise transaction_headers will
+    be represented by a simple list of headers.
     """
 
     @staticmethod
