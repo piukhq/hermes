@@ -130,6 +130,24 @@ class TestSchemeViews(APITestCase):
 
         self.assertTrue(found, "Test consent not found in /scheme/#")
 
+    def test_scheme_transaction_headers(self):
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
+        self.assertListEqual(expected_transaction_headers, response.data["transaction_headers"])
+
     def test_scheme_item(self):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme)
