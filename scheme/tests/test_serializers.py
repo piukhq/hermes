@@ -1,6 +1,6 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer
+from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory
 from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE
 from scheme.models import SchemeCredentialQuestion
@@ -71,6 +71,15 @@ class TestAnswerValidation(TestCase):
     @patch.object(LinkSchemeSerializer, 'validate')
     def test_pin_validation(self, mock_validate):
         serializer = LinkSchemeSerializer(data={"pin": "3333"})
+        self.assertTrue(serializer.is_valid())
+
+    @patch.object(JoinSerializer, 'validate')
+    def test_date_of_birth_validation(self, mock_validate):
+        serializer = JoinSerializer(data={
+            "save_user_information": "true",
+            "order": 0,
+            "date_of_birth": "22/11/1999"
+        })
         self.assertTrue(serializer.is_valid())
 
 
