@@ -29,6 +29,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
     url = fake.url()
+    transaction_headers = ["header 1", "header 2", "header 3"]
     company = fake.company()
     company_url = fake.url()
     forgotten_password_url = fake.url()

@@ -3,8 +3,9 @@ from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
+from django.shortcuts import get_object_or_404
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent
+    SchemeAccountImage, Exchange, Consent, UserConsent
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -36,14 +37,30 @@ class ConsentsSerializer(serializers.ModelSerializer):
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
+class TransactionHeaderSerializer(serializers.Serializer):
+    """ This serializer is required to convert a list of header titles into a
+    form which the front end requires ie a list of key pairs where the key is
+    a keyword "name" and the value is the header title.
+    This is a departure from rest mapping to the model and was agreed with Paul Batty.
+    Any serializer requiring transaction headers in this form should use
+    transaction_headers = TransactionHeaderSerializer() otherwise transaction_headers will
+    be represented by a simple list of headers.
+    """
+
+    @staticmethod
+    def to_representation(obj):
+        return [{"name": i} for i in obj]
+
+
 class SchemeSerializer(serializers.ModelSerializer):
     images = SchemeImageSerializer(many=True, read_only=True)
     link_questions = serializers.SerializerMethodField()
     join_questions = serializers.SerializerMethodField()
+    transaction_headers = TransactionHeaderSerializer()
     manual_question = QuestionSerializer()
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
-    consents = ConsentsSerializer(many=True)
+    consents = ConsentsSerializer(many=True, read_only=True)
 
     class Meta:
         model = Scheme
@@ -61,6 +78,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
+    transaction_headers = TransactionHeaderSerializer()
 
     class Meta:
         model = Scheme
@@ -85,7 +103,31 @@ class SchemeAnswerSerializer(serializers.Serializer):
     phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
 
 
+class UserConsentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    value = serializers.BooleanField()
+
+    @staticmethod
+    def consents_save(user, consents):
+        for consent in consents:
+            value = consent['value']
+            consent = get_object_or_404(Consent, pk=consent['id'])
+            user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
+            if user_consent:
+                user_consent.value = value
+            else:
+                user_consent = UserConsent(user=user, consent=consent, value=value)
+            user_consent.save()
+
+
 class LinkSchemeSerializer(SchemeAnswerSerializer):
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
+
+    def save(self):
+        if 'consents' in self.validated_data:
+            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
+            # note needed to remove consents using POP and not GET so as to allow test cases to pass
+            # this may require further investigation and refactor as too much processing in views
 
     def validate(self, data):
         # Validate no manual answer
@@ -361,6 +403,11 @@ class IdentifyCardSerializer(serializers.Serializer):
 class JoinSerializer(SchemeAnswerSerializer):
     save_user_information = serializers.NullBooleanField(required=True)
     order = serializers.IntegerField(required=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
+
+    def save(self):
+        if 'consents' in self.validated_data:
+            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         scheme = self.context['scheme']

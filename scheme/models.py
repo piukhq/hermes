@@ -10,6 +10,7 @@ from colorful.fields import RGBColorField
 from common.models import Image
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -35,6 +36,10 @@ class ActiveSchemeManager(models.Manager):
             if len(scheme.questions.all()) == 0:
                 schemes_without_questions.append(scheme.id)
         return schemes.exclude(id__in=schemes_without_questions)
+
+
+def _default_transaction_headers():
+    return ["Date", "Reference", "Points"]
 
 
 class Scheme(models.Model):
@@ -73,6 +78,7 @@ class Scheme(models.Model):
     link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
+    transaction_headers = ArrayField(models.CharField(max_length=40), default=_default_transaction_headers)
 
     ios_scheme = models.CharField(max_length=255, blank=True, verbose_name='iOS scheme')
     itunes_url = models.URLField(blank=True, verbose_name='iTunes URL')
@@ -109,10 +115,6 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     @property
-    def consents(self):
-        return Consent.objects.filter(scheme=self.id, is_enabled=True).order_by('order')
-
-    @property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
 
@@ -136,24 +138,35 @@ class Scheme(models.Model):
         return '{} ({})'.format(self.name, self.company)
 
 
+class ConsentsManager(models.Manager):
+
+    def get_queryset(self):
+        return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
+
+
 class Consent(models.Model):
     JOIN = 0
     LINK = 1
+    ADD = 2
 
     journeys = (
         (JOIN, 'join'),
         (LINK, 'link'),
+        (ADD, 'add'),
     )
 
     check_box = models.BooleanField()
-    text = models.CharField(max_length=500)
-    scheme = models.ForeignKey(Scheme)
+    text = models.TextField()
+    scheme = models.ForeignKey(Scheme, related_name="consents")
     is_enabled = models.BooleanField(default=True)
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
+
+    objects = ConsentsManager()
+    all_objects = models.Manager()
 
     @property
     def short_text(self):
