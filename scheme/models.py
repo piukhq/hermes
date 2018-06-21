@@ -567,7 +567,7 @@ class SchemeCredentialQuestion(models.Model):
     @property
     def question_choices(self):
         try:
-            return self.choices.values
+            return SchemeCredentialQuestionChoice.objects.filter(scheme=self.scheme, scheme_question=self.type)
         except SchemeCredentialQuestionChoice.DoesNotExist:
             return []
 
@@ -581,7 +581,7 @@ class SchemeCredentialQuestion(models.Model):
 
 class SchemeCredentialQuestionChoice(models.Model):
     scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
-    scheme_question = models.OneToOneField('SchemeCredentialQuestion', related_name='choices', on_delete=models.CASCADE)
+    scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
 
     @property
     def values(self):
