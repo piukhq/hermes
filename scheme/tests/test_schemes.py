@@ -244,8 +244,8 @@ class TestSchemeModel(TestCase):
 
         link_questions = scheme.link_questions
         self.assertEqual(len(link_questions), 2)
-        self.assertEqual(link_questions[0].id, phone_question.id)
-        self.assertEqual(link_questions[1].id, email_question.id)
+        self.assertIn(email_question.id, [question.id for question in link_questions])
+        self.assertIn(phone_question.id, [question.id for question in link_questions])
 
     def test_join_questions(self):
         scheme = SchemeFactory()
@@ -263,9 +263,9 @@ class TestSchemeModel(TestCase):
 
         join_questions = scheme.join_questions
         self.assertEqual(len(join_questions), 3)
-        self.assertIn(email_question.id, [question.id for question in scheme.join_questions])
-        self.assertIn(optional_question.id, [question.id for question in scheme.join_questions])
-        self.assertNotIn(non_join_question.id, [question.id for question in scheme.join_questions])
+        self.assertIn(email_question.id, [question.id for question in join_questions])
+        self.assertIn(optional_question.id, [question.id for question in join_questions])
+        self.assertNotIn(non_join_question.id, [question.id for question in join_questions])
 
     def test_scheme_question_choices(self):
         scheme = SchemeFactory()
