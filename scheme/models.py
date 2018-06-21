@@ -567,7 +567,8 @@ class SchemeCredentialQuestion(models.Model):
     @property
     def question_choices(self):
         try:
-            return SchemeCredentialQuestionChoice.objects.filter(scheme=self.scheme, scheme_question=self.type)
+            choices = SchemeCredentialQuestionChoice.objects.get(scheme=self.scheme, scheme_question=self.type)
+            return choices.values
         except SchemeCredentialQuestionChoice.DoesNotExist:
             return []
 
@@ -587,6 +588,9 @@ class SchemeCredentialQuestionChoice(models.Model):
     def values(self):
         choice_values = self.choice_values.all()
         return [str(value).lower() for value in choice_values]
+
+    class Meta:
+        unique_together = ("scheme", "scheme_question")
 
 
 class SchemeCredentialQuestionChoiceValue(models.Model):
