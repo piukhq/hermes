@@ -567,7 +567,8 @@ class SchemeCredentialQuestion(models.Model):
     @property
     def question_choices(self):
         try:
-            return self.choices.values
+            choices = SchemeCredentialQuestionChoice.objects.get(scheme=self.scheme, scheme_question=self.type)
+            return choices.values
         except SchemeCredentialQuestionChoice.DoesNotExist:
             return []
 
@@ -581,12 +582,15 @@ class SchemeCredentialQuestion(models.Model):
 
 class SchemeCredentialQuestionChoice(models.Model):
     scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
-    scheme_question = models.OneToOneField('SchemeCredentialQuestion', related_name='choices', on_delete=models.CASCADE)
+    scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
 
     @property
     def values(self):
         choice_values = self.choice_values.all()
         return [str(value).lower() for value in choice_values]
+
+    class Meta:
+        unique_together = ("scheme", "scheme_question")
 
 
 class SchemeCredentialQuestionChoiceValue(models.Model):
