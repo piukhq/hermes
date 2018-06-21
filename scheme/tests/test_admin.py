@@ -52,6 +52,7 @@ class TestSchemeValidation(TestCase):
             'scan_message': 'test',
             'slug': 'test',
             'tier': 1,
+            'transaction_headers': "Date,Reference,Points",
             'url': 'www.test.com',
             'point_name': 'valid',
             'max_points_value_length': 2

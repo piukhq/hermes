@@ -6,11 +6,12 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
+from scheme.models import Consent
 
 
 class TestSchemeImages(APITestCase):
@@ -59,6 +60,7 @@ class TestSchemeViews(APITestCase):
         self.assertIn('has_transactions', response.data[0])
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
+        self.assertIn('consents', response.data[0])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
@@ -67,6 +69,83 @@ class TestSchemeViews(APITestCase):
                 len(row['join_questions']) > 0 or
                 row['manual_question'] is not None or
                 row['scan_question'] is not None)
+
+    def test_scheme_consents(self):
+        scheme2 = SchemeFactory()
+        SchemeImageFactory(scheme=scheme2)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme2,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme2,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme2, type=BARCODE, manual_question=True)
+        ConsentFactory.create(scheme=scheme2)
+
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+
+        link_message = "Link Message"
+        join_message = "Join Message"
+        test_string = "Test disabled default String"
+        tm1 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.LINK, order=2,
+            check_box=True, text=link_message, required=False
+        )
+
+        tm2 = ConsentFactory.create(
+            scheme=scheme, journey=Consent.JOIN, order=3, is_enabled=False,
+            check_box=True, text=test_string
+        )
+        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, text=link_message)
+        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, text=join_message)
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        self.assertIn('consents', response.data, "no consents section in /schemes/# ")
+
+        found = False
+        for consent in response.data['consents']:
+            if consent['id'] == tm1.id:
+                self.assertEqual(consent['text'], link_message, "Missing/incorrect Link TEXT consents")
+                self.assertEqual(consent['check_box'], True, "Missing/incorrect check box in consents")
+                self.assertEqual(consent['journey'], Consent.LINK, "Missing/incorrect journey in consents")
+                self.assertEqual(consent['required'], False, "Missing/incorrect required in consents")
+                self.assertEqual(consent['order'], 2, "Missing/incorrect required in consents")
+                found = True
+            elif consent['id'] == tm2.id:
+                self.assertTrue(False, "Disabled slug present")
+
+        self.assertTrue(found, "Test consent not found in /scheme/#")
+
+    def test_scheme_transaction_headers(self):
+        scheme = SchemeFactory()
+        SchemeImageFactory(scheme=scheme)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=EMAIL,
+            options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory.create(
+            scheme=scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
+        self.assertListEqual(expected_transaction_headers, response.data["transaction_headers"])
 
     def test_scheme_item(self):
         scheme = SchemeFactory()

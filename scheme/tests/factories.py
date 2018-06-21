@@ -3,6 +3,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
+from scheme.models import Consent
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -28,6 +29,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
     url = fake.url()
+    transaction_headers = ["header 1", "header 2", "header 3"]
     company = fake.company()
     company_url = fake.url()
     forgotten_password_url = fake.url()
@@ -40,6 +42,19 @@ class SchemeFactory(factory.DjangoModelFactory):
     identifier = ''
     card_number_regex = ''
     barcode_prefix = ''
+
+
+class ConsentFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = Consent
+
+    text = fake.sentence()
+    scheme = factory.SubFactory(SchemeFactory)
+    check_box = True
+    is_enabled = True
+    required = True
+    order = 1
+    journey = Consent.LINK
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
