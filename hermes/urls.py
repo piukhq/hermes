@@ -9,5 +9,6 @@ urlpatterns = [
     url(r'^schemes', include('scheme.urls')),
     url(r'^payment_cards', include('payment_card.urls')),
     url(r'^order', include('order.urls')),
+    url(r'', include('common.urls')),
     url(r'^docs/hermes/?', get_swagger_view()),
 ]

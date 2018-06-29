@@ -10,10 +10,12 @@ from colorful.fields import RGBColorField
 from common.models import Image
 from django.conf import settings
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.template.defaultfilters import truncatewords
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 
@@ -34,6 +36,10 @@ class ActiveSchemeManager(models.Manager):
             if len(scheme.questions.all()) == 0:
                 schemes_without_questions.append(scheme.id)
         return schemes.exclude(id__in=schemes_without_questions)
+
+
+def _default_transaction_headers():
+    return ["Date", "Reference", "Points"]
 
 
 class Scheme(models.Model):
@@ -72,6 +78,7 @@ class Scheme(models.Model):
     link_account_text = models.TextField(blank=True)
 
     tier = models.IntegerField(choices=TIERS)
+    transaction_headers = ArrayField(models.CharField(max_length=40), default=_default_transaction_headers)
 
     ios_scheme = models.CharField(max_length=255, blank=True, verbose_name='iOS scheme')
     itunes_url = models.URLField(blank=True, verbose_name='iTunes URL')
@@ -121,14 +128,52 @@ class Scheme(models.Model):
 
     @property
     def join_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 1))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.JOIN))
 
     @property
     def link_questions(self):
-        return self.questions.filter(options=F('options').bitor(1 << 0))
+        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
+
+
+class ConsentsManager(models.Manager):
+
+    def get_queryset(self):
+        return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
+
+
+class Consent(models.Model):
+    JOIN = 0
+    LINK = 1
+    ADD = 2
+
+    journeys = (
+        (JOIN, 'join'),
+        (LINK, 'link'),
+        (ADD, 'add'),
+    )
+
+    check_box = models.BooleanField()
+    text = models.TextField()
+    scheme = models.ForeignKey(Scheme, related_name="consents")
+    is_enabled = models.BooleanField(default=True)
+    required = models.BooleanField()
+    order = models.IntegerField()
+    journey = models.IntegerField(choices=journeys)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+
+    objects = ConsentsManager()
+    all_objects = models.Manager()
+
+    @property
+    def short_text(self):
+        return truncatewords(self.text, 5)
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
 
 
 class Exchange(models.Model):
@@ -205,6 +250,8 @@ class SchemeAccount(models.Model):
     PASSWORD_EXPIRED = 533
     JOIN = 900
     NO_SUCH_RECORD = 444
+    CONFIGURATION_ERROR = 536
+    NOT_SENT = 535
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -225,11 +272,15 @@ class SchemeAccount(models.Model):
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
+        (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT')
+
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              CONFIGURATION_ERROR, NOT_SENT]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -277,16 +328,23 @@ class SchemeAccount(models.Model):
         A scan or manual question is an optional if one of the other exists
         """
         required_credentials = {
-            question.type for question in self.scheme.questions.exclude(options=SchemeCredentialQuestion.JOIN)
+            question.type for question in self.scheme.questions.filter(
+                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+            )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
+        if manual_question:
+            required_credentials.add(manual_question.type)
+        if scan_question:
+            required_credentials.add(scan_question.type)
+
         if scan_question and manual_question and scan_question != manual_question:
             if scan_question.type in credential_types:
-                required_credentials.remove(manual_question.type)
+                required_credentials.discard(manual_question.type)
             if required_credentials and manual_question.type in credential_types:
-                required_credentials.remove(scan_question.type)
+                required_credentials.discard(scan_question.type)
 
         return required_credentials.difference(set(credential_types))
 
@@ -306,7 +364,6 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             response = self._get_balance(credentials)
-            self.status = response.status_code
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
@@ -323,7 +380,7 @@ class SchemeAccount(models.Model):
             'scheme_account_id': self.id,
             'user_id': self.user.id,
             'credentials': credentials,
-            'status': self.status_key,
+            'status': self.status,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
@@ -489,13 +546,17 @@ class SchemeCredentialQuestion(models.Model):
     NONE = 0
     LINK = 1 << 0
     JOIN = 1 << 1
-    LINK_AND_JOIN = (1 << 0 | 1 << 1)
+    OPTIONAL_JOIN = (1 << 2 | JOIN)
+    LINK_AND_JOIN = (LINK | JOIN)
+    MERCHANT_IDENTIFIER = (1 << 3)
 
     OPTIONS = (
         (0, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
-        (LINK | JOIN, 'Link & Join'),
+        (OPTIONAL_JOIN, 'Join (optional)'),
+        (LINK_AND_JOIN, 'Link & Join'),
+        (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -509,12 +570,48 @@ class SchemeCredentialQuestion(models.Model):
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
+    @property
+    def required(self):
+        return self.options is not self.OPTIONAL_JOIN
+
+    @property
+    def question_choices(self):
+        try:
+            choices = SchemeCredentialQuestionChoice.objects.get(scheme=self.scheme, scheme_question=self.type)
+            return choices.values
+        except SchemeCredentialQuestionChoice.DoesNotExist:
+            return []
+
     class Meta:
         ordering = ['order']
         unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
+
+
+class SchemeCredentialQuestionChoice(models.Model):
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+
+    @property
+    def values(self):
+        choice_values = self.choice_values.all()
+        return [str(value) for value in choice_values]
+
+    class Meta:
+        unique_together = ("scheme", "scheme_question")
+
+
+class SchemeCredentialQuestionChoiceValue(models.Model):
+    choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
+    value = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        ordering = ['value']
 
 
 class SchemeAccountCredentialAnswer(models.Model):
@@ -539,3 +636,14 @@ def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         instance.answer = encrypted_answer
+
+
+class UserConsent(models.Model):
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
+    consent = models.ForeignKey(Consent, related_name='user_consent')
+    value = models.BooleanField()
+
+    def __str__(self):
+        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
