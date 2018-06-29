@@ -376,7 +376,33 @@ class TestAuthTransactions(APITestCase):
         resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
 
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.data, expected_resp)
+        self.assertDictEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_create_auth_transaction_endpoint_no_auth_code(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, expected_resp)
         self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
 
     def test_list_payment_card_client_apps(self):
