@@ -221,7 +221,7 @@ class AuthTransaction(models.Model):
     amount = models.IntegerField()
     mid = models.CharField(max_length=100)
     third_party_id = models.CharField(max_length=100)
-    auth_code = models.CharField(max_length=100)
+    auth_code = models.CharField(max_length=100, blank=True, default='')
     currency_code = models.CharField(max_length=3, default='GBP')
 
     def __str__(self):
