@@ -329,11 +329,16 @@ class SchemeAccount(models.Model):
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
+        if manual_question:
+            required_credentials.add(manual_question.type)
+        if scan_question:
+            required_credentials.add(scan_question.type)
+
         if scan_question and manual_question and scan_question != manual_question:
             if scan_question.type in credential_types:
-                required_credentials.remove(manual_question.type)
+                required_credentials.discard(manual_question.type)
             if required_credentials and manual_question.type in credential_types:
-                required_credentials.remove(scan_question.type)
+                required_credentials.discard(scan_question.type)
 
         return required_credentials.difference(set(credential_types))
 
