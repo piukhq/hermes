@@ -250,6 +250,8 @@ class SchemeAccount(models.Model):
     PASSWORD_EXPIRED = 533
     JOIN = 900
     NO_SUCH_RECORD = 444
+    CONFIGURATION_ERROR = 536
+    NOT_SENT = 535
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -270,11 +272,15 @@ class SchemeAccount(models.Model):
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
+        (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT')
+
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              CONFIGURATION_ERROR, NOT_SENT]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -358,7 +364,6 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             response = self._get_balance(credentials)
-            self.status = response.status_code
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
