@@ -169,7 +169,8 @@ class SchemeCredentialQuestionChoiceValueInline(admin.TabularInline):
 class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
     inlines = (SchemeCredentialQuestionChoiceValueInline,)
     exclude = []
-    list_display = ('scheme_question',)
+    list_display = ('scheme_question', 'scheme',)
+    list_filter = ('scheme_question', 'scheme',)
     raw_id_fields = ('scheme',)
     form = ModelForm
     search_fields = ['scheme']

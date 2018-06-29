@@ -189,7 +189,7 @@ class TestSchemeViews(APITestCase):
         data = response.json()
 
         self.assertEqual(data['link_questions'][0]['id'], link_question.id)
-        self.assertEqual(set(data['link_questions'][0]['question_choices']), {'mr', 'mrs', 'miss'})
+        self.assertEqual(set(data['link_questions'][0]['question_choices']), {'Mr', 'MRS', 'miss'})
         self.assertEqual(len(data['link_questions'][0]['question_choices']), 3)
 
         self.assertEqual(data['join_questions'][0]['id'], join_question.id)
@@ -286,3 +286,4 @@ class TestSchemeModel(TestCase):
         self.assertEqual(len(question_1.question_choices), 0)
         self.assertEqual(len(question_2.question_choices), 0)
         self.assertEqual(len(question_3.question_choices), 3)
+        self.assertEqual(set(question_3.question_choices), {'Mrs', 'Mr', 'Miss'})

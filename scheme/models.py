@@ -597,7 +597,7 @@ class SchemeCredentialQuestionChoice(models.Model):
     @property
     def values(self):
         choice_values = self.choice_values.all()
-        return [str(value).lower() for value in choice_values]
+        return [str(value) for value in choice_values]
 
     class Meta:
         unique_together = ("scheme", "scheme_question")
