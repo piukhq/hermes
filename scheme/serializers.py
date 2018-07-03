@@ -166,7 +166,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme)\
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme)\
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():
@@ -305,7 +305,7 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'user', 'status', 'status_name', 'action_status')
+        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'action_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):
@@ -423,7 +423,7 @@ class JoinSerializer(SchemeAnswerSerializer):
     def validate(self, data):
         scheme = self.context['scheme']
         # Validate scheme account for this doesn't already exist
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme) \
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['user'].id, scheme=scheme) \
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():

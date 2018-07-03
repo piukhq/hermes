@@ -359,13 +359,13 @@ class SchemeAccount(models.Model):
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self):
+    def get_midas_balance(self, user_id):
         points = None
         try:
             credentials = self.credentials()
             if not credentials:
                 return points
-            response = self._get_balance(credentials)
+            response = self._get_balance(credentials, user_id)
             self.status = response.status_code
             if response.status_code == 200:
                 points = response.json()
@@ -378,10 +378,10 @@ class SchemeAccount(models.Model):
             self.save()
         return points
 
-    def _get_balance(self, credentials):
+    def _get_balance(self, credentials, user_id):
         parameters = {
             'scheme_account_id': self.id,
-            'user_id': self.user_set.first().id,
+            'user_id': user_id,
             'credentials': credentials,
             'status': self.status,
         }
