@@ -1,8 +1,8 @@
 from django.test import TestCase
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer
-from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory,
-                                    SchemeAccountEntryFactory)
+from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory)
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion
 from unittest.mock import MagicMock, patch

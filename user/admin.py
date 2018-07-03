@@ -1,12 +1,10 @@
 from django import forms
+from django.contrib import admin
 from django.contrib.admin import StackedInline
 from django.contrib.auth.admin import UserAdmin
-from django.contrib import admin
 
-from payment_card.models import PaymentCardAccount
-from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, Referral, MarketingCode, UserSetting, Setting,
-                         Organisation, ClientApplication, ClientApplicationBundle, ClientApplicationKit)
+from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
+                         Organisation, Referral, Setting, UserDetail, UserSetting)
 
 
 class UserDetailInline(admin.StackedInline):
@@ -28,7 +26,6 @@ class UserPaymentCardAccountInline(StackedInline):
 
 
 class CustomUserModelForm(forms.ModelForm):
-
     jwt_token = forms.CharField(required=False, widget=forms.TextInput(attrs={'readonly': 'readonly'}))
 
     def __init__(self, *args, **kwargs):

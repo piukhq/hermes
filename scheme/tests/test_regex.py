@@ -1,7 +1,8 @@
 from django.test import TestCase
 from scheme.models import SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeFactory, SchemeCredentialQuestionFactory,
-                                    SchemeCredentialAnswerFactory, SchemeAccountEntryFactory)
+                                    SchemeCredentialAnswerFactory)
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 
 
 class TestInvalidRegex(TestCase):

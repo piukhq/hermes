@@ -2,10 +2,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from payment_card.serializers import PaymentCardAccountSerializer
-from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardAccountFactory,
-                                          PaymentCardImageFactory, PaymentCardAccountEntryFactory)
 from common.models import Image
+from payment_card.serializers import PaymentCardAccountSerializer
+from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardImageFactory)
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory
 
 
 class TestPaymentCardAccountImages(APITestCase):

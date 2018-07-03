@@ -7,8 +7,6 @@ from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 
 from payment_card import models
-from ubiquity.models import PaymentCardAccountEntry
-from user.tests.factories import UserFactory
 
 fake = Factory.create()
 
@@ -47,14 +45,6 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)
-
-
-class PaymentCardAccountEntryFactory(factory.DjangoModelFactory):
-    class Meta:
-        model = PaymentCardAccountEntry
-
-    user = factory.SubFactory(UserFactory)
-    payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):

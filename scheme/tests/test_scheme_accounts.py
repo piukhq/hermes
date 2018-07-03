@@ -1,29 +1,26 @@
 import datetime
 import json
-
 from decimal import Decimal
+from unittest.mock import MagicMock, patch
+
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
-from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
-from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
-from scheme.tests.factories import (SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory,
-                                    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory,
-                                    ExchangeFactory, SchemeAccountEntryFactory)
-from scheme.tests.factories import ConsentFactory
-from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
-from scheme.views import CreateMy360AccountsAndLink
+from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
+
+from scheme.credentials import (BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME, LAST_NAME, PASSWORD, PHONE,
+                                TITLE, USER_NAME)
+from scheme.encyption import AESCipher
+from scheme.models import Consent, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, UserConsent
+from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
+from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory,
+                                    SchemeAccountImageFactory, SchemeCredentialAnswerFactory,
+                                    SchemeCredentialQuestionFactory, SchemeFactory,
+                                    SchemeImageFactory)
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.models import SchemeAccountEntry
 from user.models import Setting
-from scheme.models import Consent
-from scheme.models import UserConsent
-from user.tests.factories import SettingFactory, UserSettingFactory
-from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from unittest.mock import patch, MagicMock
-from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
-    TITLE, FIRST_NAME, LAST_NAME
-
-from user.tests.factories import UserFactory
+from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -367,7 +364,7 @@ class TestSchemeAccountViews(APITestCase):
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer
         """
         expected_fields = dict(CREDENTIAL_TYPES)
-        expected_fields['consents'] = None              # Add consents
+        expected_fields['consents'] = None  # Add consents
         self.assertEqual(set(expected_fields.keys()),
                          set(LinkSchemeSerializer._declared_fields.keys())
                          )
@@ -542,9 +539,11 @@ class TestSchemeAccountViews(APITestCase):
     #     self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
     #     self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
     #
-    # @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug', 'deep_blue_slug'])
+    # @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=['food_cellar_slug',
+    #                                                                              'deep_blue_slug'])
     # @patch.object(SchemeAccount, '_get_balance')
-    # def test_my360_create_account_already_created_generic_my360_scheme(self, mock_get_midas_balance, mock_get_schemes):
+    # def test_my360_create_account_already_created_generic_my360_scheme(self, mock_get_midas_balance,
+    #                                                                    mock_get_schemes):
     #     # Given:
     #     # ['my360', 'food_cellar_slug', 'deep_blue_slug'] scheme exists in 'Bink system'
     #     # a barcode scheme credential question with one_question_link is created for each scheme
@@ -1072,7 +1071,7 @@ class TestSchemeAccountViews(APITestCase):
 
         resp_json = resp.json()
         self.assertEqual(resp_json['scheme'], scheme.id)
-        self.assertEqual(len(resp_json), len(data))       # not +1 to data since consents have been added
+        self.assertEqual(len(resp_json), len(data))  # not +1 to data since consents have been added
         scheme_account = SchemeAccount.objects.get(user_set__id=self.user.id, scheme_id=scheme.id)
         self.assertEqual(resp_json['id'], scheme_account.id)
         self.assertEqual('Pending', scheme_account.status_name)
@@ -1375,7 +1374,7 @@ class TestAccessTokens(APITestCase):
                                    data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                   data=data, ** self.auth_headers)
+                                   data=data, **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')

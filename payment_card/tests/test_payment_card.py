@@ -6,11 +6,11 @@ from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
+import ubiquity.tests.factories
 from common.models import Image
 from payment_card.models import AuthTransaction, PaymentCardAccount
 from payment_card.tests import factories
-from scheme.tests.factories import SchemeAccountEntryFactory
-from ubiquity.tests.factories import PaymentCardSchemeEntryFactory
+from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
 from user.models import ClientApplication, Organisation
 from user.tests.factories import UserFactory
 
@@ -46,7 +46,7 @@ class TestPaymentCard(APITestCase):
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
-        cls.payment_card_account_entry = factories.PaymentCardAccountEntryFactory(
+        cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
             payment_card_account=cls.payment_card_account
         )
         cls.user = cls.payment_card_account_entry.user
@@ -333,7 +333,7 @@ class TestPaymentCard(APITestCase):
         user = UserFactory()
         sae = SchemeAccountEntryFactory(user=user)
         pca = factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
-        factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
         PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
 
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)

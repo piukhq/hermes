@@ -1,5 +1,7 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
+
+import ubiquity.tests.factories
 from payment_card.models import PaymentCardAccountImage
 from payment_card.tests import factories
 
@@ -8,7 +10,7 @@ class TestCSVUpload(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
-        cls.payment_card_account_entry = factories.PaymentCardAccountEntryFactory(
+        cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
             payment_card_account=cls.payment_card_account)
         cls.payment_card = cls.payment_card_account.payment_card
         cls.user = cls.payment_card_account_entry.user
