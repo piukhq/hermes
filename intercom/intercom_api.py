@@ -99,7 +99,7 @@ def update_user_custom_attribute(token, user_id, attr_name, attr_value):
     return response
 
 
-def update_account_status_custom_attribute(token, account):
+def update_account_status_custom_attribute(token, account, user):
     """
     Update scheme account user custom attribute with the format:
     'scheme-slug': '{status},YYYY/mm/dd'
@@ -114,10 +114,10 @@ def update_account_status_custom_attribute(token, account):
         _get_today_datetime().strftime("%Y/%m/%d"),
         account.scheme.slug
     )
-    return update_user_custom_attribute(token, account.user.uid, account.scheme.company, attr_value)
+    return update_user_custom_attribute(token, user.uid, account.scheme.company, attr_value)
 
 
-def update_payment_account_custom_attribute(token, account):
+def update_payment_account_custom_attribute(token, account, user):
     """
     Update payment card account user custom attribute
     Data to transfer:
@@ -153,7 +153,7 @@ def update_payment_account_custom_attribute(token, account):
 
     key = "PAYMENT CARD {}".format(str(account.order))
 
-    return update_user_custom_attribute(token, account.user.uid, key, attr_value)
+    return update_user_custom_attribute(token, user.uid, key, attr_value)
 
 
 def get_user_events(token, user_id):

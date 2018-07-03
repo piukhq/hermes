@@ -15,14 +15,16 @@ class UserDetailInline(admin.StackedInline):
 
 
 class UserSchemeAccountsInline(StackedInline):
-    model = SchemeAccount
+    model = CustomUser.scheme_account_set.through
+    exclude = ('membership_card_data',)
     extra = 0
 
 
 class UserPaymentCardAccountInline(StackedInline):
-    model = PaymentCardAccount
+    model = CustomUser.payment_card_account_set.through
+    exclude = ('payment_card_data',)
     extra = 0
-    readonly_fields = ('token', 'psp_token', )
+    # readonly_fields = ('token', 'psp_token', )
 
 
 class CustomUserModelForm(forms.ModelForm):

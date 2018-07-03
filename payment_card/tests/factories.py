@@ -1,13 +1,14 @@
-from datetime import datetime
 import uuid
-import factory
+from datetime import datetime
 
+import factory
+from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
 from faker import Factory
-from django.utils import timezone
 
-from user.tests.factories import UserFactory
 from payment_card import models
+from ubiquity.models import PaymentCardAccountEntry
+from user.tests.factories import UserFactory
 
 fake = Factory.create()
 
@@ -35,7 +36,6 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccount
 
-    user = factory.SubFactory(UserFactory)
     payment_card = factory.SubFactory(PaymentCardFactory)
     name_on_card = fake.name()
     start_month = fake.month()
@@ -47,6 +47,14 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)
+
+
+class PaymentCardAccountEntryFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = PaymentCardAccountEntry
+
+    user = factory.SubFactory(UserFactory)
+    payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):

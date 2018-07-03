@@ -1,15 +1,15 @@
 from datetime import datetime
 
 import factory
-from factory.fuzzy import FuzzyAttribute
-from scheme import models
-from scheme.models import Consent
-from faker import Factory
-from scheme.credentials import USER_NAME
 from django.utils import timezone
+from factory.fuzzy import FuzzyAttribute
+from faker import Factory
 
+from scheme import models
+from scheme.credentials import USER_NAME
+from scheme.models import Consent
+from ubiquity.models import SchemeAccountEntry
 from user.tests.factories import UserFactory
-
 
 fake = Factory.create()
 
@@ -61,10 +61,17 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccount
 
-    user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
+
+
+class SchemeAccountEntryFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = SchemeAccountEntry
+
+    user = factory.SubFactory(UserFactory)
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
 
 
 class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):

@@ -1,32 +1,30 @@
-from io import StringIO
 import csv
 import json
+from io import StringIO
 
-from raven.contrib.django.raven_compat.models import client as sentry
-from django.http import HttpResponseBadRequest, JsonResponse
+import arrow
+import requests
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from django.conf import settings
-from rest_framework import generics, status
-from rest_framework import serializers as rest_framework_serializers
+from raven.contrib.django.raven_compat.models import client as sentry
+from rest_framework import generics, serializers as rest_framework_serializers, status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import requests
-import arrow
 
+from intercom import intercom_api
+from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
-from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
-from payment_card import serializers
 from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
-from intercom import intercom_api
-from payment_card import metis
-from user.models import Organisation, ClientApplication
+from user.models import ClientApplication, Organisation
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -38,7 +36,6 @@ class ListPaymentCard(generics.ListAPIView):
 
 
 class PaymentCardAccountQuery(APIView):
-
     authentication_classes = (ServiceAuthentication,)
 
     def get(self, request):
@@ -62,8 +59,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.PaymentCardAccountSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        return PaymentCardAccount.objects.filter(user=user)
+        user_id = self.request.user.id
+        return PaymentCardAccount.objects.filter(user_set__id=user_id)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -73,7 +70,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         self.perform_update(serializer)
 
         try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance, request.user)
         except intercom_api.IntercomException:
             sentry.captureException()
 
@@ -96,11 +93,11 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             'partner_slug': instance.payment_card.slug,
             'id': instance.id,
             'date': arrow.get(instance.created).timestamp}, headers={
-                'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                'Content-Type': 'application/json'})
+            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+            'Content-Type': 'application/json'})
 
         try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance, request.user)
         except intercom_api.IntercomException:
             sentry.captureException()
 
@@ -115,7 +112,7 @@ class ListCreatePaymentCardAccount(APIView):
         response_serializer: serializers.PaymentCardAccountSerializer
         """
         accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(user=request.user)]
+                    PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
         return Response(accounts, status=200)
 
     def post(self, request):
@@ -133,8 +130,6 @@ class ListCreatePaymentCardAccount(APIView):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
         if serializer.is_valid():
             data = serializer.validated_data
-            data['user'] = request.user
-
             account = PaymentCardAccount(**data)
 
             if account.payment_card.system != PaymentCard.MASTERCARD:
@@ -153,7 +148,7 @@ class ListCreatePaymentCardAccount(APIView):
             self.apply_barclays_images(account)
 
             try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account)
+                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account, request.user)
             except intercom_api.IntercomException:
                 sentry.captureException()
 
@@ -177,7 +172,8 @@ class ListCreatePaymentCardAccount(APIView):
     @staticmethod
     def supercede_old_card(account, old_account, user):
         # if the clients are the same but the users don't match, reject the card.
-        if old_account.user != user and old_account.user.client == user.client:
+        if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
+                client=user.client).exists():
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -192,7 +188,7 @@ class ListCreatePaymentCardAccount(APIView):
             account.save()
 
             # only delete the old card if it's on the same app
-            if old_account.user.client == user.client:
+            if old_account.user_set.filter(client=user.client).exists():
                 old_account.is_deleted = True
                 old_account.save()
 
@@ -225,28 +221,41 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
 
     def get_queryset(self):
         token = self.kwargs.get('token')
-        data = payment_card_scheme_accounts(token)
-        return data
+        payment_card_account = PaymentCardAccount.objects.filter(token=token).first()
+        scheme_account_set = payment_card_account.scheme_account_set.all()
+
+        return [
+            {
+                'scheme_id': scheme.scheme_id,
+                'scheme_account_id': scheme.id
+            }
+            for scheme in list(scheme_account_set)
+        ]
 
 
 class RetrieveLoyaltyID(View):
     authentication_classes = ServiceAuthentication,
 
-    def post(self, request, scheme_slug):
+    @staticmethod
+    def post(request, scheme_slug):
         response_data = []
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
-            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
-            if payment_card:
+            payment_card_entry = PaymentCardAccountEntry.objects.filter(
+                payment_card_account__token=payment_card_token).first()
+            if payment_card_entry:
+                payment_card = payment_card_entry.payment_card_account
                 try:
-                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                    scheme_account_entry = SchemeAccountEntry.objects.get(user=payment_card_entry.user,
+                                                                          scheme_account__scheme=scheme)
                 except ObjectDoesNotExist:
                     # the user was matched but is not registered in that scheme
                     response_data.append({payment_card_token: None})
                 else:
+                    scheme_account = scheme_account_entry.scheme_account
                     response_data.append({
                         payment_card.token: scheme_account.third_party_identifier,
                         'scheme_account_id': scheme_account.id
@@ -259,28 +268,30 @@ class RetrieveLoyaltyID(View):
 class RetrievePaymentCardUserInfo(View):
     authentication_classes = ServiceAuthentication,
 
-    def post(self, request, scheme_slug):
+    @staticmethod
+    def post(request, scheme_slug):
         response_data = {}
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
-            payment_cards = PaymentCardAccount.objects.filter(token=payment_card_token)
+            payment_card_entries = PaymentCardAccountEntry.objects.filter(
+                payment_card_account__token=payment_card_token)
 
             # if there's no payment card for this token, leave it out of the returned data.
-            if not payment_cards.exists():
+            if not payment_card_entries.exists():
                 continue
 
             scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
                                                            status=SchemeAccount.ACTIVE,
-                                                           user__in=(p.user for p in payment_cards))
+                                                           user_set__id__in=(p.user.id for p in payment_card_entries))
             if scheme_accounts.exists():
                 scheme_account = scheme_accounts.order_by('created').first()
                 response_data[payment_card_token] = {
                     'loyalty_id': scheme_account.third_party_identifier,
                     'scheme_account_id': scheme_account.id,
-                    'user_id': scheme_account.user.id,
+                    'user_set': [user.id for user in scheme_account.user_set.all()],
                     'credentials': scheme_account.credentials()
                 }
             else:
@@ -288,15 +299,16 @@ class RetrievePaymentCardUserInfo(View):
                 response_data[payment_card_token] = {
                     'loyalty_id': None,
                     'scheme_account_id': None,
-                    'user_id': payment_cards.first().user.id,
+                    'user_id': payment_card_entries.first().user.id,
                     'credentials': '',
                 }
 
-            active_card = next((x for x in payment_cards if x.status == PaymentCardAccount.ACTIVE), None)
+            active_card = next(
+                (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None)
             if active_card:
                 response_data[payment_card_token]['card_information'] = {
-                    'first_six': active_card.pan_start,
-                    'last_four': active_card.pan_end
+                    'first_six': active_card.payment_card_account.pan_start,
+                    'last_four': active_card.payment_card_account.pan_end
                 }
 
         return JsonResponse(response_data, safe=False)
@@ -331,7 +343,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.save()
 
         try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account)
+            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account,
+                                                                 request.user)
         except intercom_api.IntercomException:
             sentry.captureException()
 
@@ -378,10 +391,13 @@ def csv_upload(request):
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
                 for email in row:
-                    payment_card_account = PaymentCardAccount.objects.filter(user__email=email.lstrip(),
-                                                                             payment_card=payment_card)
-                    if payment_card_account:
-                        image_instance.payment_card_accounts.add(payment_card_account.first())
+                    payment_card_account_entry = PaymentCardAccountEntry.objects.filter(
+                        user__email=email.lstrip(),
+                        payment_card_account__payment_card=payment_card)
+                    if payment_card_account_entry:
+                        image_instance.payment_card_accounts.add(
+                            payment_card_account_entry.first().payment_card_account
+                        )
                     else:
                         image_instance.delete()
                         return HttpResponseBadRequest()

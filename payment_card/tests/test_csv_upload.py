@@ -8,8 +8,10 @@ class TestCSVUpload(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
+        cls.payment_card_account_entry = factories.PaymentCardAccountEntryFactory(
+            payment_card_account=cls.payment_card_account)
         cls.payment_card = cls.payment_card_account.payment_card
-        cls.user = cls.payment_card_account.user
+        cls.user = cls.payment_card_account_entry.user
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
 

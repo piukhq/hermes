@@ -100,12 +100,12 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline, )
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
-    search_fields = ['user__email']
+    list_display = ('scheme', 'status', 'is_deleted', 'created',)
+    search_fields = ['scheme']
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'user', 'link_date')
+            return self.readonly_fields + ('scheme', 'link_date')
         return self.readonly_fields
 
 
