@@ -3,20 +3,21 @@ import re
 import socket
 import sre_constants
 import uuid
-import requests
 
+import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
-from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.utils import timezone
 from django.template.defaultfilters import truncatewords
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
+from django.utils import timezone
+
+from common.models import Image
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
 
@@ -227,7 +228,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True).\
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
             exclude(scheme__is_active=False)
 
 
@@ -282,7 +283,8 @@ class SchemeAccount(models.Model):
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT]
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
+                                      related_name='scheme_account_set')
     scheme = models.ForeignKey('scheme.Scheme')
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
@@ -329,8 +331,8 @@ class SchemeAccount(models.Model):
         """
         required_credentials = {
             question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+        )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
@@ -379,7 +381,7 @@ class SchemeAccount(models.Model):
     def _get_balance(self, credentials):
         parameters = {
             'scheme_account_id': self.id,
-            'user_id': self.user.id,
+            'user_id': self.user_set.first().id,
             'credentials': credentials,
             'status': self.status,
         }
@@ -520,7 +522,7 @@ class SchemeAccount(models.Model):
                                      image_description=F('scheme_image__description'),
                                      url=F('scheme_image__url'),
                                      call_to_action=F('scheme_image__call_to_action'),
-                                     order=F('scheme_image__order'))\
+                                     order=F('scheme_image__order')) \
             .values('image_type_code',
                     'image_size_code',
                     'image',
@@ -537,7 +539,7 @@ class SchemeAccount(models.Model):
         return images
 
     def __str__(self):
-        return "{0} - {1}".format(self.user.email, self.scheme.name)
+        return str(self.scheme.name)
 
     class Meta:
         ordering = ['order', '-created']

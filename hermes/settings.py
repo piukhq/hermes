@@ -83,6 +83,7 @@ INSTALLED_APPS = (
     'mail_templated',
     'anymail',
     'storages',
+    'ubiquity',
 )
 
 MIDDLEWARE_CLASSES = (

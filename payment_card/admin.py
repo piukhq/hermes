@@ -36,13 +36,13 @@ def titled_filter(title):
 
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ('user', 'payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
+    list_display = ('payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
     list_filter = (('payment_card__name', titled_filter('payment card')),
                    'status',
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
     readonly_fields = ('token', 'psp_token', )
-    search_fields = ['user__email', 'pan_start', 'pan_end', 'token']
+    search_fields = ['pan_start', 'pan_end', 'token']
 
 
 @admin.register(models.PaymentCardAccountImage)

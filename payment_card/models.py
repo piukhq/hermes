@@ -140,7 +140,8 @@ class PaymentCardAccount(models.Model):
         (UNKNOWN, 'unknown')
     )
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.PaymentCardAccountEntry',
+                                      related_name='payment_card_account_set')
     payment_card = models.ForeignKey(PaymentCard)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
@@ -165,8 +166,7 @@ class PaymentCardAccount(models.Model):
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return '({}) {} - {}'.format(
-            self.user.email,
+        return '{} - {}'.format(
             self.payment_card.name,
             self.name_on_card
         )
