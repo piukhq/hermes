@@ -11,4 +11,5 @@ urlpatterns = [
     url(r'^order', include('order.urls')),
     url(r'', include('common.urls')),
     url(r'^docs/hermes/?', get_swagger_view()),
+    url(r'^ubiquity', include('ubiquity.urls')),
 ]
