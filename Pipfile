@@ -48,6 +48,3 @@ fake-factory = "==0.5.9"
 coverage = "==4.0.1"
 django-coverage = "*"
 "flake8" = "*"
-
-[requires]
-python_version = "3.6"

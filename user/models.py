@@ -1,11 +1,11 @@
-import base64
-import os
-import random
 import uuid
 from string import ascii_letters, digits
 
 import arrow
+import base64
 import jwt
+import os
+import random
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
@@ -122,10 +122,6 @@ class ClientApplication(models.Model):
             cls.bink_app = cls.objects.get(client_id=BINK_APP_ID)
         return cls.bink_app
 
-    @staticmethod
-    def is_authenticated():
-        return True
-
 
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
@@ -136,6 +132,10 @@ class ClientApplicationBundle(models.Model):
     @classmethod
     def get_bink_bundles(cls):
         return cls.objects.filter(client_id=BINK_APP_ID)
+
+    @staticmethod
+    def is_authenticated():
+        return True
 
     def __str__(self):
         return '{} ({})'.format(self.bundle_id, self.client)

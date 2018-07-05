@@ -13,7 +13,7 @@ class GenerateJWToken:
 
     def _format_payload(self, email):
         self.payload = {
-            "Organization ID": self.client_id,
+            "Organisation ID": self.client_id,
             "Bundle ID": self.bundle_id,
             "User ID": email or "test@binktest.com",
             "Email": email or "test@binktest.com",
@@ -21,7 +21,7 @@ class GenerateJWToken:
         }
 
     def get_token(self):
-        return jwt.encode(self.payload, self.secret, algorithm='HS512')
+        return jwt.encode(self.payload, self.secret, algorithm='HS512').decode('UTF-8')
 
 
 if __name__ == '__main__':

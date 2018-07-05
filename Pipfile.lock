@@ -1,12 +1,10 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "43b07aeac2b4ee3c85832e9307fb9c2d163c37b94f421e225ee22f2febd69dd6"
+            "sha256": "4f35620d9c8f559ee7094dd92221540d186a34529337e2b7483d98e035b63389"
         },
         "pipfile-spec": 6,
-        "requires": {
-            "python_version": "3.6"
-        },
+        "requires": {},
         "sources": [
             {
                 "name": "pypi",
@@ -16,14 +14,6 @@
         ]
     },
     "default": {
-        "appnope": {
-            "hashes": [
-                "sha256:5b26757dc6f79a3b7dc9fab95359328d5747fcb2409d331ea66d0272b90ab2a0",
-                "sha256:8b995ffe925347a2138d7ac0fe77155e4311a0ea6d6da4f5128fe4b3cbe5ed71"
-            ],
-            "markers": "sys_platform == 'darwin'",
-            "version": "==0.1.0"
-        },
         "arrow": {
             "hashes": [
                 "sha256:2a5333007af117a05a488b69c9ae15c26c23eefa25f084992b025d387e03a17b"
@@ -40,10 +30,10 @@
         },
         "azure-common": {
             "hashes": [
-                "sha256:3f2b0a0325b22df43ae840399a0b23c0256cb4f7deadb506a335bad516034b54",
-                "sha256:46d9d5fd8fc0d382c0ef30b253978dfc847a67cc22525884682cfe5e44e5a08b"
+                "sha256:b087e80e8f0adc858f0a2b9ba596bb791383f74834b4acc4b47b64ddfa1362e3",
+                "sha256:ff0c70b1f024fed34e94302fadada9a613d0d3312547eb738b1d24af356acec7"
             ],
-            "version": "==1.1.12"
+            "version": "==1.1.13"
         },
         "azure-nspkg": {
             "hashes": [
@@ -116,7 +106,7 @@
                 "sha256:edabd457cd23a02965166026fd9bfd196f4324fe6032e866d0f3bd0301cd486f",
                 "sha256:fdf1c1dc5bafc32bc5d08b054f94d659422b05aba244d6be4ddc1c72d9aa70fb"
             ],
-            "markers": "platform_python_implementation != 'PyPy'",
+            "markers": "platform_python_implementation != 'pypy'",
             "version": "==1.11.5"
         },
         "contextlib2": {
@@ -244,23 +234,6 @@
             ],
             "index": "pypi",
             "version": "==3.6.3"
-        },
-        "gnureadline": {
-            "hashes": [
-                "sha256:10da0e30e1e014cc5879f63e987e28dd84f7dc6c36bc2e3b170355f9c18ad4e0",
-                "sha256:12a38c189020fd60914da7d0d39a98237a6c372d83a229e3166fc259413c4621",
-                "sha256:27e0a87edb5c049ac6516a9f2dd55c16fa9e2db95be5e147175c83a9af368df0",
-                "sha256:41c53183e57f02a8683b9e72ca8d42141e4a377893612e6aa022f6c969f2143a",
-                "sha256:4bf883a08ac02f9bcd3a1991633a774ce8692c4c5855f2e7c557e242c3266353",
-                "sha256:58e208ed34a53456ecf58bc11eacbe332c50d322b329457e2c645bd15192b035",
-                "sha256:7acd5bafcbfd8d3ad34d35b8aa478513185e6b39ea549991c99b64a0482534e5",
-                "sha256:8f4de3f730f99ab01db35caf83b251159b5fe7427cc89630276f664292b4f398",
-                "sha256:9e6589f3119c27808630118d2345b601a865d699495bf2929d87401e980b43e6",
-                "sha256:cc293089fc76dd7f068db2d8c8d23238ea0181a31feacd11d674e4a20038448d",
-                "sha256:faa92b9ea4a64dc8403cf2a0c9dfa839745cfff50e1f04c39dbec908d35e250b"
-            ],
-            "markers": "sys_platform == 'darwin'",
-            "version": "==6.3.8"
         },
         "graypy": {
             "hashes": [
@@ -467,6 +440,7 @@
                 "sha256:1a33a6431ee41c0fa507a37d08966d73a66443e43173b2d4fff6db70247ae805",
                 "sha256:1e385e45d5aed6fd5294da1f9b71d33dcd812887f9e17410cbf83c324270fbbd",
                 "sha256:21e25d25ead34b07289f5a30916661e5f0adfff8f2a9326f98b8961113e14a83",
+                "sha256:252cecc7e204106de8b61aacf3e00a5c31ebd2548b027a675ef339d3df9428d6",
                 "sha256:29a12524bc5b7e2bc55e426e6b7be4a734cccf99298248748f6ca0088ecb54e3",
                 "sha256:2e7920f138aad3406a83cb8db7b3f96a357d9d33bc7abb353cc0f571dd97318d",
                 "sha256:2fa9d8292b93716dfaed09701a7129704cf290dd7a3a7e057563dee4e805934a",
@@ -474,6 +448,7 @@
                 "sha256:3327afb38017ac1de32e4ca3a6c8edb1fe19d6024771609590684d3a37e7c250",
                 "sha256:3dd41aaab8ac3b93281c331bca8824bb75591568d802a0a509c61f4be7ea235d",
                 "sha256:453e9a1e3a9dfe7c7bf3367ab82842cb236735c58f6ca849a485b30f9dfa42f8",
+                "sha256:5170ef12426d355a490840dc7f2b69602e92a4c57cca27ef59d1c371dfab6c0e",
                 "sha256:5217607e2bac97c774839095c3609da2250bf253f46761bc700e4ce3bd5ac54d",
                 "sha256:5984c1c12e8dd6a96e8b82c4bec3f86180c4b048dcdccd34ed8c8bb81740e4ca",
                 "sha256:5cc2adccb61bfe6c76fc5b6d488d76b3c093a69d79e70adb73b5678d2f0afc67",
