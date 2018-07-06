@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.contrib.admin import StackedInline
 from django.contrib.auth.admin import UserAdmin
 
+from ubiquity.models import ServiceConsent
 from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
                          Organisation, Referral, Setting, UserDetail, UserSetting)
 
@@ -15,6 +16,13 @@ class UserDetailInline(admin.StackedInline):
 class UserSchemeAccountsInline(StackedInline):
     model = CustomUser.scheme_account_set.through
     exclude = ('membership_card_data',)
+    extra = 0
+
+
+class ServiceConsentInline(admin.StackedInline):
+    model = ServiceConsent
+    readonly_fields = ('latitude', 'longitude', 'timestamp')
+
     extra = 0
 
 
@@ -60,7 +68,7 @@ class CustomUserDetail(UserAdmin):
     last_name.admin_order_field = 'profile__last_name'
 
     form = CustomUserModelForm
-    inlines = (UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
+    inlines = (ServiceConsentInline, UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
