@@ -12,9 +12,10 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
-import raven
-from environment import env_var, read_env
 import sys
+
+from environment import env_var, read_env
+import hermes
 
 read_env()
 
@@ -282,13 +283,11 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
-HERMES_SENTRY_DNS = env_var('HERMES_SENTRY_DNS', None)
-if not any([TESTING, LOCAL]) and HERMES_SENTRY_DNS:
+HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
+if not any([TESTING, LOCAL]) and HERMES_SENTRY_DSN:
     RAVEN_CONFIG = {
-        'dsn': HERMES_SENTRY_DNS,
-        # If you are using git, you can also automatically configure the
-        # release based on the git info.
-        'release': raven.fetch_git_sha(BASE_DIR),
+        'dsn': HERMES_SENTRY_DSN,
+        'release': hermes.__version__,
     }
 
 ANYMAIL = {

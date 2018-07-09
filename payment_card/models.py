@@ -44,7 +44,7 @@ class PaymentCard(models.Model):
     SYSTEMS = (
         (VISA, 'Visa'),
         (MASTERCARD, 'Master Card'),
-        (AMEX, 'American Express‎'),
+        (AMEX, 'American Express'),
     )
 
     DEBIT = 'debit'
@@ -213,3 +213,16 @@ class ProviderStatusMapping(models.Model):
     provider = models.ForeignKey('payment_card.PaymentCard')
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
+
+
+class AuthTransaction(models.Model):
+    payment_card_account = models.ForeignKey('PaymentCardAccount', on_delete=models.SET_NULL, null=True)
+    time = models.DateTimeField()
+    amount = models.IntegerField()
+    mid = models.CharField(max_length=100)
+    third_party_id = models.CharField(max_length=100)
+    auth_code = models.CharField(max_length=100, blank=True, default='')
+    currency_code = models.CharField(max_length=3, default='GBP')
+
+    def __str__(self):
+        return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)

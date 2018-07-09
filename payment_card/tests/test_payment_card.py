@@ -7,9 +7,10 @@ from django.conf import settings
 import httpretty
 
 from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, AuthTransaction
 from common.models import Image
 from scheme.tests.factories import SchemeAccountFactory
+from user.models import Organisation, ClientApplication
 from user.tests.factories import UserFactory
 
 
@@ -341,3 +342,77 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[0], 'scheme_id')
         self.assertEqual(keys[1], 'user_id')
         self.assertEqual(keys[2], 'scheme_account_id')
+
+
+class TestAuthTransactions(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='234rghjcewerg4gf3ef23v')
+
+        super(TestAuthTransactions, cls).setUpClass()
+
+    def test_create_auth_transaction_endpoint(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
+            "auth_code": "1",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '1',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_create_auth_transaction_endpoint_no_auth_code(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_list_payment_card_client_apps(self):
+        amex = Organisation.objects.create(name='American Express')
+        mc = Organisation.objects.create(name='Master Card')
+
+        ClientApplication.objects.create(name='Amex Auth Transactions', organisation=amex)
+        ClientApplication.objects.create(name='MC Auth Transactions', organisation=mc)
+
+        resp = self.client.get('/payment_cards/client_apps', **self.auth_service_headers)
+
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(len(resp.data), 2)

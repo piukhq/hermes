@@ -67,4 +67,10 @@ class ProviderStatusMappingAdmin(admin.ModelAdmin):
     search_fields = ('provider_status_code', 'bink_status_code')
 
 
+@admin.register(models.AuthTransaction)
+class AuthTransactionAdmin(admin.ModelAdmin):
+    list_display = ('payment_card_account', 'time', 'amount', 'mid', 'third_party_id',)
+    search_fields = ('payment_card_account', 'mid', 'third_party_id',)
+
+
 admin.site.register(models.Issuer)

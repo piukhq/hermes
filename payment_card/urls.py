@@ -1,4 +1,5 @@
 from django.conf.urls import url
+
 from payment_card import views
 
 urlpatterns = [
@@ -39,4 +40,13 @@ urlpatterns = [
         name='list_provider_status_mappings'),
 
     # TODO: Better URL
-    url(r'^/csv_upload', views.csv_upload, name='csv_upload'), ]
+    url(r'^/csv_upload', views.csv_upload, name='csv_upload'),
+
+    url(r'^/auth_transaction$',
+        views.AuthTransactionView.as_view(),
+        name='auth_transaction'),
+
+    url(r'^/client_apps$',
+        views.ListPaymentCardClientApplication.as_view(),
+        name='list_payment_card_client_apps')
+]
