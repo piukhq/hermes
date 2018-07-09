@@ -327,6 +327,18 @@ class TestSchemeAccountViews(APITestCase):
             'card_number': self.second_scheme_account_answer.answer, 'password': 'test_password',
             'username': self.scheme_account_answer.answer})
 
+    def test_scheme_account_collect_credentials_with_merchant_identifier(self):
+        third_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=TITLE,
+                                                         options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER)
+        SchemeCredentialAnswerFactory(question=third_question, answer='mr', scheme_account=self.scheme_account)
+
+        self.assertEqual(self.scheme_account._collect_credentials(), {
+            'card_number': self.second_scheme_account_answer.answer,
+            'password': 'test_password',
+            'username': self.scheme_account_answer.answer,
+            'title': 'mr'
+        })
+
     def test_scheme_account_third_party_identifier(self):
         self.assertEqual(self.scheme_account.third_party_identifier, self.second_scheme_account_answer.answer)
         self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
@@ -1159,6 +1171,8 @@ class TestSchemeAccountModel(APITestCase):
                                         options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER, scan_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=TITLE,
+                                        options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER)
         self.assertEqual(scheme_account.missing_credentials([]), {BARCODE, PASSWORD, CARD_NUMBER})
         self.assertFalse(scheme_account.missing_credentials([CARD_NUMBER, PASSWORD]))
         self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
@@ -1170,6 +1184,30 @@ class TestSchemeAccountModel(APITestCase):
                                         scan_question=True, manual_question=True)
         self.assertFalse(scheme_account.missing_credentials([BARCODE]))
         self.assertEqual(scheme_account.missing_credentials([]), {BARCODE})
+
+    def test_missing_credentials_with_join_option_on_manual_question(self):
+        scheme_account = SchemeAccountFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE,
+                                        manual_question=True, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=CARD_NUMBER,
+                                        scan_question=True, options=SchemeCredentialQuestion.NONE)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
+                                        options=SchemeCredentialQuestion.LINK)
+        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
+        self.assertFalse(scheme_account.missing_credentials([CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
+        self.assertFalse(scheme_account.missing_credentials([BARCODE, CARD_NUMBER, PASSWORD]))
+        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE, CARD_NUMBER})
+
+    def test_missing_credentials_with_join_option_on_manual_and_scan_question(self):
+        scheme_account = SchemeAccountFactory()
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=BARCODE, manual_question=True,
+                                        scan_question=True, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
+                                        options=SchemeCredentialQuestion.LINK)
+        self.assertFalse(scheme_account.missing_credentials([BARCODE, PASSWORD]))
+        self.assertEqual(scheme_account.missing_credentials([PASSWORD]), {BARCODE})
+        self.assertEqual(scheme_account.missing_credentials([BARCODE]), {PASSWORD})
 
     def test_credential_check_for_pending_scheme_account(self):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)

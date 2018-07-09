@@ -1,8 +1,11 @@
 from copy import copy
+
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from payment_card import models
+from payment_card.models import PaymentCardAccount
+from user.models import ClientApplication
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
@@ -128,6 +131,36 @@ class ProviderStatusMappingSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ProviderStatusMapping
         fields = ('provider_status_code', 'bink_status_code')
+
+
+class PaymentCardField(serializers.RelatedField):
+    def to_internal_value(self, data):
+        return models.PaymentCardAccount.objects.get(token=data)
+
+    def to_representation(self, value):
+        return value.pk
+
+
+class AuthTransactionSerializer(serializers.ModelSerializer):
+    payment_card_token = PaymentCardField(source='payment_card_account',
+                                          queryset=PaymentCardAccount.objects.all(), write_only=True)
+
+    class Meta:
+        model = models.AuthTransaction
+        fields = ('time', 'amount', 'mid', 'third_party_id', 'auth_code', 'currency_code', 'payment_card_token')
+        extra_kwargs = {
+            'payment_card_account': {'write_only': True},
+            'payment_card_token': {'write_only': True}
+        }
+        depth = 1
+
+
+class PaymentCardClientSerializer(serializers.ModelSerializer):
+    organisation = serializers.SlugRelatedField(read_only=True, slug_field='name')
+
+    class Meta:
+        model = ClientApplication
+        fields = ('client_id', 'secret', 'organisation')
 
 
 def add_object_type_to_image_response(data, type):

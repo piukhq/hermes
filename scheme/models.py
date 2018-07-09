@@ -250,6 +250,8 @@ class SchemeAccount(models.Model):
     PASSWORD_EXPIRED = 533
     JOIN = 900
     NO_SUCH_RECORD = 444
+    CONFIGURATION_ERROR = 536
+    NOT_SENT = 535
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -270,11 +272,15 @@ class SchemeAccount(models.Model):
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
+        (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT')
+
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              CONFIGURATION_ERROR, NOT_SENT]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -329,11 +335,16 @@ class SchemeAccount(models.Model):
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
+        if manual_question:
+            required_credentials.add(manual_question.type)
+        if scan_question:
+            required_credentials.add(scan_question.type)
+
         if scan_question and manual_question and scan_question != manual_question:
             if scan_question.type in credential_types:
-                required_credentials.remove(manual_question.type)
+                required_credentials.discard(manual_question.type)
             if required_credentials and manual_question.type in credential_types:
-                required_credentials.remove(scan_question.type)
+                required_credentials.discard(scan_question.type)
 
         return required_credentials.difference(set(credential_types))
 
@@ -370,7 +381,7 @@ class SchemeAccount(models.Model):
             'scheme_account_id': self.id,
             'user_id': self.user.id,
             'credentials': credentials,
-            'status': self.status_key,
+            'status': self.status,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
@@ -538,6 +549,7 @@ class SchemeCredentialQuestion(models.Model):
     JOIN = 1 << 1
     OPTIONAL_JOIN = (1 << 2 | JOIN)
     LINK_AND_JOIN = (LINK | JOIN)
+    MERCHANT_IDENTIFIER = (1 << 3)
 
     OPTIONS = (
         (0, 'None'),
@@ -545,6 +557,7 @@ class SchemeCredentialQuestion(models.Model):
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
         (LINK_AND_JOIN, 'Link & Join'),
+        (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -562,12 +575,44 @@ class SchemeCredentialQuestion(models.Model):
     def required(self):
         return self.options is not self.OPTIONAL_JOIN
 
+    @property
+    def question_choices(self):
+        try:
+            choices = SchemeCredentialQuestionChoice.objects.get(scheme=self.scheme, scheme_question=self.type)
+            return choices.values
+        except SchemeCredentialQuestionChoice.DoesNotExist:
+            return []
+
     class Meta:
         ordering = ['order']
         unique_together = ("scheme", "type")
 
     def __str__(self):
         return self.type
+
+
+class SchemeCredentialQuestionChoice(models.Model):
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+
+    @property
+    def values(self):
+        choice_values = self.choice_values.all()
+        return [str(value) for value in choice_values]
+
+    class Meta:
+        unique_together = ("scheme", "scheme_question")
+
+
+class SchemeCredentialQuestionChoiceValue(models.Model):
+    choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
+    value = models.CharField(max_length=250)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        ordering = ['value']
 
 
 class SchemeAccountCredentialAnswer(models.Model):
