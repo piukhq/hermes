@@ -69,7 +69,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     @staticmethod
     def get_membership_cards(obj):
         links = PaymentCardSchemeEntry.objects.filter(payment_card_account=obj).all()
-        return map(lambda link: PaymentCardLinksSerializer(link).data, links)
+        return PaymentCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('token', 'psp_token', 'user_set', 'scheme_account_set')
@@ -108,7 +108,7 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
     @staticmethod
     def get_payment_cards(obj):
         links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
-        return map(lambda link: MembershipCardLinksSerializer(link).data, links)
+        return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(GetSchemeAccountSerializer.Meta):
         exclude = ('updated', 'is_deleted', 'user_set')
@@ -122,7 +122,7 @@ class ListMembershipCardSerializer(ListSchemeAccountSerializer):
     @staticmethod
     def get_payment_cards(obj):
         links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
-        return map(lambda link: MembershipCardLinksSerializer(link).data, links)
+        return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(ListSchemeAccountSerializer.Meta):
         fields = ListSchemeAccountSerializer.Meta.fields + ('balance', 'payment_cards')
