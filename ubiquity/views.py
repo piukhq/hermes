@@ -7,6 +7,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import credential_types_set
 from scheme.models import Scheme, SchemeAccount
@@ -16,7 +17,7 @@ from scheme.views import BaseLinkMixin, CreateAccount, RetrieveDeleteAccount
 from ubiquity.authentication import PropertyOrJWTAuthentication
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, ServiceConsentSerializer)
+                                  PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
 
@@ -178,3 +179,39 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         for pcard in user.payment_card_account_set.all():
             entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
             entry.activate_link()
+
+
+class LinkUnlinkView(APIView):
+    def patch(self, request):
+        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+
+        link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
+        link.activate_link()
+
+        response = PaymentCardSchemeEntrySerializer(link).data
+        return Response(response, status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+
+        try:
+            link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
+        except PaymentCardSchemeEntry.DoesNotExist:
+            raise NotFound('The link that you are trying to delete does not exist.')
+
+        link.delete()
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @staticmethod
+    def _collect_cards(params, user_id):
+        try:
+            pcard = PaymentCardAccount.objects.get(user_set__id=user_id, pk=params['payment_card'])
+            mcard = SchemeAccount.objects.get(user_set__id=user_id, pk=params['membership_card'])
+        except PaymentCardAccount.DoesNotExist:
+            raise NotFound('The payment card of id {} was not found.'.format(params['payment_card']))
+        except SchemeAccount.DoesNotExist:
+            raise NotFound('The membership card of id {} was not found.'.format(params['membership_card']))
+        except KeyError:
+            raise ParseError
+
+        return pcard, mcard

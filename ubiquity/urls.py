@@ -1,7 +1,7 @@
 from django.conf.urls import url
 
-from ubiquity.views import (LinkMembershipCardView, ListPaymentCardView, MembershipCardView, PaymentCardView,
-                            ServiceView, TestBalance)
+from ubiquity.views import (LinkMembershipCardView, LinkUnlinkView, ListPaymentCardView, MembershipCardView,
+                            PaymentCardView, ServiceView, TestBalance)
 
 urlpatterns = [
     url(r'^/service/?$', ServiceView.as_view(), name='service'),
@@ -10,4 +10,5 @@ urlpatterns = [
     url(r'^/membership_cards/?$', LinkMembershipCardView.as_view(), name='membership_cards'),
     url(r'^/membership_card/(?P<pk>[0-9]+)?$', MembershipCardView.as_view(), name='membership_card'),
     url(r'^/get_balance/?$', TestBalance.as_view(), name='get_balance'),
+    url(r'^/link$', LinkUnlinkView.as_view(), name='link_unlink')
 ]

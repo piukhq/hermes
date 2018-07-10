@@ -1,22 +1,21 @@
 from copy import copy
+
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
-from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
-from django.shortcuts import get_object_or_404
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent
+from scheme.credentials import CREDENTIAL_TYPES
+from scheme.models import (Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
+                           SchemeCredentialQuestion, SchemeImage, UserConsent)
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeImage
         exclude = ('scheme',)
 
 
 class SchemeAccountImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeAccountImage
         fields = '__all__'
@@ -32,7 +31,6 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class ConsentsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Consent
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
@@ -166,7 +164,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme)\
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():
@@ -231,8 +229,8 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'is_deleted', 'balance')
-        read_only_fields = ('status', )
+        exclude = ('updated', 'is_deleted', 'balance', 'user_set')
+        read_only_fields = ('status',)
 
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
@@ -277,7 +275,6 @@ class QuerySchemeAccountSerializer(serializers.ModelSerializer):
 
 
 class ReferenceImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeImage
         fields = (
@@ -291,10 +288,9 @@ class StatusSerializer(serializers.Serializer):
 
 
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeAccount
-        fields = ('id', )
+        fields = ('id',)
 
 
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
@@ -368,14 +364,12 @@ def get_images_for_scheme_account(scheme_account):
 
 
 class DonorSchemeInfoSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
 
 
 class HostSchemeInfoSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
