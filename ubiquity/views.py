@@ -148,10 +148,13 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         data = self.create_account(request, *args, **kwargs)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
         serializer = LinkSchemeSerializer(data=activate, context={'scheme_account': scheme_account})
-        balance = self.link_account(serializer, scheme_account, request.user)
+        try:
+            balance = self.link_account(serializer, scheme_account, request.user)
+        except:
+            balance = {}
         scheme_account.link_date = timezone.now()
         scheme_account.save()
-
+        self._link_to_all_payment_cards(scheme_account, request.user)
         return Response(balance, status=status.HTTP_201_CREATED)
 
     def _collect_credentials_answers(self, data):

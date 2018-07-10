@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import CREDENTIAL_TYPES
+from scheme.credentials import CREDENTIAL_TYPES, credential_types_set
 from scheme.models import (Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
                            SchemeCredentialQuestion, SchemeImage, UserConsent)
 
@@ -164,13 +164,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
-            .exclude(status=SchemeAccount.JOIN)
-
-        if scheme_accounts.exists():
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
-
-        answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
+        answer_types = set(data).intersection(credential_types_set)
         if len(answer_types) != 1:
             raise serializers.ValidationError("You must submit one scan or manual question answer")
 
@@ -179,6 +173,13 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         # only allow one credential
         if answer_type not in self.allowed_answers(scheme):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
+
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
+            .exclude(status=SchemeAccount.JOIN)
+        for sa in scheme_accounts.all():
+            if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
+                raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
+
         return data
 
     @staticmethod
