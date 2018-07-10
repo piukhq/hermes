@@ -193,8 +193,14 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
     @staticmethod
     def _link_to_all_payment_cards(mcard, user):
         for pcard in user.payment_card_account_set.all():
+            other_entry = PaymentCardSchemeEntry.objects.filter(payment_card_account=pcard).first()
             entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
-            entry.activate_link()
+
+            if other_entry:
+                entry.active_link = other_entry.active_link
+                entry.save()
+            else:
+                entry.activate_link()
 
 
 class LinkUnlinkView(APIView):
