@@ -60,7 +60,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        return PaymentCardAccount.objects.filter(user_set__id=user_id)
+        return self.queryset.filter(user_set__id=user_id)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -105,17 +105,22 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
 
 class ListCreatePaymentCardAccount(APIView):
+    serializer_class = serializers.PaymentCardAccountSerializer
 
     def get(self, request):
         """List payment card accounts
         ---
         response_serializer: serializers.PaymentCardAccountSerializer
         """
-        accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
+        accounts = [self.serializer_class(instance=account).data for account in
                     PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
         return Response(accounts, status=200)
 
     def post(self, request):
+        message, status_code, _ = self.create_payment_card_account(request.data, request.user)
+        return Response(message, status=status_code)
+
+    def create_payment_card_account(self, data, user):
         """Add a payment card account
         ---
         request_serializer: serializers.PaymentCardAccountSerializer
@@ -127,37 +132,43 @@ class ListCreatePaymentCardAccount(APIView):
               message: A payment card account by that fingerprint and expiry already exists.
         """
 
-        serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
+        serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
         if serializer.is_valid():
             data = serializer.validated_data
-            account = PaymentCardAccount(**data)
+            try:
+                account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
+                                                         expiry_month=data['expiry_month'],
+                                                         expiry_year=data['expiry_year'])
+            except PaymentCardAccount.DoesNotExist:
+                account = PaymentCardAccount(**data)
+                result = self._create_payment_card_account(account, user)
+                if not isinstance(result, PaymentCardAccount):
+                    return result
 
-            if account.payment_card.system != PaymentCard.MASTERCARD:
-                accounts = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
-                                                             expiry_month=account.expiry_month,
-                                                             expiry_year=account.expiry_year)
-                if accounts.exists():
-                    return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
-                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+                self.apply_barclays_images(account)
 
-            # create_payment_card_account either returns the created account, or an error response.
-            result = self.create_payment_card_account(account, request.user)
-            if not isinstance(result, PaymentCardAccount):
-                return result
+            else:
+                # if the payment card exists already in another user, link it to this user and import all the scheme
+                # accounts currently linked to it.
+                if account.is_deleted:
+                    account.is_deleted = False
+                    account.save()
 
-            self.apply_barclays_images(account)
+                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
+                for scheme_account in account.scheme_account_set.all():
+                    SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
             try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account, request.user)
+                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account, user)
             except intercom_api.IntercomException:
                 sentry.captureException()
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return response_serializer.data, status.HTTP_201_CREATED, account
+        return serializer.errors, status.HTTP_400_BAD_REQUEST, None
 
     @staticmethod
-    def create_payment_card_account(account, user):
+    def _create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
             # get the oldest matching account
             old_account = PaymentCardAccount.all_objects.filter(
@@ -166,7 +177,9 @@ class ListCreatePaymentCardAccount(APIView):
             if old_account:
                 return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
-        metis.enrol_new_payment_card(account)
+        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+        # todo re activate metis enrol
+        # metis.enrol_new_payment_card(account)
         return account
 
     @staticmethod

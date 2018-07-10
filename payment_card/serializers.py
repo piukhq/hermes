@@ -9,7 +9,6 @@ from user.models import ClientApplication
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardImage
         fields = '__all__'
@@ -25,7 +24,6 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 
 
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccountImage
         exclude = ('payment_card_accounts',)
@@ -63,11 +61,10 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('token', 'psp_token')
+        exclude = ('token', 'psp_token', 'consent', 'user_set')
 
 
 class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccount
         fields = '__all__'
@@ -98,11 +95,10 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('token', 'psp_token')
+        exclude = ('token', 'psp_token', 'consent')
 
 
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccount
         fields = ('status',)
@@ -113,8 +109,8 @@ class PaymentCardSchemeAccountSerializer(serializers.Serializer):
     user_id = serializers.ReadOnlyField()
     scheme_account_id = serializers.ReadOnlyField()
     extra_kwargs = {'token': {'write_only': True}, 'user': {'required': False}}
-    read_only_fields = ('status', 'order', )
-    exclude = ('is_deleted', )
+    read_only_fields = ('status', 'order',)
+    exclude = ('is_deleted',)
 
 
 class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
@@ -127,7 +123,6 @@ class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
 
 
 class ProviderStatusMappingSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.ProviderStatusMapping
         fields = ('provider_status_code', 'bink_status_code')

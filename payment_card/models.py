@@ -2,6 +2,7 @@ import base64
 import uuid
 
 from bulk_update.helper import bulk_update
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
@@ -164,6 +165,7 @@ class PaymentCardAccount(models.Model):
     issuer = models.ForeignKey(Issuer)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+    consent = JSONField(default={})
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
