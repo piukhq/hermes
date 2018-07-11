@@ -69,9 +69,3 @@ class TestViews(APITestCase):
         wrong_header_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
         self.assertEqual(wrong_header_resp.status_code, 403)
         self.assertIn('Invalid token', wrong_header_resp.json()['detail'])
-
-    def test_same_scheme_membership_cards(self):
-        pass
-
-    def test_card_linking(self):
-        pass
