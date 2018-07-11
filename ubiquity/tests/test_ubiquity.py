@@ -1,8 +1,6 @@
 import arrow
-from django.test import TestCase
 from rest_framework.test import APITestCase
 
-from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
 from user.tests.factories import ClientApplicationBundleFactory
@@ -72,10 +70,8 @@ class TestViews(APITestCase):
         self.assertEqual(wrong_header_resp.status_code, 403)
         self.assertIn('Invalid token', wrong_header_resp.json()['detail'])
 
+    def test_same_scheme_membership_cards(self):
+        pass
 
-class TestBalance(TestCase):
-
-    def test_get_balance(self):
-        mcard_entry = SchemeAccountEntryFactory()
-        mcard = mcard_entry.scheme_account
-        mcard.get_midas_balance([1,2,3])
+    def test_card_linking(self):
+        pass

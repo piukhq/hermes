@@ -357,15 +357,22 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
 
-CACHES = {
-    "default": {
+cache_options = {
+    'redis': {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://localhost:6379/1",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },
         "KEY_PREFIX": "hermes"
+    },
+    'test': {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
+}
+
+CACHES = {
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
 }
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes

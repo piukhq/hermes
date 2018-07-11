@@ -3,7 +3,7 @@ from arrow.parser import ParserError
 from rest_framework import serializers
 
 from payment_card.serializers import PaymentCardAccountSerializer
-from scheme.serializers import GetSchemeAccountSerializer, ListSchemeAccountSerializer
+from scheme.serializers import BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -76,14 +76,6 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
 
 
-class BalanceSerializer(serializers.Serializer):
-    points = serializers.FloatField()
-    value = serializers.FloatField()
-    value_label = serializers.CharField()
-    points_label = serializers.CharField()
-    reward_tier = serializers.IntegerField()
-
-
 class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
     id = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
@@ -102,8 +94,13 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
 
 class MembershipCardSerializer(GetSchemeAccountSerializer):
-    balance = BalanceSerializer(read_only=True)
+    balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_balance(obj):
+        balance = obj.balance if obj.balance else None
+        return BalanceSerializer(balance).data
 
     @staticmethod
     def get_payment_cards(obj):
@@ -116,8 +113,13 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
 
 
 class ListMembershipCardSerializer(ListSchemeAccountSerializer):
-    balance = BalanceSerializer(read_only=True)
+    balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_balance(obj):
+        balance = obj.balance if obj.balance else None
+        return BalanceSerializer(balance).data
 
     @staticmethod
     def get_payment_cards(obj):

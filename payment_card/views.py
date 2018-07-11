@@ -147,6 +147,9 @@ class ListCreatePaymentCardAccount(APIView):
 
                 self.apply_barclays_images(account)
 
+            except Exception as e:
+                raise e
+
             else:
                 # if the payment card exists already in another user, link it to this user and import all the scheme
                 # accounts currently linked to it.
@@ -178,8 +181,7 @@ class ListCreatePaymentCardAccount(APIView):
                 return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
         PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
-        # todo re activate metis enrol
-        # metis.enrol_new_payment_card(account)
+        metis.enrol_new_payment_card(account)
         return account
 
     @staticmethod

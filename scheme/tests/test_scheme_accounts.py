@@ -17,8 +17,8 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeAccountImageFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory)
-from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.models import SchemeAccountEntry
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
 
@@ -368,15 +368,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(set(expected_fields.keys()),
                          set(LinkSchemeSerializer._declared_fields.keys())
                          )
-
-    def test_unique_scheme_account(self):
-        response = self.client.post('/schemes/accounts', data={'scheme': self.scheme_account.scheme.id,
-                                                               USER_NAME: 'sdf', 'order': 0}, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data,
-                         {'non_field_errors': ["You already have an account for this scheme: '{}'".format(
-                             str(self.scheme_account.scheme))]})
 
     def test_scheme_account_summary(self):
         response = self.client.get('/schemes/accounts/summary', **self.auth_service_headers)
@@ -1265,7 +1256,7 @@ class TestSchemeAccountModel(APITestCase):
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_credentials.called)
 
@@ -1275,7 +1266,7 @@ class TestSchemeAccountModel(APITestCase):
         mock_request.return_value.json.return_value = {'points': 500}
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertEqual(points['points'], 500)
         self.assertFalse(points['is_stale'])
         self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
@@ -1284,7 +1275,7 @@ class TestSchemeAccountModel(APITestCase):
     def test_get_midas_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)

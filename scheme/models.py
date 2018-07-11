@@ -3,6 +3,7 @@ import re
 import socket
 import sre_constants
 import uuid
+from decimal import Decimal
 
 import requests
 from bulk_update.manager import BulkUpdateManager
@@ -400,8 +401,8 @@ class SchemeAccount(models.Model):
             balance = self.get_midas_balance()
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
-        if balance != self.balance:
-            self.balance = balance
+        if balance != self.balance and balance:
+            self.balance = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
             self.save()
 
         return self.balance
