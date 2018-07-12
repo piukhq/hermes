@@ -123,7 +123,6 @@ class UserConsentSerializer(serializers.Serializer):
         for consent in consents:
             value = consent['value']
             consent = get_object_or_404(Consent, pk=consent['id'])
-
             UserConsent(scheme_account=scheme_account, consent_text=consent.text, value=value, slug=consent.slug).save()
 
 
@@ -153,6 +152,11 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     scheme = serializers.IntegerField()
     order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
+
+    def save(self):
+        if 'consents' in self.validated_data:
+            UserConsentSerializer.consents_save(self.context['scheme_account'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         try:
