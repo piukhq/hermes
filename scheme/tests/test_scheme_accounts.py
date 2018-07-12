@@ -20,7 +20,7 @@ from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
-    TITLE, FIRST_NAME, LAST_NAME
+    TITLE, FIRST_NAME, LAST_NAME, ADDRESS_1, ADDRESS_2, TOWN_CITY
 
 from user.tests.factories import UserFactory
 
@@ -1100,19 +1100,23 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme,
-                                        type=EMAIL,
-                                        manual_question=True,
+        SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, manual_question=True,
                                         options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PHONE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=TITLE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=FIRST_NAME, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=LAST_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_1, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_2, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=TOWN_CITY, options=SchemeCredentialQuestion.JOIN)
 
         phone_number = '01234567890'
         title = 'mr'
         first_name = 'bob'
         last_name = 'test'
+        address_1 = '1 ascot road'
+        address_2 = 'caversham'
+        town_city = 'ascot'
         data = {
             'save_user_information': True,
             'order': 2,
@@ -1123,6 +1127,9 @@ class TestSchemeAccountViews(APITestCase):
             'title': title,
             'first_name': first_name,
             'last_name': last_name,
+            'address_1': address_1,
+            'address_2': address_2,
+            'town_city': town_city,
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
@@ -1132,6 +1139,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(user_profile.phone, phone_number)
         self.assertEqual(user_profile.first_name, first_name)
         self.assertEqual(user_profile.last_name, last_name)
+        self.assertEqual(user_profile.address_line_1, address_1)
+        self.assertEqual(user_profile.address_line_2, address_2)
+        self.assertEqual(user_profile.city, town_city)
 
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
