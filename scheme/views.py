@@ -867,8 +867,8 @@ class Join(SwappableSerializerMixin, GenericAPIView):
     def save_user_profile(credentials, user):
         for question, answer in credentials.items():
             try:
-                setattr(user.profile, question, answer)
-            except Exception:
+                user.profile.set_field(question, answer)
+            except AttributeError:
                 continue
         user.profile.save()
 
