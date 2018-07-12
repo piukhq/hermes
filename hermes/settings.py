@@ -371,8 +371,4 @@ cache_options = {
     }
 }
 
-CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
-}
-
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes

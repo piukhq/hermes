@@ -155,10 +155,9 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
 
     def post(self, request, *args, **kwargs):
         activate = self._collect_credentials_answers(request.data)
-        for key in activate.keys():
-            del request.data[key]
+        create = {k: v for k, v in request.data.items() if k not in activate.keys()}
 
-        data = self.create_account(request, *args, **kwargs)
+        data = self.create_account(create, request.user)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
         serializer = LinkSchemeSerializer(data=activate, context={'scheme_account': scheme_account})
         try:
@@ -204,6 +203,7 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
 
 
 class LinkUnlinkView(APIView):
+
     def patch(self, request):
         pcard, mcard = self._collect_cards(request.query_params, request.user.id)
 
