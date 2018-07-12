@@ -1,3 +1,4 @@
+import arrow
 import json
 import re
 import socket
@@ -162,6 +163,7 @@ class Consent(models.Model):
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
+    slug = models.SlugField(max_length=50, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
@@ -321,6 +323,18 @@ class SchemeAccount(models.Model):
                 credentials[question.type] = answer
         return credentials
 
+    def collect_consents(self):
+        user_consents = self.userconsent_set.all().values()
+
+        return [
+            {
+                "slug": user_consent['slug'],
+                "value": user_consent['value'],
+                "created_on": arrow.get(user_consent['created_on']).for_json()
+            }
+            for user_consent in user_consents
+        ]
+
     def missing_credentials(self, credential_types):
         """
         Given a list of credential_types return credentials if they are required by the scheme
@@ -354,6 +368,8 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None
+
+        credentials.update(consents=self.collect_consents())
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
@@ -641,10 +657,10 @@ def encryption_handler(sender, instance, **kwargs):
 
 class UserConsent(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
-    modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
-    consent = models.ForeignKey(Consent, related_name='user_consent')
+    scheme_account = models.ForeignKey(SchemeAccount)
+    slug = models.SlugField(max_length=50)
+    consent_text = models.TextField()
     value = models.BooleanField()
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
+        return '{} - {}: {}'.format(self.scheme_account.user.email, self.slug, self.value)

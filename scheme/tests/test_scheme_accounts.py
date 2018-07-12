@@ -1,5 +1,6 @@
 import datetime
 import json
+import secrets
 
 from decimal import Decimal
 from django.conf import settings
@@ -158,14 +159,12 @@ class TestSchemeAccountViews(APITestCase):
 
         consent1 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=1
+            slug=secrets.token_urlsafe()
         )
 
         consent2 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=2
+            slug=secrets.token_urlsafe()
         )
 
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
@@ -175,17 +174,15 @@ class TestSchemeAccountViews(APITestCase):
                 ]
                 }
 
-        # add an existing conesent to user consents to verify updates correctly
-        UserConsent.objects.create(user=self.user, consent=consent2, value=not test_reply2)
-
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
-        set_values = UserConsent.objects.filter(user=self.user).values()
+
+        set_values = UserConsent.objects.filter(scheme_account=self.scheme_account).values()
         self.assertEqual(len(set_values), 2, "Incorrect number of consents found expected 2")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
-            elif set_value['consent_id'] == consent2.id:
+            elif set_value['slug'] == consent2.slug:
                 self.assertEqual(set_value['value'], test_reply2, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
@@ -349,7 +346,8 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
-                                                 'username': self.scheme_account_answer.answer})
+                                                 'username': self.scheme_account_answer.answer,
+                                                 'consents': []})
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, user=self.user)
@@ -1054,10 +1052,12 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
-        set_values = UserConsent.objects.filter(user=self.user).values()
+        new_scheme_account = SchemeAccount.objects.get(user=self.user, scheme=scheme)
+
+        set_values = UserConsent.objects.filter(scheme_account=new_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consent not set")

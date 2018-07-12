@@ -119,16 +119,12 @@ class UserConsentSerializer(serializers.Serializer):
     value = serializers.BooleanField()
 
     @staticmethod
-    def consents_save(user, consents):
+    def consents_save(scheme_account, consents):
         for consent in consents:
             value = consent['value']
             consent = get_object_or_404(Consent, pk=consent['id'])
-            user_consent = UserConsent.objects.filter(user=user, consent=consent).first()
-            if user_consent:
-                user_consent.value = value
-            else:
-                user_consent = UserConsent(user=user, consent=consent, value=value)
-            user_consent.save()
+
+            UserConsent(scheme_account=scheme_account, consent_text=consent.text, value=value, slug=consent.slug).save()
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
@@ -136,9 +132,7 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
     def save(self):
         if 'consents' in self.validated_data:
-            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
-            # note needed to remove consents using POP and not GET so as to allow test cases to pass
-            # this may require further investigation and refactor as too much processing in views
+            UserConsentSerializer.consents_save(self.context['scheme_account'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         # Validate no manual answer
@@ -418,7 +412,8 @@ class JoinSerializer(SchemeAnswerSerializer):
 
     def save(self):
         if 'consents' in self.validated_data:
-            UserConsentSerializer.consents_save(self.context['user'], self.validated_data.pop('consents'))
+            scheme_account = get_object_or_404(SchemeAccount, user=self.context['user'], scheme=self.context['scheme'])
+            UserConsentSerializer.consents_save(scheme_account, self.validated_data.pop('consents'))
 
     def validate(self, data):
         scheme = self.context['scheme']

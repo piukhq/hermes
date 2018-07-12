@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 
 import factory
@@ -55,6 +56,7 @@ class ConsentFactory(factory.DjangoModelFactory):
     required = True
     order = 1
     journey = Consent.LINK
+    slug = secrets.token_urlsafe()
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
