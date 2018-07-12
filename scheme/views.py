@@ -25,7 +25,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer)
+                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -265,6 +265,10 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 answer=data[answer_type],
             )
         data['id'] = scheme_account.id
+
+        if 'consents' in data:
+            UserConsentSerializer.consents_save(scheme_account, data.pop('consents'))
+
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
         except intercom_api.IntercomException:
