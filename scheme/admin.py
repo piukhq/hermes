@@ -143,9 +143,9 @@ class ExchangeAdmin(admin.ModelAdmin):
 
 @admin.register(UserConsent)
 class UserConsentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'consent', 'value', 'created_on', 'modified_on')
-    search_fields = ('user__email', 'consent__scheme__slug', 'value')
-    list_filter = ('consent__scheme__slug', 'value', 'consent__journey', 'consent__required', 'consent__is_enabled')
+    list_display = ('id', 'slug', 'scheme_account', 'consent_text', 'value', 'created_on')
+    search_fields = ('scheme_account__user__email', 'slug', 'consent_text', 'value')
+    readonly_fields = ('consent_text', 'value', 'scheme_account', 'slug', 'created_on')
 
 
 @admin.register(Consent)
@@ -157,6 +157,11 @@ class ConsentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Consent.all_objects.all()
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # editing an existing object
+            return self.readonly_fields + ('slug',)
+        return self.readonly_fields
 
 
 class SchemeCredentialQuestionChoiceValueInline(admin.TabularInline):

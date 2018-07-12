@@ -797,10 +797,14 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                                                                 'user': request.user
                                                                 })
         serializer.is_valid(raise_exception=True)
-        serializer.save()                           # Save consents
         data = serializer.validated_data
         data['scheme'] = scheme_id
+
         scheme_account = self.create_join_account(data, request.user, scheme_id)
+        serializer.save()                           # Save consents
+
+        data['credentials'].update(consents=scheme_account.collect_consents())
+
         try:
             data['id'] = scheme_account.id
             if data['save_user_information']:
@@ -818,6 +822,10 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         except Exception:
             scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
             [answer.delete() for answer in scheme_account_answers]
+
+            user_consents = scheme_account.userconsent_set.all()
+            [user_consent.delete() for user_consent in user_consents]
+
             scheme_account.status = SchemeAccount.JOIN
             scheme_account.save()
             sentry.captureException()
