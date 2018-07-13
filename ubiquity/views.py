@@ -84,13 +84,32 @@ class TestBalance(APIView):
 class PaymentCardView(RetrievePaymentCardAccount):
     serializer_class = PaymentCardSerializer
 
+    def get_queryset(self):
+        query = {'user_set__id': self.request.user.id}
+        if self.request.allowed_issuers:
+            query['issuer__in'] = self.request.allowed_issuers
+
+        return self.queryset.filter(**query)
+
 
 class ListPaymentCardView(ListCreatePaymentCardAccount):
     serializer_class = PaymentCardSerializer
 
+    def get(self, request):
+        query = {'user_set__id': request.user.id}
+        if request.allowed_issuers:
+            query['issuer__in'] = request.allowed_issuers
+
+        accounts = [self.serializer_class(instance=account).data for account in
+                    PaymentCardAccount.objects.filter(**query)]
+        return Response(accounts, status=200)
+
     def post(self, request, *args, **kwargs):
         try:
             pcard_data = request.data['card']
+            if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
+                raise ParseError('issuer not allowed for this user.')
+
             consent = request.data['account']['consent']
         except KeyError:
             raise ParseError
@@ -130,6 +149,13 @@ class MembershipCardView(RetrieveDeleteAccount):
         'OPTIONS': GetSchemeAccountSerializer,
     }
 
+    def get_queryset(self):
+        query = {'user_set__id': self.request.user.id}
+        if self.request.allowed_schemes:
+            query['scheme__in'] = self.request.allowed_schemes
+
+        return SchemeAccount.objects.filter(**query)
+
     def get(self, request, *args, **kwargs):
         serializer = self.get_serializer_class()
         account = get_object_or_404(SchemeAccount, pk=kwargs['pk'])
@@ -144,6 +170,13 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         'OPTIONS': ListSchemeAccountSerializer,
     }
 
+    def get_queryset(self):
+        query = {'user_set__id': self.request.user.id}
+        if self.request.allowed_schemes:
+            query['scheme__in'] = self.request.allowed_schemes
+
+        return SchemeAccount.objects.filter(**query)
+
     def get(self, request, *args, **kwargs):
         serializer = self.get_serializer_class()
         accounts = self.get_queryset()
@@ -156,6 +189,8 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
     def post(self, request, *args, **kwargs):
         activate = self._collect_credentials_answers(request.data)
         create = {k: v for k, v in request.data.items() if k not in activate.keys()}
+        if request.allowed_schemes and create['scheme'] not in request.allowed_schemes:
+            raise ParseError('scheme not allowed for this user.')
 
         data = self.create_account(create, request.user)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
