@@ -158,7 +158,7 @@ class MembershipCardView(RetrieveDeleteAccount):
 
     def get(self, request, *args, **kwargs):
         serializer = self.get_serializer_class()
-        account = get_object_or_404(SchemeAccount, pk=kwargs['pk'])
+        account = get_object_or_404(self.get_queryset(), pk=kwargs['pk'])
         account.get_cached_balance()
         return Response(serializer(account).data)
 
@@ -187,10 +187,11 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         return Response(serializer(accounts, many=True).data)
 
     def post(self, request, *args, **kwargs):
+        if request.allowed_schemes and request.data['scheme'] not in request.allowed_schemes:
+            raise ParseError('scheme not allowed for this user.')
+
         activate = self._collect_credentials_answers(request.data)
         create = {k: v for k, v in request.data.items() if k not in activate.keys()}
-        if request.allowed_schemes and create['scheme'] not in request.allowed_schemes:
-            raise ParseError('scheme not allowed for this user.')
 
         data = self.create_account(create, request.user)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
