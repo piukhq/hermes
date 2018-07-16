@@ -129,3 +129,15 @@ class ListMembershipCardSerializer(ListSchemeAccountSerializer):
     class Meta(ListSchemeAccountSerializer.Meta):
         fields = ListSchemeAccountSerializer.Meta.fields + ('balance', 'payment_cards')
         read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards',)
+
+
+class TransactionsSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    scheme_account_id = serializers.IntegerField()
+    created = serializers.DateTimeField()
+    date = serializers.DateField()
+    description = serializers.CharField()
+    location = serializers.CharField()
+    points = serializers.IntegerField()
+    value = serializers.CharField()
+    hash = serializers.CharField()

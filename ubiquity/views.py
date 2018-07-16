@@ -1,5 +1,7 @@
 import uuid
 
+import requests
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError
@@ -17,7 +19,8 @@ from scheme.views import BaseLinkMixin, CreateAccount, RetrieveDeleteAccount
 from ubiquity.authentication import PropertyOrJWTAuthentication
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer)
+                                  PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer,
+                                  TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
 
@@ -273,3 +276,29 @@ class LinkUnlinkView(APIView):
             raise ParseError
 
         return pcard, mcard
+
+
+class MembershipCardTransactionsView(APIView):
+    serializer = TransactionsSerializer
+
+    def get(self, request, mcard_id):
+        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
+        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        serializer = self.serializer(resp.json(), many=True)
+        return Response(serializer.data)
+
+
+class UserTransactions(APIView):
+    serializer = TransactionsSerializer
+
+    def get(self, request):
+        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
+        url = settings.HADES_URL + '/transactions/scheme_account/{}'
+        transactions = []
+        for account in SchemeAccount.objects.filter(user_set__id=request.user.id).all():
+            resp = requests.get(url.format(account.pk), headers=headers)
+            transactions.extend(resp.json())
+
+        serializer = self.serializer(transactions, many=True)
+        return Response(serializer.data)
