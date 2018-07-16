@@ -3,6 +3,8 @@ from decimal import Decimal
 from unittest.mock import patch
 
 import arrow
+import httpretty
+from django.conf import settings
 from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
@@ -283,3 +285,24 @@ class TestResources(APITestCase):
         }
         resp = self.client.post(reverse('membership_cards'), data=payload, **self.auth_headers)
         self.assertIn('scheme not allowed', resp.json()['detail'])
+
+    @httpretty.activate
+    def test_membership_card_transactions(self):
+        uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
+        transactions = [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account.id,
+                'created': arrow.utcnow().datetime,
+                'date': arrow.utcnow().datetime,
+                'description': 'Test Transaction',
+                'location': 'Bink',
+                'points': 200,
+                'value': 'A lot',
+                'hash': 'ewfnwoenfwen'
+            }
+        ]
+        httpretty.register_uri(method=httpretty.GET, uri=uri, body=transactions, status=201)
+        resp = self.client.get(reverse('get_transactions', args=[self.scheme_account, id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp, json, transactions)
