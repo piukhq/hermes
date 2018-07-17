@@ -113,7 +113,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount):
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
-            consent = request.data['account']['consent']
+            consent = request.data['consent']
         except KeyError:
             raise ParseError
 
@@ -190,11 +190,15 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         return Response(serializer(accounts, many=True).data)
 
     def post(self, request, *args, **kwargs):
-        if request.allowed_schemes and request.data['scheme'] not in request.allowed_schemes:
-            raise ParseError('scheme not allowed for this user.')
+        if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
+            raise ParseError('membership plan not allowed for this user.')
 
         activate = self._collect_credentials_answers(request.data)
-        create = {k: v for k, v in request.data.items() if k not in activate.keys()}
+        create = {
+            k if k != 'membership_plan' else 'scheme': v
+            for k, v in request.data.items()
+            if k not in activate.keys()
+        }
 
         data = self.create_account(create, request.user)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
@@ -209,7 +213,7 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         return Response(balance, status=status.HTTP_201_CREATED)
 
     def _collect_credentials_answers(self, data):
-        scheme = Scheme.objects.get(id=data['scheme'])
+        scheme = Scheme.objects.get(id=data['membership_plan'])
         allowed_answers = self.allowed_answers(scheme)
         return {
             k: v
@@ -241,10 +245,10 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
                 entry.activate_link()
 
 
-class LinkUnlinkView(APIView):
+class CreateDeleteLinkView(APIView):
 
-    def patch(self, request):
-        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+    def patch(self, request, pcard_id, mcard_id):
+        pcard, mcard = self._collect_cards(pcard_id, mcard_id, request.user.id)
 
         link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
         link.activate_link()
@@ -252,8 +256,8 @@ class LinkUnlinkView(APIView):
         response = PaymentCardSchemeEntrySerializer(link).data
         return Response(response, status.HTTP_201_CREATED)
 
-    def delete(self, request):
-        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+    def delete(self, request, pcard_id, mcard_id):
+        pcard, mcard = self._collect_cards(pcard_id, mcard_id, request.user.id)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
@@ -264,18 +268,18 @@ class LinkUnlinkView(APIView):
         return Response(status=status.HTTP_202_ACCEPTED)
 
     @staticmethod
-    def _collect_cards(params, user_id):
+    def _collect_cards(payment_card_id, membership_card_id, user_id):
         try:
-            pcard = PaymentCardAccount.objects.get(user_set__id=user_id, pk=params['payment_card'])
-            mcard = SchemeAccount.objects.get(user_set__id=user_id, pk=params['membership_card'])
+            payment_card = PaymentCardAccount.objects.get(user_set__id=user_id, pk=payment_card_id)
+            membership_card = SchemeAccount.objects.get(user_set__id=user_id, pk=membership_card_id)
         except PaymentCardAccount.DoesNotExist:
-            raise NotFound('The payment card of id {} was not found.'.format(params['payment_card']))
+            raise NotFound('The payment card of id {} was not found.'.format(payment_card_id))
         except SchemeAccount.DoesNotExist:
-            raise NotFound('The membership card of id {} was not found.'.format(params['membership_card']))
+            raise NotFound('The membership card of id {} was not found.'.format(membership_card_id))
         except KeyError:
             raise ParseError
 
-        return pcard, mcard
+        return payment_card, membership_card
 
 
 class MembershipCardTransactionsView(APIView):

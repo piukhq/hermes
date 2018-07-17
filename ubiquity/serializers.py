@@ -3,7 +3,9 @@ from arrow.parser import ParserError
 from rest_framework import serializers
 
 from payment_card.serializers import PaymentCardAccountSerializer
-from scheme.serializers import BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer
+from scheme.models import SchemeAccount
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
+                                SchemeSerializerNoQuestions)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -96,6 +98,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 class MembershipCardSerializer(GetSchemeAccountSerializer):
     balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
+    membership_plan = SchemeSerializerNoQuestions(read_only=True, source='scheme')
 
     @staticmethod
     def get_balance(obj):
@@ -107,14 +110,28 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
         links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
         return MembershipCardLinksSerializer(links, many=True).data
 
-    class Meta(GetSchemeAccountSerializer.Meta):
-        exclude = ('updated', 'is_deleted', 'user_set')
-        read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards',)
+    class Meta:
+        model = SchemeAccount
+        read_only_fields = ('status', 'payment_cards', 'membership_plan')
+        fields = ('id',
+                  'status',
+                  'order',
+                  'created',
+                  'action_status',
+                  'status_name',
+                  'barcode',
+                  'card_label',
+                  'images',
+                  'balance',
+                  'payment_cards',
+                  'membership_plan',
+                  'link_date')
 
 
 class ListMembershipCardSerializer(ListSchemeAccountSerializer):
     balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
+    membership_plan = SchemeSerializerNoQuestions(source='scheme')
 
     @staticmethod
     def get_balance(obj):
@@ -127,8 +144,19 @@ class ListMembershipCardSerializer(ListSchemeAccountSerializer):
         return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(ListSchemeAccountSerializer.Meta):
-        fields = ListSchemeAccountSerializer.Meta.fields + ('balance', 'payment_cards')
-        read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards',)
+        read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards', 'membership_plan')
+        fields = ('id',
+                  'status',
+                  'order',
+                  'created',
+                  'action_status',
+                  'status_name',
+                  'barcode',
+                  'card_label',
+                  'images',
+                  'balance',
+                  'payment_cards',
+                  'membership_plan')
 
 
 class TransactionsSerializer(serializers.Serializer):
