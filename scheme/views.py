@@ -805,11 +805,11 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         data['scheme'] = scheme_id
 
         scheme_account = self.create_join_account(data, request.user, scheme_id)
-        serializer.save()                           # Save consents
-
-        data['credentials'].update(consents=scheme_account.collect_consents())
 
         try:
+            serializer.save()                           # Save consents
+
+            data['credentials'].update(consents=scheme_account.collect_consents())
             data['id'] = scheme_account.id
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], request.user)
