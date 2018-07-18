@@ -416,7 +416,7 @@ class JoinSerializer(SchemeAnswerSerializer):
 
     def save(self):
         if 'consents' in self.validated_data:
-            scheme_account = get_object_or_404(SchemeAccount, user=self.context['user'], scheme=self.context['scheme'])
+            scheme_account = SchemeAccount.objects.get(user=self.context['user'], scheme=self.context['scheme'])
             UserConsentSerializer.consents_save(scheme_account, self.validated_data.pop('consents'))
 
     def validate(self, data):
