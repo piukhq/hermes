@@ -72,7 +72,6 @@ INSTALLED_APPS = (
     'django_admin_env_notice',
     'django.contrib.admin',
     'rest_framework',
-    'rest_framework_swagger',
     'corsheaders',
     'user',
     'scheme',
@@ -83,6 +82,7 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
+    'drf_yasg',
 )
 
 MIDDLEWARE_CLASSES = (

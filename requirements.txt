@@ -2,13 +2,13 @@ arrow==0.7.0
 blinker==1.4
 coverage==4.0.1
 decorator==4.0.2
-Django==1.11.1
+Django==1.11.7
 django-anymail==0.10
 django-bulk-update==2.1.0
 django-colorful==1.1.0
 django-cors-headers==1.1.0
 django-mail-templated==2.6.2
-djangorestframework==3.6.3
+djangorestframework==3.7.7
 django-rest-swagger==2.1.2
 factory-boy==2.5.2
 fake-factory==0.5.9
@@ -39,3 +39,4 @@ git+https://github.com/BackwardSpy/django-storages.git@1.7#egg=storages
 azure-storage-blob==1.1.0
 django-redis==4.9.0
 redis==2.10.6
+drf-yasg==1.9.1

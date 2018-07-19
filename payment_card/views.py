@@ -23,6 +23,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAcco
 from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.serializers import PaymentCardConsentSerializer, PaymentCardSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 

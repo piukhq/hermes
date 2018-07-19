@@ -62,11 +62,12 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('id', 'payment_card_account', 'scheme_account')
+        exclude = ('payment_card_account', 'scheme_account')
 
 
 class PaymentCardSerializer(PaymentCardAccountSerializer):
     membership_cards = serializers.SerializerMethodField()
+    token = None
 
     @staticmethod
     def get_membership_cards(obj):
@@ -74,7 +75,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         return PaymentCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
-        exclude = ('token', 'psp_token', 'user_set', 'scheme_account_set')
+        exclude = ('psp_token', 'user_set', 'scheme_account_set')
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
 
 
@@ -92,7 +93,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('id', 'scheme_account', 'payment_card_account')
+        exclude = ('scheme_account', 'payment_card_account')
 
 
 class MembershipCardSerializer(GetSchemeAccountSerializer):
