@@ -373,3 +373,9 @@ cache_options = {
 }
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
+
+INFLUX_DB_CONFIG = {
+    'host': env_var('INFLUX_DB_HOST', 'localhost'),
+    'port': int(env_var('INFLUX_DB_PORT', 8086))
+}
+INFLUX_DB_NAME = env_var('INFLUX_DB_NAME', 'active_card_audit')

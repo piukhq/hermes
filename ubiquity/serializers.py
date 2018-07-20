@@ -2,6 +2,7 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
+from payment_card.models import PaymentCardAccount
 from payment_card.serializers import PaymentCardAccountSerializer
 from scheme.models import SchemeAccount
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
@@ -171,3 +172,9 @@ class TransactionsSerializer(serializers.Serializer):
     points = serializers.IntegerField()
     value = serializers.CharField()
     hash = serializers.CharField()
+
+
+class ActiveCardAuditSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentCardSchemeEntry
+        fields = ()
