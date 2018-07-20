@@ -19,12 +19,13 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def validate_user(user):
-        try:
-            user_obj = CustomUser.objects.get(pk=user)
-        except CustomUser.DoesNotExist:
-            raise serializers.ValidationError("User {} not found.".format(user))
+        if not isinstance(user, CustomUser):
+            try:
+                user = CustomUser.objects.get(pk=user)
+            except CustomUser.DoesNotExist:
+                raise serializers.ValidationError("User {} not found.".format(user))
 
-        return user_obj
+        return user
 
     @staticmethod
     def validate_timestamp(timestamp):
