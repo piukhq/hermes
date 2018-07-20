@@ -41,14 +41,13 @@ class ServiceView(APIView):
     serializer_class = RegisterSerializer
     model = CustomUser
 
-    # todo is this secure?
     def get(self, request):
         user_data = {
             'client_id': request.bundle.client.pk,
             'email': '{}__{}'.format(request.bundle.client.client_id, request.prop_email),
             'uid': request.prop_email,
         }
-        user = get_object_or_404(self.model, **user_data)
+        get_object_or_404(self.model, **user_data)
         return Response({'email': user_data['email']})
 
     @swagger_auto_schema(
@@ -105,7 +104,7 @@ class PaymentCardView(RetrievePaymentCardAccount):
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
-            'payment_card_account__is_deleted': False
+            'is_deleted': False
         }
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
@@ -119,7 +118,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin)
     def get(self, request):
         query = {
             'user_set__id': request.user.id,
-            'payment_card_account__is_deleted': False
+            'is_deleted': False
         }
         if request.allowed_issuers:
             query['issuer__in'] = request.allowed_issuers
@@ -168,7 +167,7 @@ class MembershipCardView(RetrieveDeleteAccount):
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
-            'scheme_account__is_deleted': False
+            'is_deleted': False
         }
         if self.request.allowed_schemes:
             query['scheme__in'] = self.request.allowed_schemes
@@ -192,7 +191,7 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
-            'scheme_account__is_deleted': False
+            'is_deleted': False
         }
         if self.request.allowed_schemes:
             query['scheme__in'] = self.request.allowed_schemes
@@ -209,11 +208,11 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         return Response(serializer(accounts, many=True).data)
 
     def post(self, request, *args, **kwargs):
-        account, status_code = self._handle_membership_card_creation(request, *args, **kwargs)
+        account, status_code = self._handle_membership_card_creation(request)
         self._link_to_all_payment_cards(account, request.user)
-        return Response(account, status=status_code)
+        return Response(MembershipCardSerializer(account).data, status=status_code)
 
-    def _handle_membership_card_creation(self, request, *args, **kwargs):
+    def _handle_membership_card_creation(self, request):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
@@ -228,13 +227,9 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
         scheme_account = SchemeAccount.objects.get(id=data['id'])
         serializer = LinkSchemeSerializer(data=activate, context={'scheme_account': scheme_account})
 
-        try:
-            balance = self.link_account(serializer, scheme_account, request.user)
-        except:
-            balance = {}
+        self.link_account(serializer, scheme_account, request.user)
 
         scheme_account.link_date = timezone.now()
-        scheme_account.balance = balance
         scheme_account.save()
         return scheme_account, status.HTTP_201_CREATED
 
@@ -345,7 +340,7 @@ class CompositeMembershipCardView(LinkMembershipCardView):
     def get(self, request, *args, **kwargs):
         serializer = self.get_serializer_class()
         accounts = self.get_queryset()
-        query = {'scheme_account__payment_card_account_set__id': kwargs['pcard_id']}
+        query = {'payment_card_account_set__id': kwargs['pcard_id']}
         for account in accounts.filter(**query):
             account.get_cached_balance()
 
@@ -353,18 +348,18 @@ class CompositeMembershipCardView(LinkMembershipCardView):
 
     def post(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        account, status_code = self._handle_membership_card_creation(request, *args, **kwargs)
-        PaymentCardSchemeEntry(payment_card_account=pcard, scheme_account=account)
-        return Response(account, status=status_code)
+        account, status_code = self._handle_membership_card_creation(request)
+        PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
+        return Response(MembershipCardSerializer(account).data, status=status_code)
 
 
 class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin):
 
     def get(self, request, *args, **kwargs):
         query = {
-            'user': request.user.pk,
-            'payment_card_account__scheme_account_set__id': kwargs['mcard_id'],
-            'payment_card_account__is_deleted': False
+            'user_set__id': request.user.pk,
+            'scheme_account_set__id': kwargs['mcard_id'],
+            'is_deleted': False
         }
         if request.allowed_issuers:
             query['issuer__in'] = request.allowed_issuers
@@ -386,7 +381,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
         mcard = get_object_or_404(SchemeAccount, pk=kwargs['mcard_id'])
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
         if status_code == status.HTTP_201_CREATED:
-            PaymentCardSchemeEntry(payment_card_account=pcard, scheme_account=mcard)
+            PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
         return Response(message, status=status_code)

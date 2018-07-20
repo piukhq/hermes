@@ -5,7 +5,6 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
-from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
@@ -304,3 +303,83 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('get-transactions', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
+
+    def test_composite_payment_card_get(self):
+        resp = self.client.get(reverse('get_create_composite_pcards', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    @patch('intercom.intercom_api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_composite_payment_card_post(self, *_):
+        new_sa = SchemeAccountEntryFactory(user=self.user).scheme_account
+        payload = {
+            "card": {
+                "pan_end": 1234,
+                "currency_code": "GBP",
+                "pan_start": 123456,
+                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
+                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
+                "name_on_card": "test user composite",
+                "token": "abc2",
+                "fingerprint": "qwertyuioplkjhhgfdsa",
+                "expiry_year": 22,
+                "expiry_month": 3,
+                "country": "UK",
+                "order": 1
+            },
+            "consent": {
+                "latitude": 51.405372,
+                "longitude": -0.678357,
+                "timestamp": 1517549941
+            }
+        }
+        expected_links = [
+            {
+                'id': new_sa.id,
+                'name': str(new_sa),
+                'active_link': True
+            }
+        ]
+
+        resp = self.client.post(reverse('get_create_composite_pcards', args=[new_sa.id]), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(expected_links, resp.json()['membership_cards'])
+
+    def test_composite_membership_card_get(self):
+        resp = self.client.get(reverse('get_create_composite_mcards', args=[self.payment_card_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    @patch('intercom.intercom_api')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_composite_membership_card_post(self, mock_get_midas_balance, *_):
+        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        payload = {
+            "order": 1,
+            "membership_plan": self.scheme.id,
+            "barcode": "1234401022657083",
+            "last_name": "Test Composite"
+        }
+        expected_links = [
+            {
+                'id': new_pca.id,
+                'name': str(new_pca),
+                'active_link': True
+            }
+        ]
+
+        resp = self.client.post(reverse('get_create_composite_mcards', args=[new_pca.id]), data=payload,
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(expected_links, resp.json()['payment_cards'])
