@@ -14,6 +14,7 @@ from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
+from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardSerializer
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
@@ -173,6 +174,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
 
     @patch('intercom.intercom_api')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_create_membership_card_creation(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
@@ -383,3 +385,7 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['payment_cards'])
+
+    @patch('influxdb.InfluxDBClient')
+    def test_influx(self, *_):
+        audit.query_db()

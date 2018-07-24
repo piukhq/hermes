@@ -2,7 +2,7 @@ from django.conf import settings
 from influxdb import InfluxDBClient
 
 
-class InfluxAudit:
+class InfluxAudit(object):
     client = None
 
     def __init__(self):
@@ -13,31 +13,46 @@ class InfluxAudit:
 
         self.client.switch_database(settings.INFLUX_DB_NAME)
 
+    def __del__(self):
+        if self.client is not None:
+            self.client.close()
+
     @staticmethod
     def _format_audit_entry(card_link):
         """
         :param card_link:
         :type card_link: ubiquity.models.PaymentCardSchemeEntry
         """
+        user_set = ",".join(str(u.id) for u in card_link.payment_card_account.user_set.all())
         return {
-            "measurement": "cards_active_link",
+            "measurement": settings.INFLUX_DB_NAME,
             "tags": {
-                "payment_card_account": card_link.payment_card_account.id
+                "payment_card_account": card_link.payment_card_account.id,
+                "user_set": user_set
             },
             "fields": {
-                # "user_set": [u.id for u in card_link.payment_card_account.user_set.all()],
-                "payment_card_account": card_link.payment_card_account.id,
                 "scheme_account": card_link.scheme_account.id
             }
         }
 
     def write_to_db(self, link_data, many=False):
-        if many:
-            json_payload = [self._format_audit_entry(link) for link in link_data]
-        else:
-            json_payload = [self._format_audit_entry(link_data)]
+        """
+        :param link_data:
+        :type link_data: list of ubiquity.models.PaymentCardSchemeEntry
 
+        :param many:
+        :type many: bool
+        """
+        link_data = link_data if many else [link_data]
+        json_payload = [self._format_audit_entry(link) for link in link_data]
         self.client.write_points(json_payload)
 
     def query_db(self):
-        return self.client.query('SELECT * FROM "cards_active_link"').raw
+        """
+        TESTING ENDPOINT
+        :return: json string
+        """
+        return self.client.query('SELECT * FROM {}'.format(settings.INFLUX_DB_NAME)).raw
+
+
+audit = InfluxAudit()

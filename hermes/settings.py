@@ -371,11 +371,16 @@ cache_options = {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
+CACHES = {
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+}
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
 
-INFLUX_DB_CONFIG = {
-    'host': env_var('INFLUX_DB_HOST', 'localhost'),
-    'port': int(env_var('INFLUX_DB_PORT', 8086))
-}
 INFLUX_DB_NAME = env_var('INFLUX_DB_NAME', 'active_card_audit')
+INFLUX_DB_CONFIG = {
+    'host': env_var('INFLUX_HOST', 'localhost'),
+    'port': int(env_var('INFLUX_PORT', 8086)),
+    'username': env_var('INFLUX_USER', ''),
+    'password': env_var('INFLUX_PASSWORD', ''),
+}

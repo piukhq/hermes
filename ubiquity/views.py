@@ -18,6 +18,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountS
                                 ListSchemeAccountSerializer)
 from scheme.views import BaseLinkMixin, CreateAccount, RetrieveDeleteAccount
 from ubiquity.authentication import PropertyOrJWTAuthentication
+from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
                                   PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer,
@@ -146,6 +147,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin)
 
     @staticmethod
     def _link_to_all_membership_cards(pcard, user):
+        updated_entries = []
         for mcard in user.scheme_account_set.all():
             other_entry = PaymentCardSchemeEntry.objects.filter(scheme_account=mcard).first()
             entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
@@ -155,6 +157,10 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin)
                 entry.save()
             else:
                 entry.activate_link()
+
+            updated_entries.append(entry)
+
+        audit.write_to_db(updated_entries, many=True)
 
 
 class MembershipCardView(RetrieveDeleteAccount):
@@ -255,6 +261,7 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
 
     @staticmethod
     def _link_to_all_payment_cards(mcard, user):
+        updated_entries = []
         for pcard in user.payment_card_account_set.all():
             other_entry = PaymentCardSchemeEntry.objects.filter(payment_card_account=pcard).first()
             entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
@@ -265,6 +272,10 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
             else:
                 entry.activate_link()
 
+            updated_entries.append(entry)
+
+        audit.write_to_db(updated_entries, many=True)
+
 
 class CreateDeleteLinkView(APIView):
 
@@ -273,7 +284,7 @@ class CreateDeleteLinkView(APIView):
 
         link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
         link.activate_link()
-
+        audit.write_to_db(link)
         response = PaymentCardSchemeEntrySerializer(link).data
         return Response(response, status.HTTP_201_CREATED)
 
