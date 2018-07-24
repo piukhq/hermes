@@ -14,7 +14,6 @@ from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
-from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardSerializer
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
@@ -215,7 +214,18 @@ class TestResources(APITestCase):
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
 
-    def test_card_rule_filtering(self):
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_card_rule_filtering(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
         resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
@@ -385,7 +395,3 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['payment_cards'])
-
-    @patch('influxdb.InfluxDBClient')
-    def test_influx(self, *_):
-        audit.query_db()
