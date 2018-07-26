@@ -4,6 +4,7 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 from drf_yasg.utils import swagger_auto_schema
+from rest_flex_fields import FlexFieldsModelViewSet
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError
 from rest_framework.generics import get_object_or_404
@@ -16,7 +17,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
-from scheme.views import BaseLinkMixin, CreateAccount, RetrieveDeleteAccount
+from scheme.views import BaseLinkMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
 from ubiquity.authentication import PropertyOrJWTAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
@@ -99,7 +100,7 @@ class TestBalance(APIView):
         return Response(sa.get_cached_balance())
 
 
-class PaymentCardView(RetrievePaymentCardAccount):
+class PaymentCardView(RetrievePaymentCardAccount, FlexFieldsModelViewSet):
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
@@ -112,23 +113,28 @@ class PaymentCardView(RetrievePaymentCardAccount):
 
         return self.queryset.filter(**query)
 
+    def destroy(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
 
-class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin):
+
+class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, FlexFieldsModelViewSet):
     serializer_class = PaymentCardSerializer
 
-    def get(self, request):
+    def get_queryset(self):
         query = {
-            'user_set__id': request.user.id,
+            'user_set__id': self.request.user.id,
             'is_deleted': False
         }
-        if request.allowed_issuers:
-            query['issuer__in'] = request.allowed_issuers
+        if self.request.allowed_issuers:
+            query['issuer__in'] = self.request.allowed_issuers
 
-        accounts = [self.serializer_class(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(**query)]
-        return Response(accounts, status=200)
+        return PaymentCardAccount.objects.filter(**query)
 
-    def post(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
+        accounts = self.filter_queryset(self.get_queryset())
+        return Response(self.get_serializer(accounts, many=True).data, status=200)
+
+    def create(self, request, *args, **kwargs):
         try:
             pcard_data = request.data['card']
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
@@ -163,7 +169,8 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin)
         audit.write_to_db(updated_entries, many=True)
 
 
-class MembershipCardView(RetrieveDeleteAccount):
+class MembershipCardView(RetrieveDeleteAccount, FlexFieldsModelViewSet):
+    serializer_class = MembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'DELETE': GetSchemeAccountSerializer,
@@ -180,14 +187,17 @@ class MembershipCardView(RetrieveDeleteAccount):
 
         return SchemeAccount.objects.filter(**query)
 
-    def get(self, request, *args, **kwargs):
-        serializer = self.get_serializer_class()
-        account = get_object_or_404(self.get_queryset(), pk=kwargs['pk'])
+    def retrieve(self, request, *args, **kwargs):
+        account = self.get_object()
         account.get_cached_balance()
-        return Response(serializer(account).data)
+        return Response(self.get_serializer(account).data)
+
+    def destroy(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
 
 
-class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
+class LinkMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, FlexFieldsModelViewSet):
+    serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
         'GET': ListMembershipCardSerializer,
         'POST': CreateSchemeAccountSerializer,
@@ -204,16 +214,15 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
 
         return SchemeAccount.objects.filter(**query)
 
-    def get(self, request, *args, **kwargs):
-        serializer = self.get_serializer_class()
-        accounts = self.get_queryset()
+    def list(self, request, *args, **kwargs):
+        accounts = self.filter_queryset(self.get_queryset())
 
         for account in accounts:
             account.get_cached_balance()
 
-        return Response(serializer(accounts, many=True).data)
+        return Response(self.get_serializer(accounts, many=True).data)
 
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
         self._link_to_all_payment_cards(account, request.user)
         return Response(MembershipCardSerializer(account).data, status=status_code)

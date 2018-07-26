@@ -1,6 +1,7 @@
 from copy import copy
 
 from django.shortcuts import get_object_or_404
+from rest_flex_fields.serializers import FlexFieldsModelSerializer
 from rest_framework import serializers
 
 from common.models import Image
@@ -217,7 +218,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
         model = SchemeAccountCredentialAnswer
 
 
-class GetSchemeAccountSerializer(serializers.ModelSerializer):
+class GetSchemeAccountSerializer(FlexFieldsModelSerializer):
     scheme = SchemeSerializerNoQuestions(read_only=True)
     action_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
@@ -234,7 +235,7 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
         read_only_fields = ('status',)
 
 
-class ListSchemeAccountSerializer(serializers.ModelSerializer):
+class ListSchemeAccountSerializer(FlexFieldsModelSerializer):
     scheme = SchemeSerializerNoQuestions()
     status_name = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()

@@ -41,6 +41,8 @@ django-storages = {git = "https://github.com/BackwardSpy/django-storages.git", r
 django-redis = "*"
 drf-yasg = "*"
 influxdb = "*"
+drf-flex-fields = "*"
+drf-dynamic-fields = "*"
 
 [dev-packages]
 factory_boy = "==2.5.2"

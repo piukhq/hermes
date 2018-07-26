@@ -2,11 +2,9 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.models import PaymentCardAccount
 from payment_card.serializers import PaymentCardAccountSerializer
-from scheme.models import SchemeAccount
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
-                                SchemeSerializerNoQuestions)
+from scheme.models import Scheme, SchemeAccount
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -101,7 +99,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 class MembershipCardSerializer(GetSchemeAccountSerializer):
     balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
-    membership_plan = SchemeSerializerNoQuestions(read_only=True, source='scheme')
+    membership_plan = serializers.PrimaryKeyRelatedField(read_only=True, source='scheme')
 
     @staticmethod
     def get_balance(obj):
@@ -134,7 +132,7 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
 class ListMembershipCardSerializer(ListSchemeAccountSerializer):
     balance = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
-    membership_plan = SchemeSerializerNoQuestions(source='scheme')
+    membership_plan = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
 
     @staticmethod
     def get_balance(obj):

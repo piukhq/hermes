@@ -180,35 +180,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
-    override_serializer_classes = {
-        'GET': ListSchemeAccountSerializer,
-        'POST': CreateSchemeAccountSerializer,
-        'OPTIONS': ListSchemeAccountSerializer,
-    }
-
-    def get(self, request, *args, **kwargs):
-        """
-        DO NOT USE - NOT FOR APP ACCESS
-        """
-        return super().get(self, request, *args, **kwargs)
-
-    def get_queryset(self):
-        user_id = self.request.user.id
-        return SchemeAccount.objects.filter(user_set__id=user_id)
-
-    def post(self, request, *args, **kwargs):
-        """
-        Create a new scheme account within the users wallet.<br>
-        This does not log into the loyalty scheme end site.
-        """
-        response = self.create_account(request.data, request.user)
-        return Response(
-            response,
-            status=status.HTTP_201_CREATED,
-            headers={'Location': reverse('retrieve_account', args=[response['id']], request=request)}
-        )
-
+class SchemeAccountCreationMixin(SwappableSerializerMixin):
     def create_account(self, data, user):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -295,6 +267,36 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             pass
 
         return scheme_account
+
+
+class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
+    override_serializer_classes = {
+        'GET': ListSchemeAccountSerializer,
+        'POST': CreateSchemeAccountSerializer,
+        'OPTIONS': ListSchemeAccountSerializer,
+    }
+
+    def get(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        return super().get(self, request, *args, **kwargs)
+
+    def get_queryset(self):
+        user_id = self.request.user.id
+        return SchemeAccount.objects.filter(user_set__id=user_id)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Create a new scheme account within the users wallet.<br>
+        This does not log into the loyalty scheme end site.
+        """
+        response = self.create_account(request.data, request.user)
+        return Response(
+            response,
+            status=status.HTTP_201_CREATED,
+            headers={'Location': reverse('retrieve_account', args=[response['id']], request=request)}
+        )
 
 
 class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):

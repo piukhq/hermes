@@ -13,10 +13,6 @@ class InfluxAudit(object):
 
         self.client.switch_database(settings.INFLUX_DB_NAME)
 
-    def __del__(self):
-        if self.client is not None:
-            self.client.close()
-
     @staticmethod
     def _format_audit_entry(card_link):
         """
