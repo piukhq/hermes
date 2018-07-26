@@ -22,7 +22,7 @@ from ubiquity.authentication import PropertyOrJWTAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer,
+                                  PaymentCardSerializer, ServiceConsentSerializer,
                                   TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
@@ -195,8 +195,16 @@ class MembershipCardView(RetrieveDeleteAccount, FlexFieldsModelViewSet):
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
+    def transactions(self, request, mcard_id):
+        self.get_serializer_class = lambda: TransactionsSerializer
+        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
+        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        result = resp.json() if resp.status_code == 200 else []
+        return Response(self.get_serializer(result, many=True).data)
 
-class LinkMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, FlexFieldsModelViewSet):
+
+class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, FlexFieldsModelViewSet):
     serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
         'GET': ListMembershipCardSerializer,
@@ -286,19 +294,34 @@ class LinkMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, FlexFiel
         audit.write_to_db(updated_entries, many=True)
 
 
-class CreateDeleteLinkView(APIView):
+class CreateDeleteLinkView(FlexFieldsModelViewSet):
 
-    def patch(self, request, pcard_id, mcard_id):
-        pcard, mcard = self._collect_cards(pcard_id, mcard_id, request.user.id)
+    def update_payment(self, request, *args, **kwargs):
+        self.serializer_class = PaymentCardSerializer
+        link = self._update_link(request, *args, **kwargs)
+        serializer = self.get_serializer(link.payment_card_account)
+        return Response(serializer.data, status.HTTP_201_CREATED)
 
-        link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
-        link.activate_link()
-        audit.write_to_db(link)
-        response = PaymentCardSchemeEntrySerializer(link).data
-        return Response(response, status.HTTP_201_CREATED)
+    def update_membership(self, request, *args, **kwargs):
+        self.serializer_class = MembershipCardSerializer
+        link = self._update_link(request, *args, **kwargs)
+        serializer = self.get_serializer(link.scheme_account)
+        return Response(serializer.data, status.HTTP_201_CREATED)
 
-    def delete(self, request, pcard_id, mcard_id):
-        pcard, mcard = self._collect_cards(pcard_id, mcard_id, request.user.id)
+    def destroy_payment(self, request, *args, **kwargs):
+        self.serializer_class = PaymentCardSerializer
+        pcard, _ = self._destroy_link(request, *args, **kwargs)
+        serializer = self.get_serializer(pcard)
+        return Response(serializer.data, status.HTTP_201_CREATED)
+
+    def destroy_membership(self, request, *args, **kwargs):
+        self.serializer_class = MembershipCardSerializer
+        _, mcard = self._destroy_link(request, *args, **kwargs)
+        serializer = self.get_serializer(mcard)
+        return Response(serializer.data, status.HTTP_201_CREATED)
+
+    def _destroy_link(self, request, *args, **kwargs):
+        pcard, mcard = self._collect_cards(kwargs['pcard_id'], kwargs['mcard_id'], request.user.id)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
@@ -306,7 +329,15 @@ class CreateDeleteLinkView(APIView):
             raise NotFound('The link that you are trying to delete does not exist.')
 
         link.delete()
-        return Response(status=status.HTTP_201_CREATED)
+        return pcard, mcard
+
+    def _update_link(self, request, *args, **kwargs):
+        pcard, mcard = self._collect_cards(kwargs['pcard_id'], kwargs['mcard_id'], request.user.id)
+
+        link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
+        link.activate_link()
+        audit.write_to_db(link)
+        return link
 
     @staticmethod
     def _collect_cards(payment_card_id, membership_card_id, user_id):
@@ -323,72 +354,66 @@ class CreateDeleteLinkView(APIView):
         return payment_card, membership_card
 
 
-class MembershipCardTransactionsView(APIView):
+class UserTransactions(FlexFieldsModelViewSet):
     serializer_class = TransactionsSerializer
 
-    @swagger_auto_schema(
-        responses={200: TransactionsSerializer},
-    )
-    def get(self, request, mcard_id):
-        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
-        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
-        serializer = self.serializer_class(resp.json(), many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return SchemeAccount.objects.filter(user_set__id=self.request.user.id).all()
 
-
-class UserTransactions(APIView):
-    serializer_class = TransactionsSerializer
-
-    @swagger_auto_schema(
-        responses={200: TransactionsSerializer},
-    )
-    def get(self, request):
+    def list(self, request, *args, **kwargs):
         headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
         url = settings.HADES_URL + '/transactions/scheme_account/{}'
         transactions = []
-        for account in SchemeAccount.objects.filter(user_set__id=request.user.id).all():
+        for account in self.get_queryset():
             resp = requests.get(url.format(account.pk), headers=headers)
-            transactions.extend(resp.json())
+            if resp.status_code == 200:
+                transactions.extend(resp.json())
 
-        serializer = self.serializer_class(transactions, many=True)
+        serializer = self.get_serializer(transactions, many=True)
         return Response(serializer.data)
 
 
-class CompositeMembershipCardView(LinkMembershipCardView):
+class CompositeMembershipCardView(ListMembershipCardView):
+    def get_queryset(self):
+        query = {
+            'user_set__id': self.request.user.id,
+            'is_deleted': False,
+            'payment_card_account_set__id': self.kwargs['pcard_id']
+        }
+        if self.request.allowed_schemes:
+            query['scheme__in'] = self.request.allowed_schemes
 
-    def get(self, request, *args, **kwargs):
-        serializer = self.get_serializer_class()
-        accounts = self.get_queryset()
-        query = {'payment_card_account_set__id': kwargs['pcard_id']}
-        for account in accounts.filter(**query):
+        return SchemeAccount.objects.filter(**query)
+
+    def list(self, request, *args, **kwargs):
+        accounts = self.filter_queryset(self.get_queryset())
+        for account in accounts:
             account.get_cached_balance()
 
-        return Response(serializer(accounts, many=True).data)
+        return Response(self.get_serializer(accounts, many=True).data)
 
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         account, status_code = self._handle_membership_card_creation(request)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
-        return Response(MembershipCardSerializer(account).data, status=status_code)
+        return Response(self.get_serializer(account).data, status=status_code)
 
 
-class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin):
+class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, FlexFieldsModelViewSet):
+    serializer_class = PaymentCardSerializer
 
-    def get(self, request, *args, **kwargs):
+    def get_queryset(self):
         query = {
-            'user_set__id': request.user.pk,
-            'scheme_account_set__id': kwargs['mcard_id'],
+            'user_set__id': self.request.user.pk,
+            'scheme_account_set__id': self.kwargs['mcard_id'],
             'is_deleted': False
         }
-        if request.allowed_issuers:
-            query['issuer__in'] = request.allowed_issuers
+        if self.request.allowed_schemes:
+            query['scheme__in'] = self.request.allowed_schemes
 
-        accounts = [self.serializer_class(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(**query)]
-        return Response(accounts, status=200)
+        return PaymentCardAccount.objects.filter(**query)
 
-    def post(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         try:
             pcard_data = request.data['card']
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
