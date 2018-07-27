@@ -145,15 +145,17 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class Consent(models.Model):
+class JourneyTypes:
     JOIN = 0
     LINK = 1
     ADD = 2
 
+
+class Consent(models.Model):
     journeys = (
-        (JOIN, 'join'),
-        (LINK, 'link'),
-        (ADD, 'add'),
+        (JourneyTypes.JOIN, 'join'),
+        (JourneyTypes.LINK, 'link'),
+        (JourneyTypes.ADD, 'add'),
     )
 
     check_box = models.BooleanField()
@@ -398,7 +400,7 @@ class SchemeAccount(models.Model):
             'user_id': self.user.id,
             'credentials': credentials,
             'status': self.status,
-            'link': True
+            'journey_type': JourneyTypes.LINK
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
