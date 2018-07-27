@@ -398,6 +398,7 @@ class SchemeAccount(models.Model):
             'user_id': self.user.id,
             'credentials': credentials,
             'status': self.status,
+            'link': True
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
