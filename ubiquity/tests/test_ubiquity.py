@@ -200,11 +200,11 @@ class TestResources(APITestCase):
         SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
         PaymentCardSchemeEntry.objects.create(payment_card_account=payment_card_account,
                                               scheme_account=self.scheme_account)
-        params = {
-            'pcard_id': payment_card_account.id,
-            'mcard_id': scheme_account_2.id
-        }
-        resp = self.client.patch(reverse('link-create-delete', kwargs=params), **self.auth_headers)
+        params = [
+            payment_card_account.id,
+            scheme_account_2.id
+        ]
+        resp = self.client.patch(reverse('membership-link', args=params), **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
         links_data = PaymentCardSerializer(payment_card_account).data['membership_cards']
@@ -312,12 +312,12 @@ class TestResources(APITestCase):
             }
         ])
         httpretty.register_uri(httpretty.GET, uri, transactions)
-        resp = self.client.get(reverse('get-transactions', args=[self.scheme_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
 
     def test_composite_payment_card_get(self):
-        resp = self.client.get(reverse('get_create_composite_pcards', args=[self.scheme_account.id]),
+        resp = self.client.get(reverse('composite-payment-cards', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
@@ -354,13 +354,13 @@ class TestResources(APITestCase):
             }
         ]
 
-        resp = self.client.post(reverse('get_create_composite_pcards', args=[new_sa.id]), data=json.dumps(payload),
+        resp = self.client.post(reverse('composite-payment-cards', args=[new_sa.id]), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
     def test_composite_membership_card_get(self):
-        resp = self.client.get(reverse('get_create_composite_mcards', args=[self.payment_card_account.id]),
+        resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
@@ -391,7 +391,7 @@ class TestResources(APITestCase):
             }
         ]
 
-        resp = self.client.post(reverse('get_create_composite_mcards', args=[new_pca.id]), data=payload,
+        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=payload,
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['payment_cards'])

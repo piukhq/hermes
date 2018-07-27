@@ -12,7 +12,7 @@ decorator = "==4.0.2"
 django-anymail = "==0.10"
 django-bulk-update = "==2.1.0"
 django-colorful = "==1.1.0"
-django-cors-headers = "==1.1.0"
+django-cors-headers = "*"
 django-mail-templated = "==2.6.2"
 graypy = "==0.2.12"
 hashids = "==1.1.0"
@@ -41,8 +41,7 @@ django-storages = {git = "https://github.com/BackwardSpy/django-storages.git", r
 django-redis = "*"
 drf-yasg = "*"
 influxdb = "*"
-drf-flex-fields = "*"
-drf-dynamic-fields = "*"
+dictfilter = ">=1.1.2"
 
 [dev-packages]
 factory_boy = "==2.5.2"

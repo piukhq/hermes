@@ -3,7 +3,7 @@ from arrow.parser import ParserError
 from rest_framework import serializers
 
 from payment_card.serializers import PaymentCardAccountSerializer
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import SchemeAccount
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser

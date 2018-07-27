@@ -1,6 +1,5 @@
 from copy import copy
 
-from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -30,7 +29,7 @@ class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
         exclude = ('payment_card_accounts',)
 
 
-class PaymentCardAccountSerializer(FlexFieldsModelSerializer):
+class PaymentCardAccountSerializer(serializers.ModelSerializer):
     status_name = serializers.ReadOnlyField()
     # psp_token = serializers.CharField(
     #     max_length=255,
