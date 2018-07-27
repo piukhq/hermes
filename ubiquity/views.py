@@ -3,8 +3,8 @@ import uuid
 import requests
 from django.conf import settings
 from django.utils import timezone
-from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError
+from rest_framework import status
+from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -38,17 +38,13 @@ class PaymentCardConsentMixin:
 
 class ServiceView(ModelViewSet):
     authentication_classes = (PropertyOrServiceAuthentication,)
-    serializer_class = RegisterSerializer
-    model = CustomUser
+    serializer_class = ServiceConsentSerializer
 
     def retrieve(self, request, *args, **kwargs):
-        user_data = {
-            'client_id': request.bundle.client.pk,
-            'email': '{}__{}'.format(request.bundle.client.client_id, request.prop_email),
-            'uid': request.prop_email,
-        }
-        get_object_or_404(self.model, **user_data)
-        return Response({'email': user_data['email']})
+        if not request.user.is_active:
+            raise NotFound
+
+        return Response(self.get_serializer(request.user.serviceconsent).data)
 
     def create(self, request, *args, **kwargs):
         new_user_data = {
@@ -58,28 +54,42 @@ class ServiceView(ModelViewSet):
             'password': str(uuid.uuid4()).lower().replace('-', 'A&')
         }
 
-        new_user = self.serializer_class(data=new_user_data)
-        new_user.is_valid(raise_exception=True)
-        user = new_user.save()
-
-        new_consent = ServiceConsentSerializer(
-            data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
         try:
-            new_consent.is_valid(raise_exception=True)
-            new_consent.save()
-        except serializers.ValidationError as e:
-            user.delete()
-            raise e
+            user = CustomUser.objects.get(email=new_user_data['email'])
+        except CustomUser.DoesNotExist:
+            status_code = 201
+            new_user = RegisterSerializer(data=new_user_data)
+            new_user.is_valid(raise_exception=True)
+            user = new_user.save()
+        else:
+            if not user.is_active:
+                status_code = 201
+                user.is_active = True
+                user.save()
+            else:
+                status_code = 200
+        finally:
+            if hasattr(user, 'serviceconsent'):
+                user.serviceconsent.delete()
 
-        return Response(new_user.data)
+            consent = self.get_serializer(
+                data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
+            try:
+                consent.is_valid(raise_exception=True)
+                consent.save()
+            except ValidationError:
+                user.is_active = False
+                user.save()
+                raise ParseError
 
-    @staticmethod
-    def destroy(request, *args, **kwargs):
-        user = request.user
-        errors, consent = user.serviceconsent
-        consent.delete()
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(consent.data, status=status_code)
+
+    def destroy(self, request, *args, **kwargs):
+        response = self.get_serializer(request.user.serviceconsent).data
+        request.user.serviceconsent.delete()
+        request.user.is_active = False
+        request.user.save()
+        return Response(response)
 
 
 class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):

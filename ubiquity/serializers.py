@@ -13,6 +13,7 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceConsent
         fields = '__all__'
+        write_only_fields = ('user',)
 
     timestamp = serializers.IntegerField()
 
@@ -34,6 +35,15 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('timestamp field is not a timestamp.')
 
         return datetime
+
+    def to_representation(self, instance):
+        response = {'timestamp': int(instance.timestamp.timestamp())}
+        if instance.latitude and instance.longitude:
+            response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
+
+        return {
+            'consent': response
+        }
 
 
 class PaymentCardConsentSerializer(serializers.Serializer):
