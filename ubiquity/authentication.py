@@ -2,12 +2,13 @@ import jwt
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
+from rest_framework.exceptions import PermissionDenied
 
 from user.authentication import JwtAuthentication
-from user.models import ClientApplication, ClientApplicationBundle
+from user.models import ClientApplicationBundle, CustomUser
 
 
-class PropertyAuthentication(JwtAuthentication):
+class ServiceRegistrationAuthentication(JwtAuthentication):
     model = ClientApplicationBundle
     expected_fields = []
 
@@ -27,7 +28,7 @@ class PropertyAuthentication(JwtAuthentication):
         return bundle, email
 
     def authenticate(self, request):
-        token = self.get_token(request)
+        token = self.get_token(request, b'bearer')
         if not token or "." not in token:
             return None
 
@@ -37,10 +38,27 @@ class PropertyAuthentication(JwtAuthentication):
         return bundle, None
 
 
-class PropertyOrJWTAuthentication(BaseAuthentication):
+class PropertyAuthentication(ServiceRegistrationAuthentication):
+    def authenticate(self, request):
+        token = self.get_token(request, b'bearer')
+        if not token or "." not in token:
+            return None
+
+        bundle, email = self.authenticate_credentials(token)
+        try:
+            user = CustomUser.objects.get(email='{}__{}'.format(bundle.bundle_id, email))
+        except CustomUser.DoesNotExist:
+            raise PermissionDenied
+
+        setattr(request, 'allowed_issuers', [issuer.pk for issuer in user.client.organisation.issuers.all()])
+        setattr(request, 'allowed_schemes', [scheme.pk for scheme in user.client.organisation.schemes.all()])
+        return user, None
+
+
+class PropertyOrServiceAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
-        if request.method == 'DELETE':
-            return JwtAuthentication().authenticate(request)
+        if request.method == 'POST':
+            return ServiceRegistrationAuthentication().authenticate(request)
 
         return PropertyAuthentication().authenticate(request)

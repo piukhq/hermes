@@ -16,7 +16,7 @@ from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
 from scheme.views import BaseLinkMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
-from ubiquity.authentication import PropertyOrJWTAuthentication
+from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
@@ -37,7 +37,7 @@ class PaymentCardConsentMixin:
 
 
 class ServiceView(ModelViewSet):
-    authentication_classes = (PropertyOrJWTAuthentication,)
+    authentication_classes = (PropertyOrServiceAuthentication,)
     serializer_class = RegisterSerializer
     model = CustomUser
 
@@ -62,7 +62,8 @@ class ServiceView(ModelViewSet):
         new_user.is_valid(raise_exception=True)
         user = new_user.save()
 
-        new_consent = ServiceConsentSerializer(data={'user': user.pk, **{k: v for k, v in request.data.items()}})
+        new_consent = ServiceConsentSerializer(
+            data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
         try:
             new_consent.is_valid(raise_exception=True)
             new_consent.save()
@@ -82,6 +83,7 @@ class ServiceView(ModelViewSet):
 
 
 class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
@@ -99,6 +101,7 @@ class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
 
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
@@ -151,6 +154,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
 
 class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = MembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
@@ -186,6 +190,7 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
 
 
 class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
         'GET': ListMembershipCardSerializer,
@@ -276,6 +281,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
 
 class CreateDeleteLinkView(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
 
     def update_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
@@ -336,6 +342,7 @@ class CreateDeleteLinkView(ModelViewSet):
 
 
 class UserTransactions(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = TransactionsSerializer
 
     def get_queryset(self):
@@ -355,6 +362,8 @@ class UserTransactions(ModelViewSet):
 
 
 class CompositeMembershipCardView(ListMembershipCardView):
+    authentication_classes = (PropertyAuthentication,)
+
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
@@ -381,6 +390,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
 
 class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):

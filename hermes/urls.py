@@ -4,7 +4,7 @@ from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework.permissions import AllowAny
 
-from ubiquity.authentication import PropertyAuthentication
+from ubiquity.authentication import ServiceRegistrationAuthentication
 from user.authentication import JwtAuthentication
 
 schema_view = get_schema_view(
@@ -14,7 +14,7 @@ schema_view = get_schema_view(
         description="Per me si va nella citta dolente, per me si va nell'eterno dolore, per me si va fra la perduta gente.",
     ),
     public=True,
-    authentication_classes=(JwtAuthentication, PropertyAuthentication),
+    authentication_classes=(JwtAuthentication, ServiceRegistrationAuthentication),
     permission_classes=(AllowAny,),
 )
 

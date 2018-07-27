@@ -37,13 +37,13 @@ class TestRegistration(APITestCase):
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': arrow.utcnow().timestamp
-        }
+        consent = json.dumps({
+            'consent': {
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
 
-        resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
         self.assertEqual(resp.status_code, 200)
 
     def test_service_registration_wrong_data(self):
@@ -312,7 +312,8 @@ class TestResources(APITestCase):
             }
         ])
         httpretty.register_uri(httpretty.GET, uri, transactions)
-        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
 

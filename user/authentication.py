@@ -28,10 +28,10 @@ class JwtAuthentication(BaseAuthentication):
     """
 
     @staticmethod
-    def get_token(request):
+    def get_token(request, token_name=b'token'):
         auth = get_authorization_header(request).split()
 
-        if not auth or auth[0].lower() != b'token':
+        if not auth or auth[0].lower() != token_name:
             return None
 
         if len(auth) == 1:
