@@ -12,7 +12,7 @@ from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion
 from user.tests.factories import UserFactory
 from common.models import Image
-from scheme.models import Consent
+from scheme.models import JourneyTypes
 
 
 class TestSchemeImages(APITestCase):
@@ -103,16 +103,16 @@ class TestSchemeViews(APITestCase):
         join_message = "Join Message"
         test_string = "Test disabled default String"
         tm1 = ConsentFactory.create(
-            scheme=scheme, journey=Consent.LINK, order=2,
+            scheme=scheme, journey=JourneyTypes.LINK, order=2,
             check_box=True, text=link_message, required=False
         )
 
         tm2 = ConsentFactory.create(
-            scheme=scheme, journey=Consent.JOIN, order=3, is_enabled=False,
+            scheme=scheme, journey=JourneyTypes.JOIN, order=3, is_enabled=False,
             check_box=True, text=test_string
         )
-        ConsentFactory.create(scheme=scheme, journey=Consent.LINK, text=link_message)
-        ConsentFactory.create(scheme=scheme, journey=Consent.JOIN, text=join_message)
+        ConsentFactory.create(scheme=scheme, journey=JourneyTypes.LINK, text=link_message)
+        ConsentFactory.create(scheme=scheme, journey=JourneyTypes.JOIN, text=join_message)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertIn('consents', response.data, "no consents section in /schemes/# ")
 
@@ -121,7 +121,7 @@ class TestSchemeViews(APITestCase):
             if consent['id'] == tm1.id:
                 self.assertEqual(consent['text'], link_message, "Missing/incorrect Link TEXT consents")
                 self.assertEqual(consent['check_box'], True, "Missing/incorrect check box in consents")
-                self.assertEqual(consent['journey'], Consent.LINK, "Missing/incorrect journey in consents")
+                self.assertEqual(consent['journey'], JourneyTypes.LINK, "Missing/incorrect journey in consents")
                 self.assertEqual(consent['required'], False, "Missing/incorrect required in consents")
                 self.assertEqual(consent['order'], 2, "Missing/incorrect required in consents")
                 found = True
