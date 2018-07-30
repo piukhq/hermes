@@ -162,7 +162,7 @@ class PaymentCardAccount(models.Model):
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    issuer = models.ForeignKey(Issuer)
+    issuer = models.ForeignKey(Issuer, null=True, blank=True)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
     consent = JSONField(default={})

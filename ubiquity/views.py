@@ -134,7 +134,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
-            consent = request.data['consent']
+            consent = request.data['account']['consents'][0]
         except KeyError:
             raise ParseError
 

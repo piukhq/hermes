@@ -46,10 +46,24 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         }
 
 
+class PaymentCardTranslationSerializer(serializers.Serializer):
+    pass
+
+
 class PaymentCardConsentSerializer(serializers.Serializer):
-    latitude = serializers.FloatField()
-    longitude = serializers.FloatField()
-    timestamp = serializers.IntegerField()
+    latitude = serializers.FloatField(required=False)
+    longitude = serializers.FloatField(required=False)
+    timestamp = serializers.IntegerField(required=True)
+    type = serializers.IntegerField(required=True)
+
+    @staticmethod
+    def validate_timestamp(timestamp):
+        try:
+            arrow.get(timestamp)
+        except ParserError:
+            raise serializers.ValidationError('timestamp field is not a timestamp.')
+
+        return timestamp
 
 
 class PaymentCardSchemeEntrySerializer(serializers.ModelSerializer):

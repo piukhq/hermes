@@ -19,7 +19,7 @@ from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSer
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
-from user.tests.factories import ClientApplicationBundleFactory
+from user.tests.factories import ClientApplicationBundleFactory, UserFactory
 
 
 class TestRegistration(APITestCase):
@@ -36,7 +36,7 @@ class TestRegistration(APITestCase):
             'bundle_id': self.bundle.bundle_id
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
         consent = json.dumps({
             'consent': {
                 'timestamp': arrow.utcnow().timestamp
@@ -90,6 +90,10 @@ class TestRegistration(APITestCase):
 class TestResources(APITestCase):
 
     def setUp(self):
+        bundle = ClientApplicationBundleFactory()
+        client = bundle.client
+        email = 'test@user.com'
+        self.user = UserFactory(email='{}__{}'.format(bundle.bundle_id, email))
         self.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
@@ -101,12 +105,14 @@ class TestResources(APITestCase):
                                                                    scheme_account=self.scheme_account)
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
-        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account)
-        self.user = self.scheme_account_entry.user
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
         self.payment_card_account = self.payment_card_account_entry.payment_card_account
         self.payment_card = self.payment_card_account.payment_card
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.user.create_token()}
+
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_get_single_payment_card(self):
         payment_card_account = self.payment_card_account_entry.payment_card_account
@@ -149,23 +155,26 @@ class TestResources(APITestCase):
     def test_payment_card_creation(self, *_):
         payload = {
             "card": {
-                "pan_end": 5234,
+                "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "pan_start": 523456,
-                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
+                "first_six_digits": 523456,
+                "provider": self.payment_card_account_entry.payment_card_account.issuer.id,
                 "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
-                "token": "abc2",
-                "fingerprint": "weqrewqewr32423q",
-                "expiry_year": 22,
-                "expiry_month": 3,
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
                 "country": "UK",
                 "order": 1
             },
-            "consent": {
-                "latitude": 51.405372,
-                "longitude": -0.678357,
-                "timestamp": 1517549941
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
             }
         }
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
