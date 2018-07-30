@@ -46,10 +46,6 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         }
 
 
-class PaymentCardTranslationSerializer(serializers.Serializer):
-    pass
-
-
 class PaymentCardConsentSerializer(serializers.Serializer):
     latitude = serializers.FloatField(required=False)
     longitude = serializers.FloatField(required=False)
@@ -91,6 +87,10 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
 class PaymentCardSerializer(PaymentCardAccountSerializer):
     membership_cards = serializers.SerializerMethodField()
+    first_six_digits = serializers.IntegerField(source='pan_start')
+    last_four_digits = serializers.IntegerField(source='pan_end')
+    year = serializers.IntegerField(source='expiry_year')
+    month = serializers.IntegerField(source='expiry_month')
     token = None
 
     @staticmethod
@@ -99,8 +99,23 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         return PaymentCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
-        exclude = ('psp_token', 'user_set', 'scheme_account_set')
+        exclude = ('psp_token', 'user_set', 'scheme_account_set', 'pan_start', 'pan_end', 'expiry_year', 'expiry_month')
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
+
+
+class PaymentCardTranslationSerializer(serializers.Serializer):
+    pan_start = serializers.IntegerField(source='first_six_digits')
+    pan_end = serializers.IntegerField(source='last_four_digits')
+    provider = serializers.IntegerField()
+    payment_card = serializers.IntegerField()
+    name_on_card = serializers.CharField()
+    token = serializers.CharField()
+    fingerprint = serializers.CharField()
+    expiry_year = serializers.IntegerField(source='year')
+    expiry_month = serializers.IntegerField(source='month')
+    country = serializers.CharField()
+    order = serializers.IntegerField(required=False, default=0)
+    currency_code = serializers.CharField(required=False, default='GBP')
 
 
 class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):

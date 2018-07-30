@@ -21,7 +21,7 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
                                   PaymentCardSerializer, ServiceConsentSerializer,
-                                  TransactionsSerializer)
+                                  TransactionsSerializer, PaymentCardTranslationSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
 
@@ -130,7 +130,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
     def create(self, request, *args, **kwargs):
         try:
-            pcard_data = request.data['card']
+            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
