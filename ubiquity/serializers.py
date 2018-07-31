@@ -128,7 +128,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 class PaymentCardTranslationSerializer(serializers.Serializer):
     pan_start = serializers.IntegerField(source='first_six_digits')
     pan_end = serializers.IntegerField(source='last_four_digits')
-    provider = serializers.IntegerField()
+    issuer = serializers.IntegerField()
     payment_card = serializers.IntegerField()
     name_on_card = serializers.CharField()
     token = serializers.CharField()
