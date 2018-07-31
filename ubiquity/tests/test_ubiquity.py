@@ -19,7 +19,8 @@ from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSer
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
-from user.tests.factories import ClientApplicationBundleFactory, UserFactory
+from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
+                                  UserFactory)
 
 
 class TestRegistration(APITestCase):
@@ -44,7 +45,7 @@ class TestRegistration(APITestCase):
         })
 
         resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 201)
 
     def test_service_registration_wrong_data(self):
         data = {
@@ -54,19 +55,17 @@ class TestRegistration(APITestCase):
             'email': 'wrongconsent@bink.test'
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': 'not a timestamp'
-        }
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'timestamp': 'not a timestamp'
+            }
+        })
 
-        wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
+        wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
+                                              **auth_headers)
         self.assertEqual(wrong_consent_resp.status_code, 400)
-        self.assertIn('timestamp', wrong_consent_resp.json())
-
-        with self.assertRaises(CustomUser.DoesNotExist):
-            CustomUser.objects.get(email='{}__{}'.format(data['bundle_id'], data['email']))
+        self.assertIn('Malformed request.', wrong_consent_resp.json().get('detail'))
 
     def test_service_registration_wrong_header(self):
         data = {
@@ -75,14 +74,15 @@ class TestRegistration(APITestCase):
             'bundle_id': 'wrong bundle id'
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': arrow.utcnow().timestamp
-        }
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
 
-        wrong_header_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
+        wrong_header_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
+                                             **auth_headers)
         self.assertEqual(wrong_header_resp.status_code, 403)
         self.assertIn('Invalid token', wrong_header_resp.json()['detail'])
 
@@ -90,8 +90,9 @@ class TestRegistration(APITestCase):
 class TestResources(APITestCase):
 
     def setUp(self):
-        bundle = ClientApplicationBundleFactory()
-        client = bundle.client
+        organisation = OrganisationFactory(name='set up authentication')
+        client = ClientApplicationFactory(organisation=organisation, name='set up client application')
+        bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
         email = 'test@user.com'
         self.user = UserFactory(email='{}__{}'.format(bundle.bundle_id, email))
         self.scheme = SchemeFactory()
