@@ -2,7 +2,6 @@ import jwt
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
-from rest_framework.exceptions import PermissionDenied
 
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
@@ -48,7 +47,7 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
         try:
             user = CustomUser.objects.get(email='{}__{}'.format(bundle.bundle_id, email))
         except CustomUser.DoesNotExist:
-            raise PermissionDenied
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
         setattr(request, 'allowed_issuers', [issuer.pk for issuer in user.client.organisation.issuers.all()])
         setattr(request, 'allowed_schemes', [scheme.pk for scheme in user.client.organisation.schemes.all()])
