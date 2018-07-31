@@ -29,9 +29,9 @@ from user.serializers import RegisterSerializer
 class PaymentCardConsentMixin:
     @staticmethod
     def _create_payment_card_consent(consent_data, pcard):
-        serializer = PaymentCardConsentSerializer(data=consent_data)
+        serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
-        pcard.consent = serializer.validated_data
+        pcard.consents = serializer.validated_data
         pcard.save()
         return PaymentCardSerializer(pcard).data
 
@@ -134,7 +134,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
-            consent = request.data['account']['consents'][0]
+            consent = request.data['account']['consents']
         except KeyError:
             raise ParseError
 
@@ -420,7 +420,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
             if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
-            consent = request.data['account']['consents'][0]
+            consent = request.data['account']['consents']
         except KeyError:
             raise ParseError
 

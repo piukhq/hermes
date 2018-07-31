@@ -120,7 +120,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
             },
             "images": self.get_images(instance),
             "account": {
-                "consents": instance.consent
+                "consents": instance.consents
             }
         }
 

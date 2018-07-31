@@ -17,4 +17,3 @@ class TestResources(APITestCase):
 
     def test_influx_db_audit(self):
         self.audit.write_to_db(self.cards_link)
-        print(self.audit.query_db())

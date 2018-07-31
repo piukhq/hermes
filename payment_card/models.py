@@ -165,7 +165,7 @@ class PaymentCardAccount(models.Model):
     issuer = models.ForeignKey(Issuer, null=True, blank=True)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
-    consent = JSONField(default={})
+    consents = JSONField(default=[])
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
