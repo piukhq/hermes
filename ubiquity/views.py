@@ -47,6 +47,7 @@ class ServiceView(ModelViewSet):
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
     def create(self, request, *args, **kwargs):
+        status_code = 200
         new_user_data = {
             'client_id': request.bundle.client.pk,
             'email': '{}__{}'.format(request.bundle.bundle_id, request.prop_email),
@@ -61,26 +62,25 @@ class ServiceView(ModelViewSet):
             new_user = RegisterSerializer(data=new_user_data)
             new_user.is_valid(raise_exception=True)
             user = new_user.save()
-        else:
-            if not user.is_active:
-                status_code = 201
-                user.is_active = True
-                user.save()
-            else:
-                status_code = 200
-        finally:
-            if hasattr(user, 'serviceconsent'):
-                user.serviceconsent.delete()
 
-            consent = self.get_serializer(
-                data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
-            try:
-                consent.is_valid(raise_exception=True)
-                consent.save()
-            except ValidationError:
-                user.is_active = False
-                user.save()
-                raise ParseError
+        if not user.is_active:
+            status_code = 201
+            user.is_active = True
+            user.save()
+
+        if hasattr(user, 'serviceconsent'):
+            user.serviceconsent.delete()
+
+        consent = self.get_serializer(
+            data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
+
+        try:
+            consent.is_valid(raise_exception=True)
+            consent.save()
+        except ValidationError:
+            user.is_active = False
+            user.save()
+            raise ParseError
 
         return Response(consent.data, status=status_code)
 
