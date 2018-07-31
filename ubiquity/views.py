@@ -20,8 +20,8 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, ServiceConsentSerializer,
-                                  TransactionsSerializer, PaymentCardTranslationSerializer)
+                                  PaymentCardSerializer, PaymentCardTranslationSerializer, ServiceConsentSerializer,
+                                  TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
 

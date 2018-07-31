@@ -55,11 +55,11 @@ class PaymentCardConsentSerializer(serializers.Serializer):
     @staticmethod
     def validate_timestamp(timestamp):
         try:
-            arrow.get(timestamp)
+            date = arrow.get(timestamp)
         except ParserError:
             raise serializers.ValidationError('timestamp field is not a timestamp.')
 
-        return timestamp
+        return date.timestamp
 
 
 class PaymentCardSchemeEntrySerializer(serializers.ModelSerializer):
@@ -99,8 +99,30 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         return PaymentCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
-        exclude = ('psp_token', 'user_set', 'scheme_account_set', 'pan_start', 'pan_end', 'expiry_year', 'expiry_month')
+        exclude = ('psp_token', 'user_set', 'scheme_account_set')
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
+
+    def to_representation(self, instance):
+        return {
+            "id": instance.id,
+            "membership_cards": self.get_membership_cards(instance),
+            "status": instance.status,
+            "card": {
+                "first_six_digits": str(instance.pan_start),
+                "last_four_digits": str(instance.pan_end),
+                "month": int(instance.expiry_month),
+                "year": int(instance.expiry_year),
+                "country": instance.country,
+                "currency_code": instance.currency_code,
+                "name_on_card": instance.name_on_card,
+                "provider": instance.payment_card.system_name,
+                "type": instance.payment_card.type
+            },
+            "images": self.get_images(instance),
+            "account": {
+                "consents": instance.consent
+            }
+        }
 
 
 class PaymentCardTranslationSerializer(serializers.Serializer):
