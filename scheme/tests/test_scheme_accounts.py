@@ -1038,7 +1038,7 @@ class TestSchemeAccountViews(APITestCase):
         test_reply = 1
         consent1 = ConsentFactory.create(
             scheme=scheme,
-            journey=JourneyTypes.JOIN,
+            journey=JourneyTypes.JOIN.value,
             order=1
         )
 

@@ -55,7 +55,7 @@ class ConsentFactory(factory.DjangoModelFactory):
     is_enabled = True
     required = True
     order = 1
-    journey = JourneyTypes.LINK
+    journey = JourneyTypes.LINK.value
     slug = secrets.token_urlsafe()
 
 

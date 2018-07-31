@@ -5,6 +5,7 @@ import socket
 import sre_constants
 import uuid
 import requests
+from enum import Enum
 
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
@@ -145,7 +146,7 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class JourneyTypes:
+class JourneyTypes(Enum):
     JOIN = 0
     LINK = 1
     ADD = 2
@@ -153,9 +154,9 @@ class JourneyTypes:
 
 class Consent(models.Model):
     journeys = (
-        (JourneyTypes.JOIN, 'join'),
-        (JourneyTypes.LINK, 'link'),
-        (JourneyTypes.ADD, 'add'),
+        (JourneyTypes.JOIN.value, 'join'),
+        (JourneyTypes.LINK.value, 'link'),
+        (JourneyTypes.ADD.value, 'add'),
     )
 
     check_box = models.BooleanField()
@@ -400,7 +401,7 @@ class SchemeAccount(models.Model):
             'user_id': self.user.id,
             'credentials': credentials,
             'status': self.status,
-            'journey_type': JourneyTypes.LINK
+            'journey_type': JourneyTypes.LINK.value
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
