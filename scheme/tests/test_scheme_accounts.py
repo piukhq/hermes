@@ -14,7 +14,7 @@ from scheme.tests.factories import ConsentFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
-from scheme.models import Consent
+from scheme.models import JourneyTypes
 from scheme.models import UserConsent
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
@@ -1038,7 +1038,7 @@ class TestSchemeAccountViews(APITestCase):
         test_reply = 1
         consent1 = ConsentFactory.create(
             scheme=scheme,
-            journey=Consent.JOIN,
+            journey=JourneyTypes.JOIN.value,
             order=1
         )
 

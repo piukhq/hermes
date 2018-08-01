@@ -4,7 +4,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
-from scheme.models import Consent
+from scheme.models import Consent, JourneyTypes
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -55,7 +55,7 @@ class ConsentFactory(factory.DjangoModelFactory):
     is_enabled = True
     required = True
     order = 1
-    journey = Consent.LINK
+    journey = JourneyTypes.LINK.value
     slug = secrets.token_urlsafe()
 
 
