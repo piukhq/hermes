@@ -428,25 +428,32 @@ class JoinSerializer(SchemeAnswerSerializer):
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
+        required_question_types = []
+        for question in scheme.join_questions:
+            if question.required:
+                required_question_types.append(question.type)
+
         # Validate scheme join questions
-        scheme_join_question_types = [question.type for question in scheme.join_questions if question.required is True]
-        if not scheme_join_question_types:
+        if not required_question_types:
             raise serializers.ValidationError("No join questions found for scheme: {}".format(scheme.slug))
 
-        # Validate all link questions are included in the join questions
+        # Validate all link questions are included in the required join questions
         scheme_link_question_types = [question.type for question in scheme.link_questions]
-        if not set(scheme_link_question_types).issubset(scheme_join_question_types):
+        if not set(scheme_link_question_types).issubset(required_question_types):
             raise serializers.ValidationError("Please convert all \"Link\" only credential questions "
                                               "to \"Join & Link\" for scheme: {}".format(scheme))
 
         # Validate request join questions
         request_join_question_types = data.keys()
         data['credentials'] = {}
-        for question in scheme_join_question_types:
-            if question not in request_join_question_types:
-                self.raise_missing_field_error(question)
+        for question in scheme.join_questions:
+            question_type = question.type
+            if question_type in request_join_question_types:
+                data['credentials'][question_type] = str(data[question_type])
+
             else:
-                data['credentials'][question] = str(data[question])
+                if question.required:
+                    self.raise_missing_field_error(question_type)
 
         return data
 

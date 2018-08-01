@@ -122,3 +122,32 @@ class TestSchemeSerializer(TestCase):
 
         self.assertTrue(all(x in join_question_types for x in data_types))
         self.assertFalse(any(x in not_join_questions_types for x in data_types))
+
+
+class TestJoinSerializer(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        scheme = SchemeFactory()
+        cls.req_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
+                                                           options=SchemeCredentialQuestion.JOIN)
+        cls.opt_request = SchemeCredentialQuestionFactory(type=LAST_NAME, scheme=scheme,
+                                                          options=SchemeCredentialQuestion.OPTIONAL_JOIN)
+        context = {
+            'scheme': scheme,
+            'user': '1'
+        }
+        cls.serializer = JoinSerializer(context=context)
+        super().setUpClass()
+
+    def test_missing_required_questions_raises_error(self):
+        with self.assertRaises(ValidationError):
+            self.serializer.validate({'last_name': 'test'})
+
+    def test_missing_optional_questions_doesnt_raises_error(self):
+        data = self.serializer.validate({'barcode': '123'})
+        self.assertIn('barcode', data['credentials'])
+
+    def test_optional_credentials_get_sent(self):
+        data = self.serializer.validate({'barcode': '123', 'last_name': 'test'})
+        self.assertIn('barcode', data['credentials'])
+        self.assertIn('last_name', data['credentials'])
