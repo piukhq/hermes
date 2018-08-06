@@ -5,10 +5,10 @@ import jwt
 class GenerateJWToken:
     payload = {}
 
-    def __init__(self, client_id, secret, bundle_id, email=None):
+    def __init__(self, client_id, client_secret, bundle_id, email=None):
         self.bundle_id = bundle_id
         self.client_id = client_id
-        self.secret = secret
+        self.secret = client_secret
         self._format_payload(email)
 
     def _format_payload(self, email):
@@ -16,7 +16,6 @@ class GenerateJWToken:
             "Organisation ID": self.client_id,
             "Bundle ID": self.bundle_id,
             "User ID": email or "test@binktest.com",
-            "Email": email or "test@binktest.com",
             "iat": arrow.utcnow().timestamp
         }
 

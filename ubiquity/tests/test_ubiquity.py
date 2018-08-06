@@ -32,13 +32,35 @@ class TestRegistration(APITestCase):
     def test_service_registration(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
         consent = json.dumps({
             'consent': {
+                'email': 'test@email.bink',
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
+
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
+        organisation = OrganisationFactory(name='Test other organisation')
+        client = ClientApplicationFactory(name='random other client', organisation=organisation)
+        bundle = ClientApplicationBundleFactory(bundle_id='test.other.user', client=client)
+
+        data = {
+            'client_id': bundle.client.client_id,
+            'client_secret': bundle.client.secret,
+            'bundle_id': bundle.bundle_id
+        }
+        token = self.token_generator(**data).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'email': 'test@email.bink',
                 'timestamp': arrow.utcnow().timestamp
             }
         })

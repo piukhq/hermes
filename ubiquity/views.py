@@ -23,7 +23,7 @@ from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSe
                                   PaymentCardSerializer, PaymentCardTranslationSerializer, ServiceConsentSerializer,
                                   TransactionsSerializer)
 from user.models import CustomUser
-from user.serializers import RegisterSerializer
+from user.serializers import NewRegisterSerializer
 
 
 class PaymentCardConsentMixin:
@@ -48,18 +48,23 @@ class ServiceView(ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         status_code = 200
+        consent_data = request.data['consent']
+        if 'email' not in consent_data:
+            raise ParseError
+
         new_user_data = {
             'client_id': request.bundle.client.pk,
-            'email': '{}__{}'.format(request.bundle.bundle_id, request.prop_email),
-            'uid': request.prop_email,
+            'bundle_id': request.bundle.bundle_id,
+            'email': consent_data['email'],
+            'uid': request.prop_id,
             'password': str(uuid.uuid4()).lower().replace('-', 'A&')
         }
 
         try:
-            user = CustomUser.objects.get(email=new_user_data['email'])
+            user = CustomUser.objects.get(email=new_user_data['email'], client=request.bundle.client)
         except CustomUser.DoesNotExist:
             status_code = 201
-            new_user = RegisterSerializer(data=new_user_data)
+            new_user = NewRegisterSerializer(data=new_user_data)
             new_user.is_valid(raise_exception=True)
             user = new_user.save()
 
@@ -71,10 +76,8 @@ class ServiceView(ModelViewSet):
         if hasattr(user, 'serviceconsent'):
             user.serviceconsent.delete()
 
-        consent = self.get_serializer(
-            data={'user': user.pk, **{k: v for k, v in request.data['consent'].items()}})
-
         try:
+            consent = self.get_serializer(data={'user': user.pk, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
