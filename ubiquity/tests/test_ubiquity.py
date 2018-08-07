@@ -71,7 +71,7 @@ class TestRegistration(APITestCase):
     def test_service_registration_wrong_data(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id,
             'email': 'wrongconsent@bink.test'
         }
@@ -91,7 +91,7 @@ class TestRegistration(APITestCase):
     def test_service_registration_wrong_header(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': 'wrong bundle id'
         }
         token = self.token_generator(**data).get_token()
