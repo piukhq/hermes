@@ -18,7 +18,7 @@ from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage)
+                           SchemeAccountImage, JourneyTypes)
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
@@ -891,7 +891,9 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         data = {
             'scheme_account_id': scheme_account.id,
             'credentials': encrypted_credentials,
-            'user_id': scheme_account.user.id
+            'user_id': scheme_account.user.id,
+            'status': scheme_account.status,
+            'journey_type': JourneyTypes.JOIN.value
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
