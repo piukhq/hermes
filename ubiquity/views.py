@@ -21,7 +21,7 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
                                   PaymentCardSerializer, PaymentCardTranslationSerializer, ServiceConsentSerializer,
-                                  TransactionsSerializer)
+                                  TransactionsSerializer, PaymentCardUpdateSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -32,6 +32,18 @@ class PaymentCardConsentMixin:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
         pcard.consents = serializer.validated_data
+        pcard.save()
+        return PaymentCardSerializer(pcard).data
+
+    @staticmethod
+    def _update_payment_card_consent(consent_data, pcard):
+        if not consent_data:
+            pcard.consents = []
+        else:
+            serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
+            serializer.is_valid(raise_exception=True)
+            pcard.consents = serializer.validated_data
+
         pcard.save()
         return PaymentCardSerializer(pcard).data
 
@@ -95,7 +107,7 @@ class ServiceView(ModelViewSet):
         return Response(response)
 
 
-class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
+class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -108,6 +120,18 @@ class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
             query['issuer__in'] = self.request.allowed_issuers
 
         return self.queryset.filter(**query)
+
+    def patch(self, request, *args, **kwargs):
+        pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pk'])
+
+        if 'card' in request.data:
+            data = PaymentCardUpdateSerializer(request.data['card']).data
+            pcard.objects.update(data)
+
+        if 'consents' in request.data.get('account'):
+            self._update_payment_card_consent(request.data['account']['consents'], pcard)
+
+        return self.get_serializer(pcard.refresh_from_db()).data
 
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
@@ -143,27 +167,9 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
         if status_code == status.HTTP_201_CREATED:
-            self._link_to_all_membership_cards(pcard, request.user)
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
         return Response(message, status=status_code)
-
-    @staticmethod
-    def _link_to_all_membership_cards(pcard, user):
-        updated_entries = []
-        for mcard in user.scheme_account_set.all():
-            other_entry = PaymentCardSchemeEntry.objects.filter(scheme_account=mcard).first()
-            entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
-
-            if other_entry:
-                entry.active_link = other_entry.active_link
-                entry.save()
-            else:
-                entry.activate_link()
-
-            updated_entries.append(entry)
-
-        audit.write_to_db(updated_entries, many=True)
 
 
 class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):

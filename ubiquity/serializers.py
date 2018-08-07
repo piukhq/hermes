@@ -163,6 +163,21 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
     currency_code = serializers.CharField(required=False, default='GBP')
 
 
+class PaymentCardUpdateSerializer(serializers.Serializer):
+    pan_start = serializers.IntegerField(source='first_six_digits', required=False)
+    pan_end = serializers.IntegerField(source='last_four_digits', required=False)
+    issuer = serializers.IntegerField(required=False)
+    payment_card = serializers.IntegerField(required=False)
+    name_on_card = serializers.CharField(required=False)
+    token = serializers.CharField(required=False)
+    fingerprint = serializers.CharField(required=False)
+    expiry_year = serializers.IntegerField(source='year', required=False)
+    expiry_month = serializers.IntegerField(source='month', required=False)
+    country = serializers.CharField(required=False)
+    order = serializers.IntegerField(required=False, default=0)
+    currency_code = serializers.CharField(required=False, default='GBP')
+
+
 class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
     id = serializers.SerializerMethodField()
     name = serializers.SerializerMethodField()
