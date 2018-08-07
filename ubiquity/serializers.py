@@ -2,9 +2,10 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.serializers import PaymentCardAccountSerializer
+from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardAccountImageSerializer
 from scheme.models import SchemeAccount
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
+                                SchemeAccountImageSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -83,6 +84,46 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
         exclude = ('payment_card_account', 'scheme_account')
+
+
+class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
+    type = serializers.IntegerField(source='image_type_code')
+    url = serializers.ImageField(source='image')
+    encoding = serializers.SerializerMethodField()
+
+    class Meta(PaymentCardAccountImageSerializer.Meta):
+        exclude = None
+        fields = ('id', 'url', 'type', 'description', 'encoding')
+
+    @staticmethod
+    def get_encoding(obj):
+        if obj.encoding:
+            return obj.encoding
+
+        try:
+            return obj.image.name.split('.')[-1]
+        except (IndexError, AttributeError):
+            return None
+
+
+class UbiquityMembershipCardImageSerializer(SchemeAccountImageSerializer):
+    type = serializers.IntegerField(source='image_type_code')
+    url = serializers.ImageField(source='image')
+    encoding = serializers.SerializerMethodField()
+
+    class Meta(PaymentCardAccountImageSerializer.Meta):
+        exclude = None
+        fields = ('id', 'url', 'type', 'description', 'encoding')
+
+    @staticmethod
+    def get_encoding(obj):
+        if obj.encoding:
+            return obj.encoding
+
+        try:
+            return obj.image.name.split('.')[-1]
+        except (IndexError, AttributeError):
+            return None
 
 
 class PaymentCardSerializer(PaymentCardAccountSerializer):

@@ -26,7 +26,7 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PaymentCardAccountImage
-        exclude = ('payment_card_accounts',)
+        exclude = ('payment_card_accounts', 'encoding')
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -164,14 +164,14 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_payment_card_account(payment_card_account):
+def get_images_for_payment_card_account(payment_card_account, serializer_class=PaymentCardAccountImageSerializer):
     account_images = models.PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
     payment_card_images = models.PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
     for image in account_images:
-        serializer = PaymentCardAccountImageSerializer(image)
+        serializer = serializer_class(image)
         images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
 
     for image in payment_card_images:
@@ -189,9 +189,10 @@ def get_images_for_payment_card_account(payment_card_account):
                 call_to_action=image.call_to_action,
                 order=image.order,
                 created=image.created,
+                encoding=image.encoding
             )
 
-            serializer = PaymentCardAccountImageSerializer(account_image)
+            serializer = serializer_class(account_image)
             images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
 
     return images
