@@ -2,7 +2,8 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardAccountImageSerializer
+from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardAccountImageSerializer, \
+    get_images_for_payment_card_account
 from scheme.models import SchemeAccount
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
                                 SchemeAccountImageSerializer)
@@ -106,26 +107,6 @@ class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
             return None
 
 
-class UbiquityMembershipCardImageSerializer(SchemeAccountImageSerializer):
-    type = serializers.IntegerField(source='image_type_code')
-    url = serializers.ImageField(source='image')
-    encoding = serializers.SerializerMethodField()
-
-    class Meta(PaymentCardAccountImageSerializer.Meta):
-        exclude = None
-        fields = ('id', 'url', 'type', 'description', 'encoding')
-
-    @staticmethod
-    def get_encoding(obj):
-        if obj.encoding:
-            return obj.encoding
-
-        try:
-            return obj.image.name.split('.')[-1]
-        except (IndexError, AttributeError):
-            return None
-
-
 class PaymentCardSerializer(PaymentCardAccountSerializer):
     membership_cards = serializers.SerializerMethodField()
     first_six_digits = serializers.IntegerField(source='pan_start')
@@ -159,7 +140,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
                 "provider": instance.payment_card.system_name,
                 "type": instance.payment_card.type
             },
-            "images": self.get_images(instance),
+            "images": get_images_for_payment_card_account(instance, serializer_class=UbiquityPaymentCardImageSerializer,
+                                                          add_type=False),
             "account": {
                 "consents": instance.consents
             }
@@ -196,6 +178,26 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
         exclude = ('scheme_account', 'payment_card_account')
+
+
+class UbiquityMembershipCardImageSerializer(SchemeAccountImageSerializer):
+    type = serializers.IntegerField(source='image_type_code')
+    url = serializers.ImageField(source='image')
+    encoding = serializers.SerializerMethodField()
+
+    class Meta(PaymentCardAccountImageSerializer.Meta):
+        exclude = None
+        fields = ('id', 'url', 'type', 'description', 'encoding')
+
+    @staticmethod
+    def get_encoding(obj):
+        if obj.encoding:
+            return obj.encoding
+
+        try:
+            return obj.image.name.split('.')[-1]
+        except (IndexError, AttributeError):
+            return None
 
 
 class MembershipCardSerializer(GetSchemeAccountSerializer):
