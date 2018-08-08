@@ -71,15 +71,15 @@ class TestRegistration(APITestCase):
     def test_service_registration_wrong_data(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id,
-            'email': 'wrongconsent@bink.test'
         }
         token = self.token_generator(**data).get_token()
         auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
         consent = json.dumps({
             'consent': {
-                'timestamp': 'not a timestamp'
+                'timestamp': 'not a timestamp',
+                'email': 'wrongconsent@bink.test'
             }
         })
 
@@ -91,7 +91,7 @@ class TestRegistration(APITestCase):
     def test_service_registration_wrong_header(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': 'wrong bundle id'
         }
         token = self.token_generator(**data).get_token()
@@ -115,7 +115,7 @@ class TestResources(APITestCase):
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
         email = 'test@user.com'
-        self.user = UserFactory(email='{}__{}'.format(bundle.bundle_id, email))
+        self.user = UserFactory(email=email, client=client)
         self.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
