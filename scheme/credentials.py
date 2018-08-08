@@ -75,4 +75,11 @@ ENCRYPTED_CREDENTIALS = (
     REGULAR_RESTAURANT,
 )
 
+# ubiquity choices
+FIELD_TYPE_CHOICE = (
+        (0, 'add_field'),
+        (1, 'auth_field'),
+        (2, 'enrol_field'),
+    )
+
 credential_types_set = {credential_type[0] for credential_type in CREDENTIAL_TYPES}

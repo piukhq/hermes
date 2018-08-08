@@ -24,7 +24,7 @@ class CredentialQuestionFormset(BaseInlineFormSet):
             raise ValidationError("You must have a manual question when a scheme is set to active")
 
 
-class CredentialQuestionInline(admin.TabularInline):
+class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
     formset = CredentialQuestionFormset
     extra = 0

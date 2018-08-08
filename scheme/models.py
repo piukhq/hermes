@@ -19,7 +19,7 @@ from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
 from common.models import Image
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, FIELD_TYPE_CHOICE
 from scheme.encyption import AESCipher
 
 
@@ -116,6 +116,14 @@ class Scheme(models.Model):
                                       help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    # ubiquity fields
+    authorisation_required = models.BooleanField(default=True)
+    digital_only = models.BooleanField(default=False)
+    plan_name_card = models.CharField(max_length=50, null=True, blank=True)
+    plan_summary = models.TextField(null=True, blank=True)
+    plan_description = models.TextField(null=True, blank=True)
+    enrol_incentive = models.CharField(max_length=100, null=True, blank=True)
 
     @property
     def manual_question(self):
@@ -578,17 +586,30 @@ class SchemeCredentialQuestion(models.Model):
         (LINK_AND_JOIN, 'Link & Join'),
         (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
+    ANSWER_TYPE_CHOICE = (
+        (0, 'text'),
+        (1, 'sensitive'),
+        (2, 'choice'),
+        (3, 'boolean'),
+    )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
     third_party_identifier = models.BooleanField(default=False)
-
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    # ubiquity fields
+    validation = models.TextField(default='.*')
+    description = models.CharField(max_length=250, null=True, blank=True)
+    common_name = models.CharField(max_length=50, null=True, blank=True)
+    answer_type = models.IntegerField(choices=ANSWER_TYPE_CHOICE, default=0)
+    choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICE, default=0)
 
     @property
     def required(self):

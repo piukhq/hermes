@@ -2,9 +2,9 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardAccountImageSerializer, \
-    get_images_for_payment_card_account
-from scheme.models import SchemeAccount
+from payment_card.serializers import (PaymentCardAccountImageSerializer, PaymentCardAccountSerializer,
+                                      get_images_for_payment_card_account)
+from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
                                 SchemeAccountImageSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
@@ -295,3 +295,10 @@ class ActiveCardAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentCardSchemeEntry
         fields = ()
+
+
+class MembershipPlanSerializer(serializers.ModelSerializer):
+
+
+    class Meta:
+        model = Scheme
