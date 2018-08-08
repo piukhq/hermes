@@ -143,6 +143,33 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    def test_update_payment_card(self):
+        payment_card_account = self.payment_card_account_entry.payment_card_account
+        new_data = {
+            "card": {
+                "name_on_card": "new name on card"
+            }
+        }
+        resp = self.client.patch(reverse('payment-card', args=[payment_card_account.id]), data=json.dumps(new_data),
+                                 content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['card']['name_on_card'], new_data['card']['name_on_card'])
+
+        new_consent = {
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 23947329497,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        resp = self.client.patch(reverse('payment-card', args=[payment_card_account.id]), data=json.dumps(new_consent),
+                                 content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['account']['consents'], new_consent['account']['consents'])
+
     def test_get_all_payment_cards(self):
         PaymentCardAccountEntryFactory(user=self.user)
         payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()

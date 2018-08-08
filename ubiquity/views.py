@@ -20,8 +20,8 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, PaymentCardTranslationSerializer, ServiceConsentSerializer,
-                                  TransactionsSerializer, PaymentCardUpdateSerializer)
+                                  PaymentCardSerializer, PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
+                                  ServiceConsentSerializer, TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -36,16 +36,15 @@ class PaymentCardConsentMixin:
         return PaymentCardSerializer(pcard).data
 
     @staticmethod
-    def _update_payment_card_consent(consent_data, pcard):
+    def _update_payment_card_consent(consent_data, pcard_pk):
         if not consent_data:
-            pcard.consents = []
+            consents = []
         else:
             serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
             serializer.is_valid(raise_exception=True)
-            pcard.consents = serializer.validated_data
+            consents = serializer.validated_data
 
-        pcard.save()
-        return PaymentCardSerializer(pcard).data
+        PaymentCardAccount.objects.filter(pk=pcard_pk).update(consents=consents)
 
 
 class ServiceView(ModelViewSet):
@@ -122,16 +121,18 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
         return self.queryset.filter(**query)
 
     def patch(self, request, *args, **kwargs):
-        pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pk'])
-
         if 'card' in request.data:
-            data = PaymentCardUpdateSerializer(request.data['card']).data
-            pcard.objects.update(data)
+            try:
+                data = PaymentCardUpdateSerializer(request.data['card']).data
+                PaymentCardAccount.objects.filter(pk=kwargs['pk']).update(**data)
+            except ValueError as e:
+                raise ParseError(str(e))
 
-        if 'consents' in request.data.get('account'):
-            self._update_payment_card_consent(request.data['account']['consents'], pcard)
+        if 'account' in request.data and 'consents' in request.data['account']:
+            self._update_payment_card_consent(request.data['account']['consents'], kwargs['pk'])
 
-        return self.get_serializer(pcard.refresh_from_db()).data
+        pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pk'])
+        return Response(self.get_serializer(pcard).data)
 
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
