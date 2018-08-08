@@ -45,7 +45,7 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
 
         bundle, email = self.authenticate_credentials(token)
         try:
-            user = CustomUser.objects.get(email='{}__{}'.format(bundle.bundle_id, email))
+            user = CustomUser.objects.get(email=email, client=bundle.client)
         except CustomUser.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
