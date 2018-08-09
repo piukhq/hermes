@@ -2,10 +2,9 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
-
-from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue)
+from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
+                           SchemeAccountImage, SchemeCredentialQuestion, SchemeCredentialQuestionChoice,
+                           SchemeCredentialQuestionChoiceValue, SchemeDetails, SchemeImage, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -31,7 +30,6 @@ class CredentialQuestionInline(admin.StackedInline):
 
 
 class SchemeForm(ModelForm):
-
     class Meta:
         model = Scheme
         fields = '__all__'
@@ -51,12 +49,18 @@ class SchemeForm(ModelForm):
         return point_name
 
 
+class SchemeDetailsInline(admin.StackedInline):
+    verbose_name_plural = 'scheme details'
+    model = SchemeDetails
+    extra = 0
+
+
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline,)
+    inlines = (SchemeDetailsInline, CredentialQuestionInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('is_active', )
+    list_filter = ('is_active',)
     form = SchemeForm
     search_fields = ['name']
 
@@ -98,7 +102,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
-    inlines = (SchemeAccountCredentialAnswerInline, )
+    inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
     list_display = ('scheme', 'status', 'is_deleted', 'created',)
     search_fields = ['scheme']

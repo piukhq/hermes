@@ -655,6 +655,17 @@ class SchemeCredentialQuestionChoiceValue(models.Model):
         ordering = ['value']
 
 
+class SchemeDetails(models.Model):
+    TYPE_CHOICES = (
+        (0, 'Tier'),
+    )
+
+    scheme_id = models.ForeignKey('Scheme')
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+
+
 class SchemeAccountCredentialAnswer(models.Model):
     scheme_account = models.ForeignKey(SchemeAccount)
     question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)

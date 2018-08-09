@@ -298,7 +298,11 @@ class ActiveCardAuditSerializer(serializers.ModelSerializer):
 
 
 class MembershipPlanSerializer(serializers.ModelSerializer):
-
+    plan_name = serializers.CharField(source='name')
 
     class Meta:
         model = Scheme
+        exclude = ('name',)
+
+    def to_representation(self, instance):
+        return super().to_representation(instance)
