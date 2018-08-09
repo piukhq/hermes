@@ -75,6 +75,20 @@ class SwappableSerializerMixin(object):
         return self.override_serializer_classes[self.request.method]
 
 
+class IdentifyCardMixin:
+    @staticmethod
+    def _get_scheme(base_64_image):
+        data = {
+            'uuid': str(uuid.uuid4()),
+            'base64img': base_64_image
+        }
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers)
+        return resp.json()
+
+
 class SchemeAccountQuery(APIView):
     authentication_classes = (ServiceAuthentication,)
 
@@ -768,7 +782,7 @@ class ReferenceImages(APIView):
         return Response(return_data, status=200)
 
 
-class IdentifyCard(APIView):
+class IdentifyCard(APIView, IdentifyCardMixin):
     authentication_classes = (JwtAuthentication,)
 
     def post(self, request, *args, **kwargs):
@@ -784,15 +798,7 @@ class IdentifyCard(APIView):
           - code: 400
             message: no match
         """
-        data = {
-            'uuid': str(uuid.uuid4()),
-            'base64img': request.data['base64img']
-        }
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers)
-        json = resp.json()
+        json = self._get_scheme(request.data['base64img'])
 
         if json['status'] != 'success' or json['reason'] == 'no match':
             return Response({'status': 'failure', 'message': json['reason']},

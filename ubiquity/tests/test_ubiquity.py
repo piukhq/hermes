@@ -464,5 +464,9 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_membership_plan(self):
-        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), data={'fields': 'id,status'}, **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_composite_membership_plan(self):
+        resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)

@@ -1,9 +1,8 @@
 from django.conf.urls import url
 
-from scheme.views import RetrieveScheme
 from ubiquity.views import (CompositeMembershipCardView, CompositePaymentCardView, CreateDeleteLinkView,
-                            ListMembershipCardView, ListPaymentCardView, MembershipCardView, MembershipPlans,
-                            PaymentCardView, ServiceView, UserTransactions, MembershipPlan)
+                            ListMembershipCardView, ListPaymentCardView, MembershipCardView, MembershipPlan,
+                            MembershipPlans, PaymentCardView, ServiceView, UserTransactions)
 
 service_view = {'get': 'retrieve', 'post': 'create', 'delete': 'destroy'}
 cards_plural = {'get': 'list', 'post': 'create'}
@@ -25,10 +24,11 @@ urlpatterns = [
     url(r'^/transactions/?$',
         UserTransactions.as_view({'get': 'list'}), name='user-transactions'),
     url(r'^/membership_card?/(?P<mcard_id>[0-9]+)/transactions$',
-        MembershipCardView.as_view({'get': 'transactions'}),
-        name='membership-card-transactions'),
+        MembershipCardView.as_view({'get': 'transactions'}), name='membership-card-transactions'),
+    url(r'^/membership_card?/(?P<mcard_id>[0-9]+)/membership_plan$',
+        MembershipCardView.as_view({'get': 'membership_plan'}), name='membership-card-plan'),
     url(r'^/membership_plans/?$',
-        MembershipPlans.as_view({'get': 'list'}), name='membership-plans'),
+        MembershipPlans.as_view({'get': 'list', 'post': 'identify'}), name='membership-plans'),
     url(r'^/membership_plan/(?P<pk>[0-9]+)$',
         MembershipPlan.as_view({'get': 'retrieve'}), name='membership-plan'),
     url(r'^/payment_card/(?P<pcard_id>\d+)/membership_cards/?$',
