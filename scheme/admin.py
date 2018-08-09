@@ -4,7 +4,7 @@ from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeAccountImage, SchemeCredentialQuestion, SchemeCredentialQuestionChoice,
-                           SchemeCredentialQuestionChoiceValue, SchemeDetails, SchemeImage, UserConsent)
+                           SchemeCredentialQuestionChoiceValue, SchemeDetail, SchemeImage, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -50,8 +50,7 @@ class SchemeForm(ModelForm):
 
 
 class SchemeDetailsInline(admin.StackedInline):
-    verbose_name_plural = 'scheme details'
-    model = SchemeDetails
+    model = SchemeDetail
     extra = 0
 
 

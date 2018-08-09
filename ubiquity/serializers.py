@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from payment_card.serializers import (PaymentCardAccountImageSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme, SchemeAccount, SchemeBalanceDetail, SchemeCredentialQuestion, SchemeDetail
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
                                 SchemeAccountImageSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
@@ -297,12 +297,92 @@ class ActiveCardAuditSerializer(serializers.ModelSerializer):
         fields = ()
 
 
-class MembershipPlanSerializer(serializers.ModelSerializer):
-    plan_name = serializers.CharField(source='name')
+class SchemeQuestionSerializer(serializers.ModelSerializer):
+    column = serializers.CharField(source='type')
+    type = serializers.IntegerField(source='answer_type')
 
+    class Meta:
+        model = SchemeCredentialQuestion
+        fields = ('column', 'validation', 'description', 'common_name', 'type', 'choice')
+
+
+class SchemeDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeDetail
+        fields = ('name', 'description')
+
+
+class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeBalanceDetail
+        exclude = ('scheme_id',)
+
+
+class MembershipPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
         exclude = ('name',)
 
     def to_representation(self, instance):
-        return super().to_representation(instance)
+        balances = instance.schemebalancedetail_set.all()
+        tiers = instance.schemedetail_set.filter(type=0).all()
+        add_fields = instance.questions.filter(field_type=0).all()
+        authorise_fields = instance.questions.filter(field_type=1).all()
+        enrol_fields = instance.questions.filter(field_type=2).all()
+        status = 'active' if instance.is_active else 'suspended'
+        if instance.tier == 2:
+            card_type = 2
+        elif instance.has_points or instance.has_transactions:
+            card_type = 1
+        else:
+            card_type = 0
+
+        return {
+            'id': instance.id,
+            'status': status,
+            'feature_set': {
+                'authorisation_required': instance.authorisation_required,
+                'transactions_available': instance.has_transactions,
+                'digital_only': instance.digital_only,
+                'has_balance': instance.has_points,
+                'apps': [
+                    {
+                        'app_id': instance.ios_scheme,
+                        'app_store_url': instance.itunes_url,
+                        'app_type': 0
+                    },
+                    {
+                        'app_id': instance.android_app_id,
+                        'app_store_url': instance.play_store_url,
+                        'app_type': 1
+                    }
+                ],
+                'card_type': card_type
+            },
+            'card': {
+                'barcode_type': instance.barcode_type,
+                'colour': instance.colour,
+                'base64_image': '',
+                'scan_message': instance.scan_message
+            },
+            'images': UbiquityMembershipCardImageSerializer(instance.images.all(), many=True).data,
+            'account': {
+                'plan_name': instance.name,
+                'plan_name_card': instance.plan_name_card,
+                'plan_url': instance.url,
+                'plan_summary': instance.plan_summary,
+                'plan_description': instance.plan_description,
+                'company_name': instance.company,
+                'company_url': instance.company_url,
+                'enrol_incentive': instance.enrol_incentive,
+                'category': instance.category,
+                'forgotten_password_url': instance.forgotten_password_url,
+                'tiers': SchemeDetailSerializer(tiers, many=True).data,
+                'terms': instance.join_t_and_c,
+                'terms_url': instance.join_url,
+                'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
+                'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
+                'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
+            },
+            'balances': SchemeBalanceDetailSerializer(balances, many=True).data
+        }

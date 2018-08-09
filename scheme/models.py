@@ -655,7 +655,7 @@ class SchemeCredentialQuestionChoiceValue(models.Model):
         ordering = ['value']
 
 
-class SchemeDetails(models.Model):
+class SchemeDetail(models.Model):
     TYPE_CHOICES = (
         (0, 'Tier'),
     )
@@ -663,6 +663,14 @@ class SchemeDetails(models.Model):
     scheme_id = models.ForeignKey('Scheme')
     type = models.IntegerField(choices=TYPE_CHOICES, default=0)
     name = models.CharField(max_length=255)
+    description = models.TextField()
+
+
+class SchemeBalanceDetail(models.Model):
+    scheme_id = models.ForeignKey('Scheme')
+    currency = models.CharField(max_length=50)
+    prefix = models.CharField(max_length=50)
+    suffix = models.CharField(max_length=50)
     description = models.TextField()
 
 
