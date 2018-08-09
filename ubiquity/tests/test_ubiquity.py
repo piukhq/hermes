@@ -458,3 +458,11 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['payment_cards'])
+
+    def test_membership_plans(self):
+        resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_membership_plan(self):
+        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)

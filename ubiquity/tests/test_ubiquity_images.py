@@ -17,7 +17,7 @@ class TestPaymentCardAccountImages(APITestCase):
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
         email = 'test@user.com'
-        cls.user = UserFactory(email='{}__{}'.format(bundle.bundle_id, email))
+        cls.user = UserFactory(email=email, client=client)
 
         cls.payment_card_account_entry = PaymentCardAccountEntryFactory(user=cls.user)
         cls.payment_card_account = cls.payment_card_account_entry.payment_card_account

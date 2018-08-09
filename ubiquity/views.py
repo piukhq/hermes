@@ -19,9 +19,9 @@ from scheme.views import BaseLinkMixin, RetrieveDeleteAccount, SchemeAccountCrea
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                  ServiceConsentSerializer, TransactionsSerializer)
+from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+                                  PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
+                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -441,3 +441,15 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
         return Response(message, status=status_code)
+
+
+class MembershipPlans(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
+    queryset = Scheme.objects
+    serializer_class = MembershipPlanSerializer
+
+
+class MembershipPlan(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
+    queryset = Scheme.objects
+    serializer_class = MembershipPlanSerializer

@@ -2,11 +2,10 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.serializers import (PaymentCardAccountImageSerializer, PaymentCardAccountSerializer,
+from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeAccount, SchemeBalanceDetail, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
-                                SchemeAccountImageSerializer)
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -87,14 +86,12 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
         exclude = ('payment_card_account', 'scheme_account')
 
 
-class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
+class UbiquityImageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     type = serializers.IntegerField(source='image_type_code')
     url = serializers.ImageField(source='image')
+    description = serializers.CharField()
     encoding = serializers.SerializerMethodField()
-
-    class Meta(PaymentCardAccountImageSerializer.Meta):
-        exclude = None
-        fields = ('id', 'url', 'type', 'description', 'encoding')
 
     @staticmethod
     def get_encoding(obj):
@@ -102,7 +99,7 @@ class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
             return obj.encoding
 
         try:
-            return obj.image.name.split('.')[-1]
+            return obj.image.name.split('.')[-1].replace('/', '')
         except (IndexError, AttributeError):
             return None
 
@@ -140,7 +137,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
                 "provider": instance.payment_card.system_name,
                 "type": instance.payment_card.type
             },
-            "images": get_images_for_payment_card_account(instance, serializer_class=UbiquityPaymentCardImageSerializer,
+            "images": get_images_for_payment_card_account(instance, serializer_class=UbiquityImageSerializer,
                                                           add_type=False),
             "account": {
                 "consents": instance.consents
@@ -193,26 +190,6 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
         exclude = ('scheme_account', 'payment_card_account')
-
-
-class UbiquityMembershipCardImageSerializer(SchemeAccountImageSerializer):
-    type = serializers.IntegerField(source='image_type_code')
-    url = serializers.ImageField(source='image')
-    encoding = serializers.SerializerMethodField()
-
-    class Meta(PaymentCardAccountImageSerializer.Meta):
-        exclude = None
-        fields = ('id', 'url', 'type', 'description', 'encoding')
-
-    @staticmethod
-    def get_encoding(obj):
-        if obj.encoding:
-            return obj.encoding
-
-        try:
-            return obj.image.name.split('.')[-1]
-        except (IndexError, AttributeError):
-            return None
 
 
 class MembershipCardSerializer(GetSchemeAccountSerializer):
@@ -365,7 +342,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': UbiquityMembershipCardImageSerializer(instance.images.all(), many=True).data,
+            'images': UbiquityImageSerializer(instance.images.all(), many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
@@ -375,7 +352,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'company_name': instance.company,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
-                'category': instance.category,
+                'category': instance.category.name,
                 'forgotten_password_url': instance.forgotten_password_url,
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
                 'terms': instance.join_t_and_c,
