@@ -120,7 +120,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
 
         return self.queryset.filter(**query)
 
-    def patch(self, request, *args, **kwargs):
+    def update(self, request, *args, **kwargs):
         if 'card' in request.data:
             try:
                 data = PaymentCardUpdateSerializer(request.data['card']).data
@@ -196,6 +196,9 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
         account = self.get_object()
         account.get_cached_balance()
         return Response(self.get_serializer(account).data)
+
+    def update(self, request, *args, **kwargs):
+        return Response()
 
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)

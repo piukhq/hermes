@@ -15,7 +15,8 @@ from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardSerializer
+from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+                                  PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
@@ -462,11 +463,14 @@ class TestResources(APITestCase):
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+        self.assertTrue(isinstance(resp.json(), list))
 
     def test_membership_plan(self):
-        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), data={'fields': 'id,status'}, **self.auth_headers)
+        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(MembershipPlanSerializer(self.scheme).data, resp.json())
 
     def test_composite_membership_plan(self):
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(MembershipPlanSerializer(self.scheme_account.scheme).data, resp.json())
