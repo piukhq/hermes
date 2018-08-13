@@ -607,12 +607,12 @@ class SchemeCredentialQuestion(models.Model):
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
     # ubiquity fields
-    validation = models.TextField(default='.*')
-    description = models.CharField(max_length=250, null=True, blank=True)
+    validation = models.TextField(blank=True, null=True, max_length=250)
+    description = models.CharField(blank=True, null=True, max_length=250)
     common_name = models.CharField(max_length=50, null=True, blank=True)
     answer_type = models.IntegerField(choices=ANSWER_TYPE_CHOICE, default=0)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICE, default=0)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICE, null=True, blank=True)
 
     @property
     def required(self):
