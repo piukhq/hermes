@@ -1,18 +1,17 @@
-import arrow
 import json
 import re
 import socket
 import sre_constants
 import uuid
 import requests
-from enum import Enum
+from enum import Enum, IntEnum
 
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from common.models import Image
 from django.conf import settings
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -166,7 +165,8 @@ class Consent(models.Model):
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
-    slug = models.SlugField(max_length=50, blank=True)
+    slug = models.SlugField(max_length=50, help_text="Slug must match the opt-in field name in the request"
+                                                     " sent to the merchant e.g marketing_opt_in")
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
@@ -179,6 +179,9 @@ class Consent(models.Model):
 
     def __str__(self):
         return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
+
+    class Meta:
+        unique_together = ('slug', 'scheme', 'journey')
 
 
 class Exchange(models.Model):
@@ -326,18 +329,6 @@ class SchemeAccount(models.Model):
                 credentials[question.type] = answer
         return credentials
 
-    def collect_consents(self):
-        user_consents = self.userconsent_set.all().values()
-
-        return [
-            {
-                "slug": user_consent['slug'],
-                "value": user_consent['value'],
-                "created_on": arrow.get(user_consent['created_on']).for_json()
-            }
-            for user_consent in user_consents
-        ]
-
     def missing_credentials(self, credential_types):
         """
         Given a list of credential_types return credentials if they are required by the scheme
@@ -365,21 +356,23 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self):
+    def credentials(self, user_consents=None):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None
 
-        credentials.update(consents=self.collect_consents())
+        if user_consents is not None:
+            credentials.update(consents=user_consents)
+
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self):
+    def get_midas_balance(self, user_consents=None):
         points = None
         try:
-            credentials = self.credentials()
+            credentials = self.credentials(user_consents)
             if not credentials:
                 return points
             response = self._get_balance(credentials)
@@ -557,7 +550,7 @@ class SchemeAccount(models.Model):
         return images
 
     def __str__(self):
-        return "{0} - {1}".format(self.user.email, self.scheme.name)
+        return "{0} - {1} - id: {2}".format(self.user.email, self.scheme.name, self.id)
 
     class Meta:
         ordering = ['order', '-created']
@@ -659,12 +652,27 @@ def encryption_handler(sender, instance, **kwargs):
         instance.answer = encrypted_answer
 
 
+class ConsentStatus(IntEnum):
+    PENDING = 0
+    SUCCESS = 1
+    FAILED = 2
+
+
 class UserConsent(models.Model):
-    created_on = models.DateTimeField(auto_now_add=True)
-    scheme_account = models.ForeignKey(SchemeAccount)
+    created_on = models.DateTimeField(default=timezone.now)
+    user = models.ForeignKey('user.CustomUser', null=True, on_delete=models.SET_NULL)
+    scheme = models.ForeignKey(Scheme, null=True, on_delete=models.SET_NULL)
+    scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
+    metadata = JSONField()
     slug = models.SlugField(max_length=50)
-    consent_text = models.TextField()
     value = models.BooleanField()
+    status = models.IntegerField(choices=[(status.value, status.name) for status in ConsentStatus],
+                                 default=ConsentStatus.PENDING)
+
+    @property
+    def short_text(self):
+        metadata = dict(self.metadata)
+        return truncatewords(metadata.get('text'), 5)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.scheme_account.user.email, self.slug, self.value)
+        return '{} - {}: {}'.format(self.user, self.slug, self.value)

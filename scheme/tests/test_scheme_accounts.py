@@ -164,7 +164,8 @@ class TestSchemeAccountViews(APITestCase):
 
         consent2 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            slug=secrets.token_urlsafe()
+            slug=secrets.token_urlsafe(),
+            required=False
         )
 
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
@@ -342,7 +343,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
-            self.scheme_account.credentials()))
+            self.scheme_account.credentials(user_consents=[])))
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
@@ -428,7 +429,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -489,7 +491,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_1.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -571,7 +574,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -780,7 +784,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down',
             'scheme': scheme_1.id,
-            'order': 788
+            'order': 788,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -829,7 +834,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down2',
             'scheme': scheme_0.id,
-            'order': 789
+            'order': 789,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -1363,7 +1369,7 @@ class TestAccessTokens(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London"}
+        data = {CARD_NUMBER: "London", 'consents': []}
         # Test Post Method
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)

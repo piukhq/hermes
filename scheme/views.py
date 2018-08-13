@@ -11,21 +11,24 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView,
+                                     UpdateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.encyption import AESCipher
 from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.forms import CSVUploadForm
 from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage, JourneyTypes)
+                           SchemeAccountImage, UserConsent, JourneyTypes, ConsentStatus)
+
 from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
                                 CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer)
+                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
+                                MidasUserConsentSerializer, UpdateUserConsentSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -48,17 +51,31 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account):
+        consent_data = data.pop('consents')
+
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account.get_midas_balance()
+
+        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+        UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+
+        user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+
+        midas_information = scheme_account.get_midas_balance(user_consents=user_consent_serializer.data)
         response_data = {
             'balance': midas_information
         }
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
         response_data.update(dict(data))
+
+        if consent_data and scheme_account.status == SchemeAccount.ACTIVE:
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
+
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
         except intercom_api.IntercomException:
@@ -138,6 +155,12 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class UpdateUserConsent(UpdateAPIView):
+    authentication_classes = (ServiceAuthentication,)
+    queryset = UserConsent.objects.all()
+    serializer_class = UpdateUserConsentSerializer
+
+
 class LinkCredentials(BaseLinkMixin, GenericAPIView):
     serializer_class = SchemeAnswerSerializer
     override_serializer_classes = {
@@ -169,7 +192,6 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
                                                                       'user': request.user})
 
         serializer.is_valid(raise_exception=True)
-        serializer.save()                                   # Save consents
 
         response_data = self.link_account(serializer, scheme_account)
         scheme_account.link_date = timezone.now()
@@ -267,7 +289,11 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         data['id'] = scheme_account.id
 
         if 'consents' in data:
-            UserConsentSerializer.consents_save(scheme_account, data.pop('consents'))
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'))
+            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
 
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
@@ -328,8 +354,9 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
             'new_scheme_data': {
                 'barcode': credential_value,
                 'order': request_data.get('order'),
-                'scheme': scheme_id if not scheme_obj.slug == 'my360' else None
-            },
+                'scheme': scheme_id if not scheme_obj.slug == 'my360' else None,
+                'consents': request_data.pop('consents')
+            }
         }
 
         return my360_info
@@ -370,9 +397,9 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
 
             if not SchemeAccount.objects.filter(scheme_id=scheme_id, user=user):
                 new_scheme_data['scheme'] = scheme_id
-                scheme_account = self._create_account(user, new_scheme_data, request_data['credential_type'])
+                scheme_account = self._create_account(user, new_scheme_data.copy(), request_data['credential_type'])
                 link_response = self._link_scheme_account(request_data['credential_type'],
-                                                          new_scheme_data, scheme_account)
+                                                          new_scheme_data.copy(), scheme_account)
                 if link_response:
                     scheme_accounts_response.append(link_response)
 
@@ -390,9 +417,9 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
 
     def create_and_link_scheme(self, request_data, user):
         scheme_account = self._create_account(user,
-                                              request_data['new_scheme_data'], request_data['credential_type'])
+                                              request_data['new_scheme_data'].copy(), request_data['credential_type'])
         link_response = self._link_scheme_account(request_data['credential_type'],
-                                                  request_data['new_scheme_data'], scheme_account)
+                                                  request_data['new_scheme_data'].copy(), scheme_account)
 
         if link_response:
             return Response([link_response], status=status.HTTP_201_CREATED)
@@ -402,7 +429,8 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                         )
 
     def _link_scheme_account(self, credential_type, data, scheme_account):
-        response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account)
+        response_data = self._link_account(OrderedDict({credential_type: data[credential_type],
+                                                        'consents': data['consents']}), scheme_account)
         if response_data['balance']:
             scheme_account.link_date = timezone.now()
             scheme_account.save()
@@ -568,6 +596,8 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        if 'consents' in data:
+            data.pop('consents')
         updated_credentials = []
 
         for credential_type in data.keys():
@@ -805,11 +835,21 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         data['scheme'] = scheme_id
 
         scheme_account = self.create_join_account(data, request.user, scheme_id)
+        consent_data = serializer.validated_data.pop('consents')
 
         try:
-            serializer.save()                           # Save consents
+            if consent_data:
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
 
-            data['credentials'].update(consents=scheme_account.collect_consents())
+                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+                # Deserialize the user consent instances formatted to send to Midas
+                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+                for user_consent in user_consents:  # Save consents
+                    user_consent.save()
+
+                data['credentials'].update(consents=user_consent_serializer.data)
+
             data['id'] = scheme_account.id
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], request.user)
@@ -823,12 +863,9 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 response_dict,
                 status=status.HTTP_201_CREATED,
             )
-        except Exception:
+        except Exception as e:
             scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
             [answer.delete() for answer in scheme_account_answers]
-
-            user_consents = scheme_account.userconsent_set.all()
-            [user_consent.delete() for user_consent in user_consents]
 
             scheme_account.status = SchemeAccount.JOIN
             scheme_account.save()
