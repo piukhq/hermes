@@ -181,7 +181,7 @@ class TestResources(APITestCase):
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_single_membership_card(self, mock_get_midas_balance):
-        mock_get_midas_balance.return_value = self.scheme_account.balance
+        mock_get_midas_balance.return_value = self.scheme_account.balances
         expected_result = MembershipCardSerializer(self.scheme_account).data
 
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
@@ -190,8 +190,8 @@ class TestResources(APITestCase):
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_all_membership_cards(self, mock_get_midas_balance):
-        mock_get_midas_balance.return_value = self.scheme_account.balance
-        scheme_account_2 = SchemeAccountFactory(balance=self.scheme_account.balance)
+        mock_get_midas_balance.return_value = self.scheme_account.balances
+        scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = ListMembershipCardSerializer(scheme_accounts, many=True).data

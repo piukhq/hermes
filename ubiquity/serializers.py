@@ -193,14 +193,14 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
 
 class MembershipCardSerializer(GetSchemeAccountSerializer):
-    balance = serializers.SerializerMethodField(read_only=True)
+    balances = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
     membership_plan = serializers.PrimaryKeyRelatedField(read_only=True, source='scheme')
 
     @staticmethod
-    def get_balance(obj):
-        balance = obj.balance if obj.balance else None
-        return BalanceSerializer(balance).data
+    def get_balances(obj):
+        balances = obj.balances if obj.balances else None
+        return BalanceSerializer(balances).data
 
     @staticmethod
     def get_payment_cards(obj):
@@ -219,21 +219,21 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
                   'barcode',
                   'card_label',
                   'images',
-                  'balance',
+                  'balances',
                   'payment_cards',
                   'membership_plan',
                   'link_date')
 
 
 class ListMembershipCardSerializer(ListSchemeAccountSerializer):
-    balance = serializers.SerializerMethodField(read_only=True)
+    balances = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
     membership_plan = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
 
     @staticmethod
-    def get_balance(obj):
-        balance = obj.balance if obj.balance else None
-        return BalanceSerializer(balance).data
+    def get_balances(obj):
+        balances = obj.balances if obj.balances else None
+        return BalanceSerializer(balances).data
 
     @staticmethod
     def get_payment_cards(obj):
@@ -251,7 +251,7 @@ class ListMembershipCardSerializer(ListSchemeAccountSerializer):
                   'barcode',
                   'card_label',
                   'images',
-                  'balance',
+                  'balances',
                   'payment_cards',
                   'membership_plan')
 

@@ -413,7 +413,7 @@ class SchemeAccount(models.Model):
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
         if balance != self.balances and balance:
-            self.balance = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
+            self.balances = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
             self.save()
 
         return self.balances
