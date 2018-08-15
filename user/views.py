@@ -71,7 +71,8 @@ class Register(CustomRegisterMixin, APIView):
                 password must be at least 8 characters long and contain at least one lower case character, one upper
                 case character, and one number.
         """
-        return self.register_user(request, self.serializer_class)
+        data = self.register_user(request, self.serializer_class)
+        return data
 
 
 class NewRegister(Register):
@@ -233,7 +234,7 @@ class Login(GenericAPIView):
             return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
-        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
         return Response(out_serializer.data)
 
     @classmethod
