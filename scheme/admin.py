@@ -12,6 +12,8 @@ class CredentialQuestionFormset(BaseInlineFormSet):
     def clean(self):
         super().clean()
         manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        choice = [form.cleaned_data['choice'] for form in self.forms]
+        answer_type = [form.cleaned_data['answer_type'] for form in self.forms]
         if manual_questions.count(True) > 1:
             raise ValidationError("You may only select one manual question")
 
@@ -19,8 +21,17 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
 
-        if self.instance.is_active and not any(manual_questions):
-            raise ValidationError("You must have a manual question when a scheme is set to active")
+        if self.instance.is_active:
+            if not any(manual_questions):
+                raise ValidationError("You must have a manual question when a scheme is set to active")
+
+            for pos, answer in enumerate(answer_type):
+                if answer == 2:
+                    if not choice[pos]:
+                        raise ValidationError(
+                            "When the answer_type field value is 'choice' you must provide the choices")
+                elif choice[pos]:
+                    raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
 
 
 class CredentialQuestionInline(admin.StackedInline):
