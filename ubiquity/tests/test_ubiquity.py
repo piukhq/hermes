@@ -15,7 +15,7 @@ from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
@@ -245,12 +245,22 @@ class TestResources(APITestCase):
             'is_stale': False
         }
         payload = {
-            "order": 1,
             "membership_plan": self.scheme.id,
-            "barcode": "3038401022657083",
-            "last_name": "Test"
+            "add_fields": [
+                {
+                    "column": "barcode",
+                    "value": "3038401022657083"
+                }
+            ],
+            "authorise_fields": [
+                {
+                    "column": "last_name",
+                    "value": "Test"
+                }
+            ]
         }
-        resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
     def test_cards_linking(self):

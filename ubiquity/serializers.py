@@ -292,8 +292,13 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         }
 
 
+# todo finish balance serializer for ubiquity
 class UbiquityBalanceSerializer(serializers.Serializer):
-    pass
+    value = serializers.CharField()
+    currency = serializers.SerializerMethodField()
+    prefix = serializers.SerializerMethodField()
+    suffix = serializers.SerializerMethodField()
+    updated_at = serializers.DateTimeField()
 
 
 class MembershipCardSerializer(serializers.Serializer):
@@ -343,10 +348,8 @@ class MembershipCardSerializer(serializers.Serializer):
         }
 
 
-class ListMembershipCardSerializer(ListSchemeAccountSerializer):
-    balances = serializers.SerializerMethodField(read_only=True)
-    payment_cards = serializers.SerializerMethodField()
-    membership_plan = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
+class CreateMembershipCardSerializer(ListSchemeAccountSerializer):
+    scheme = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
 
     @staticmethod
     def get_balances(obj):

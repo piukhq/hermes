@@ -11,7 +11,6 @@ from rest_framework.viewsets import ModelViewSet
 
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from scheme.credentials import credential_types_set
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
@@ -19,7 +18,7 @@ from scheme.views import BaseLinkMixin, IdentifyCardMixin, RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer)
 from user.models import CustomUser
@@ -219,7 +218,6 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
 
 class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'POST': CreateSchemeAccountSerializer,
@@ -246,38 +244,53 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
     def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
-        self._link_to_all_payment_cards(account, request.user)
         return Response(MembershipCardSerializer(account).data, status=status_code)
 
     def _handle_membership_card_creation(self, request):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
-        activate = self._collect_credentials_answers(request.data)
-        create = {
-            k if k != 'membership_plan' else 'scheme': v
-            for k, v in request.data.items()
-            if k not in activate.keys()
-        }
+        add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
 
-        data = self.create_account(create, request.user)
-        scheme_account = SchemeAccount.objects.get(id=data['id'])
-        serializer = LinkSchemeSerializer(data=activate, context={'scheme_account': scheme_account})
+        if add_fields:
+            add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
+            data = self.create_account(add_data, request.user)
+            scheme_account = SchemeAccount.objects.get(id=data['id'])
+            if auth_fields:
+                serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+                self.link_account(serializer, scheme_account, request.user)
+                scheme_account.link_date = timezone.now()
+                scheme_account.save()
 
-        self.link_account(serializer, scheme_account, request.user)
+            return scheme_account, status.HTTP_201_CREATED
 
-        scheme_account.link_date = timezone.now()
-        scheme_account.save()
-        return scheme_account, status.HTTP_201_CREATED
+        else:
+            raise NotImplemented
 
-    def _collect_credentials_answers(self, data):
-        scheme = Scheme.objects.get(id=data['membership_plan'])
-        allowed_answers = self.allowed_answers(scheme)
-        return {
-            k: v
-            for k, v in data.items()
-            if k in credential_types_set and k not in allowed_answers
-        }
+    @staticmethod
+    def _collect_credentials_answers(data):
+        scheme = get_object_or_404(Scheme, id=data['membership_plan'])
+        add_fields = {
+            item['column']: item['value']
+            for item in data['add_fields']
+        } if 'add_fields' in data else None
+
+        auth_fields = {
+            item['column']: item['value']
+            for item in data['authorise_fields']
+        } if 'authorise_fields' in data else None
+
+        enrol_fields = {
+            item['column']: item['value']
+            for item in data['enrol_fields']
+        } if 'enrol_fields' in data else None
+
+        if not add_fields and not enrol_fields:
+            raise ParseError()
+        if scheme.authorisation_required and not auth_fields:
+            raise ParseError()
+
+        return add_fields, auth_fields, enrol_fields
 
     @staticmethod
     def allowed_answers(scheme):
