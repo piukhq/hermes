@@ -19,7 +19,7 @@ from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
 from common.models import Image
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, FIELD_TYPE_CHOICE
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
 
@@ -118,12 +118,12 @@ class Scheme(models.Model):
     objects = ActiveSchemeManager()
 
     # ubiquity fields
-    authorisation_required = models.BooleanField(default=True)
+    authorisation_required = models.BooleanField(default=False)
     digital_only = models.BooleanField(default=False)
     plan_name = models.CharField(max_length=50, null=True, blank=True)
     plan_name_card = models.CharField(max_length=50, null=True, blank=True)
     plan_summary = models.TextField(null=True, blank=True, max_length=250)
-    plan_description = models.TextField(null=True, blank=True)
+    plan_description = models.TextField(null=True, blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
 
     @property
@@ -554,18 +554,26 @@ class SchemeCredentialQuestion(models.Model):
     MERCHANT_IDENTIFIER = (1 << 3)
 
     OPTIONS = (
-        (0, 'None'),
+        (NONE, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
         (LINK_AND_JOIN, 'Link & Join'),
         (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
-    ANSWER_TYPE_CHOICE = (
+
+    # ubiquity choices
+    ANSWER_TYPE_CHOICES = (
         (0, 'text'),
         (1, 'sensitive'),
         (2, 'choice'),
         (3, 'boolean'),
+    )
+
+    FIELD_TYPE_CHOICES = (
+        (0, 'add'),
+        (1, 'auth'),
+        (2, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -579,12 +587,12 @@ class SchemeCredentialQuestion(models.Model):
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
     # ubiquity fields
-    validation = models.TextField(blank=True, null=True, max_length=250)
-    description = models.CharField(blank=True, null=True, max_length=250)
-    common_name = models.CharField(max_length=50, null=True, blank=True)
-    answer_type = models.IntegerField(choices=ANSWER_TYPE_CHOICE, default=0)
+    validation = models.TextField(null=True, blank=True, max_length=250)
+    description = models.CharField(null=True, blank=True, max_length=250)
+    common_name = models.CharField(null=True, blank=True, max_length=50)
+    answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICE, null=True, blank=True)
+    field_type = models.IntegerField(null=True, blank=True, choices=FIELD_TYPE_CHOICES)
 
     @property
     def required(self):
