@@ -221,7 +221,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
     authentication_classes = (PropertyAuthentication,)
     serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
-        'GET': ListMembershipCardSerializer,
+        'GET': MembershipCardSerializer,
         'POST': CreateSchemeAccountSerializer,
         'OPTIONS': ListSchemeAccountSerializer,
     }

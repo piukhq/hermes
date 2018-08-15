@@ -538,34 +538,6 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
-    @property
-    def images(self):
-        qualifiers = SchemeAccountImage.objects.filter(scheme=self.scheme,
-                                                       scheme_accounts__id=self.id,
-                                                       scheme_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
-                                     image_size_code=F('scheme_image__size_code'),
-                                     image=F('scheme_image__image'),
-                                     strap_line=F('scheme_image__strap_line'),
-                                     image_description=F('scheme_image__description'),
-                                     url=F('scheme_image__url'),
-                                     call_to_action=F('scheme_image__call_to_action'),
-                                     order=F('scheme_image__order')) \
-            .values('image_type_code',
-                    'image_size_code',
-                    'image',
-                    'strap_line',
-                    'image_description',
-                    'url',
-                    'call_to_action',
-                    'order',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created')
-
-        return images
-
     def __str__(self):
         return str(self.scheme.name)
 

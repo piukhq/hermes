@@ -194,7 +194,7 @@ class TestResources(APITestCase):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = ListMembershipCardSerializer(scheme_accounts, many=True).data
+        expected_result = MembershipCardSerializer(scheme_accounts, many=True).data
 
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
@@ -450,7 +450,6 @@ class TestResources(APITestCase):
         expected_links = [
             {
                 'id': new_pca.id,
-                'name': str(new_pca),
                 'active_link': True
             }
         ]
