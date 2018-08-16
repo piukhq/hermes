@@ -297,6 +297,21 @@ class UserDetail(models.Model):
     def __str__(self):
         return str(self.user_id)
 
+    def set_field(self, field, value):
+        if hasattr(self, field):
+            return setattr(self, field, value)
+
+        field_mapping = {
+            'address_line_1': ['address_1'],
+            'address_line_2': ['address_2'],
+            'city': ['town_city']
+        }
+        for user_field in field_mapping.keys():
+            if field in field_mapping[user_field]:
+                return setattr(self, user_field, value)
+        else:
+            raise AttributeError('cant set {} field in user profile'.format(field))
+
 
 class Referral(models.Model):
     referrer = models.ForeignKey(CustomUser, related_name='referrer')

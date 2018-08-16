@@ -3,7 +3,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
-from scheme.models import Consent
+from scheme.models import Consent, UserConsent, JourneyTypes, ConsentStatus
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -54,7 +54,8 @@ class ConsentFactory(factory.DjangoModelFactory):
     is_enabled = True
     required = True
     order = 1
-    journey = Consent.LINK
+    journey = JourneyTypes.LINK.value
+    slug = FuzzyAttribute(fake.slug)
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
@@ -65,6 +66,19 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
+
+
+class UserConsentFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = UserConsent
+
+    user = factory.SubFactory(UserFactory)
+    slug = FuzzyAttribute(fake.slug)
+    scheme = factory.SubFactory(SchemeFactory)
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
+    value = True
+    metadata = ''
+    status = ConsentStatus.PENDING
 
 
 class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
