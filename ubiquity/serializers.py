@@ -4,7 +4,7 @@ from rest_framework import serializers
 
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
-from scheme.models import Scheme, SchemeBalanceDetail, SchemeCredentialQuestion, SchemeDetail
+from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
                                 get_images_for_scheme_account)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
@@ -218,7 +218,7 @@ class SchemeDetailSerializer(serializers.ModelSerializer):
 
 class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SchemeBalanceDetail
+        model = SchemeBalanceDetails
         exclude = ('scheme_id',)
 
 
@@ -292,13 +292,36 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         }
 
 
-# todo finish balance serializer for ubiquity
 class UbiquityBalanceSerializer(serializers.Serializer):
+    scheme_balance = None
     value = serializers.CharField()
     currency = serializers.SerializerMethodField()
     prefix = serializers.SerializerMethodField()
     suffix = serializers.SerializerMethodField()
     updated_at = serializers.DateTimeField()
+
+    def get_currency(self, instance):
+        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
+        return scheme_balance.currency
+
+    def get_prefix(self, instance):
+        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
+        return scheme_balance.prefix
+
+    def get_suffix(self, instance):
+        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
+        return scheme_balance.suffix
+
+    def retrieve_scheme_balance_info(self, scheme_id):
+        if self.scheme_balance:
+            return self.scheme_balance
+
+        scheme_balance = SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).first()
+        self.scheme_balance = scheme_balance
+        return scheme_balance
+
+    class Meta:
+        exclude = ('scheme',)
 
 
 class MembershipCardSerializer(serializers.Serializer):

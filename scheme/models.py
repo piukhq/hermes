@@ -649,12 +649,15 @@ class SchemeDetail(models.Model):
     description = models.TextField()
 
 
-class SchemeBalanceDetail(models.Model):
+class SchemeBalanceDetails(models.Model):
     scheme_id = models.ForeignKey('Scheme')
-    currency = models.CharField(max_length=50)
-    prefix = models.CharField(max_length=50)
-    suffix = models.CharField(max_length=50)
-    description = models.TextField()
+    currency = models.CharField(null=True, blank=True, max_length=50)
+    prefix = models.CharField(null=True, blank=True, max_length=50)
+    suffix = models.CharField(null=True, blank=True, max_length=50)
+    description = models.TextField(null=True, blank=True, max_length=250)
+
+    class Meta:
+        verbose_name_plural = 'balance details'
 
 
 class SchemeAccountCredentialAnswer(models.Model):
