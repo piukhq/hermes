@@ -1,14 +1,11 @@
 from django.conf.urls import url
+
 from scheme import views
 
 urlpatterns = [
     url(r'^/accounts/?$',
         views.CreateAccount.as_view(),
         name='create_scheme_account'),
-
-    url(r'^/accounts/my360/?$',
-        views.CreateMy360AccountsAndLink.as_view(),
-        name='create_my360_accounts_and_link'),
 
     url(r'^/accounts/query$',
         views.SchemeAccountQuery.as_view(),

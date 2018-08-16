@@ -485,3 +485,21 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(MembershipPlanSerializer(self.scheme_account.scheme).data, resp.json())
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_membership_card_balance(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['balances'][0]['value'], '10.0')
+        self.assertTrue(
+            all(key in resp.json()['balances'][0] for key in ['value', 'currency', 'prefix', 'suffix', 'updated_at'])
+        )
