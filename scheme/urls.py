@@ -52,6 +52,10 @@ urlpatterns = [
         views.LinkCredentials.as_view(),
         name='create_question'),
 
+    url(r'^/user_consent/(?P<pk>[0-9]+)$',
+        views.UpdateUserConsent.as_view(),
+        name='update_user_consent'),
+
     url(r'^/accounts/summary',
         views.SchemeAccountStatusData.as_view(),
         name='schemes_status_summary'),
