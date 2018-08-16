@@ -497,9 +497,8 @@ class TestResources(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
+        expected_keys = {'value', 'currency', 'prefix', 'suffix', 'updated_at'}
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], '10.0')
-        self.assertTrue(
-            all(key in resp.json()['balances'][0] for key in ['value', 'currency', 'prefix', 'suffix', 'updated_at'])
-        )
+        self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
