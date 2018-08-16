@@ -1,5 +1,6 @@
 import datetime
 import json
+import secrets
 
 from decimal import Decimal
 from django.conf import settings
@@ -13,13 +14,13 @@ from scheme.tests.factories import ConsentFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
-from scheme.models import Consent
+from scheme.models import JourneyTypes
 from scheme.models import UserConsent
 from user.tests.factories import SettingFactory, UserSettingFactory
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from unittest.mock import patch, MagicMock
 from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
-    TITLE, FIRST_NAME, LAST_NAME
+    TITLE, FIRST_NAME, LAST_NAME, ADDRESS_1, ADDRESS_2, TOWN_CITY
 
 from user.tests.factories import UserFactory
 
@@ -158,14 +159,13 @@ class TestSchemeAccountViews(APITestCase):
 
         consent1 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=1
+            slug=secrets.token_urlsafe()
         )
 
         consent2 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=2
+            slug=secrets.token_urlsafe(),
+            required=False
         )
 
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
@@ -175,17 +175,15 @@ class TestSchemeAccountViews(APITestCase):
                 ]
                 }
 
-        # add an existing conesent to user consents to verify updates correctly
-        UserConsent.objects.create(user=self.user, consent=consent2, value=not test_reply2)
-
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
-        set_values = UserConsent.objects.filter(user=self.user).values()
+
+        set_values = UserConsent.objects.filter(scheme_account=self.scheme_account).values()
         self.assertEqual(len(set_values), 2, "Incorrect number of consents found expected 2")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
-            elif set_value['consent_id'] == consent2.id:
+            elif set_value['slug'] == consent2.slug:
                 self.assertEqual(set_value['value'], test_reply2, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
@@ -345,11 +343,12 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
-            self.scheme_account.credentials()))
+            self.scheme_account.credentials(user_consents=[])))
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
-                                                 'username': self.scheme_account_answer.answer})
+                                                 'username': self.scheme_account_answer.answer,
+                                                 'consents': []})
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, user=self.user)
@@ -430,7 +429,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -491,7 +491,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_1.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -573,7 +574,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -782,7 +784,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down',
             'scheme': scheme_1.id,
-            'order': 788
+            'order': 788,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -831,7 +834,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down2',
             'scheme': scheme_0.id,
-            'order': 789
+            'order': 789,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -1040,7 +1044,7 @@ class TestSchemeAccountViews(APITestCase):
         test_reply = 1
         consent1 = ConsentFactory.create(
             scheme=scheme,
-            journey=Consent.JOIN,
+            journey=JourneyTypes.JOIN.value,
             order=1
         )
 
@@ -1054,10 +1058,12 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
-        set_values = UserConsent.objects.filter(user=self.user).values()
+        new_scheme_account = SchemeAccount.objects.get(user=self.user, scheme=scheme)
+
+        set_values = UserConsent.objects.filter(scheme_account=new_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consent not set")
@@ -1100,19 +1106,23 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme,
-                                        type=EMAIL,
-                                        manual_question=True,
+        SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, manual_question=True,
                                         options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PHONE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=TITLE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=FIRST_NAME, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=LAST_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_1, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_2, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=TOWN_CITY, options=SchemeCredentialQuestion.JOIN)
 
         phone_number = '01234567890'
         title = 'mr'
         first_name = 'bob'
         last_name = 'test'
+        address_1 = '1 ascot road'
+        address_2 = 'caversham'
+        town_city = 'ascot'
         data = {
             'save_user_information': True,
             'order': 2,
@@ -1123,6 +1133,9 @@ class TestSchemeAccountViews(APITestCase):
             'title': title,
             'first_name': first_name,
             'last_name': last_name,
+            'address_1': address_1,
+            'address_2': address_2,
+            'town_city': town_city,
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
@@ -1132,6 +1145,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(user_profile.phone, phone_number)
         self.assertEqual(user_profile.first_name, first_name)
         self.assertEqual(user_profile.last_name, last_name)
+        self.assertEqual(user_profile.address_line_1, address_1)
+        self.assertEqual(user_profile.address_line_2, address_2)
+        self.assertEqual(user_profile.city, town_city)
 
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
@@ -1353,7 +1369,7 @@ class TestAccessTokens(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London"}
+        data = {CARD_NUMBER: "London", 'consents': []}
         # Test Post Method
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
