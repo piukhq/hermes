@@ -298,7 +298,7 @@ class UbiquityBalanceSerializer(serializers.Serializer):
     currency = serializers.SerializerMethodField()
     prefix = serializers.SerializerMethodField()
     suffix = serializers.SerializerMethodField()
-    updated_at = serializers.DateTimeField()
+    updated_at = serializers.IntegerField()
 
     def get_currency(self, instance):
         scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])

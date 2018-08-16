@@ -12,7 +12,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
-from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
+from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
@@ -118,6 +118,8 @@ class TestResources(APITestCase):
         email = 'test@user.com'
         self.user = UserFactory(email=email, client=client)
         self.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
                                                              type=LAST_NAME,
@@ -234,7 +236,7 @@ class TestResources(APITestCase):
     @patch('intercom.intercom_api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_create_membership_card_creation(self, mock_get_midas_balance, *_):
+    def test_membership_card_creation(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),

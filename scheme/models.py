@@ -5,6 +5,7 @@ import sre_constants
 import uuid
 from decimal import Decimal
 
+import arrow
 import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
@@ -410,6 +411,7 @@ class SchemeAccount(models.Model):
 
         if not balance:
             balance = self.get_midas_balance()
+            balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
         if balance != self.balances and balance:
