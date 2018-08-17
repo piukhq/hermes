@@ -71,8 +71,7 @@ class Register(CustomRegisterMixin, APIView):
                 password must be at least 8 characters long and contain at least one lower case character, one upper
                 case character, and one number.
         """
-        data = self.register_user(request, self.serializer_class)
-        return data
+        return self.register_user(request, self.serializer_class)
 
 
 class NewRegister(Register):
