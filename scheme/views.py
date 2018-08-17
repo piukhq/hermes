@@ -11,6 +11,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
+from mnemosyne import api
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
@@ -60,7 +61,7 @@ class BaseLinkMixin(object):
         response_data['status_name'] = scheme_account.status_name
         response_data.update(dict(data))
         try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
+            api.update_scheme_account_attribute(scheme_account)
         except intercom_api.IntercomException:
             pass
         return response_data
@@ -131,8 +132,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance.is_deleted = True
         instance.save()
         try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
-        except intercom_api.IntercomException:
+            api.update_scheme_account_attribute(instance)
+        except api.MnemosyneException:
             pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -215,14 +216,14 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 metadata = {
                     'scheme name': scheme.name,
                 }
-                intercom_api.post_intercom_event(
+                api.post_event(
                     settings.INTERCOM_TOKEN,
                     request.user.uid,
                     intercom_api.MY360_APP_EVENT,
                     metadata
                 )
 
-            except intercom_api.IntercomException:
+            except api.MnemosyneException:
                 pass
 
             raise serializers.ValidationError({
@@ -270,8 +271,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             UserConsentSerializer.consents_save(scheme_account, data.pop('consents'))
 
         try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
+            api.update_scheme_account_attribute(scheme_account)
+        except api.MnemosyneException:
             pass
 
         return scheme_account
@@ -475,14 +476,14 @@ class CreateJoinSchemeAccount(APIView):
                 'company name': scheme.company,
                 'slug': scheme.slug
             }
-            intercom_api.post_intercom_event(
+            api.post_event(
                 settings.INTERCOM_TOKEN,
                 user.uid,
                 intercom_api.ISSUED_JOIN_CARD_EVENT,
                 metadata
             )
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
-        except intercom_api.IntercomException:
+            api.update_scheme_account_attribute(account)
+        except api.MnemosyneException:
             pass
 
         # serialize the account for the response.
@@ -861,8 +862,8 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 )
 
         try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
+            api.update_scheme_account_attribute(scheme_account)
+        except api.MnemosyneException:
             pass
 
         return scheme_account

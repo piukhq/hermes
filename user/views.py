@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
+from mnemosyne import api
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
@@ -474,11 +475,9 @@ class UserSettings(APIView):
                 user_setting.save()
                 if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
                     try:
-                        intercom_api.update_user_custom_attribute(
-                            settings.INTERCOM_TOKEN,
+                        api.update_attributes(
                             request.user.uid,
-                            slug_key,
-                            user_setting.to_boolean()
+                            user_setting
                         )
                     except intercom_api.IntercomException:
                         pass
@@ -498,8 +497,8 @@ class UserSettings(APIView):
         """
         UserSetting.objects.filter(user=request.user).delete()
         try:
-            intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
-        except intercom_api.IntercomException:
+            api.reset_user_settings(request.user.uid)
+        except api.MnemosyneException:
             pass
 
         return Response(status=HTTP_204_NO_CONTENT)
