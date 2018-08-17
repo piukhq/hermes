@@ -69,7 +69,7 @@ class SchemeAdmin(admin.ModelAdmin):
 @admin.register(SchemeImage)
 class SchemeImageAdmin(admin.ModelAdmin):
     list_display = ('scheme', 'description', 'image_type_code_name', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('scheme', 'image_type_code_name', 'status', 'created')
+    list_filter = ('scheme', 'image_type_code', 'status', 'created')
     search_fields = ('scheme__name', 'description')
     raw_id_fields = ('scheme',)
 
@@ -112,7 +112,7 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 @admin.register(SchemeAccountImage)
 class SchemeAccountImageAdmin(admin.ModelAdmin):
     list_display = ('scheme', 'description', 'image_type_code_name', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('scheme', 'image_type_code_name', 'status', 'created')
+    list_filter = ('scheme', 'image_type_code', 'status', 'created')
     search_fields = ('scheme__name', 'description')
     raw_id_fields = ('scheme_accounts',)
 
