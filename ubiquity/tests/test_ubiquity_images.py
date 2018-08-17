@@ -1,9 +1,12 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from common.models import Image
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
+from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
@@ -63,7 +66,8 @@ class TestPaymentCardAccountImages(APITestCase):
         self.assertIn('images', json[0])
         self.assertIsInstance(json[0]['images'], list)
 
-    def test_images_in_membership_card_response(self):
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_images_in_membership_card_response(self, mock_get_midas_balance):
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         json = resp.json()

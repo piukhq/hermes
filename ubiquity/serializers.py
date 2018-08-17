@@ -228,7 +228,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         exclude = ('name',)
 
     def to_representation(self, instance):
-        balances = instance.schemebalancedetail_set.all()
+        balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
         add_fields = instance.questions.filter(field_type=0).all()
         authorise_fields = instance.questions.filter(field_type=1).all()
@@ -294,44 +294,46 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
 class UbiquityBalanceSerializer(serializers.Serializer):
     scheme_balance = None
-    value = serializers.CharField()
+    value = serializers.CharField(required=False)
     currency = serializers.SerializerMethodField()
     prefix = serializers.SerializerMethodField()
     suffix = serializers.SerializerMethodField()
-    updated_at = serializers.IntegerField()
+    updated_at = serializers.IntegerField(required=False)
 
     def get_currency(self, instance):
+        if 'scheme_id' not in instance:
+            return None
         scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.currency
+        return scheme_balance.currency if scheme_balance else None
 
     def get_prefix(self, instance):
+        if 'scheme_id' not in instance:
+            return None
         scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.prefix
+        return scheme_balance.prefix if scheme_balance else None
 
     def get_suffix(self, instance):
+        if 'scheme_id' not in instance:
+            return None
         scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.suffix
+        return scheme_balance.suffix if scheme_balance else None
 
     def retrieve_scheme_balance_info(self, scheme_id):
         if self.scheme_balance:
             return self.scheme_balance
 
         scheme_balance = SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).first()
-        self.scheme_balance = scheme_balance
-        return scheme_balance
+        if scheme_balance:
+            self.scheme_balance = scheme_balance
+            return scheme_balance
+
+        return None
 
     class Meta:
         exclude = ('scheme',)
 
 
 class MembershipCardSerializer(serializers.Serializer):
-    payment_cards = serializers.SerializerMethodField()
-    membership_plan = serializers.PrimaryKeyRelatedField(read_only=True, source='scheme')
-
-    @staticmethod
-    def get_payment_cards(obj):
-        links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
-        return MembershipCardLinksSerializer(links, many=True).data
 
     def to_representation(self, instance):
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
@@ -367,7 +369,7 @@ class MembershipCardSerializer(serializers.Serializer):
                 'authorise_fields': fields_type[1],
                 'enrol_fields': fields_type[2]
             },
-            'balances': UbiquityBalanceSerializer(instance.balances, many=True).data
+            'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
         }
 
 

@@ -11,10 +11,11 @@ from rest_framework.viewsets import ModelViewSet
 
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
-from scheme.views import BaseLinkMixin, IdentifyCardMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
+from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
@@ -427,6 +428,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         account, status_code = self._handle_membership_card_creation(request)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
+        account.refresh_from_db()
         return Response(MembershipCardSerializer(account).data, status=status_code)
 
 

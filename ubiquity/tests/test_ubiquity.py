@@ -184,11 +184,8 @@ class TestResources(APITestCase):
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_single_membership_card(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account.balances
-        expected_result = MembershipCardSerializer(self.scheme_account).data
-
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(expected_result, resp.json())
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_all_membership_cards(self, mock_get_midas_balance):
@@ -200,7 +197,7 @@ class TestResources(APITestCase):
 
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(expected_result, resp.json())
+        self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
 
     @patch('intercom.intercom_api')
     @patch('payment_card.metis.enrol_new_payment_card')
@@ -425,7 +422,6 @@ class TestResources(APITestCase):
         expected_links = [
             {
                 'id': new_sa.id,
-                'name': str(new_sa),
                 'active_link': True
             }
         ]
@@ -454,22 +450,29 @@ class TestResources(APITestCase):
             'is_stale': False
         }
         payload = {
-            "order": 1,
             "membership_plan": self.scheme.id,
-            "barcode": "1234401022657083",
-            "last_name": "Test Composite"
+            "add_fields": [
+                {
+                    "column": "barcode",
+                    "value": "1234401022657083"
+                }
+            ],
+            "authorise_fields": [
+                {
+                    "column": "last_name",
+                    "value": "Test Composite"
+                }
+            ]
         }
-        expected_links = [
-            {
-                'id': new_pca.id,
-                'active_link': True
-            }
-        ]
+        expected_links = {
+            'id': new_pca.id,
+            'active_link': True
+        }
 
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=payload,
-                                **self.auth_headers)
+        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(expected_links, resp.json()['payment_cards'])
+        self.assertIn(expected_links, resp.json()['payment_cards'])
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
