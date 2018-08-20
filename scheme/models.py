@@ -377,6 +377,8 @@ class SchemeAccount(models.Model):
                 return points
             response = self._get_balance(credentials)
             self.status = response.status_code
+            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+                self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE

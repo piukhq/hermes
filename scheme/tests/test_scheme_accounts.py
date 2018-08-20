@@ -1299,6 +1299,20 @@ class TestSchemeAccountModel(APITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
 
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_invalid_status(self, mock_request):
+        invalid_status = 502
+        mock_request.return_value.status_code = invalid_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        # check this status hasn't been added to scheme account status
+        self.assertNotIn(invalid_status, [status[0] for status in SchemeAccount.EXTENDED_STATUSES])
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
+
 
 class TestAccessTokens(APITestCase):
     @classmethod
