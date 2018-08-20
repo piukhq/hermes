@@ -1173,7 +1173,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(mock_request.called)
 
         resp_json = resp.json()
-        self.assertIn('Error with join', resp_json['message'])
+        self.assertIn('Unknown error with join', resp_json['message'])
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
         self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):

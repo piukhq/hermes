@@ -179,14 +179,16 @@ class TestUserConsentSerializer(TestCase):
                                                     self.scheme.id,
                                                     JourneyTypes.LINK.value)
 
-        self.assertEqual("Incorrect number of consents provided", e.exception.detail['message'])
+        self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
+                         e.exception.detail['message'])
 
         with self.assertRaises(serializers.ValidationError) as e:
             UserConsentSerializer.validate_consents([self.user_consent1],
                                                     self.scheme.id,
                                                     JourneyTypes.LINK.value)
 
-        self.assertEqual("Incorrect number of consents provided", e.exception.detail['message'])
+        self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
+                         e.exception.detail['message'])
 
     def test_validate_consents_raises_error_on_unexpected_consent_slug(self):
         self.user_consent1.slug = 'incorrect_slug'

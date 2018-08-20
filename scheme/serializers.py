@@ -126,8 +126,8 @@ class UserConsentSerializer(serializers.Serializer):
 
         if len(expected_consents_set) != len(user_consents):
             raise serializers.ValidationError({
-                "message": "Incorrect number of consents provided",
-                "code": 400
+                "message": "Incorrect number of consents provided for this scheme and journey type.",
+                "code": serializers.ValidationError.status_code
             })
 
         # Validate slugs match those expected for slug + journey
@@ -139,7 +139,7 @@ class UserConsentSerializer(serializers.Serializer):
                     Consent.journeys[journey_type][1],
                     scheme
                 ),
-                "code": 400
+                "code": serializers.ValidationError.status_code
             })
 
         # Validate that the user consents for all required consents have a value of True
@@ -150,7 +150,7 @@ class UserConsentSerializer(serializers.Serializer):
         if invalid_consents:
             raise serializers.ValidationError({
                 "message": "The following consents require a value of True: {}".format(invalid_consents),
-                "code": 400
+                "code": serializers.ValidationError.status_code
             })
 
         return user_consents
