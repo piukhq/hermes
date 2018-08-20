@@ -51,7 +51,10 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account):
-        consent_data = data.pop('consents')
+        if 'consents' in data:
+            consent_data = data.pop('consents')
+        else:
+            consent_data = []
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -288,12 +291,13 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             )
         data['id'] = scheme_account.id
 
+        user_consents = []
         if 'consents' in data:
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'))
-            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
-            for user_consent in user_consents:
-                user_consent.status = ConsentStatus.SUCCESS
-                user_consent.save()
+        UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+        for user_consent in user_consents:
+            user_consent.status = ConsentStatus.SUCCESS
+            user_consent.save()
 
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
@@ -346,6 +350,11 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
+        if 'consents' in request_data:
+            consent_data = request_data.pop('consents')
+        else:
+            consent_data = []
+
         my360_info = {
             'credential_type': credential_type,
             'scheme_obj': scheme_obj,
@@ -355,7 +364,7 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                 'barcode': credential_value,
                 'order': request_data.get('order'),
                 'scheme': scheme_id if not scheme_obj.slug == 'my360' else None,
-                'consents': request_data.pop('consents')
+                'consents': consent_data
             }
         }
 
@@ -835,18 +844,21 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         data['scheme'] = scheme_id
 
         scheme_account = self.create_join_account(data, request.user, scheme_id)
-        consent_data = serializer.validated_data.pop('consents')
 
         try:
-            if consent_data:
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+            if 'consents' in serializer.validated_data:
+                consent_data = serializer.validated_data.pop('consents')
+            else:
+                consent_data = []
 
-                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
 
-                # Deserialize the user consent instances formatted to send to Midas
-                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
-                for user_consent in user_consents:  # Save consents
-                    user_consent.save()
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+            # Deserialize the user consent instances formatted to send to Midas
+            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+            for user_consent in user_consents:
+                user_consent.save()
 
                 data['credentials'].update(consents=user_consent_serializer.data)
 
@@ -863,18 +875,25 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 response_dict,
                 status=status.HTTP_201_CREATED,
             )
+        except serializers.ValidationError:
+            self.handle_failed_join(scheme_account)
+            raise
         except Exception as e:
-            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-            [answer.delete() for answer in scheme_account_answers]
-
-            scheme_account.status = SchemeAccount.JOIN
-            scheme_account.save()
-            sentry.captureException()
+            self.handle_failed_join(scheme_account)
 
             return Response(
-                {'message': 'Error with join'},
+                {'message': 'Unknown error with join'},
                 status=status.HTTP_200_OK,
             )
+
+    @staticmethod
+    def handle_failed_join(scheme_account):
+        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+        [answer.delete() for answer in scheme_account_answers]
+
+        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.save()
+        sentry.captureException()
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
