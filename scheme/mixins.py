@@ -113,9 +113,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
         except SchemeAccountCredentialAnswer.DoesNotExist:
-            self._create_account(user, data, answer_type)
+            scheme_account = self._create_account(user, data, answer_type)
 
-        return data
+        return scheme_account, data
 
     @staticmethod
     def _create_account(user, data, answer_type):

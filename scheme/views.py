@@ -158,7 +158,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        response = self.create_account(request.data, request.user)
+        _, response = self.create_account(request.data, request.user)
         return Response(
             response,
             status=status.HTTP_201_CREATED,

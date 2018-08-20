@@ -75,7 +75,7 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     @staticmethod
     def get_id(obj):
-        return obj.scheme_account.id
+        return obj.payment_card_account.id
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
@@ -111,7 +111,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     @staticmethod
     def get_membership_cards(obj):
         links = PaymentCardSchemeEntry.objects.filter(payment_card_account=obj).all()
-        return PaymentCardLinksSerializer(links, many=True).data
+        return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('psp_token', 'user_set', 'scheme_account_set')
@@ -176,7 +176,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     @staticmethod
     def get_id(obj):
-        return obj.payment_card_account.id
+        return obj.scheme_account.id
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model

@@ -255,8 +255,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
         if add_fields:
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            data = self.create_account(add_data, request.user)
-            scheme_account = SchemeAccount.objects.get(id=data['id'])
+            scheme_account, _ = self.create_account(add_data, request.user)
             if auth_fields:
                 serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
                 self.link_account(serializer, scheme_account, request.user)
@@ -428,7 +427,6 @@ class CompositeMembershipCardView(ListMembershipCardView):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         account, status_code = self._handle_membership_card_creation(request)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
-        account.refresh_from_db()
         return Response(MembershipCardSerializer(account).data, status=status_code)
 
 
