@@ -233,7 +233,7 @@ class Login(GenericAPIView):
             return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
-        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
         return Response(out_serializer.data)
 
     @classmethod
@@ -374,7 +374,7 @@ def twitter_login(access_token, access_token_secret):
 def social_response(social_id, email, service):
     status, user = social_login(social_id, email, service)
 
-    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
     return Response(out_serializer.data, status=status)
 
 
