@@ -1,11 +1,12 @@
 from copy import copy
+from django.utils import timezone
 from rest_framework import serializers
 
 from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
 from django.shortcuts import get_object_or_404
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent
+    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -86,6 +87,75 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
 
+class UserConsentSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    value = serializers.BooleanField()
+
+    @staticmethod
+    def get_user_consents(scheme_account, consents):
+        """
+        Returns UserConsent instances from the data sent by the frontend (Consent id and a value of true/false.)
+        These are not yet saved to the database.
+        """
+        user_consents = []
+        for consent in consents:
+            value = consent['value']
+            consent = get_object_or_404(Consent, pk=consent['id'])
+
+            user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent.slug,
+                                       user=scheme_account.user, created_on=timezone.now(),
+                                       scheme=scheme_account.scheme)
+
+            serializer = ConsentsSerializer(consent)
+            user_consent.metadata = serializer.data
+            user_consent.metadata.update({
+                'user_email': scheme_account.user.email,
+                'scheme_slug': scheme_account.scheme.slug
+            })
+
+            user_consents.append(user_consent)
+
+        return user_consents
+
+    @staticmethod
+    def validate_consents(user_consents, scheme, journey_type):
+        consents = Consent.objects.filter(scheme=scheme, journey=journey_type, check_box=True)
+
+        # Validate correct number of user_consents provided
+        expected_consents_set = {consent.slug for consent in consents}
+
+        if len(expected_consents_set) != len(user_consents):
+            raise serializers.ValidationError({
+                "message": "Incorrect number of consents provided for this scheme and journey type.",
+                "code": serializers.ValidationError.status_code
+            })
+
+        # Validate slugs match those expected for slug + journey
+        actual_consents_set = {user_consent.slug for user_consent in user_consents}
+
+        if expected_consents_set.symmetric_difference(actual_consents_set):
+            raise serializers.ValidationError({
+                "message": "Unexpected or missing user consents for '{0}' request - scheme id '{1}'".format(
+                    Consent.journeys[journey_type][1],
+                    scheme
+                ),
+                "code": serializers.ValidationError.status_code
+            })
+
+        # Validate that the user consents for all required consents have a value of True
+        invalid_consents = [{'consent_id': consent.metadata['id'], 'slug': consent.slug} for consent in user_consents
+                            if consent.metadata['required'] is True
+                            and consent.value is False]
+
+        if invalid_consents:
+            raise serializers.ValidationError({
+                "message": "The following consents require a value of True: {}".format(invalid_consents),
+                "code": serializers.ValidationError.status_code
+            })
+
+        return user_consents
+
+
 class SchemeAnswerSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=250, required=False)
     card_number = serializers.CharField(max_length=250, required=False)
@@ -112,26 +182,11 @@ class SchemeAnswerSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=250, required=False)
     regular_restaurant = serializers.CharField(max_length=250, required=False)
     merchant_identifier = serializers.CharField(max_length=250, required=False)
-
-
-class UserConsentSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
-    value = serializers.BooleanField()
-
-    @staticmethod
-    def consents_save(scheme_account, consents):
-        for consent in consents:
-            value = consent['value']
-            consent = get_object_or_404(Consent, pk=consent['id'])
-            UserConsent(scheme_account=scheme_account, consent_text=consent.text, value=value, slug=consent.slug).save()
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
-
-    def save(self):
-        if 'consents' in self.validated_data:
-            UserConsentSerializer.consents_save(self.context['scheme_account'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         # Validate no manual answer
@@ -153,10 +208,6 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
-
-    def save(self):
-        if 'consents' in self.validated_data:
-            UserConsentSerializer.consents_save(self.context['scheme_account'], self.validated_data.pop('consents'))
 
     def validate(self, data):
         try:
@@ -414,11 +465,6 @@ class JoinSerializer(SchemeAnswerSerializer):
     order = serializers.IntegerField(required=True)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
-    def save(self):
-        if 'consents' in self.validated_data:
-            scheme_account = SchemeAccount.objects.get(user=self.context['user'], scheme=self.context['scheme'])
-            UserConsentSerializer.consents_save(scheme_account, self.validated_data.pop('consents'))
-
     def validate(self, data):
         scheme = self.context['scheme']
         # Validate scheme account for this doesn't already exist
@@ -480,3 +526,21 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             )
 
         return credentials
+
+
+class MidasUserConsentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserConsent
+        fields = ('slug', 'value', 'created_on')
+
+
+class UpdateUserConsentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserConsent
+        fields = ('status',)
+
+    def validate_status(self, value):
+        if self.instance and self.instance.status == ConsentStatus.SUCCESS:
+            raise serializers.ValidationError('Cannot update the consent as it is already in a Success state.')
+
+        return ConsentStatus(int(value))

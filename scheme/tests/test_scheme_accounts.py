@@ -167,7 +167,8 @@ class TestSchemeAccountViews(APITestCase):
 
         consent2 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            slug=secrets.token_urlsafe()
+            slug=secrets.token_urlsafe(),
+            required=False
         )
 
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
@@ -353,7 +354,7 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
-            self.scheme_account.credentials()))
+            self.scheme_account.credentials(user_consents=[])))
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
@@ -439,7 +440,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -500,7 +502,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_1.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -582,7 +585,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: '123456789',
             'scheme': scheme_0.id,
-            'order': 1
+            'order': 1,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -791,7 +795,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down',
             'scheme': scheme_1.id,
-            'order': 788
+            'order': 788,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -840,7 +845,8 @@ class TestSchemeAccountViews(APITestCase):
         data = {
             BARCODE: 'my360down2',
             'scheme': scheme_0.id,
-            'order': 789
+            'order': 789,
+            'consents': []
         }
         response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
 
@@ -1187,7 +1193,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(mock_request.called)
 
         resp_json = resp.json()
-        self.assertIn('Error with join', resp_json['message'])
+        self.assertIn('Unknown error with join', resp_json['message'])
         scheme_account = SchemeAccount.objects.get(user=self.user, scheme_id=scheme.id)
         self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
@@ -1313,6 +1319,20 @@ class TestSchemeAccountModel(APITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
 
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_invalid_status(self, mock_request):
+        invalid_status = 502
+        mock_request.return_value.status_code = invalid_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        # check this status hasn't been added to scheme account status
+        self.assertNotIn(invalid_status, [status[0] for status in SchemeAccount.EXTENDED_STATUSES])
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
+
 
 class TestAccessTokens(APITestCase):
     @classmethod
@@ -1385,7 +1405,7 @@ class TestAccessTokens(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London"}
+        data = {CARD_NUMBER: "London", 'consents': []}
         # Test Post Method
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)
