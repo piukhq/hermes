@@ -1,5 +1,5 @@
 def is_not_empty(value):
-    if value or isinstance(value, bool) or isinstance(value, int) or isinstance(value, float):
+    if value or isinstance(value, (bool, int, float)):
         return True
 
     return False
