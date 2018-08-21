@@ -478,19 +478,19 @@ class MembershipTransactionView(ModelViewSet):
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        result = resp.json() if resp.status_code == 200 else []
-        return Response(self.get_serializer(result).data)
+        response = self.get_serializer(resp.json()).data if resp.status_code == 200 and resp.json() else {}
+        return Response(response)
 
     def list(self, request, *args, **kwargs):
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        result = resp.json() if resp.status_code == 200 else []
-        return Response(self.get_serializer(result, many=True).data)
+        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
+        return Response(response)
 
     def composite(self, request, *args, **kwargs):
         url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, kwargs['mcard_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        result = resp.json() if resp.status_code == 200 else []
-        return Response(self.get_serializer(result, many=True).data)
+        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
+        return Response(response)

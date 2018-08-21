@@ -365,7 +365,7 @@ class TestResources(APITestCase):
         self.assertIn('membership plan not allowed', resp.json()['detail'])
 
     @httpretty.activate
-    def test_membership_card_transactions(self):
+    def test_membership_transactions(self):
         uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
         transactions = json.dumps([
             {
@@ -381,6 +381,31 @@ class TestResources(APITestCase):
             }
         ])
         httpretty.register_uri(httpretty.GET, uri, transactions)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(httpretty.has_request())
+
+        uri = '{}/transactions/user/{}'.format(settings.HADES_URL, self.user.id)
+        httpretty.register_uri(httpretty.GET, uri, transactions)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(httpretty.has_request())
+
+        uri = '{}/transactions/1'.format(settings.HADES_URL)
+        transaction = json.dumps({
+            'id': 1,
+            'scheme_account_id': self.scheme_account.id,
+            'created': arrow.utcnow().format(),
+            'date': arrow.utcnow().format(),
+            'description': 'Test Transaction',
+            'location': 'Bink',
+            'points': 200,
+            'value': 'A lot',
+            'hash': 'ewfnwoenfwen'
+        })
+        httpretty.register_uri(httpretty.GET, uri, transaction)
         resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
