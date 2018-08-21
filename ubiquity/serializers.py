@@ -8,6 +8,7 @@ from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion
 from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
                                 get_images_for_scheme_account)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
+from ubiquity.reason_codes import reason_code_translation
 from user.models import CustomUser
 
 
@@ -386,7 +387,7 @@ class MembershipCardSerializer(serializers.Serializer):
             'membership_transactions': [],
             'status': {
                 'state': instance.status,
-                'reason_code': None
+                'reason_code': reason_code_translation[instance.status]
             },
             'card': {
                 'barcode': instance.barcode,
