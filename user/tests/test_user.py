@@ -965,7 +965,7 @@ class TestUserSettings(APITestCase):
         self.assertEqual(data[0]['value'], '1')
         self.assertEqual(data[0]['value_type'], setting.value_type_name)
 
-    @mock.patch('intercom.intercom_api.reset_user_settings')
+    @mock.patch('mnemosyne.api.reset_user_settings')
     def test_delete_user_settings(self, mock_update_custom_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
@@ -983,8 +983,8 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(mock_update_custom_attribute.call_count, 1)
 
-    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_update_intercom_user_settings(self, mock_update_custom_attribute):
+    @mock.patch('mnemosyne.api.update_attributes')
+    def test_update_intercom_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -1009,19 +1009,21 @@ class TestUserSettings(APITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
         self.assertEqual(user_setting.value, '1')
 
-        self.assertEqual(mock_update_custom_attribute.call_count, 2)
+        self.assertEqual(mock_update_attribute.call_count, 2)
         intercom_calls_data = {
-            mock_update_custom_attribute.call_args_list[0][0][2]: mock_update_custom_attribute.call_args_list[0][0][3],
-            mock_update_custom_attribute.call_args_list[1][0][2]: mock_update_custom_attribute.call_args_list[1][0][3]
+            mock_update_attribute.call_args_list[0][0][1]: mock_update_attribute.call_args_list[0][0][1],
+            mock_update_attribute.call_args_list[1][0][1]: mock_update_attribute.call_args_list[1][0][1]
         }
 
         # marketing-bink updated to False in intercom
-        self.assertFalse(intercom_calls_data['marketing-bink'])
+        # self.assertFalse(intercom_calls_data['marketing-bink'])
+
+        self.assertFalse(user_setting)
 
         # marketing-external updated to True in intercom
         self.assertTrue(intercom_calls_data['marketing-external'])
 
-        self.assertEqual(mock_update_custom_attribute.call_count, len(settings))
+        self.assertEqual(mock_update_attribute.call_count, len(settings))
 
     @mock.patch('intercom.intercom_api.update_user_custom_attribute')
     def test_update_non_intercom_user_settings(self, mock_update_custom_attribute):
@@ -1104,8 +1106,8 @@ class TestUserSettings(APITestCase):
 
         self.assertFalse(mock_update_custom_attribute.called)
 
-    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_create_intercom_setting(self, mock_update_custom_attribute):
+    @mock.patch('mnemosyne.api.update_attributes')
+    def test_create_intercom_setting(self, mock_update_attribute):
         setting = SettingFactory(slug='marketing-bink')
 
         data = {
@@ -1118,10 +1120,9 @@ class TestUserSettings(APITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
 
-        self.assertEqual(mock_update_custom_attribute.call_count, 1)
+        self.assertEqual(mock_update_attribute.call_count, 1)
         # marketing-bink updated to True in intercom
-        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][2], 'marketing-bink')
-        self.assertEqual(mock_update_custom_attribute.call_args_list[0][0][3], True)
+        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], user_setting)
 
 
 class TestAppKitIdentification(APITestCase):

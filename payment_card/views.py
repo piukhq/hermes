@@ -2,7 +2,6 @@ from io import StringIO
 import csv
 import json
 
-from raven.contrib.django.raven_compat.models import client as sentry
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import redirect, render
@@ -24,7 +23,6 @@ from payment_card import serializers
 from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
-from intercom import intercom_api
 from payment_card import metis
 from user.models import Organisation, ClientApplication
 

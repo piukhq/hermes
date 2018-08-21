@@ -11,7 +11,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from intercom import intercom_api
-from mnemosyne import api
+from mnemosyne import api, events
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
@@ -62,7 +62,7 @@ class BaseLinkMixin(object):
         response_data.update(dict(data))
         try:
             api.update_scheme_account_attribute(scheme_account)
-        except intercom_api.IntercomException:
+        except api.MnemosyneException:
             pass
         return response_data
 
@@ -219,7 +219,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 api.post_event(
                     settings.INTERCOM_TOKEN,
                     request.user.uid,
-                    intercom_api.MY360_APP_EVENT,
+                    events.MY360_APP_EVENT,
                     metadata
                 )
 
@@ -479,7 +479,7 @@ class CreateJoinSchemeAccount(APIView):
             api.post_event(
                 settings.INTERCOM_TOKEN,
                 user.uid,
-                intercom_api.ISSUED_JOIN_CARD_EVENT,
+                events.ISSUED_JOIN_CARD_EVENT,
                 metadata
             )
             api.update_scheme_account_attribute(account)

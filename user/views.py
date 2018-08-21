@@ -473,13 +473,13 @@ class UserSettings(APIView):
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
-                if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
+                if slug_key in api.SETTING_CUSTOM_ATTRIBUTES:
                     try:
                         api.update_attributes(
                             request.user.uid,
                             user_setting
                         )
-                    except intercom_api.IntercomException:
+                    except api.MnemosyneException:
                         pass
 
         if validation_errors:
