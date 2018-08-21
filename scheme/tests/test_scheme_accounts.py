@@ -893,15 +893,6 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD)
 
-        data = {
-            "email": "user@example.com",
-            "password": "testpassword123",
-            "first_name": "Joe",
-            "last_name": "Bloggs",
-            "save_user_information": False,
-            "order": 1
-        }
-
         resp = self.client.post('/schemes/accounts/join/{}/{}'.format(scheme.slug, self.user.id),
                                 **self.auth_service_headers)
 
@@ -1383,7 +1374,8 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(
             mock_update_attr.call_args[0][1],
             {
-                '{0}'.format(self.scheme_account.scheme.company): 'true,ACTIVE,2000/05/19,{}'.format(self.scheme_account.scheme.slug)
+                '{0}'.format(self.scheme_account.scheme.company):
+                    'true,ACTIVE,2000/05/19,{}'.format(self.scheme_account.scheme.slug)
             }
         )
 

@@ -1,4 +1,3 @@
-from unittest.mock import patch
 
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
