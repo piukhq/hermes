@@ -198,6 +198,7 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
         return Response(self.get_serializer(account).data)
 
     def update(self, request, *args, **kwargs):
+        
         return Response()
 
     def destroy(self, request, *args, **kwargs):
