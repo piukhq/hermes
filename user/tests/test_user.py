@@ -1011,14 +1011,12 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(mock_update_attribute.call_count, 2)
         intercom_calls_data = {
-            mock_update_attribute.call_args_list[0][0][1]: mock_update_attribute.call_args_list[0][0][1],
-            mock_update_attribute.call_args_list[1][0][1]: mock_update_attribute.call_args_list[1][0][1]
+            mock_update_attribute.call_args_list[0][0][1]: mock_update_attribute.call_args_list[0][0][2],
+            mock_update_attribute.call_args_list[1][0][1]: mock_update_attribute.call_args_list[1][0][2]
         }
 
         # marketing-bink updated to False in intercom
-        # self.assertFalse(intercom_calls_data['marketing-bink'])
-
-        self.assertFalse(user_setting)
+        self.assertFalse(intercom_calls_data['marketing-bink'])
 
         # marketing-external updated to True in intercom
         self.assertTrue(intercom_calls_data['marketing-external'])
@@ -1122,7 +1120,8 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(mock_update_attribute.call_count, 1)
         # marketing-bink updated to True in intercom
-        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], user_setting)
+        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], 'marketing-bink')
+        self.assertEqual(mock_update_attribute.call_args_list[0][0][2], True)
 
 
 class TestAppKitIdentification(APITestCase):

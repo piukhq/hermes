@@ -10,7 +10,6 @@ from collections import OrderedDict
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from intercom import intercom_api
 from mnemosyne import api, events
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
