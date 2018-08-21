@@ -202,14 +202,29 @@ class TransactionsSerializer(serializers.Serializer):
     def get_amounts(instance):
         scheme = Scheme.objects.get(schemeaccount__id=instance['scheme_account_id'])
         scheme_balances = scheme.schemebalancedetails_set.first()
-        return [
-            {
-                'currency': scheme_balances.currency,
-                'prefix': scheme_balances.prefix,
-                'suffix': scheme_balances.suffix,
-                'value': instance['value'] or instance['points']
-            }
-        ]
+        amounts = []
+
+        if instance['value']:
+            amounts.append(
+                {
+                    'currency': 'GBP',
+                    'prefix': '£',
+                    'suffix': None,
+                    'value': instance['value']
+                }
+            )
+
+        if instance['points']:
+            amounts.append(
+                {
+                    'currency': scheme_balances.currency,
+                    'prefix': scheme_balances.prefix,
+                    'suffix': scheme_balances.suffix,
+                    'value': instance['points']
+                }
+            )
+
+        return amounts
 
 
 class ActiveCardAuditSerializer(serializers.ModelSerializer):
