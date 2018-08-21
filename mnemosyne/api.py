@@ -52,7 +52,7 @@ def update_attribute(user, key, value):
     })
 
 
-def update_attributes(user, attributes):
+def update_attributes(user, attributes, slug_key=None):
     _send_to_mnemosyne(user, attributes=attributes)
 
 

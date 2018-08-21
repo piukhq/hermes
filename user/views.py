@@ -22,7 +22,6 @@ from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
-from intercom import intercom_api
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -477,7 +476,8 @@ class UserSettings(APIView):
                     try:
                         api.update_attributes(
                             request.user.uid,
-                            user_setting
+                            slug_key,
+                            user_setting.to_boolean(),
                         )
                     except api.MnemosyneException:
                         pass
