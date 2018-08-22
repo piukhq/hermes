@@ -213,6 +213,7 @@ MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
+HADES_URL = env_var('HADES_URL', 'http://dev.hades.loyaltyangels.local')
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 
