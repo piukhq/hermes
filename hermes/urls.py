@@ -11,7 +11,8 @@ schema_view = get_schema_view(
     openapi.Info(
         title="Ubiquity API",
         default_version='v0.1',
-        description="Per me si va nella citta dolente, per me si va nell'eterno dolore, per me si va fra la perduta gente.",
+        description="Per me si va nella citta dolente, per me si va nell'eterno dolore, "
+                    "per me si va fra la perduta gente.",
     ),
     public=True,
     authentication_classes=(JwtAuthentication, ServiceRegistrationAuthentication),
