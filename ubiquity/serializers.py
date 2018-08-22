@@ -341,7 +341,10 @@ class MembershipCardSerializer(serializers.Serializer):
         fields_type = {0: [], 1: [], 2: []}
         for answer in instance.schemeaccountcredentialanswer_set.all():
             if answer.question.field_type:
-                fields_type[answer.question.field_type].append(answer.clean_answer())
+                fields_type[answer.question.field_type].append({
+                    'column': answer.question.type,
+                    'value': answer.clean_answer()
+                })
 
         try:
             reward_tier = instance.balances[0]['reward_tier']
