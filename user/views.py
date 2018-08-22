@@ -476,8 +476,7 @@ class UserSettings(APIView):
                     try:
                         api.update_attributes(
                             request.user.uid,
-                            slug_key,
-                            user_setting.to_boolean(),
+                            {slug_key: user_setting.to_boolean()}
                         )
                     except api.MnemosyneException:
                         pass
