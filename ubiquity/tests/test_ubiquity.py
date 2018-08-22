@@ -18,8 +18,8 @@ from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardSerializer
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from user.models import CustomUser
-from user.tests.factories import ClientApplicationBundleFactory
+from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
+                                  UserFactory)
 
 
 class TestRegistration(APITestCase):
@@ -32,57 +32,78 @@ class TestRegistration(APITestCase):
     def test_service_registration(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': arrow.utcnow().timestamp
-        }
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'email': 'test@email.bink',
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
 
-        resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
-        self.assertEqual(resp.status_code, 200)
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
+        organisation = OrganisationFactory(name='Test other organisation')
+        client = ClientApplicationFactory(name='random other client', organisation=organisation)
+        bundle = ClientApplicationBundleFactory(bundle_id='test.other.user', client=client)
+
+        data = {
+            'client_id': bundle.client.client_id,
+            'client_secret': bundle.client.secret,
+            'bundle_id': bundle.bundle_id
+        }
+        token = self.token_generator(**data).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'email': 'test@email.bink',
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
+
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
+        self.assertEqual(resp.status_code, 201)
 
     def test_service_registration_wrong_data(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id,
-            'email': 'wrongconsent@bink.test'
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': 'not a timestamp'
-        }
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'timestamp': 'not a timestamp',
+                'email': 'wrongconsent@bink.test'
+            }
+        })
 
-        wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
+        wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
+                                              **auth_headers)
         self.assertEqual(wrong_consent_resp.status_code, 400)
-        self.assertIn('timestamp', wrong_consent_resp.json())
-
-        with self.assertRaises(CustomUser.DoesNotExist):
-            CustomUser.objects.get(email='{}__{}'.format(data['bundle_id'], data['email']))
+        self.assertIn('Malformed request.', wrong_consent_resp.json().get('detail'))
 
     def test_service_registration_wrong_header(self):
         data = {
             'client_id': self.bundle.client.client_id,
-            'secret': self.bundle.client.secret,
+            'client_secret': self.bundle.client.secret,
             'bundle_id': 'wrong bundle id'
         }
         token = self.token_generator(**data).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
-        consent = {
-            'latitude': 12.234,
-            'longitude': 56.856,
-            'timestamp': arrow.utcnow().timestamp
-        }
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
 
-        wrong_header_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
+        wrong_header_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
+                                             **auth_headers)
         self.assertEqual(wrong_header_resp.status_code, 403)
         self.assertIn('Invalid token', wrong_header_resp.json()['detail'])
 
@@ -90,6 +111,11 @@ class TestRegistration(APITestCase):
 class TestResources(APITestCase):
 
     def setUp(self):
+        organisation = OrganisationFactory(name='set up authentication')
+        client = ClientApplicationFactory(organisation=organisation, name='set up client application')
+        bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
+        email = 'test@user.com'
+        self.user = UserFactory(email=email, client=client)
         self.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
@@ -101,12 +127,14 @@ class TestResources(APITestCase):
                                                                    scheme_account=self.scheme_account)
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
-        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account)
-        self.user = self.scheme_account_entry.user
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
         self.payment_card_account = self.payment_card_account_entry.payment_card_account
         self.payment_card = self.payment_card_account.payment_card
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.user.create_token()}
+
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_get_single_payment_card(self):
         payment_card_account = self.payment_card_account_entry.payment_card_account
@@ -312,7 +340,8 @@ class TestResources(APITestCase):
             }
         ])
         httpretty.register_uri(httpretty.GET, uri, transactions)
-        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
 

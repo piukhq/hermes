@@ -3,8 +3,8 @@ import uuid
 import requests
 from django.conf import settings
 from django.utils import timezone
-from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError
+from rest_framework import status
+from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -16,14 +16,14 @@ from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
 from scheme.views import BaseLinkMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
-from ubiquity.authentication import PropertyOrJWTAuthentication
+from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
                                   PaymentCardSerializer, ServiceConsentSerializer,
                                   TransactionsSerializer)
 from user.models import CustomUser
-from user.serializers import RegisterSerializer
+from user.serializers import NewRegisterSerializer
 
 
 class PaymentCardConsentMixin:
@@ -37,51 +37,66 @@ class PaymentCardConsentMixin:
 
 
 class ServiceView(ModelViewSet):
-    authentication_classes = (PropertyOrJWTAuthentication,)
-    serializer_class = RegisterSerializer
-    model = CustomUser
+    authentication_classes = (PropertyOrServiceAuthentication,)
+    serializer_class = ServiceConsentSerializer
 
     def retrieve(self, request, *args, **kwargs):
-        user_data = {
-            'client_id': request.bundle.client.pk,
-            'email': '{}__{}'.format(request.bundle.client.client_id, request.prop_email),
-            'uid': request.prop_email,
-        }
-        get_object_or_404(self.model, **user_data)
-        return Response({'email': user_data['email']})
+        if not request.user.is_active:
+            raise NotFound
+
+        return Response(self.get_serializer(request.user.serviceconsent).data)
 
     def create(self, request, *args, **kwargs):
+        status_code = 200
+        consent_data = request.data['consent']
+        if 'email' not in consent_data:
+            raise ParseError
+
         new_user_data = {
             'client_id': request.bundle.client.pk,
-            'email': '{}__{}'.format(request.bundle.bundle_id, request.prop_email),
-            'uid': request.prop_email,
+            'bundle_id': request.bundle.bundle_id,
+            'email': consent_data['email'],
+            'uid': request.prop_id,
             'password': str(uuid.uuid4()).lower().replace('-', 'A&')
         }
 
-        new_user = self.serializer_class(data=new_user_data)
-        new_user.is_valid(raise_exception=True)
-        user = new_user.save()
-
-        new_consent = ServiceConsentSerializer(data={'user': user.pk, **{k: v for k, v in request.data.items()}})
         try:
-            new_consent.is_valid(raise_exception=True)
-            new_consent.save()
-        except serializers.ValidationError as e:
-            user.delete()
-            raise e
+            user = CustomUser.objects.get(email=new_user_data['email'], client=request.bundle.client)
+        except CustomUser.DoesNotExist:
+            status_code = 201
+            new_user = NewRegisterSerializer(data=new_user_data)
+            new_user.is_valid(raise_exception=True)
+            user = new_user.save()
 
-        return Response(new_user.data)
+        if not user.is_active:
+            status_code = 201
+            user.is_active = True
+            user.save()
 
-    @staticmethod
-    def destroy(request, *args, **kwargs):
-        user = request.user
-        errors, consent = user.serviceconsent
-        consent.delete()
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        if hasattr(user, 'serviceconsent'):
+            user.serviceconsent.delete()
+
+        try:
+            consent = self.get_serializer(data={'user': user.pk, **consent_data})
+            consent.is_valid(raise_exception=True)
+            consent.save()
+        except ValidationError:
+            user.is_active = False
+            user.save()
+            raise ParseError
+
+        return Response(consent.data, status=status_code)
+
+    def destroy(self, request, *args, **kwargs):
+        response = self.get_serializer(request.user.serviceconsent).data
+        request.user.serviceconsent.delete()
+        request.user.is_active = False
+        request.user.save()
+        return Response(response)
 
 
 class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
@@ -99,6 +114,7 @@ class PaymentCardView(RetrievePaymentCardAccount, ModelViewSet):
 
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
@@ -151,6 +167,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
 
 class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = MembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
@@ -186,6 +203,7 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
 
 
 class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = ListMembershipCardSerializer
     override_serializer_classes = {
         'GET': ListMembershipCardSerializer,
@@ -276,6 +294,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
 
 class CreateDeleteLinkView(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
 
     def update_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
@@ -336,6 +355,7 @@ class CreateDeleteLinkView(ModelViewSet):
 
 
 class UserTransactions(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = TransactionsSerializer
 
     def get_queryset(self):
@@ -355,6 +375,8 @@ class UserTransactions(ModelViewSet):
 
 
 class CompositeMembershipCardView(ListMembershipCardView):
+    authentication_classes = (PropertyAuthentication,)
+
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
@@ -381,6 +403,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
 
 class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):

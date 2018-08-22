@@ -2,24 +2,24 @@ from django.db import models
 
 
 class SchemeAccountEntry(models.Model):
-    scheme_account = models.ForeignKey('scheme.SchemeAccount')
-    user = models.ForeignKey('user.CustomUser')
+    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE)
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("scheme_account", "user")
 
 
 class PaymentCardAccountEntry(models.Model):
-    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
-    user = models.ForeignKey('user.CustomUser')
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE)
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE)
 
     class Meta:
         unique_together = ("payment_card_account", "user")
 
 
 class PaymentCardSchemeEntry(models.Model):
-    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount')
-    scheme_account = models.ForeignKey('scheme.SchemeAccount')
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE)
+    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE)
     active_link = models.BooleanField(default=True)
 
     class Meta:
@@ -40,6 +40,6 @@ class PaymentCardSchemeEntry(models.Model):
 
 class ServiceConsent(models.Model):
     user = models.OneToOneField('user.CustomUser', on_delete=models.CASCADE, primary_key=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
     timestamp = models.DateTimeField()
