@@ -81,6 +81,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     type = USER_NAME
     label = 'Please enter your username.'
     third_party_identifier = False
+    field_type = None
 
 
 class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):

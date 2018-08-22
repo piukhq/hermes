@@ -16,8 +16,8 @@ from intercom import intercom_api
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
-                           SwappableSerializerMixin)
-from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
+                           SwappableSerializerMixin, UpdateCredentialsMixin)
+from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage,
                            SchemeImage)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
@@ -25,7 +25,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 ResponseLinkSerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
-                                StatusSerializer, UpdateCredentialSerializer)
+                                StatusSerializer)
 from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
@@ -283,7 +283,7 @@ class SystemActionSchemeAccounts(ListAPIView):
     pagination_class = Pagination
 
 
-class SchemeAccountsCredentials(RetrieveAPIView):
+class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
@@ -301,19 +301,8 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         Update / Create credentials for loyalty scheme login
         ---
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
-        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        updated_credentials = []
-
-        for credential_type in data.keys():
-            question = scheme_account.scheme.questions.get(type=credential_type)
-            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
-                                                                   defaults={'answer': data[credential_type]})
-            updated_credentials.append(credential_type)
-
-        return Response({'updated': updated_credentials}, status=status.HTTP_200_OK)
+        account = self.get_object()
+        return Response(self.update_credentials(account, request.data), status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
         """
