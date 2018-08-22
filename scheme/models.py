@@ -45,8 +45,9 @@ def _default_transaction_headers():
 
 class Scheme(models.Model):
     TIERS = (
-        (1, 'Bink'),
-        (2, 'Show'),
+        (1, 'PLL'),
+        (2, 'Basic'),
+        (3, 'Partner'),
     )
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
