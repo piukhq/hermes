@@ -923,9 +923,9 @@ class TestSchemeAccountViews(APITestCase):
             "false,JOIN,2000/05/19,{}".format(scheme.slug)
         )
 
-    @patch('intercom.intercom_api.post_intercom_event')
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_create_join_account_against_user_setting(self, mock_update_custom_attr, mock_post_intercom_event):
+    @patch('mnemosyne.api.post_event')
+    @patch('mnemosyne.api.update_attributes')
+    def test_create_join_account_against_user_setting(self, mock_update_attr, mock_post_event):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -944,8 +944,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(json['code'], 200)
         self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
 
-        self.assertFalse(mock_post_intercom_event.called)
-        self.assertFalse(mock_update_custom_attr.called)
+        self.assertFalse(mock_post_event.called)
+        self.assertFalse(mock_update_attr.called)
 
     def test_register_join_endpoint_missing_credential_question(self):
         scheme = SchemeFactory()

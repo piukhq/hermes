@@ -1023,8 +1023,8 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(mock_update_attribute.call_count, len(settings))
 
-    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_update_non_intercom_user_settings(self, mock_update_custom_attribute):
+    @mock.patch('mnemosyne.api.update_attribute')
+    def test_update_non_intercom_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -1049,7 +1049,7 @@ class TestUserSettings(APITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
         self.assertEqual(user_setting.value, '1')
 
-        self.assertFalse(mock_update_custom_attribute.called)
+        self.assertFalse(mock_update_attribute.called)
 
     def test_update_incorrect_user_settings(self):
         setting = SettingFactory()
@@ -1088,8 +1088,8 @@ class TestUserSettings(APITestCase):
         self.assertIn("'kitten' is not a valid value for type boolean.", data['messages'])
         self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
 
-    @mock.patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_create_non_intercom_settings(self, mock_update_custom_attribute):
+    @mock.patch('mnemosyne.api.update_attributes')
+    def test_create_non_intercom_settings(self, mock_update_attribute):
         setting = SettingFactory()
 
         data = {
@@ -1102,7 +1102,7 @@ class TestUserSettings(APITestCase):
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
         self.assertEqual(user_setting.value, '1')
 
-        self.assertFalse(mock_update_custom_attribute.called)
+        self.assertFalse(mock_update_attribute.called)
 
     @mock.patch('mnemosyne.api.update_attributes')
     def test_create_intercom_setting(self, mock_update_attribute):
