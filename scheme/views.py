@@ -52,9 +52,9 @@ class BaseLinkMixin(object):
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account.get_midas_balance(user.id)
+        midas_information = scheme_account.get_cached_balance()
         response_data = {
-            'balance': midas_information,
+            'balance': {**midas_information},
             'status': scheme_account.status,
             'status_name': scheme_account.status_name
         }

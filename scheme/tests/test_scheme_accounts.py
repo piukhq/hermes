@@ -1265,7 +1265,7 @@ class TestSchemeAccountModel(APITestCase):
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_credentials.called)
 
@@ -1275,7 +1275,7 @@ class TestSchemeAccountModel(APITestCase):
         mock_request.return_value.json.return_value = {'points': 500}
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertEqual(points['points'], 500)
         self.assertFalse(points['is_stale'])
         self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
@@ -1284,7 +1284,7 @@ class TestSchemeAccountModel(APITestCase):
     def test_get_midas_balance_connection_error(self, mock_request):
         entry = SchemeAccountEntryFactory()
         scheme_account = entry.scheme_account
-        points = scheme_account.get_midas_balance(entry.user.id)
+        points = scheme_account.get_midas_balance()
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)

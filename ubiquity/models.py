@@ -23,3 +23,10 @@ class PaymentCardAccountEntry(models.Model):
 
     class Meta:
         unique_together = ("payment_card_account", "user")
+
+
+class ServiceConsent(models.Model):
+    user = models.OneToOneField('user.CustomUser', on_delete=models.CASCADE, primary_key=True)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    timestamp = models.DateTimeField()

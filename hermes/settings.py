@@ -14,8 +14,8 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 
-from environment import env_var, read_env
 import hermes
+from environment import env_var, read_env
 
 read_env()
 
@@ -59,7 +59,6 @@ CORS_ORIGIN_WHITELIST = (
     "api.chingrewards.com",
     "dev.docs.loyaltyangels.local",
 )
-
 
 # Application definition
 
@@ -147,9 +146,7 @@ REST_FRAMEWORK = {
     )
 }
 
-
 WSGI_APPLICATION = 'hermes.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
@@ -165,7 +162,6 @@ DATABASES = {
         'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
     }
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
@@ -317,7 +313,6 @@ SWAGGER_BASE_PATH = env_var('SWAGGER_BASE_PATH')
 if SWAGGER_BASE_PATH:
     SWAGGER_SETTINGS['base_path'] = SWAGGER_BASE_PATH
 
-
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
@@ -331,7 +326,6 @@ INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0
 INTERCOM_HOST = 'https://api.intercom.io'
 INTERCOM_USERS_PATH = 'users'
 INTERCOM_EVENTS_PATH = 'events'
-
 
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',
@@ -362,3 +356,23 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
+
+cache_options = {
+    'redis': {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient"
+        },
+        "KEY_PREFIX": "hermes"
+    },
+    'test': {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    }
+}
+
+CACHES = {
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+}
+
+BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes

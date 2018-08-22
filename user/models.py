@@ -1,28 +1,26 @@
-from string import ascii_letters, digits
-import random
-import base64
 import uuid
-import os
+from string import ascii_letters, digits
 
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.utils.translation import ugettext_lazy as _
-from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
-from django.db.models.fields import CharField
-from django.dispatch import receiver
-from django.conf import settings
-from django.db import models
-from hashids import Hashids
 import arrow
+import base64
 import jwt
+import os
+import random
+from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models.fields import CharField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.utils.translation import ugettext_lazy as _
+from hashids import Hashids
 
-from user.validators import validate_boolean, validate_number
-from user.managers import CustomUserManager
 from scheme.models import Scheme
-
+from user.managers import CustomUserManager
+from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
-
 
 BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 
@@ -134,6 +132,10 @@ class ClientApplicationBundle(models.Model):
     @classmethod
     def get_bink_bundles(cls):
         return cls.objects.filter(client_id=BINK_APP_ID)
+
+    @staticmethod
+    def is_authenticated():
+        return True
 
     def __str__(self):
         return '{} ({})'.format(self.bundle_id, self.client)
@@ -405,4 +407,4 @@ def validate_setting_value(value, setting):
                                   params={
                                       'value': value,
                                       'value_type': setting.value_type_name,
-            })
+                                  })

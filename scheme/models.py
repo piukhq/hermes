@@ -3,12 +3,14 @@ import re
 import socket
 import sre_constants
 import uuid
+from decimal import Decimal
 
 import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
-from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.fields import ArrayField, JSONField
+from django.core.cache import cache
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -292,7 +294,7 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
-
+    balance = JSONField(default=dict())
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
 
@@ -331,8 +333,8 @@ class SchemeAccount(models.Model):
         """
         required_credentials = {
             question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+        )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
@@ -359,13 +361,13 @@ class SchemeAccount(models.Model):
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self, user_id):
+    def get_midas_balance(self):
         points = None
         try:
             credentials = self.credentials()
             if not credentials:
                 return points
-            response = self._get_balance(credentials, user_id)
+            response = self._get_balance(credentials)
             self.status = response.status_code
             if response.status_code == 200:
                 points = response.json()
@@ -378,17 +380,32 @@ class SchemeAccount(models.Model):
             self.save()
         return points
 
-    def _get_balance(self, credentials, user_id):
+    def _get_balance(self, credentials):
+        user_set = ','.join([str(u.id) for u in self.user_set.all()])
         parameters = {
             'scheme_account_id': self.id,
-            'user_id': user_id,
             'credentials': credentials,
+            'user_set': user_set,
             'status': self.status,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)
         return response
+
+    def get_cached_balance(self):
+        cache_key = 'scheme_{}'.format(self.pk)
+        balance = cache.get(cache_key)
+
+        if not balance:
+            balance = self.get_midas_balance()
+            cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+
+        if balance != self.balance and balance:
+            self.balance = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
+            self.save()
+
+        return self.balance
 
     def question(self, question_type):
         """
