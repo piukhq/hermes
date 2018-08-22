@@ -1,5 +1,6 @@
 import uuid
 
+import jwt
 import requests
 from django.conf import settings
 from django.utils import timezone
@@ -207,14 +208,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
-    def transactions(self, request, mcard_id):
-        self.get_serializer_class = lambda: TransactionsSerializer
-        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
-        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
-        result = resp.json() if resp.status_code == 200 else []
-        return Response(self.get_serializer(result, many=True).data)
-
     @staticmethod
     def membership_plan(request, mcard_id):
         mcard = get_object_or_404(SchemeAccount, id=mcard_id)
@@ -410,26 +403,6 @@ class CreateDeleteLinkView(ModelViewSet):
         return payment_card, membership_card
 
 
-class UserTransactions(ModelViewSet):
-    authentication_classes = (PropertyAuthentication,)
-    serializer_class = TransactionsSerializer
-
-    def get_queryset(self):
-        return SchemeAccount.objects.filter(user_set__id=self.request.user.id).all()
-
-    def list(self, request, *args, **kwargs):
-        headers = {'Authorization': request.META['HTTP_AUTHORIZATION'], 'Content-Type': 'application/json'}
-        url = settings.HADES_URL + '/transactions/scheme_account/{}'
-        transactions = []
-        for account in self.get_queryset():
-            resp = requests.get(url.format(account.pk), headers=headers)
-            if resp.status_code == 200:
-                transactions.extend(resp.json())
-
-        serializer = self.get_serializer(transactions, many=True)
-        return Response(serializer.data)
-
-
 class CompositeMembershipCardView(ListMembershipCardView):
     authentication_classes = (PropertyAuthentication,)
 
@@ -515,3 +488,37 @@ class MembershipPlan(ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
+
+
+class MembershipTransactionView(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
+    serializer_class = TransactionsSerializer
+
+    @staticmethod
+    def _get_auth_token(user_id):
+        payload = {
+            'sub': user_id
+        }
+        token = jwt.encode(payload, settings.TOKEN_SECRET)
+        return token.decode('unicode_escape')
+
+    def retrieve(self, request, *args, **kwargs):
+        url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
+        headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        response = self.get_serializer(resp.json()).data if resp.status_code == 200 and resp.json() else {}
+        return Response(response)
+
+    def list(self, request, *args, **kwargs):
+        url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
+        headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
+        return Response(response)
+
+    def composite(self, request, *args, **kwargs):
+        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, kwargs['mcard_id'])
+        headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
+        return Response(response)
