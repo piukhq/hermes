@@ -2,11 +2,10 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
-from payment_card.serializers import PaymentCardAccountSerializer, PaymentCardAccountImageSerializer, \
-    get_images_for_payment_card_account
-from scheme.models import SchemeAccount
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
-                                SchemeAccountImageSerializer)
+from payment_card.serializers import (PaymentCardAccountSerializer,
+                                      get_images_for_payment_card_account)
+from scheme.models import Scheme, SchemeAccount, SchemeBalanceDetail, SchemeCredentialQuestion, SchemeDetail
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from user.models import CustomUser
 
@@ -87,14 +86,12 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
         exclude = ('payment_card_account', 'scheme_account')
 
 
-class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
+class UbiquityImageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     type = serializers.IntegerField(source='image_type_code')
     url = serializers.ImageField(source='image')
+    description = serializers.CharField()
     encoding = serializers.SerializerMethodField()
-
-    class Meta(PaymentCardAccountImageSerializer.Meta):
-        exclude = None
-        fields = ('id', 'url', 'type', 'description', 'encoding')
 
     @staticmethod
     def get_encoding(obj):
@@ -102,7 +99,7 @@ class UbiquityPaymentCardImageSerializer(PaymentCardAccountImageSerializer):
             return obj.encoding
 
         try:
-            return obj.image.name.split('.')[-1]
+            return obj.image.name.split('.')[-1].replace('/', '')
         except (IndexError, AttributeError):
             return None
 
@@ -140,7 +137,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
                 "provider": instance.payment_card.system_name,
                 "type": instance.payment_card.type
             },
-            "images": get_images_for_payment_card_account(instance, serializer_class=UbiquityPaymentCardImageSerializer,
+            "images": get_images_for_payment_card_account(instance, serializer_class=UbiquityImageSerializer,
                                                           add_type=False),
             "account": {
                 "consents": instance.consents
@@ -195,35 +192,15 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
         exclude = ('scheme_account', 'payment_card_account')
 
 
-class UbiquityMembershipCardImageSerializer(SchemeAccountImageSerializer):
-    type = serializers.IntegerField(source='image_type_code')
-    url = serializers.ImageField(source='image')
-    encoding = serializers.SerializerMethodField()
-
-    class Meta(PaymentCardAccountImageSerializer.Meta):
-        exclude = None
-        fields = ('id', 'url', 'type', 'description', 'encoding')
-
-    @staticmethod
-    def get_encoding(obj):
-        if obj.encoding:
-            return obj.encoding
-
-        try:
-            return obj.image.name.split('.')[-1]
-        except (IndexError, AttributeError):
-            return None
-
-
 class MembershipCardSerializer(GetSchemeAccountSerializer):
-    balance = serializers.SerializerMethodField(read_only=True)
+    balances = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
     membership_plan = serializers.PrimaryKeyRelatedField(read_only=True, source='scheme')
 
     @staticmethod
-    def get_balance(obj):
-        balance = obj.balance if obj.balance else None
-        return BalanceSerializer(balance).data
+    def get_balances(obj):
+        balances = obj.balances if obj.balances else None
+        return BalanceSerializer(balances).data
 
     @staticmethod
     def get_payment_cards(obj):
@@ -242,21 +219,21 @@ class MembershipCardSerializer(GetSchemeAccountSerializer):
                   'barcode',
                   'card_label',
                   'images',
-                  'balance',
+                  'balances',
                   'payment_cards',
                   'membership_plan',
                   'link_date')
 
 
 class ListMembershipCardSerializer(ListSchemeAccountSerializer):
-    balance = serializers.SerializerMethodField(read_only=True)
+    balances = serializers.SerializerMethodField(read_only=True)
     payment_cards = serializers.SerializerMethodField()
     membership_plan = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
 
     @staticmethod
-    def get_balance(obj):
-        balance = obj.balance if obj.balance else None
-        return BalanceSerializer(balance).data
+    def get_balances(obj):
+        balances = obj.balances if obj.balances else None
+        return BalanceSerializer(balances).data
 
     @staticmethod
     def get_payment_cards(obj):
@@ -274,7 +251,7 @@ class ListMembershipCardSerializer(ListSchemeAccountSerializer):
                   'barcode',
                   'card_label',
                   'images',
-                  'balance',
+                  'balances',
                   'payment_cards',
                   'membership_plan')
 
@@ -295,3 +272,94 @@ class ActiveCardAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentCardSchemeEntry
         fields = ()
+
+
+class SchemeQuestionSerializer(serializers.ModelSerializer):
+    column = serializers.CharField(source='type')
+    type = serializers.IntegerField(source='answer_type')
+
+    class Meta:
+        model = SchemeCredentialQuestion
+        fields = ('column', 'validation', 'description', 'common_name', 'type', 'choice')
+
+
+class SchemeDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeDetail
+        fields = ('name', 'description')
+
+
+class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeBalanceDetail
+        exclude = ('scheme_id',)
+
+
+class MembershipPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Scheme
+        exclude = ('name',)
+
+    def to_representation(self, instance):
+        balances = instance.schemebalancedetail_set.all()
+        tiers = instance.schemedetail_set.filter(type=0).all()
+        add_fields = instance.questions.filter(field_type=0).all()
+        authorise_fields = instance.questions.filter(field_type=1).all()
+        enrol_fields = instance.questions.filter(field_type=2).all()
+        status = 'active' if instance.is_active else 'suspended'
+        if instance.tier == 2:
+            card_type = 2
+        elif instance.has_points or instance.has_transactions:
+            card_type = 1
+        else:
+            card_type = 0
+
+        return {
+            'id': instance.id,
+            'status': status,
+            'feature_set': {
+                'authorisation_required': instance.authorisation_required,
+                'transactions_available': instance.has_transactions,
+                'digital_only': instance.digital_only,
+                'has_balance': instance.has_points,
+                'apps': [
+                    {
+                        'app_id': instance.ios_scheme,
+                        'app_store_url': instance.itunes_url,
+                        'app_type': 0
+                    },
+                    {
+                        'app_id': instance.android_app_id,
+                        'app_store_url': instance.play_store_url,
+                        'app_type': 1
+                    }
+                ],
+                'card_type': card_type
+            },
+            'card': {
+                'barcode_type': instance.barcode_type,
+                'colour': instance.colour,
+                'base64_image': '',
+                'scan_message': instance.scan_message
+            },
+            'images': UbiquityImageSerializer(instance.images.all(), many=True).data,
+            'account': {
+                'plan_name': instance.name,
+                'plan_name_card': instance.plan_name_card,
+                'plan_url': instance.url,
+                'plan_summary': instance.plan_summary,
+                'plan_description': instance.plan_description,
+                'company_name': instance.company,
+                'company_url': instance.company_url,
+                'enrol_incentive': instance.enrol_incentive,
+                'category': instance.category.name,
+                'forgotten_password_url': instance.forgotten_password_url,
+                'tiers': SchemeDetailSerializer(tiers, many=True).data,
+                'terms': instance.join_t_and_c,
+                'terms_url': instance.join_url,
+                'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
+                'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
+                'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
+            },
+            'balances': SchemeBalanceDetailSerializer(balances, many=True).data
+        }

@@ -230,7 +230,7 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'is_deleted', 'balance', 'user_set')
+        exclude = ('updated', 'is_deleted', 'balances', 'user_set')
         read_only_fields = ('status',)
 
 

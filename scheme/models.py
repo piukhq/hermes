@@ -117,6 +117,15 @@ class Scheme(models.Model):
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
 
+    # ubiquity fields
+    authorisation_required = models.BooleanField(default=False)
+    digital_only = models.BooleanField(default=False)
+    plan_name = models.CharField(max_length=50, null=True, blank=True)
+    plan_name_card = models.CharField(max_length=50, null=True, blank=True)
+    plan_summary = models.TextField(null=True, blank=True, max_length=250)
+    plan_description = models.TextField(null=True, blank=True, max_length=500)
+    enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
     @property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
@@ -294,9 +303,11 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
-    balance = JSONField(default=dict(), null=True, blank=True)
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
+
+    # ubiquity fields
+    balances = JSONField(default=dict(), null=True, blank=True)
 
     @property
     def status_name(self):
@@ -401,11 +412,11 @@ class SchemeAccount(models.Model):
             balance = self.get_midas_balance()
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
-        if balance != self.balance and balance:
-            self.balance = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
+        if balance != self.balances and balance:
+            self.balances = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
             self.save()
 
-        return self.balance
+        return self.balances
 
     def question(self, question_type):
         """
@@ -571,7 +582,7 @@ class SchemeCredentialQuestion(models.Model):
     MERCHANT_IDENTIFIER = (1 << 3)
 
     OPTIONS = (
-        (0, 'None'),
+        (NONE, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
@@ -579,16 +590,37 @@ class SchemeCredentialQuestion(models.Model):
         (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
 
+    # ubiquity choices
+    ANSWER_TYPE_CHOICES = (
+        (0, 'text'),
+        (1, 'sensitive'),
+        (2, 'choice'),
+        (3, 'boolean'),
+    )
+
+    FIELD_TYPE_CHOICES = (
+        (0, 'add'),
+        (1, 'auth'),
+        (2, 'enrol'),
+    )
+
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
     third_party_identifier = models.BooleanField(default=False)
-
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    # ubiquity fields
+    validation = models.TextField(null=True, blank=True, max_length=250)
+    description = models.CharField(null=True, blank=True, max_length=250)
+    common_name = models.CharField(null=True, blank=True, max_length=50)
+    answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
+    choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
+    field_type = models.IntegerField(null=True, blank=True, choices=FIELD_TYPE_CHOICES)
 
     @property
     def required(self):
@@ -632,6 +664,25 @@ class SchemeCredentialQuestionChoiceValue(models.Model):
 
     class Meta:
         ordering = ['value']
+
+
+class SchemeDetail(models.Model):
+    TYPE_CHOICES = (
+        (0, 'Tier'),
+    )
+
+    scheme_id = models.ForeignKey('Scheme')
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+
+
+class SchemeBalanceDetail(models.Model):
+    scheme_id = models.ForeignKey('Scheme')
+    currency = models.CharField(max_length=50)
+    prefix = models.CharField(max_length=50)
+    suffix = models.CharField(max_length=50)
+    description = models.TextField()
 
 
 class SchemeAccountCredentialAnswer(models.Model):

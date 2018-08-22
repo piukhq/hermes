@@ -15,13 +15,13 @@ from scheme.credentials import credential_types_set
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
-from scheme.views import BaseLinkMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
+from scheme.views import BaseLinkMixin, IdentifyCardMixin, RetrieveDeleteAccount, SchemeAccountCreationMixin
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                  ServiceConsentSerializer, TransactionsSerializer)
+from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+                                  PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
+                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -120,7 +120,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
 
         return self.queryset.filter(**query)
 
-    def patch(self, request, *args, **kwargs):
+    def update(self, request, *args, **kwargs):
         if 'card' in request.data:
             try:
                 data = PaymentCardUpdateSerializer(request.data['card']).data
@@ -197,6 +197,9 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
         account.get_cached_balance()
         return Response(self.get_serializer(account).data)
 
+    def update(self, request, *args, **kwargs):
+        return Response()
+
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
@@ -207,6 +210,11 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
         resp = requests.get(url, headers=headers)
         result = resp.json() if resp.status_code == 200 else []
         return Response(self.get_serializer(result, many=True).data)
+
+    @staticmethod
+    def membership_plan(request, mcard_id):
+        mcard = get_object_or_404(SchemeAccount, id=mcard_id)
+        return Response(MembershipPlanSerializer(mcard.scheme).data)
 
 
 class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
@@ -441,3 +449,28 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
         return Response(message, status=status_code)
+
+
+class MembershipPlans(ModelViewSet, IdentifyCardMixin):
+    authentication_classes = (PropertyAuthentication,)
+    queryset = Scheme.objects
+    serializer_class = MembershipPlanSerializer
+
+    def identify(self, request):
+        try:
+            base64_image = request.data['card']['base64_image']
+        except KeyError:
+            raise ParseError
+
+        json = self._get_scheme(base64_image)
+        if json['status'] != 'success' or json['reason'] == 'no match':
+            return Response({'status': 'failure', 'message': json['reason']}, status=400)
+
+        scheme = get_object_or_404(Scheme, id=json['scheme_id'])
+        return Response(MembershipPlanSerializer(scheme).data)
+
+
+class MembershipPlan(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
+    queryset = Scheme.objects
+    serializer_class = MembershipPlanSerializer
