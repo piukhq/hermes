@@ -40,3 +40,5 @@ azure-storage-blob==1.1.0
 django-redis==4.9.0
 redis==2.10.6
 drf-yasg==1.9.1
+dictfilter==1.1.2
+influxdb==5.2.0
