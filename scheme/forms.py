@@ -31,7 +31,7 @@ class ConsentForm(forms.ModelForm):
             raise ValidationError('A check box Consent cannot be created for the Add journey type.')
 
         # Read-only fields (slug) are not validated on update so does not go through unique_together checks.
-        if self.instance.id:
+        if self.instance.id and self.instance.journey != cleaned_data['journey']:
             slug = self.instance.slug
             scheme = cleaned_data['scheme']
             journey = cleaned_data['journey']
