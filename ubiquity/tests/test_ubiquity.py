@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory
-from scheme.credentials import BARCODE, LAST_NAME
+from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
@@ -505,3 +505,46 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], '10.0')
         self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
+
+
+class TestMembershipCardCredentials(APITestCase):
+    def setUp(self):
+        organisation = OrganisationFactory(name='set up authentication for credentials')
+        client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
+        bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
+        email = 'credentials@user.com'
+        self.user = UserFactory(email=email, client=client)
+        self.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True, field_type=0)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, field_type=1)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                             type=LAST_NAME,
+                                                             third_party_identifier=True,
+                                                             options=SchemeCredentialQuestion.LINK,
+                                                             field_type=1)
+        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
+                                                                   scheme_account=self.scheme_account)
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+                                                                          scheme_account=self.scheme_account)
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+    def test_update_new_and_existing_credentials(self):
+        payload = {
+            'authorise_fields': [
+                {
+                    'column': 'last_name',
+                    'value': 'New Last Name'
+                },
+                {
+                    'column': 'password',
+                    'value': 'newpassword'
+                }
+            ]
+        }
+        resp = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
+                                 content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
