@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 
 from common.models import Image
-from scheme.credentials import CREDENTIAL_TYPES, credential_types_set
+from scheme.credentials import credential_types_set
 from scheme.models import (Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
                            SchemeCredentialQuestion, SchemeImage, UserConsent)
 

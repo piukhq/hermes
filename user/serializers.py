@@ -7,8 +7,8 @@ from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
-                         ClientApplicationBundle)
+from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting, UserDetail, UserSetting,
+                         valid_promo_code)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):

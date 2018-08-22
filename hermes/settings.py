@@ -72,7 +72,6 @@ INSTALLED_APPS = (
     'django_admin_env_notice',
     'django.contrib.admin',
     'rest_framework',
-    'rest_framework_swagger',
     'corsheaders',
     'user',
     'scheme',
@@ -83,9 +82,10 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
+    'drf_yasg',
 )
 
-MIDDLEWARE_CLASSES = (
+MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -95,6 +95,7 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'dictfilter.django.middleware.dictfilter_middleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -371,5 +372,16 @@ cache_options = {
         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
     }
 }
+CACHES = {
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+}
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
+
+INFLUX_DB_NAME = env_var('INFLUX_DB_NAME', 'active_card_audit')
+INFLUX_DB_CONFIG = {
+    'host': env_var('INFLUX_HOST', 'localhost'),
+    'port': int(env_var('INFLUX_PORT', 8086)),
+    'username': env_var('INFLUX_USER', ''),
+    'password': env_var('INFLUX_PASSWORD', ''),
+}

@@ -5,7 +5,6 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
-from django.utils.http import urlencode
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
@@ -112,7 +111,7 @@ class TestResources(APITestCase):
     def test_get_single_payment_card(self):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         expected_result = PaymentCardSerializer(payment_card_account).data
-        resp = self.client.get(reverse('payment_card', args=[payment_card_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('payment-card', args=[payment_card_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
@@ -120,7 +119,7 @@ class TestResources(APITestCase):
         PaymentCardAccountEntryFactory(user=self.user)
         payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = PaymentCardSerializer(payment_card_accounts, many=True).data
-        resp = self.client.get(reverse('payment_cards'), **self.auth_headers)
+        resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
@@ -129,7 +128,7 @@ class TestResources(APITestCase):
         mock_get_midas_balance.return_value = self.scheme_account.balance
         expected_result = MembershipCardSerializer(self.scheme_account).data
 
-        resp = self.client.get(reverse('membership_card', args=[self.scheme_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
@@ -141,7 +140,7 @@ class TestResources(APITestCase):
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = ListMembershipCardSerializer(scheme_accounts, many=True).data
 
-        resp = self.client.get(reverse('membership_cards'), **self.auth_headers)
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
@@ -163,19 +162,18 @@ class TestResources(APITestCase):
                 "country": "UK",
                 "order": 1
             },
-            "account": {
-                "consent": {
-                    "latitude": 51.405372,
-                    "longitude": -0.678357,
-                    "timestamp": 1517549941
-                }
+            "consent": {
+                "latitude": 51.405372,
+                "longitude": -0.678357,
+                "timestamp": 1517549941
             }
         }
-        resp = self.client.post(reverse('payment_cards'), data=json.dumps(payload),
+        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
     @patch('intercom.intercom_api')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_create_membership_card_creation(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
@@ -189,11 +187,11 @@ class TestResources(APITestCase):
         }
         payload = {
             "order": 1,
-            "scheme": self.scheme.id,
+            "membership_plan": self.scheme.id,
             "barcode": "3038401022657083",
             "last_name": "Test"
         }
-        resp = self.client.post(reverse('membership_cards'), data=payload, **self.auth_headers)
+        resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
     def test_cards_linking(self):
@@ -202,11 +200,11 @@ class TestResources(APITestCase):
         SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
         PaymentCardSchemeEntry.objects.create(payment_card_account=payment_card_account,
                                               scheme_account=self.scheme_account)
-        params = {
-            'payment_card': payment_card_account.id,
-            'membership_card': scheme_account_2.id
-        }
-        resp = self.client.patch('{}?{}'.format(reverse('link_unlink'), urlencode(params)), **self.auth_headers)
+        params = [
+            payment_card_account.id,
+            scheme_account_2.id
+        ]
+        resp = self.client.patch(reverse('membership-link', args=params), **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
         links_data = PaymentCardSerializer(payment_card_account).data['membership_cards']
@@ -216,10 +214,21 @@ class TestResources(APITestCase):
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
 
-    def test_card_rule_filtering(self):
-        resp_payment = self.client.get(reverse('payment_card', args=[self.payment_card_account.id]),
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_card_rule_filtering(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
-        resp_membership = self.client.get(reverse('membership_card', args=[self.scheme_account.id]),
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
                                           **self.auth_headers)
         self.assertEqual(resp_payment.status_code, 200)
         self.assertEqual(resp_membership.status_code, 200)
@@ -227,9 +236,9 @@ class TestResources(APITestCase):
         self.user.client.organisation.issuers.add(IssuerFactory())
         self.user.client.organisation.schemes.add(SchemeFactory())
 
-        resp_payment = self.client.get(reverse('payment_card', args=[self.payment_card_account.id]),
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
-        resp_membership = self.client.get(reverse('membership_card', args=[self.scheme_account.id]),
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
                                           **self.auth_headers)
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
@@ -273,18 +282,18 @@ class TestResources(APITestCase):
                 }
             }
         }
-        resp = self.client.post(reverse('payment_cards'), data=json.dumps(payload),
+        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers)
         self.assertIn('issuer not allowed', resp.json()['detail'])
 
         payload = {
             "order": 1,
-            "scheme": self.scheme.id,
+            "membership_plan": self.scheme.id,
             "barcode": "3038401022657083",
             "last_name": "Test"
         }
-        resp = self.client.post(reverse('membership_cards'), data=payload, **self.auth_headers)
-        self.assertIn('scheme not allowed', resp.json()['detail'])
+        resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
+        self.assertIn('membership plan not allowed', resp.json()['detail'])
 
     @httpretty.activate
     def test_membership_card_transactions(self):
@@ -303,6 +312,86 @@ class TestResources(APITestCase):
             }
         ])
         httpretty.register_uri(httpretty.GET, uri, transactions)
-        resp = self.client.get(reverse('get_transactions', args=[self.scheme_account.id]), **self.auth_headers)
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
+
+    def test_composite_payment_card_get(self):
+        resp = self.client.get(reverse('composite-payment-cards', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    @patch('intercom.intercom_api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_composite_payment_card_post(self, *_):
+        new_sa = SchemeAccountEntryFactory(user=self.user).scheme_account
+        payload = {
+            "card": {
+                "pan_end": 1234,
+                "currency_code": "GBP",
+                "pan_start": 123456,
+                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
+                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
+                "name_on_card": "test user composite",
+                "token": "abc2",
+                "fingerprint": "qwertyuioplkjhhgfdsa",
+                "expiry_year": 22,
+                "expiry_month": 3,
+                "country": "UK",
+                "order": 1
+            },
+            "consent": {
+                "latitude": 51.405372,
+                "longitude": -0.678357,
+                "timestamp": 1517549941
+            }
+        }
+        expected_links = [
+            {
+                'id': new_sa.id,
+                'name': str(new_sa),
+                'active_link': True
+            }
+        ]
+
+        resp = self.client.post(reverse('composite-payment-cards', args=[new_sa.id]), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(expected_links, resp.json()['membership_cards'])
+
+    def test_composite_membership_card_get(self):
+        resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    @patch('intercom.intercom_api')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_composite_membership_card_post(self, mock_get_midas_balance, *_):
+        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        payload = {
+            "order": 1,
+            "membership_plan": self.scheme.id,
+            "barcode": "1234401022657083",
+            "last_name": "Test Composite"
+        }
+        expected_links = [
+            {
+                'id': new_pca.id,
+                'name': str(new_pca),
+                'active_link': True
+            }
+        ]
+
+        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=payload,
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(expected_links, resp.json()['payment_cards'])
