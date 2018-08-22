@@ -8,6 +8,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
 from payment_card.models import PaymentCardAccount
+from payment_card.tests.factories import IssuerFactory
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
@@ -144,7 +145,7 @@ class TestResources(APITestCase):
 
     @patch('intercom.intercom_api')
     @patch('payment_card.metis.enrol_new_payment_card')
-    def test_payment_card_creation(self, *args):
+    def test_payment_card_creation(self, *_):
         payload = {
             "card": {
                 "pan_end": 5234,
@@ -170,13 +171,11 @@ class TestResources(APITestCase):
         }
         resp = self.client.post(reverse('payment_cards'), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers)
-        if resp.status_code == 400:
-            print(resp.json())
         self.assertEqual(resp.status_code, 201)
 
     @patch('intercom.intercom_api')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_create_membership_card_creation(self, mock_get_midas_balance, *args):
+    def test_create_membership_card_creation(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -214,3 +213,73 @@ class TestResources(APITestCase):
                 self.assertEqual(link['active_link'], False)
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
+
+    def test_card_rule_filtering(self):
+        resp_payment = self.client.get(reverse('payment_card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership_card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 200)
+        self.assertEqual(resp_membership.status_code, 200)
+
+        self.user.client.organisation.issuers.add(IssuerFactory())
+        self.user.client.organisation.schemes.add(SchemeFactory())
+
+        resp_payment = self.client.get(reverse('payment_card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership_card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 404)
+        self.assertEqual(resp_membership.status_code, 404)
+
+    @patch('intercom.intercom_api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_card_creation_filter(self, mock_get_midas_balance, *_):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        self.user.client.organisation.issuers.add(IssuerFactory())
+        self.user.client.organisation.schemes.add(SchemeFactory())
+
+        payload = {
+            "card": {
+                "pan_end": 5234,
+                "currency_code": "GBP",
+                "pan_start": 523456,
+                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
+                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
+                "name_on_card": "test user 2",
+                "token": "abc2",
+                "fingerprint": "weqrewqewr32423q",
+                "expiry_year": 22,
+                "expiry_month": 3,
+                "country": "UK",
+                "order": 1
+            },
+            "account": {
+                "consent": {
+                    "latitude": 51.405372,
+                    "longitude": -0.678357,
+                    "timestamp": 1517549941
+                }
+            }
+        }
+        resp = self.client.post(reverse('payment_cards'), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
+        self.assertIn('issuer not allowed', resp.json()['detail'])
+
+        payload = {
+            "order": 1,
+            "scheme": self.scheme.id,
+            "barcode": "3038401022657083",
+            "last_name": "Test"
+        }
+        resp = self.client.post(reverse('membership_cards'), data=payload, **self.auth_headers)
+        self.assertIn('scheme not allowed', resp.json()['detail'])

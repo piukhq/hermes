@@ -93,6 +93,8 @@ class Organisation(models.Model):
     """
     name = models.CharField(max_length=100, unique=True)
     terms_and_conditions = models.TextField(blank=True)
+    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
+    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
 
     def __str__(self):
         return self.name

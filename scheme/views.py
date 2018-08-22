@@ -421,7 +421,8 @@ class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
                         )
 
     def _link_scheme_account(self, credential_type, data, scheme_account):
-        response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account)
+        response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account,
+                                           self.request.user)
         if response_data['balance']:
             scheme_account.link_date = timezone.now()
             scheme_account.save()

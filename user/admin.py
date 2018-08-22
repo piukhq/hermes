@@ -89,6 +89,19 @@ class UserSettingAdmin(admin.ModelAdmin):
     search_fields = ('user__email', 'setting__slug', 'value')
 
 
-admin.site.register([Organisation, ClientApplication, ClientApplicationBundle, ClientApplicationKit])
+@admin.register(ClientApplication)
+class ClientApplicationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'organisation', 'client_id')
+    search_fields = ('name', 'organisation__name', 'client_id')
+
+
+@admin.register(Organisation)
+class OrganisationAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)
+    filter_horizontal = ('schemes', 'issuers')
+
+
+admin.site.register([ClientApplicationBundle, ClientApplicationKit])
 admin.site.register(Setting)
 admin.site.register(MarketingCode)
