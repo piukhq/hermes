@@ -1,5 +1,4 @@
 from copy import copy
-
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -26,7 +25,7 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PaymentCardAccountImage
-        exclude = ('payment_card_accounts',)
+        exclude = ('payment_card_accounts', 'encoding')
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -61,7 +60,7 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('psp_token', 'consent', 'user_set', 'scheme_account_set')
+        exclude = ('psp_token', 'consents', 'user_set', 'scheme_account_set')
 
 
 class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -95,7 +94,7 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('psp_token', 'consent')
+        exclude = ('psp_token', 'consents')
 
 
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
@@ -164,15 +163,20 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_payment_card_account(payment_card_account):
+def get_images_for_payment_card_account(payment_card_account, serializer_class=PaymentCardAccountImageSerializer,
+                                        add_type=True):
     account_images = models.PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
     payment_card_images = models.PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
     for image in account_images:
-        serializer = PaymentCardAccountImageSerializer(image)
-        images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
+        serializer = serializer_class(image)
+
+        if add_type:
+            images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
+        else:
+            images.append(serializer.data)
 
     for image in payment_card_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
@@ -189,9 +193,14 @@ def get_images_for_payment_card_account(payment_card_account):
                 call_to_action=image.call_to_action,
                 order=image.order,
                 created=image.created,
+                encoding=image.encoding
             )
 
-            serializer = PaymentCardAccountImageSerializer(account_image)
-            images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
+            serializer = serializer_class(account_image)
+
+            if add_type:
+                images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
+            else:
+                images.append(serializer.data)
 
     return images

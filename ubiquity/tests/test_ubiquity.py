@@ -177,23 +177,26 @@ class TestResources(APITestCase):
     def test_payment_card_creation(self, *_):
         payload = {
             "card": {
-                "pan_end": 5234,
+                "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "pan_start": 523456,
+                "first_six_digits": 523456,
                 "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
                 "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
-                "token": "abc2",
-                "fingerprint": "weqrewqewr32423q",
-                "expiry_year": 22,
-                "expiry_month": 3,
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
                 "country": "UK",
                 "order": 1
             },
-            "consent": {
-                "latitude": 51.405372,
-                "longitude": -0.678357,
-                "timestamp": 1517549941
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
             }
         }
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
@@ -289,25 +292,26 @@ class TestResources(APITestCase):
 
         payload = {
             "card": {
-                "pan_end": 5234,
+                "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "pan_start": 523456,
+                "first_six_digits": 523456,
                 "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
                 "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
-                "token": "abc2",
-                "fingerprint": "weqrewqewr32423q",
-                "expiry_year": 22,
-                "expiry_month": 3,
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
                 "country": "UK",
                 "order": 1
             },
             "account": {
-                "consent": {
-                    "latitude": 51.405372,
-                    "longitude": -0.678357,
-                    "timestamp": 1517549941
-                }
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
             }
         }
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
@@ -356,23 +360,26 @@ class TestResources(APITestCase):
         new_sa = SchemeAccountEntryFactory(user=self.user).scheme_account
         payload = {
             "card": {
-                "pan_end": 1234,
+                "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "pan_start": 123456,
+                "first_six_digits": 523456,
                 "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
                 "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
-                "name_on_card": "test user composite",
-                "token": "abc2",
-                "fingerprint": "qwertyuioplkjhhgfdsa",
-                "expiry_year": 22,
-                "expiry_month": 3,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
                 "country": "UK",
                 "order": 1
             },
-            "consent": {
-                "latitude": 51.405372,
-                "longitude": -0.678357,
-                "timestamp": 1517549941
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
             }
         }
         expected_links = [
