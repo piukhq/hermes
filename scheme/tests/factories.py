@@ -42,6 +42,15 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_prefix = ''
 
 
+class SchemeBalanceDetailsFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeBalanceDetails
+
+    scheme_id = factory.SubFactory(SchemeFactory)
+    currency = fake.company()
+    suffix = fake.slug()
+
+
 class ConsentFactory(factory.DjangoModelFactory):
     class Meta:
         model = Consent
@@ -72,6 +81,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     type = USER_NAME
     label = 'Please enter your username.'
     third_party_identifier = False
+    field_type = None
 
 
 class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):

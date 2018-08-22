@@ -327,7 +327,7 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_scheme_account(scheme_account):
+def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccountImageSerializer, add_type=True):
     account_images = SchemeAccountImage.objects.filter(
         scheme_accounts__id=scheme_account.id
     ).exclude(image_type_code=Image.TIER)
@@ -336,8 +336,12 @@ def get_images_for_scheme_account(scheme_account):
     images = []
 
     for image in account_images:
-        serializer = SchemeAccountImageSerializer(image)
-        images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
+        serializer = serializer_class(image)
+
+        if add_type:
+            images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
+        else:
+            images.append(serializer.data)
 
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
@@ -357,9 +361,12 @@ def get_images_for_scheme_account(scheme_account):
                 created=image.created,
                 reward_tier=image.reward_tier
             )
+            serializer = serializer_class(account_image)
 
-            serializer = SchemeAccountImageSerializer(account_image)
-            images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+            if add_type:
+                images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+            else:
+                images.append(serializer.data)
 
     return images
 

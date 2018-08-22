@@ -1,18 +1,10 @@
 import csv
-import json
-import socket
-import uuid
-from collections import OrderedDict
 from io import StringIO
 
-import requests
 from django.conf import settings
-from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from raven.contrib.django.raven_compat.models import client as sentry
-from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
@@ -22,71 +14,21 @@ from rest_framework.views import APIView
 
 from intercom import intercom_api
 from scheme.account_status_summary import scheme_account_status_data
-from scheme.encyption import AESCipher
 from scheme.forms import CSVUploadForm
-from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
+from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
+                           SwappableSerializerMixin, UpdateCredentialsMixin)
+from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage,
                            SchemeImage)
-from scheme.my360endpoints import SCHEME_API_DICTIONARY
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer, QuerySchemeAccountSerializer, ReferenceImageSerializer,
                                 ResponseLinkSerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
-                                StatusSerializer, UpdateCredentialSerializer)
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+                                StatusSerializer)
+from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
-
-
-class BaseLinkMixin(object):
-
-    @staticmethod
-    def link_account(serializer, scheme_account, user):
-        serializer.is_valid(raise_exception=True)
-        return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user)
-
-    @staticmethod
-    def _link_account(data, scheme_account, user):
-        for answer_type, answer in data.items():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(answer_type),
-                scheme_account=scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account.get_cached_balance()
-        response_data = {
-            'balance': {**midas_information},
-            'status': scheme_account.status,
-            'status_name': scheme_account.status_name
-        }
-        response_data.update(dict(data))
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
-        return response_data
-
-
-class SwappableSerializerMixin(object):
-    serializer_class = None
-    override_serializer_classes = None
-    context = None
-
-    def get_serializer_class(self):
-        return self.override_serializer_classes[self.request.method]
-
-
-class IdentifyCardMixin:
-    @staticmethod
-    def _get_scheme(base_64_image):
-        data = {
-            'uuid': str(uuid.uuid4()),
-            'base64img': base_64_image
-        }
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        resp = requests.post(settings.HECATE_URL + '/classify', json=data, headers=headers)
-        return resp.json()
 
 
 class SchemeAccountQuery(APIView):
@@ -194,95 +136,6 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class SchemeAccountCreationMixin(SwappableSerializerMixin):
-    def create_account(self, data, user):
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # my360 schemes should never come through this endpoint
-        scheme = Scheme.objects.get(id=data['scheme'])
-        if scheme.url == settings.MY360_SCHEME_URL:
-            try:
-                metadata = {
-                    'scheme name': scheme.name,
-                }
-                intercom_api.post_intercom_event(
-                    settings.INTERCOM_TOKEN,
-                    user.uid,
-                    intercom_api.MY360_APP_EVENT,
-                    metadata
-                )
-
-            except intercom_api.IntercomException:
-                pass
-
-            raise serializers.ValidationError({
-                "non_field_errors": [
-                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
-                ]
-            })
-        answer_type = serializer.context['answer_type']
-        try:
-            query = {
-                'scheme_account__scheme__id': data['scheme'],
-                'answer': data[answer_type]
-            }
-            scheme_account = SchemeAccountCredentialAnswer.objects.get(**query).scheme_account
-            data['id'] = scheme_account.id
-
-            if scheme_account.is_deleted:
-                scheme_account.is_deleted = False
-                scheme_account.save()
-
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
-            for card in scheme_account.payment_card_account_set.all():
-                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
-
-        except SchemeAccountCredentialAnswer.DoesNotExist:
-            self._create_account(user, data, answer_type)
-
-        return data
-
-    @staticmethod
-    def _create_account(user, data, answer_type):
-        if type(data) == int:
-            return data
-
-        with transaction.atomic():
-            try:
-                scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id,
-                    scheme_id=data['scheme'],
-                    status=SchemeAccount.JOIN
-                )
-
-                scheme_account.order = data['order']
-                scheme_account.status = SchemeAccount.WALLET_ONLY
-                scheme_account.save()
-            except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data['scheme'],
-                    order=data['order'],
-                    status=SchemeAccount.WALLET_ONLY
-                )
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-
-            SchemeAccountCredentialAnswer.objects.create(
-                scheme_account=scheme_account,
-                question=scheme_account.question(answer_type),
-                answer=data[answer_type],
-            )
-
-        data['id'] = scheme_account.id
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
-
-        return scheme_account
-
-
 class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
     override_serializer_classes = {
         'GET': ListSchemeAccountSerializer,
@@ -305,164 +158,12 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        response = self.create_account(request.data, request.user)
+        _, response = self.create_account(request.data, request.user)
         return Response(
             response,
             status=status.HTTP_201_CREATED,
             headers={'Location': reverse('retrieve_account', args=[response['id']], request=request)}
         )
-
-
-class CreateMy360AccountsAndLink(BaseLinkMixin, CreateAccount):
-    """
-        Create a new scheme account within the users wallet.
-        Then link credentials for loyalty scheme login.
-        Generic My360 scheme will create and link all paired
-        My360 schemes.
-    """
-    override_serializer_classes = {
-        'POST': CreateSchemeAccountSerializer,
-    }
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        request_data = self.get_required_my360_data(serializer.validated_data)
-
-        if request_data['error_response']:
-            return request_data['error_response']
-
-        # if passing generic My360 scheme slug, create and link all paired scheme accounts
-        elif request_data['scheme_obj'].slug == 'my360':
-            return self.create_and_link_schemes(request_data, request.user)
-
-        # else create and link the one requested My360 scheme account
-        else:
-            return self.create_and_link_scheme(request_data, request.user)
-
-    def get_required_my360_data(self, request_data):
-        credential_type = 'barcode'
-        credential_value = request_data.get(credential_type)
-        scheme_id = request_data.get('scheme')
-        scheme_obj = Scheme.objects.get(id=int(scheme_id))
-        try:
-            scheme_slugs = self.get_my360_schemes(credential_value) if scheme_obj.slug == 'my360' else None
-            error = None
-        except Exception:
-            scheme_slugs = []
-            error = Response(
-                {'code': 400, 'message': 'Error getting schemes from My360'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        my360_info = {
-            'credential_type': credential_type,
-            'scheme_obj': scheme_obj,
-            'scheme_slugs': scheme_slugs,
-            'error_response': error,
-            'new_scheme_data': {
-                'barcode': credential_value,
-                'order': request_data.get('order'),
-                'scheme': scheme_id if not scheme_obj.slug == 'my360' else None
-            },
-        }
-
-        return my360_info
-
-    @staticmethod
-    def get_my360_schemes(barcode):
-        def convert_scheme_code_list_to_scheme_slugs(scheme_code_list):
-            schemes = []
-            for scheme_code in scheme_code_list:
-                scheme_slug = SCHEME_API_DICTIONARY.get(scheme_code)
-                if scheme_slug:
-                    schemes.append(scheme_slug)
-            return schemes
-
-        schemes_url = settings.MY360_SCHEME_API_URL
-        response = requests.get(schemes_url.format(barcode))
-        if response.status_code == 200:
-            valid = response.json().get('valid')
-            if valid:
-                scheme_code_list = response.json().get('schemes')
-                scheme_slugs = convert_scheme_code_list_to_scheme_slugs(scheme_code_list)
-
-                return scheme_slugs
-
-        raise ValueError('Invalid response from My360 while getting a cards scheme list')
-
-    def create_and_link_schemes(self, request_data, user):
-        scheme_accounts_response = []
-        new_scheme_data = request_data['new_scheme_data']
-        for scheme in request_data['scheme_slugs']:
-            try:
-                scheme_id = Scheme.objects.get(slug=scheme).id
-
-            except Exception:
-                sentry.captureException()
-                continue
-
-            if not SchemeAccount.objects.filter(scheme_id=scheme_id, user=user):
-                new_scheme_data['scheme'] = scheme_id
-                scheme_account = self._create_account(user, new_scheme_data, request_data['credential_type'])
-                link_response = self._link_scheme_account(request_data['credential_type'],
-                                                          new_scheme_data, scheme_account)
-                if link_response:
-                    scheme_accounts_response.append(link_response)
-
-        if scheme_accounts_response:
-            return Response(scheme_accounts_response, status=status.HTTP_201_CREATED)
-
-        if request_data['scheme_slugs']:
-            return Response({'Error': 'Error linking My360 card, not adding scheme account'},
-                            status=status.HTTP_400_BAD_REQUEST
-                            )
-
-        return Response({'Error': 'No paired schemes found for this card'},
-                        status=status.HTTP_400_BAD_REQUEST,
-                        )
-
-    def create_and_link_scheme(self, request_data, user):
-        scheme_account = self._create_account(user,
-                                              request_data['new_scheme_data'], request_data['credential_type'])
-        link_response = self._link_scheme_account(request_data['credential_type'],
-                                                  request_data['new_scheme_data'], scheme_account)
-
-        if link_response:
-            return Response([link_response], status=status.HTTP_201_CREATED)
-
-        return Response({'Error': 'Error linking My360 card, not adding scheme account'},
-                        status=status.HTTP_400_BAD_REQUEST
-                        )
-
-    def _link_scheme_account(self, credential_type, data, scheme_account):
-        response_data = self._link_account(OrderedDict({credential_type: data[credential_type]}), scheme_account,
-                                           self.request.user)
-        if response_data['balance']:
-            scheme_account.link_date = timezone.now()
-            scheme_account.save()
-
-            return self._format_response(credential_type, scheme_account, response_data)
-
-        try:
-            scheme_account.delete()
-            return None
-        except Exception:
-            sentry.captureException()
-
-    @staticmethod
-    def _format_response(credential_type, scheme_account, linked_data):
-        linked_data = ResponseLinkSerializer(linked_data)
-        response = {
-            'order': scheme_account.order,
-            'barcode': scheme_account.barcode,
-            'scheme': scheme_account.scheme.id,
-            'id': scheme_account.id,
-        }
-        response.update(linked_data.data)
-
-        return response
 
 
 class CreateJoinSchemeAccount(APIView):
@@ -582,7 +283,7 @@ class SystemActionSchemeAccounts(ListAPIView):
     pagination_class = Pagination
 
 
-class SchemeAccountsCredentials(RetrieveAPIView):
+class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     """
     DO NOT USE - NOT FOR APP ACCESS
     """
@@ -600,19 +301,8 @@ class SchemeAccountsCredentials(RetrieveAPIView):
         Update / Create credentials for loyalty scheme login
         ---
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'])
-        serializer = UpdateCredentialSerializer(data=request.data, context={'scheme_account': scheme_account})
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        updated_credentials = []
-
-        for credential_type in data.keys():
-            question = scheme_account.scheme.questions.get(type=credential_type)
-            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
-                                                                   defaults={'answer': data[credential_type]})
-            updated_credentials.append(credential_type)
-
-        return Response({'updated': updated_credentials}, status=status.HTTP_200_OK)
+        account = self.get_object()
+        return Response(self.update_credentials(account, request.data), status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -809,7 +499,7 @@ class IdentifyCard(APIView, IdentifyCardMixin):
         }, status=200)
 
 
-class Join(SwappableSerializerMixin, GenericAPIView):
+class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
     override_serializer_classes = {
         'POST': JoinSerializer,
     }
@@ -820,104 +510,5 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         Register a new loyalty account on the requested scheme,
         Link the newly created loyalty account with the created scheme account.
         """
-
-        scheme_id = int(self.kwargs['pk'])
-        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
-        serializer = JoinSerializer(data=request.data, context={
-            'scheme': join_scheme,
-            'user': request.user
-        })
-        serializer.is_valid(raise_exception=True)
-        serializer.save()  # Save consents
-        data = serializer.validated_data
-        data['scheme'] = scheme_id
-        scheme_account = self.create_join_account(data, request.user, scheme_id)
-        try:
-            data['id'] = scheme_account.id
-            if data['save_user_information']:
-                self.save_user_profile(data['credentials'], request.user)
-
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user.id)
-
-            keys_to_remove = ['save_user_information', 'credentials']
-            response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
-
-            return Response(
-                response_dict,
-                status=status.HTTP_201_CREATED,
-            )
-        except Exception as e:
-            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-            [answer.delete() for answer in scheme_account_answers]
-            scheme_account.status = SchemeAccount.JOIN
-            scheme_account.save()
-            sentry.captureException()
-
-            return Response(
-                {'message': 'Error with join'},
-                status=status.HTTP_200_OK,
-            )
-
-    @staticmethod
-    def create_join_account(data, user, scheme_id):
-        with transaction.atomic():
-            try:
-                scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id,
-                    scheme_id=scheme_id,
-                    status=SchemeAccount.JOIN
-                )
-
-                scheme_account.order = data['order']
-                scheme_account.status = SchemeAccount.PENDING
-                scheme_account.save()
-            except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data['scheme'],
-                    order=data['order'],
-                    status=SchemeAccount.PENDING
-                )
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
-
-        return scheme_account
-
-    @staticmethod
-    def save_user_profile(credentials, user):
-        for question, answer in credentials.items():
-            try:
-                setattr(user.profile, question, answer)
-            except Exception:
-                continue
-        user.profile.save()
-
-    @staticmethod
-    def post_midas_join(scheme_account, credentials_dict, slug, user_id):
-        for question in scheme_account.scheme.link_questions:
-            question_type = question.type
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=scheme_account.question(question_type),
-                scheme_account=scheme_account,
-                answer=credentials_dict[question_type])
-
-        encrypted_credentials = AESCipher(
-            settings.AES_KEY.encode()).encrypt(json.dumps(credentials_dict)).decode('utf-8')
-
-        data = {
-            'scheme_account_id': scheme_account.id,
-            'credentials': encrypted_credentials,
-            'user_id': user_id
-        }
-        headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
-                                 json=data, headers=headers)
-
-        message = response.json().get('message')
-        if not message == "success":
-            raise RequestException(
-                'Error creating join task in Midas. Response message :{}'.format(message)
-            )
+        message, status_code = self.handle_join_request(request, *args, **kwargs)
+        return Response(message, status=status_code)

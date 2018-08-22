@@ -5,6 +5,7 @@ import sre_constants
 import uuid
 from decimal import Decimal
 
+import arrow
 import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
@@ -410,13 +411,14 @@ class SchemeAccount(models.Model):
 
         if not balance:
             balance = self.get_midas_balance()
+            balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
         if balance != self.balances and balance:
-            self.balances = {k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}
+            self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]
             self.save()
 
-        return self.balances
+        return balance
 
     def question(self, question_type):
         """
@@ -538,34 +540,6 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
-    @property
-    def images(self):
-        qualifiers = SchemeAccountImage.objects.filter(scheme=self.scheme,
-                                                       scheme_accounts__id=self.id,
-                                                       scheme_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
-                                     image_size_code=F('scheme_image__size_code'),
-                                     image=F('scheme_image__image'),
-                                     strap_line=F('scheme_image__strap_line'),
-                                     image_description=F('scheme_image__description'),
-                                     url=F('scheme_image__url'),
-                                     call_to_action=F('scheme_image__call_to_action'),
-                                     order=F('scheme_image__order')) \
-            .values('image_type_code',
-                    'image_size_code',
-                    'image',
-                    'strap_line',
-                    'image_description',
-                    'url',
-                    'call_to_action',
-                    'order',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created')
-
-        return images
-
     def __str__(self):
         return str(self.scheme.name)
 
@@ -677,12 +651,15 @@ class SchemeDetail(models.Model):
     description = models.TextField()
 
 
-class SchemeBalanceDetail(models.Model):
+class SchemeBalanceDetails(models.Model):
     scheme_id = models.ForeignKey('Scheme')
-    currency = models.CharField(max_length=50)
-    prefix = models.CharField(max_length=50)
-    suffix = models.CharField(max_length=50)
-    description = models.TextField()
+    currency = models.CharField(null=True, blank=True, max_length=50)
+    prefix = models.CharField(null=True, blank=True, max_length=50)
+    suffix = models.CharField(null=True, blank=True, max_length=50)
+    description = models.TextField(null=True, blank=True, max_length=250)
+
+    class Meta:
+        verbose_name_plural = 'balance details'
 
 
 class SchemeAccountCredentialAnswer(models.Model):

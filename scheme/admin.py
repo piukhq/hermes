@@ -3,8 +3,9 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeAccountImage, SchemeCredentialQuestion, SchemeCredentialQuestionChoice,
-                           SchemeCredentialQuestionChoiceValue, SchemeDetail, SchemeImage, UserConsent)
+                           SchemeAccountImage, SchemeBalanceDetails, SchemeCredentialQuestion,
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, SchemeDetail,
+                           SchemeImage, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -40,6 +41,11 @@ class CredentialQuestionInline(admin.StackedInline):
     extra = 0
 
 
+class SchemeBalanceDetailsInline(admin.StackedInline):
+    model = SchemeBalanceDetails
+    extra = 0
+
+
 class SchemeForm(ModelForm):
     class Meta:
         model = Scheme
@@ -67,7 +73,7 @@ class SchemeDetailsInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeDetailsInline, CredentialQuestionInline)
+    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active',)

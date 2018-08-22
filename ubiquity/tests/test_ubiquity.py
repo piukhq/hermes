@@ -10,12 +10,12 @@ from rest_framework.test import APITestCase
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory
-from scheme.credentials import BARCODE, LAST_NAME
+from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
-from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
+from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
@@ -118,6 +118,8 @@ class TestResources(APITestCase):
         email = 'test@user.com'
         self.user = UserFactory(email=email, client=client)
         self.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
                                                              type=LAST_NAME,
@@ -182,11 +184,8 @@ class TestResources(APITestCase):
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_single_membership_card(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account.balances
-        expected_result = MembershipCardSerializer(self.scheme_account).data
-
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(expected_result, resp.json())
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_all_membership_cards(self, mock_get_midas_balance):
@@ -194,11 +193,11 @@ class TestResources(APITestCase):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = ListMembershipCardSerializer(scheme_accounts, many=True).data
+        expected_result = MembershipCardSerializer(scheme_accounts, many=True).data
 
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(expected_result, resp.json())
+        self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
 
     @patch('intercom.intercom_api')
     @patch('payment_card.metis.enrol_new_payment_card')
@@ -234,7 +233,7 @@ class TestResources(APITestCase):
     @patch('intercom.intercom_api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_create_membership_card_creation(self, mock_get_midas_balance, *_):
+    def test_membership_card_creation(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -245,12 +244,22 @@ class TestResources(APITestCase):
             'is_stale': False
         }
         payload = {
-            "order": 1,
             "membership_plan": self.scheme.id,
-            "barcode": "3038401022657083",
-            "last_name": "Test"
+            "add_fields": [
+                {
+                    "column": "barcode",
+                    "value": "3038401022657083"
+                }
+            ],
+            "authorise_fields": [
+                {
+                    "column": "last_name",
+                    "value": "Test"
+                }
+            ]
         }
-        resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
     def test_cards_linking(self):
@@ -413,7 +422,6 @@ class TestResources(APITestCase):
         expected_links = [
             {
                 'id': new_sa.id,
-                'name': str(new_sa),
                 'active_link': True
             }
         ]
@@ -442,23 +450,29 @@ class TestResources(APITestCase):
             'is_stale': False
         }
         payload = {
-            "order": 1,
             "membership_plan": self.scheme.id,
-            "barcode": "1234401022657083",
-            "last_name": "Test Composite"
+            "add_fields": [
+                {
+                    "column": "barcode",
+                    "value": "1234401022657083"
+                }
+            ],
+            "authorise_fields": [
+                {
+                    "column": "last_name",
+                    "value": "Test Composite"
+                }
+            ]
         }
-        expected_links = [
-            {
-                'id': new_pca.id,
-                'name': str(new_pca),
-                'active_link': True
-            }
-        ]
+        expected_links = {
+            'id': new_pca.id,
+            'active_link': True
+        }
 
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=payload,
-                                **self.auth_headers)
+        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(expected_links, resp.json()['payment_cards'])
+        self.assertIn(expected_links, resp.json()['payment_cards'])
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
@@ -474,3 +488,64 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(MembershipPlanSerializer(self.scheme_account.scheme).data, resp.json())
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_membership_card_balance(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        expected_keys = {'value', 'currency', 'prefix', 'suffix', 'updated_at'}
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()['balances'][0]['value'], '10.0')
+        self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
+
+
+class TestMembershipCardCredentials(APITestCase):
+    def setUp(self):
+        organisation = OrganisationFactory(name='set up authentication for credentials')
+        client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
+        bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
+        email = 'credentials@user.com'
+        self.user = UserFactory(email=email, client=client)
+        self.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True, field_type=0)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, field_type=1)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                             type=LAST_NAME,
+                                                             third_party_identifier=True,
+                                                             options=SchemeCredentialQuestion.LINK,
+                                                             field_type=1)
+        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
+                                                                   scheme_account=self.scheme_account)
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+                                                                          scheme_account=self.scheme_account)
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+    def test_update_new_and_existing_credentials(self):
+        payload = {
+            'authorise_fields': [
+                {
+                    'column': 'last_name',
+                    'value': 'New Last Name'
+                },
+                {
+                    'column': 'password',
+                    'value': 'newpassword'
+                }
+            ]
+        }
+        resp = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
+                                 content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('password', [entry['column'] for entry in resp.json()['account']['authorise_fields']])
