@@ -289,22 +289,17 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
             raise NotImplemented
 
     @staticmethod
-    def _collect_credentials_answers(data):
+    def _collect_field_content(field, data):
+        return {
+            item['column']: item['value']
+            for item in data[field]
+        } if field in data else None
+
+    def _collect_credentials_answers(self, data):
         scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-        add_fields = {
-            item['column']: item['value']
-            for item in data['add_fields']
-        } if 'add_fields' in data else None
-
-        auth_fields = {
-            item['column']: item['value']
-            for item in data['authorise_fields']
-        } if 'authorise_fields' in data else None
-
-        enrol_fields = {
-            item['column']: item['value']
-            for item in data['enrol_fields']
-        } if 'enrol_fields' in data else None
+        add_fields = self._collect_field_content('add_fields', data)
+        auth_fields = self._collect_field_content('authorise_fields', data)
+        enrol_fields = self._collect_field_content('enrol_fields', data)
 
         if not add_fields and not enrol_fields:
             raise ParseError()
