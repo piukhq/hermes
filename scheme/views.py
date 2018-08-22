@@ -202,15 +202,15 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        data = self.create_account(request, *args, **kwargs)
+        response = self.create_account(request.data, request.user)
         return Response(
-            data,
+            response,
             status=status.HTTP_201_CREATED,
-            headers={'Location': reverse('retrieve_account', args=[data['id']], request=request)}
+            headers={'Location': reverse('retrieve_account', args=[response['id']], request=request)}
         )
 
-    def create_account(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+    def create_account(self, data, user):
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
@@ -223,7 +223,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 }
                 intercom_api.post_intercom_event(
                     settings.INTERCOM_TOKEN,
-                    request.user.uid,
+                    user.uid,
                     intercom_api.MY360_APP_EVENT,
                     metadata
                 )
@@ -249,12 +249,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.is_deleted = False
                 scheme_account.save()
 
-            SchemeAccountEntry.objects.get_or_create(user=request.user, scheme_account=scheme_account)
+            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
             for card in scheme_account.payment_card_account_set.all():
-                PaymentCardAccountEntry.objects.get_or_create(user=request.user, payment_card_account=card)
+                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
         except SchemeAccountCredentialAnswer.DoesNotExist:
-            self._create_account(request.user, data, answer_type)
+            self._create_account(user, data, answer_type)
 
         return data
 

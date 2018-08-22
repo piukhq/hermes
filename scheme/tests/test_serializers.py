@@ -1,12 +1,12 @@
-from django.test import TestCase
-from rest_framework.exceptions import ValidationError
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer
-from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory)
-from ubiquity.tests.factories import SchemeAccountEntryFactory
-from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion
 from unittest.mock import MagicMock, patch
 
+from django.test import TestCase
+from rest_framework.exceptions import ValidationError
+
+from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
+from scheme.models import SchemeCredentialQuestion
+from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer, SchemeSerializer
+from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeFactory)
 from user.tests.factories import UserFactory
 
 
@@ -29,15 +29,6 @@ class TestCreateSchemeAccountSerializer(TestCase):
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': 2342342})
         self.assertEqual(e.exception.detail[0], "Scheme '2342342' does not exist")
-
-    def test_validate_existing_scheme_account(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
-        self.serializer.context['view'] = ''
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({'scheme': scheme_account.scheme.id})
-        self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))
 
     def test_validate_answer_types(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)

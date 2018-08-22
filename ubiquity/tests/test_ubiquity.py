@@ -1,12 +1,26 @@
+import json
+from decimal import Decimal
+from unittest.mock import patch
+
 import arrow
+from django.utils.http import urlencode
+from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
+from payment_card.models import PaymentCardAccount
+from scheme.credentials import BARCODE, LAST_NAME
+from scheme.models import SchemeAccount, SchemeCredentialQuestion
+from scheme.tests.factories import (SchemeAccountFactory, SchemeCredentialAnswerFactory,
+                                    SchemeCredentialQuestionFactory, SchemeFactory)
+from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.serializers import ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardSerializer
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
 from user.tests.factories import ClientApplicationBundleFactory
 
 
-class TestViews(APITestCase):
+class TestRegistration(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.bundle = ClientApplicationBundleFactory()
@@ -69,3 +83,134 @@ class TestViews(APITestCase):
         wrong_header_resp = self.client.post('/ubiquity/service', data=consent, **auth_headers)
         self.assertEqual(wrong_header_resp.status_code, 403)
         self.assertIn('Invalid token', wrong_header_resp.json()['detail'])
+
+
+class TestResources(APITestCase):
+
+    def setUp(self):
+        self.scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                             type=LAST_NAME,
+                                                             third_party_identifier=True,
+                                                             options=SchemeCredentialQuestion.LINK)
+        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
+                                                                   scheme_account=self.scheme_account)
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+                                                                          scheme_account=self.scheme_account)
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account)
+        self.user = self.scheme_account_entry.user
+        self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
+        self.payment_card_account = self.payment_card_account_entry.payment_card_account
+        self.payment_card = self.payment_card_account.payment_card
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.user.create_token()}
+
+    def test_get_single_payment_card(self):
+        payment_card_account = self.payment_card_account_entry.payment_card_account
+        expected_result = PaymentCardSerializer(payment_card_account).data
+        resp = self.client.get(reverse('payment_card', args=[payment_card_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+
+    def test_get_all_payment_cards(self):
+        PaymentCardAccountEntryFactory(user=self.user)
+        payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = PaymentCardSerializer(payment_card_accounts, many=True).data
+        resp = self.client.get(reverse('payment_cards'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_get_single_membership_card(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = self.scheme_account.balance
+        expected_result = MembershipCardSerializer(self.scheme_account).data
+
+        resp = self.client.get(reverse('membership_card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_get_all_membership_cards(self, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = self.scheme_account.balance
+        scheme_account_2 = SchemeAccountFactory(balance=self.scheme_account.balance)
+        SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = ListMembershipCardSerializer(scheme_accounts, many=True).data
+
+        resp = self.client.get(reverse('membership_cards'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+
+    @patch('intercom.intercom_api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_creation(self, *args):
+        payload = {
+            "card": {
+                "pan_end": 5234,
+                "currency_code": "GBP",
+                "pan_start": 523456,
+                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
+                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
+                "name_on_card": "test user 2",
+                "token": "abc2",
+                "fingerprint": "weqrewqewr32423q",
+                "expiry_year": 22,
+                "expiry_month": 3,
+                "country": "UK",
+                "order": 1
+            },
+            "account": {
+                "consent": {
+                    "latitude": 51.405372,
+                    "longitude": -0.678357,
+                    "timestamp": 1517549941
+                }
+            }
+        }
+        resp = self.client.post(reverse('payment_cards'), data=json.dumps(payload),
+                                content_type='application/json', **self.auth_headers)
+        if resp.status_code == 400:
+            print(resp.json())
+        self.assertEqual(resp.status_code, 201)
+
+    @patch('intercom.intercom_api')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_create_membership_card_creation(self, mock_get_midas_balance, *args):
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        payload = {
+            "order": 1,
+            "scheme": self.scheme.id,
+            "barcode": "3038401022657083",
+            "last_name": "Test"
+        }
+        resp = self.client.post(reverse('membership_cards'), data=payload, **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
+    def test_cards_linking(self):
+        payment_card_account = self.payment_card_account_entry.payment_card_account
+        scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=payment_card_account,
+                                              scheme_account=self.scheme_account)
+        params = {
+            'payment_card': payment_card_account.id,
+            'membership_card': scheme_account_2.id
+        }
+        resp = self.client.patch('{}?{}'.format(reverse('link_unlink'), urlencode(params)), **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
+        links_data = PaymentCardSerializer(payment_card_account).data['membership_cards']
+        for link in links_data:
+            if link['id'] == self.scheme_account.id:
+                self.assertEqual(link['active_link'], False)
+            elif link['id'] == scheme_account_2.id:
+                self.assertEqual(link['active_link'], True)

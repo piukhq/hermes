@@ -147,6 +147,9 @@ class ListCreatePaymentCardAccount(APIView):
 
                 self.apply_barclays_images(account)
 
+            except Exception as e:
+                raise e
+
             else:
                 # if the payment card exists already in another user, link it to this user and import all the scheme
                 # accounts currently linked to it.

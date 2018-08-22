@@ -7,6 +7,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import credential_types_set
 from scheme.models import Scheme, SchemeAccount
@@ -16,7 +17,7 @@ from scheme.views import BaseLinkMixin, CreateAccount, RetrieveDeleteAccount
 from ubiquity.authentication import PropertyOrJWTAuthentication
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (ListMembershipCardSerializer, MembershipCardSerializer, PaymentCardConsentSerializer,
-                                  PaymentCardSerializer, ServiceConsentSerializer)
+                                  PaymentCardSchemeEntrySerializer, PaymentCardSerializer, ServiceConsentSerializer)
 from user.models import CustomUser
 from user.serializers import RegisterSerializer
 
@@ -96,6 +97,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount):
 
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
         if status_code == status.HTTP_201_CREATED:
+            self._link_to_all_membership_cards(pcard, request.user)
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
         return Response(message, status=status_code)
@@ -107,6 +109,18 @@ class ListPaymentCardView(ListCreatePaymentCardAccount):
         pcard.consent = serializer.validated_data
         pcard.save()
         return PaymentCardSerializer(pcard).data
+
+    @staticmethod
+    def _link_to_all_membership_cards(pcard, user):
+        for mcard in user.scheme_account_set.all():
+            other_entry = PaymentCardSchemeEntry.objects.filter(scheme_account=mcard).first()
+            entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
+
+            if other_entry:
+                entry.active_link = other_entry.active_link
+                entry.save()
+            else:
+                entry.activate_link()
 
 
 class MembershipCardView(RetrieveDeleteAccount):
@@ -141,16 +155,18 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
 
     def post(self, request, *args, **kwargs):
         activate = self._collect_credentials_answers(request.data)
-        for key in activate.keys():
-            del request.data[key]
+        create = {k: v for k, v in request.data.items() if k not in activate.keys()}
 
-        data = self.create_account(request, *args, **kwargs)
+        data = self.create_account(create, request.user)
         scheme_account = SchemeAccount.objects.get(id=data['id'])
         serializer = LinkSchemeSerializer(data=activate, context={'scheme_account': scheme_account})
-        balance = self.link_account(serializer, scheme_account, request.user)
+        try:
+            balance = self.link_account(serializer, scheme_account, request.user)
+        except:
+            balance = {}
         scheme_account.link_date = timezone.now()
         scheme_account.save()
-
+        self._link_to_all_payment_cards(scheme_account, request.user)
         return Response(balance, status=status.HTTP_201_CREATED)
 
     def _collect_credentials_answers(self, data):
@@ -176,5 +192,48 @@ class LinkMembershipCardView(CreateAccount, BaseLinkMixin):
     @staticmethod
     def _link_to_all_payment_cards(mcard, user):
         for pcard in user.payment_card_account_set.all():
+            other_entry = PaymentCardSchemeEntry.objects.filter(payment_card_account=pcard).first()
             entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
-            entry.activate_link()
+
+            if other_entry:
+                entry.active_link = other_entry.active_link
+                entry.save()
+            else:
+                entry.activate_link()
+
+
+class LinkUnlinkView(APIView):
+
+    def patch(self, request):
+        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+
+        link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
+        link.activate_link()
+
+        response = PaymentCardSchemeEntrySerializer(link).data
+        return Response(response, status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        pcard, mcard = self._collect_cards(request.query_params, request.user.id)
+
+        try:
+            link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
+        except PaymentCardSchemeEntry.DoesNotExist:
+            raise NotFound('The link that you are trying to delete does not exist.')
+
+        link.delete()
+        return Response(status=status.HTTP_202_ACCEPTED)
+
+    @staticmethod
+    def _collect_cards(params, user_id):
+        try:
+            pcard = PaymentCardAccount.objects.get(user_set__id=user_id, pk=params['payment_card'])
+            mcard = SchemeAccount.objects.get(user_set__id=user_id, pk=params['membership_card'])
+        except PaymentCardAccount.DoesNotExist:
+            raise NotFound('The payment card of id {} was not found.'.format(params['payment_card']))
+        except SchemeAccount.DoesNotExist:
+            raise NotFound('The membership card of id {} was not found.'.format(params['membership_card']))
+        except KeyError:
+            raise ParseError
+
+        return pcard, mcard
