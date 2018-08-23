@@ -1,7 +1,6 @@
 import datetime
 import json
 import secrets
-
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -10,10 +9,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
-from scheme.credentials import (BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME, LAST_NAME, PASSWORD, PHONE,
-                                TITLE, USER_NAME)
+from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
+                                LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import Consent, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, UserConsent
+from scheme.models import (JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion,
+                           UserConsent)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory,
                                     SchemeAccountImageFactory, SchemeCredentialAnswerFactory,
@@ -23,15 +23,6 @@ from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
-from scheme.models import JourneyTypes
-from scheme.models import UserConsent
-from user.tests.factories import SettingFactory, UserSettingFactory
-from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from unittest.mock import patch, MagicMock
-from scheme.credentials import PASSWORD, CARD_NUMBER, USER_NAME, CREDENTIAL_TYPES, BARCODE, EMAIL, PHONE, \
-    TITLE, FIRST_NAME, LAST_NAME, ADDRESS_1, ADDRESS_2, TOWN_CITY
-
-from user.tests.factories import UserFactory
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -582,7 +573,8 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
-        new_scheme_account = SchemeAccount.objects.get(user=self.user, scheme=scheme)
+        new_scheme_account = SchemeAccountEntry.objects.get(
+            user=self.user, scheme_account__scheme=scheme).scheme_account
 
         set_values = UserConsent.objects.filter(scheme_account=new_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")

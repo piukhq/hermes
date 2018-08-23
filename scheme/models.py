@@ -427,12 +427,12 @@ class SchemeAccount(models.Model):
                                 params=parameters, headers=headers)
         return response
 
-    def get_cached_balance(self):
+    def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance()
+            balance = self.get_midas_balance(user_consents=user_consents)
             balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 

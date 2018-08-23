@@ -133,7 +133,6 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
                                                                       'user': request.user})
 
         serializer.is_valid(raise_exception=True)
-        serializer.save()  # Save consents
 
         response_data = self.link_account(serializer, scheme_account, request.user)
         scheme_account.link_date = timezone.now()

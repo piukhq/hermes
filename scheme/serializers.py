@@ -8,6 +8,7 @@ from common.models import Image
 from scheme.credentials import credential_types_set
 from scheme.models import (Consent, ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeAccountImage, SchemeCredentialQuestion, SchemeImage, UserConsent)
+from user.models import CustomUser
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -90,7 +91,7 @@ class UserConsentSerializer(serializers.Serializer):
     value = serializers.BooleanField()
 
     @staticmethod
-    def get_user_consents(scheme_account, consents):
+    def get_user_consents(scheme_account, consents, user):
         """
         Returns UserConsent instances from the data sent by the frontend (Consent id and a value of true/false.)
         These are not yet saved to the database.
@@ -101,13 +102,13 @@ class UserConsentSerializer(serializers.Serializer):
             consent = get_object_or_404(Consent, pk=consent['id'])
 
             user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent.slug,
-                                       user=scheme_account.user, created_on=timezone.now(),
+                                       user=user, created_on=timezone.now(),
                                        scheme=scheme_account.scheme)
 
             serializer = ConsentsSerializer(consent)
             user_consent.metadata = serializer.data
             user_consent.metadata.update({
-                'user_email': scheme_account.user.email,
+                'user_email': user.email,
                 'scheme_slug': scheme_account.scheme.slug
             })
 
@@ -469,8 +470,12 @@ class JoinSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         scheme = self.context['scheme']
+        user_id = self.context['user']
+        if isinstance(user_id, CustomUser):
+            user_id = user_id.id
+
         # Validate scheme account for this doesn't already exist
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['user'].id, scheme=scheme) \
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme) \
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():

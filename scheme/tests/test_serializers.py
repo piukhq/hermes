@@ -16,6 +16,7 @@ from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, 
 from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus
 from unittest.mock import MagicMock, patch
 
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 
 
@@ -142,6 +143,8 @@ class TestUserConsentSerializer(TestCase):
                                        check_box=False, scheme=self.scheme)
 
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account)
+        self.user = self.scheme_account_entry.user
 
         self.user_consent1 = UserConsentFactory(scheme=self.scheme_account.scheme)
         self.user_consent2 = UserConsentFactory(scheme=self.scheme_account.scheme)
@@ -156,7 +159,7 @@ class TestUserConsentSerializer(TestCase):
 
         metadata_keys = ['id', 'check_box', 'text', 'required', 'order', 'journey', 'slug', 'user_email', 'scheme_slug']
 
-        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data)
+        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data, self.user)
 
         self.assertEqual(len(user_consents), 3)
         self.assertTrue(all([metadata_keys == list(consent.metadata.keys()) for consent in user_consents]))
