@@ -1,3 +1,4 @@
+import analytics
 import csv
 import uuid
 import requests
@@ -11,7 +12,6 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from rest_framework.generics import UpdateAPIView
-from mnemosyne import api, events
 from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
@@ -80,8 +80,9 @@ class BaseLinkMixin(object):
                 user_consent.save()
 
         try:
-            api.update_scheme_account_attribute(scheme_account)
-        except api.MnemosyneException:
+            analytics.update_scheme_account_attribute(scheme_account)
+        except Exception as ex:
+            raise analytics.PushError from ex
             pass
         return response_data
 
@@ -151,8 +152,9 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance.is_deleted = True
         instance.save()
         try:
-            api.update_scheme_account_attribute(instance)
-        except api.MnemosyneException:
+            analytics.update_scheme_account_attribute(instance)
+        except Exception as ex:
+            raise analytics.PushError from ex
             pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -240,15 +242,15 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 metadata = {
                     'scheme name': scheme.name,
                 }
-                api.post_event(
-                    settings.INTERCOM_TOKEN,
-                    request.user.uid,
-                    events.MY360_APP_EVENT,
-                    metadata
+                analytics.post_event(
+                    request.user,
+                    analytics.events.MY360_APP_EVENT,
+                    metadata,
+                    True
                 )
 
-            except api.MnemosyneException:
-                pass
+            except Exception as ex:
+                raise analytics.PushError from ex
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -300,8 +302,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             user_consent.save()
 
         try:
-            api.update_scheme_account_attribute(scheme_account)
-        except api.MnemosyneException:
+            analytics.update_scheme_account_attribute(scheme_account)
+        except analytics.PushError:
             pass
 
         return scheme_account
@@ -512,14 +514,15 @@ class CreateJoinSchemeAccount(APIView):
                 'company name': scheme.company,
                 'slug': scheme.slug
             }
-            api.post_event(
-                settings.INTERCOM_TOKEN,
-                user.uid,
-                events.ISSUED_JOIN_CARD_EVENT,
-                metadata
+            analytics.post_event(
+                user,
+                analytics.events.ISSUED_JOIN_CARD_EVENT,
+                metadata,
+                True
             )
-            api.update_scheme_account_attribute(account)
-        except api.MnemosyneException:
+            analytics.update_scheme_account_attribute(account)
+        except Exception as ex:
+            raise analytics.PushError from ex
             pass
 
         # serialize the account for the response.
@@ -917,8 +920,9 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 )
 
         try:
-            api.update_scheme_account_attribute(scheme_account)
-        except api.MnemosyneException:
+            analytics.update_scheme_account_attribute(scheme_account)
+        except Exception as ex:
+            raise analytics.PushError from ex
             pass
 
         return scheme_account
