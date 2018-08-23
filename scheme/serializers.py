@@ -531,7 +531,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 class MidasUserConsentSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserConsent
-        fields = ('slug', 'value', 'created_on')
+        fields = ('id', 'slug', 'value', 'created_on')
 
 
 class UpdateUserConsentSerializer(serializers.ModelSerializer):

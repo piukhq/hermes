@@ -860,7 +860,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 for user_consent in user_consents:
                     user_consent.save()
 
-                    data['credentials'].update(consents=user_consent_serializer.data)
+                data['credentials'].update(consents=user_consent_serializer.data)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
@@ -952,8 +952,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             'journey_type': JourneyTypes.JOIN.value
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
-                                 json=data, headers=headers)
+        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug), json=data, headers=headers)
 
         message = response.json().get('message')
         if not message == "success":
