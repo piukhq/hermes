@@ -965,8 +965,9 @@ class TestUserSettings(APITestCase):
         self.assertEqual(data[0]['value'], '1')
         self.assertEqual(data[0]['value_type'], setting.value_type_name)
 
-    @mock.patch('mnemosyne.api.reset_user_settings')
-    def test_delete_user_settings(self, mock_update_custom_attribute):
+    @mock.patch('analytics.api.reset_user_settings')
+    @mock.patch('analytics.api._send_to_mnemosyne')
+    def test_delete_user_settings(self, mock_reset_user_settings, mock_send_to_mnemosyne):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -981,9 +982,10 @@ class TestUserSettings(APITestCase):
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 0)
 
-        self.assertEqual(mock_update_custom_attribute.call_count, 1)
+        self.assertEqual(mock_reset_user_settings.call_count, 1)
+        self.assertEqual(mock_send_to_mnemosyne.call_count, 0)
 
-    @mock.patch('mnemosyne.api.update_attributes')
+    @mock.patch('analytics.api.update_attributes')
     def test_update_intercom_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
@@ -1023,7 +1025,7 @@ class TestUserSettings(APITestCase):
 
         self.assertEqual(mock_update_attribute.call_count, len(settings))
 
-    @mock.patch('mnemosyne.api.update_attribute')
+    @mock.patch('analytics.api.update_attribute')
     def test_update_non_intercom_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
@@ -1088,7 +1090,7 @@ class TestUserSettings(APITestCase):
         self.assertIn("'kitten' is not a valid value for type boolean.", data['messages'])
         self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
 
-    @mock.patch('mnemosyne.api.update_attributes')
+    @mock.patch('analytics.api.update_attributes')
     def test_create_non_intercom_settings(self, mock_update_attribute):
         setting = SettingFactory()
 
@@ -1104,7 +1106,7 @@ class TestUserSettings(APITestCase):
 
         self.assertFalse(mock_update_attribute.called)
 
-    @mock.patch('mnemosyne.api.update_attributes')
+    @mock.patch('analytics.api.update_attributes')
     def test_create_intercom_setting(self, mock_update_attribute):
         setting = SettingFactory(slug='marketing-bink')
 
