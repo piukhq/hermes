@@ -19,6 +19,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountS
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
+from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
@@ -52,12 +53,14 @@ class ServiceView(ModelViewSet):
     authentication_classes = (PropertyOrServiceAuthentication,)
     serializer_class = ServiceConsentSerializer
 
+    @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         if not request.user.is_active:
             raise NotFound
 
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
+    @censor_and_decorate
     def create(self, request, *args, **kwargs):
         status_code = 200
         consent_data = request.data['consent']
@@ -99,6 +102,7 @@ class ServiceView(ModelViewSet):
 
         return Response(consent.data, status=status_code)
 
+    @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         response = self.get_serializer(request.user.serviceconsent).data
         request.user.serviceconsent.delete()
@@ -121,6 +125,11 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
 
         return self.queryset.filter(**query)
 
+    @censor_and_decorate
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @censor_and_decorate
     def update(self, request, *args, **kwargs):
         if 'card' in request.data:
             try:
@@ -135,6 +144,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pk'])
         return Response(self.get_serializer(pcard).data)
 
+    @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
@@ -153,10 +163,12 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
         return PaymentCardAccount.objects.filter(**query)
 
+    @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
         return Response(self.get_serializer(accounts, many=True).data, status=200)
 
+    @censor_and_decorate
     def create(self, request, *args, **kwargs):
         try:
             pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
@@ -194,21 +206,25 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
 
         return SchemeAccount.objects.filter(**query)
 
+    @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
         account.get_cached_balance()
         return Response(self.get_serializer(account).data)
 
+    @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
         new_answers = self._collect_updated_answers(request.data)
         self.update_credentials(account, new_answers)
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
+    @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
     @staticmethod
+    @censor_and_decorate
     def membership_plan(request, mcard_id):
         mcard = get_object_or_404(SchemeAccount, id=mcard_id)
         return Response(MembershipPlanSerializer(mcard.scheme).data)
@@ -256,6 +272,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
         return SchemeAccount.objects.filter(**query)
 
+    @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
 
@@ -264,6 +281,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
         return Response(self.get_serializer(accounts, many=True).data)
 
+    @censor_and_decorate
     def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
         return Response(MembershipCardSerializer(account).data, status=status_code)
@@ -340,24 +358,28 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 class CreateDeleteLinkView(ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
 
+    @censor_and_decorate
     def update_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
         link = self._update_link(request, *args, **kwargs)
         serializer = self.get_serializer(link.payment_card_account)
         return Response(serializer.data, status.HTTP_201_CREATED)
 
+    @censor_and_decorate
     def update_membership(self, request, *args, **kwargs):
         self.serializer_class = MembershipCardSerializer
         link = self._update_link(request, *args, **kwargs)
         serializer = self.get_serializer(link.scheme_account)
         return Response(serializer.data, status.HTTP_201_CREATED)
 
+    @censor_and_decorate
     def destroy_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
         pcard, _ = self._destroy_link(request, *args, **kwargs)
         serializer = self.get_serializer(pcard)
         return Response(serializer.data, status.HTTP_201_CREATED)
 
+    @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
         self.serializer_class = MembershipCardSerializer
         _, mcard = self._destroy_link(request, *args, **kwargs)
@@ -412,6 +434,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
         return SchemeAccount.objects.filter(**query)
 
+    @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
         for account in accounts:
@@ -419,6 +442,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
         return Response(self.get_serializer(accounts, many=True).data)
 
+    @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         account, status_code = self._handle_membership_card_creation(request)
@@ -441,6 +465,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
 
         return PaymentCardAccount.objects.filter(**query)
 
+    @censor_and_decorate
     def create(self, request, *args, **kwargs):
         try:
             pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
@@ -465,6 +490,7 @@ class MembershipPlans(ModelViewSet, IdentifyCardMixin):
     queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
 
+    @censor_and_decorate
     def identify(self, request):
         try:
             base64_image = request.data['card']['base64_image']
@@ -497,6 +523,7 @@ class MembershipTransactionView(ModelViewSet):
         token = jwt.encode(payload, settings.TOKEN_SECRET)
         return token.decode('unicode_escape')
 
+    @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
@@ -504,6 +531,7 @@ class MembershipTransactionView(ModelViewSet):
         response = self.get_serializer(resp.json()).data if resp.status_code == 200 and resp.json() else {}
         return Response(response)
 
+    @censor_and_decorate
     def list(self, request, *args, **kwargs):
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
@@ -511,6 +539,7 @@ class MembershipTransactionView(ModelViewSet):
         response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
         return Response(response)
 
+    @censor_and_decorate
     def composite(self, request, *args, **kwargs):
         url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, kwargs['mcard_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
