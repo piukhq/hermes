@@ -326,13 +326,6 @@ if env_var('HERMES_NO_DB_TEST', False):
 
 FILE_UPLOAD_PERMISSIONS = 0o755
 
-# INTERCOM_TOKEN default value is for testing
-INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')
-INTERCOM_HOST = 'https://api.intercom.io'
-INTERCOM_USERS_PATH = 'users'
-INTERCOM_EVENTS_PATH = 'events'
-
-
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',
                  '675911', '557062', '557061', '556677', '554988', '554987', '554397', '554201', '554112', '552140',

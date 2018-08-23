@@ -986,7 +986,7 @@ class TestUserSettings(APITestCase):
         self.assertEqual(mock_send_to_mnemosyne.call_count, 0)
 
     @mock.patch('analytics.api.update_attributes')
-    def test_update_intercom_user_settings(self, mock_update_attribute):
+    def test_update_analytic_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -1012,21 +1012,21 @@ class TestUserSettings(APITestCase):
         self.assertEqual(user_setting.value, '1')
 
         self.assertEqual(mock_update_attribute.call_count, 2)
-        intercom_calls_data = [
+        analytic_data = [
             mock_update_attribute.call_args_list[0][0][1],
             mock_update_attribute.call_args_list[1][0][1]
             ]
 
-        # marketing-bink updated to False in intercom
-        self.assertFalse(intercom_calls_data[0]['marketing-bink'])
+        # marketing-bink updated to False in analytics
+        self.assertFalse(analytic_data[0]['marketing-bink'])
 
-        # marketing-external updated to True in intercom
-        self.assertTrue(intercom_calls_data[1]['marketing-external'])
+        # marketing-external updated to True in analytics
+        self.assertTrue(analytic_data[1]['marketing-external'])
 
         self.assertEqual(mock_update_attribute.call_count, len(settings))
 
     @mock.patch('analytics.api.update_attribute')
-    def test_update_non_intercom_user_settings(self, mock_update_attribute):
+    def test_update_non_analytic_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])
@@ -1091,7 +1091,7 @@ class TestUserSettings(APITestCase):
         self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
 
     @mock.patch('analytics.api.update_attributes')
-    def test_create_non_intercom_settings(self, mock_update_attribute):
+    def test_create_non_analytics_settings(self, mock_update_attribute):
         setting = SettingFactory()
 
         data = {
@@ -1107,7 +1107,7 @@ class TestUserSettings(APITestCase):
         self.assertFalse(mock_update_attribute.called)
 
     @mock.patch('analytics.api.update_attributes')
-    def test_create_intercom_setting(self, mock_update_attribute):
+    def test_create_analytics_setting(self, mock_update_attribute):
         setting = SettingFactory(slug='marketing-bink')
 
         data = {
@@ -1121,7 +1121,7 @@ class TestUserSettings(APITestCase):
         self.assertEqual(user_setting.value, '1')
 
         self.assertEqual(mock_update_attribute.call_count, 1)
-        # marketing-bink updated to True in intercom
+        # marketing-bink updated to True in analytics
         self.assertEqual(mock_update_attribute.call_args_list[0][0][1], {'marketing-bink': True})
 
 

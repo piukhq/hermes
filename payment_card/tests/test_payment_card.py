@@ -173,7 +173,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
 
     @httpretty.activate
-    # @patch('intercom.intercom_api.update_user_custom_attribute')
     def test_post_barclays_payment_card_account(self):
         # add barclays personal offer image
         offer_image = factories.PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
@@ -203,17 +202,6 @@ class TestPaymentCard(APITestCase):
         self.assertFalse(hero_image.payment_card_accounts.exists())
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
 
-        # self.assertEqual(
-        #     mock_update_user_custom_attribute.call_args[0][3],
-        #     "STS:pending,CRD:{},NAM:Aron Stokes,EXPM:4,EXPY:10,CTY:New Zealand,BIN:543979,END:9820,CTD:{}"
-        #     ",UPD:{},DEL:{}".format(
-        #         self.payment_card_account.payment_card.system_name,
-        #         self.payment_card_account.created.strftime("%Y/%m/%d"),
-        #         self.payment_card_account.updated.strftime("%Y/%m/%d"),
-        #         str(self.payment_card_account.is_deleted).lower()
-        #     )
-        # )
-
         self.assertEqual(response.status_code, 201)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
         self.assertEqual(offer_image.payment_card_accounts.first(), payment_card_account)
@@ -225,17 +213,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['pan_start'], "987678")
-
-    # def test_patch_payment_card_account_bad_length(self):
-    #     response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-    #                                  data={'pan_start': '0000000'}, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 400)
-    #     self.assertEqual(response.data, {'pan_start': ['Ensure this field has no more than 6 characters.']})
-
-    #     response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-    #                                  data={'pan_end': '0000000'}, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 400)
-    #     self.assertEqual(response.data, {'pan_end': ['Ensure this field has no more than 4 characters.']})
 
     def test_patch_payment_card_cannot_change_scheme(self):
         payment_card_2 = factories.PaymentCardFactory(name='sommet', slug='sommet')
