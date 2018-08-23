@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 
 
 class MyAppConfig(AppConfig):
@@ -6,5 +7,6 @@ class MyAppConfig(AppConfig):
     verbose_name = "Ubiquity"
 
     def ready(self):
-        from .influx_audit import InfluxAudit
-        self.audit = InfluxAudit()
+        if settings.USE_INFLUXDB:
+            from .influx_audit import InfluxAudit
+            self.audit = InfluxAudit()
