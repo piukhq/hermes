@@ -7,6 +7,9 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, get_object_or_404)
+from intercom import intercom_api
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView,
+                                     UpdateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -23,11 +26,30 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer, QuerySchemeAccountSerializer, ReferenceImageSerializer,
                                 ResponseLinkSerializer, ResponseSchemeAccountAndBalanceSerializer,
+from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
+                           SchemeAccountImage, UserConsent, JourneyTypes, ConsentStatus)
+
+from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
                                 SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer)
 from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
+                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
+                                SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
+                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
+                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
+                                MidasUserConsentSerializer, UpdateUserConsentSerializer)
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework import serializers
+from rest_framework.reverse import reverse
+from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
+from django.db import transaction
+from scheme.account_status_summary import scheme_account_status_data
+from io import StringIO
+from django.conf import settings
 from user.models import CustomUser, UserSetting
 
 
@@ -91,6 +113,12 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
             pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class UpdateUserConsent(UpdateAPIView):
+    authentication_classes = (ServiceAuthentication,)
+    queryset = UserConsent.objects.all()
+    serializer_class = UpdateUserConsentSerializer
 
 
 class LinkCredentials(BaseLinkMixin, GenericAPIView):

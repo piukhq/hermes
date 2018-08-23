@@ -1,12 +1,21 @@
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
 from scheme.models import SchemeCredentialQuestion
 from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer, SchemeSerializer
 from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeFactory)
+from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer, \
+    UserConsentSerializer, UpdateUserConsentSerializer
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory,\
+    ConsentFactory, UserConsentFactory
+from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
+from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus
+from unittest.mock import MagicMock, patch
+
 from user.tests.factories import UserFactory
 
 
@@ -115,3 +124,155 @@ class TestSchemeSerializer(TestCase):
 
         self.assertTrue(all(x in join_question_types for x in data_types))
         self.assertFalse(any(x in not_join_questions_types for x in data_types))
+
+
+class TestUserConsentSerializer(TestCase):
+    def setUp(self):
+        self.scheme = SchemeFactory()
+
+        self.consent1 = ConsentFactory(required=True, journey=JourneyTypes.LINK.value,
+                                       check_box=True, scheme=self.scheme)
+        self.consent2 = ConsentFactory(required=False, journey=JourneyTypes.LINK.value,
+                                       check_box=True, scheme=self.scheme)
+        self.consent3 = ConsentFactory(required=True, journey=JourneyTypes.JOIN.value,
+                                       check_box=True, scheme=self.scheme)
+        self.consent4 = ConsentFactory(required=True, journey=JourneyTypes.JOIN.value,
+                                       check_box=True, scheme=self.scheme)
+        self.consent5 = ConsentFactory(required=False, journey=JourneyTypes.JOIN.value,
+                                       check_box=False, scheme=self.scheme)
+
+        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+
+        self.user_consent1 = UserConsentFactory(scheme=self.scheme_account.scheme)
+        self.user_consent2 = UserConsentFactory(scheme=self.scheme_account.scheme)
+        self.user_consent3 = UserConsentFactory(scheme=self.scheme_account.scheme)
+
+    def test_get_user_consents(self):
+        consent_data = [
+            {'id': self.consent1.id, 'value': True},
+            {'id': self.consent3.id, 'value': True},
+            {'id': self.consent5.id, 'value': True},
+        ]
+
+        metadata_keys = ['id', 'check_box', 'text', 'required', 'order', 'journey', 'slug', 'user_email', 'scheme_slug']
+
+        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data)
+
+        self.assertEqual(len(user_consents), 3)
+        self.assertTrue(all([metadata_keys == list(consent.metadata.keys()) for consent in user_consents]))
+
+    def test_validate_consents_success(self):
+        self.user_consent1.slug = self.consent1.slug
+        self.user_consent1.metadata = {'id': self.consent1.id, 'required': self.consent1.required}
+
+        self.user_consent2.slug = self.consent2.slug
+        self.user_consent2.metadata = {'id': self.consent2.id, 'required': self.consent2.required}
+
+        UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
+                                                self.scheme.id,
+                                                JourneyTypes.LINK.value)
+
+    def test_validate_consents_raises_error_on_incorrect_number_of_consents_provided(self):
+        with self.assertRaises(serializers.ValidationError) as e:
+            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2, self.user_consent3],
+                                                    self.scheme.id,
+                                                    JourneyTypes.LINK.value)
+
+        self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
+                         e.exception.detail['message'])
+
+        with self.assertRaises(serializers.ValidationError) as e:
+            UserConsentSerializer.validate_consents([self.user_consent1],
+                                                    self.scheme.id,
+                                                    JourneyTypes.LINK.value)
+
+        self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
+                         e.exception.detail['message'])
+
+    def test_validate_consents_raises_error_on_unexpected_consent_slug(self):
+        self.user_consent1.slug = 'incorrect_slug'
+        with self.assertRaises(serializers.ValidationError) as e:
+            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
+                                                    self.scheme.id,
+                                                    JourneyTypes.LINK.value)
+
+        self.assertTrue("Unexpected or missing user consents for 'link' request" in e.exception.detail['message'])
+
+    def test_validate_consents_raises_error_on_required_consents_with_false_value(self):
+        self.user_consent1.value = False
+        self.user_consent1.slug = self.consent1.slug
+        self.user_consent1.metadata = {'id': self.consent1.id, 'required': self.consent1.required}
+
+        self.user_consent2.value = False
+        self.user_consent2.slug = self.consent2.slug
+        self.user_consent2.metadata = {'id': self.consent2.id, 'required': self.consent2.required}
+
+        with self.assertRaises(serializers.ValidationError) as e:
+            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
+                                                    self.scheme.id,
+                                                    JourneyTypes.LINK.value)
+
+        self.assertTrue("The following consents require a value of True:" in e.exception.detail['message'])
+        self.assertTrue(
+            "[{{'consent_id': {}, 'slug': '{}'}}]".format(self.consent1.id, self.consent1.slug)
+            in str(e.exception.detail['message'])
+        )
+
+
+class TestJoinSerializer(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        scheme = SchemeFactory()
+        cls.req_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
+                                                           options=SchemeCredentialQuestion.JOIN)
+        cls.opt_request = SchemeCredentialQuestionFactory(type=LAST_NAME, scheme=scheme,
+                                                          options=SchemeCredentialQuestion.OPTIONAL_JOIN)
+        context = {
+            'scheme': scheme,
+            'user': '1'
+        }
+        cls.serializer = JoinSerializer(context=context)
+        super().setUpClass()
+
+    def test_missing_required_questions_raises_error(self):
+        with self.assertRaises(ValidationError):
+            self.serializer.validate({'last_name': 'test'})
+
+    def test_missing_optional_questions_doesnt_raises_error(self):
+        data = self.serializer.validate({'barcode': '123'})
+        self.assertIn('barcode', data['credentials'])
+
+    def test_optional_credentials_get_sent(self):
+        data = self.serializer.validate({'barcode': '123', 'last_name': 'test'})
+        self.assertIn('barcode', data['credentials'])
+        self.assertIn('last_name', data['credentials'])
+
+
+class TestUpdateUserConsentSerializer(TestCase):
+    def setUp(self):
+        self.serializer_class = UpdateUserConsentSerializer
+
+    def test_only_valid_fields_are_accepted(self):
+        # Valid / fields that can be updated
+        status = 'status'
+
+        # Should not be updated
+        value = 'value'
+
+        serializer = self.serializer_class(data={status: 1, value: False})
+        serializer.is_valid()
+        validated_data = serializer.validated_data
+
+        self.assertIn(status, serializer.validated_data)
+        self.assertNotIn(value, validated_data)
+
+    def test_is_valid_returns_false_on_invalid_status(self):
+        serializer = self.serializer_class(data={'status': 102312132})
+
+        self.assertFalse(serializer.is_valid())
+
+    def test_is_valid_returns_false_on_updating_existing_success_status(self):
+        user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
+        serializer = self.serializer_class(user_consent, data={'status': 0})
+
+        self.assertFalse(serializer.is_valid())
