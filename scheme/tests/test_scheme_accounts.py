@@ -900,7 +900,7 @@ class TestSchemeAccountViews(APITestCase):
     @patch('analytics.api._get_today_datetime')
     @patch('analytics.api._send_to_mnemosyne')
     def test_create_join_account_and_notify_analytics(self, mock_post_event, mock_date,
-                                                     mock_update_attr, mock_send_to_mnemosyne):
+                                                      mock_update_attr, mock_send_to_mnemosyne):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         scheme = SchemeFactory()
 
