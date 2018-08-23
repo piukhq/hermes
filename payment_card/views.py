@@ -153,13 +153,7 @@ class ListCreatePaymentCardAccount(APIView):
             else:
                 # if the payment card exists already in another user, link it to this user and import all the scheme
                 # accounts currently linked to it.
-                if account.is_deleted:
-                    account.is_deleted = False
-                    account.save()
-
-                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
-                for scheme_account in account.scheme_account_set.all():
-                    SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+                self._link_account_to_new_user(account, user)
 
             try:
                 intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account, user)
@@ -169,6 +163,16 @@ class ListCreatePaymentCardAccount(APIView):
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return response_serializer.data, status.HTTP_201_CREATED, account
         return serializer.errors, status.HTTP_400_BAD_REQUEST, None
+
+    @staticmethod
+    def _link_account_to_new_user(account, user):
+        if account.is_deleted:
+            account.is_deleted = False
+            account.save()
+
+        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
+        for scheme_account in account.scheme_account_set.all():
+            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
     def _create_payment_card_account(account, user):

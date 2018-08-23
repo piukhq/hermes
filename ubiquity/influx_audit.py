@@ -6,12 +6,13 @@ class InfluxAudit(object):
     client = None
 
     def __init__(self):
-        self.client = InfluxDBClient(**settings.INFLUX_DB_CONFIG)
+        if settings.USE_INFLUXDB:
+            self.client = InfluxDBClient(**settings.INFLUX_DB_CONFIG)
 
-        if settings.INFLUX_DB_NAME not in self.client.get_list_database():
-            self.client.create_database(settings.INFLUX_DB_NAME)
+            if settings.INFLUX_DB_NAME not in self.client.get_list_database():
+                self.client.create_database(settings.INFLUX_DB_NAME)
 
-        self.client.switch_database(settings.INFLUX_DB_NAME)
+            self.client.switch_database(settings.INFLUX_DB_NAME)
 
     @staticmethod
     def _format_audit_entry(card_link):
@@ -39,16 +40,19 @@ class InfluxAudit(object):
         :param many:
         :type many: bool
         """
-        link_data = link_data if many else [link_data]
-        json_payload = [self._format_audit_entry(link) for link in link_data]
-        self.client.write_points(json_payload)
+        if self.client:
+            link_data = link_data if many else [link_data]
+            json_payload = [self._format_audit_entry(link) for link in link_data]
+            self.client.write_points(json_payload)
 
     def query_db(self):
         """
         TESTING ENDPOINT
         :return: json string
         """
-        return self.client.query('SELECT * FROM {}'.format(settings.INFLUX_DB_NAME)).raw
+        if self.client:
+            return self.client.query('SELECT * FROM {}'.format(settings.INFLUX_DB_NAME)).raw
+        return None
 
 
 audit = InfluxAudit()

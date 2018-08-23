@@ -12,7 +12,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin
+from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
 from scheme.models import Scheme, SchemeAccount
 from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer)
@@ -186,11 +186,12 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
         return Response(message, status=status_code)
 
 
-class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
+class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = MembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
+        'PATCH': MembershipCardSerializer,
         'DELETE': GetSchemeAccountSerializer,
         'OPTIONS': GetSchemeAccountSerializer,
     }
@@ -213,7 +214,10 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
-        return Response()
+        account = self.get_object()
+        new_answers = self._collect_updated_answers(request.data)
+        self.update_credentials(account, new_answers)
+        return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -224,6 +228,30 @@ class MembershipCardView(RetrieveDeleteAccount, ModelViewSet):
     def membership_plan(request, mcard_id):
         mcard = get_object_or_404(SchemeAccount, id=mcard_id)
         return Response(MembershipPlanSerializer(mcard.scheme).data)
+
+    @staticmethod
+    def _collect_updated_answers(data):
+        auth_fields = {
+            item['column']: item['value']
+            for item in data['authorise_fields']
+        } if 'authorise_fields' in data else None
+
+        enrol_fields = {
+            item['column']: item['value']
+            for item in data['enrol_fields']
+        } if 'enrol_fields' in data else None
+
+        if not auth_fields and not enrol_fields:
+            raise ParseError()
+
+        out = {}
+        if auth_fields:
+            out.update(auth_fields)
+
+        if enrol_fields:
+            out.update(enrol_fields)
+
+        return out
 
 
 class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
@@ -279,22 +307,17 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
             raise NotImplemented
 
     @staticmethod
-    def _collect_credentials_answers(data):
+    def _collect_field_content(field, data):
+        return {
+            item['column']: item['value']
+            for item in data[field]
+        } if field in data else None
+
+    def _collect_credentials_answers(self, data):
         scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-        add_fields = {
-            item['column']: item['value']
-            for item in data['add_fields']
-        } if 'add_fields' in data else None
-
-        auth_fields = {
-            item['column']: item['value']
-            for item in data['authorise_fields']
-        } if 'authorise_fields' in data else None
-
-        enrol_fields = {
-            item['column']: item['value']
-            for item in data['enrol_fields']
-        } if 'enrol_fields' in data else None
+        add_fields = self._collect_field_content('add_fields', data)
+        auth_fields = self._collect_field_content('authorise_fields', data)
+        enrol_fields = self._collect_field_content('enrol_fields', data)
 
         if not add_fields and not enrol_fields:
             raise ParseError()

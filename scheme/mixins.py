@@ -13,7 +13,7 @@ from rest_framework.generics import get_object_or_404
 from intercom import intercom_api
 from scheme.encyption import AESCipher
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import JoinSerializer
+from scheme.serializers import JoinSerializer, UpdateCredentialSerializer
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 
 
@@ -254,3 +254,20 @@ class SchemeAccountJoinMixin:
             raise RequestException(
                 'Error creating join task in Midas. Response message :{}'.format(message)
             )
+
+
+class UpdateCredentialsMixin:
+    @staticmethod
+    def update_credentials(scheme_account, data):
+        serializer = UpdateCredentialSerializer(data=data, context={'scheme_account': scheme_account})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        updated_credentials = []
+
+        for credential_type in data.keys():
+            question = scheme_account.scheme.questions.get(type=credential_type)
+            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
+                                                                   defaults={'answer': data[credential_type]})
+            updated_credentials.append(credential_type)
+
+        return {'updated': updated_credentials}
