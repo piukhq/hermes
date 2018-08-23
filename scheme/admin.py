@@ -2,14 +2,11 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
+from scheme.forms import ConsentForm
 from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeAccountImage, SchemeBalanceDetails, SchemeCredentialQuestion,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, SchemeDetail,
-                           SchemeImage, UserConsent)
-from scheme.forms import ConsentForm
-from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue)
+                           SchemeCredentialQuestionChoice,
+                           SchemeCredentialQuestionChoiceValue, SchemeDetail, SchemeImage, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):

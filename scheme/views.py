@@ -6,10 +6,8 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
-from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, get_object_or_404)
-from intercom import intercom_api
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView,
-                                     UpdateAPIView)
+from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
+                                     get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -20,36 +18,17 @@ from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
-from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage,
-                           SchemeImage)
+from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
-                                ListSchemeAccountSerializer, QuerySchemeAccountSerializer, ReferenceImageSerializer,
-                                ResponseLinkSerializer, ResponseSchemeAccountAndBalanceSerializer,
-from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage, UserConsent, JourneyTypes, ConsentStatus)
-
-from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
-                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
+                                ListSchemeAccountSerializer,
+                                QuerySchemeAccountSerializer, ReferenceImageSerializer, ResponseLinkSerializer,
+                                ResponseSchemeAccountAndBalanceSerializer, SchemeAccountCredentialsSerializer,
+                                SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
-                                StatusSerializer)
+                                StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
-                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
-                                SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
-                                MidasUserConsentSerializer, UpdateUserConsentSerializer)
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework import serializers
-from rest_framework.reverse import reverse
-from user.authentication import ServiceAuthentication, AllowService, JwtAuthentication
-from django.db import transaction
-from scheme.account_status_summary import scheme_account_status_data
-from io import StringIO
-from django.conf import settings
 from user.models import CustomUser, UserSetting
 
 

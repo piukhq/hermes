@@ -6,11 +6,8 @@ from rest_framework import serializers
 
 from common.models import Image
 from scheme.credentials import credential_types_set
-from scheme.models import (Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeAccountImage,
-                           SchemeCredentialQuestion, SchemeImage, UserConsent)
-from django.shortcuts import get_object_or_404
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus
+from scheme.models import (Consent, ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
+                           SchemeAccountImage, SchemeCredentialQuestion, SchemeImage, UserConsent)
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):

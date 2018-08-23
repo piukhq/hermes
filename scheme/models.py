@@ -4,18 +4,16 @@ import socket
 import sre_constants
 import uuid
 from decimal import Decimal
+from enum import Enum, IntEnum
 
 import arrow
 import requests
-from enum import Enum, IntEnum
-
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
 from django.db import models
-from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
@@ -362,8 +360,8 @@ class SchemeAccount(models.Model):
         """
         required_credentials = {
             question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+        )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question

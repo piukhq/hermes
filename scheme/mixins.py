@@ -12,8 +12,9 @@ from rest_framework.generics import get_object_or_404
 
 from intercom import intercom_api
 from scheme.encyption import AESCipher
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import JoinSerializer, UpdateCredentialSerializer
+from scheme.models import ConsentStatus, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, JourneyTypes
+from scheme.serializers import (JoinSerializer, MidasUserConsentSerializer, UpdateCredentialSerializer,
+                                UserConsentSerializer)
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 
 
@@ -26,17 +27,37 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account, user):
+        consent_data = []
+        user_consents = []
+        midas_consent_data = None
+
+        if 'consents' in data:
+            consent_data = data.pop('consents')
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+
+            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+            midas_consent_data = user_consent_serializer.data
+
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account.get_cached_balance()
+
+        midas_information = scheme_account.get_midas_balance(user_consents=midas_consent_data)
+
         response_data = {
-            'balance': {**midas_information},
+            'balance': midas_information,
             'status': scheme_account.status,
             'status_name': scheme_account.status_name
         }
         response_data.update(dict(data))
+
+        if consent_data and scheme_account.status == SchemeAccount.ACTIVE:
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
+
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
         except intercom_api.IntercomException:
@@ -146,6 +167,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 question=scheme_account.question(answer_type),
                 answer=data[answer_type],
             )
+
+            if 'consents' in data:
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'))
+                UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+                for user_consent in user_consents:
+                    user_consent.status = ConsentStatus.SUCCESS
+                    user_consent.save()
 
         data['id'] = scheme_account.id
         try:
