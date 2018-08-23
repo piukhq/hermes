@@ -19,7 +19,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountS
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.influx_audit import audit
-from ubiquity.censure_empty_fields import censor_and_decorate
+from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,

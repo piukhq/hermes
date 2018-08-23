@@ -14,6 +14,7 @@ from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
+from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardSerializer)
@@ -141,7 +142,7 @@ class TestResources(APITestCase):
 
     def test_get_single_payment_card(self):
         payment_card_account = self.payment_card_account_entry.payment_card_account
-        expected_result = PaymentCardSerializer(payment_card_account).data
+        expected_result = remove_empty(PaymentCardSerializer(payment_card_account).data)
         resp = self.client.get(reverse('payment-card', args=[payment_card_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
@@ -176,7 +177,7 @@ class TestResources(APITestCase):
     def test_get_all_payment_cards(self):
         PaymentCardAccountEntryFactory(user=self.user)
         payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = PaymentCardSerializer(payment_card_accounts, many=True).data
+        expected_result = remove_empty(PaymentCardSerializer(payment_card_accounts, many=True).data)
         resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
@@ -193,7 +194,7 @@ class TestResources(APITestCase):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
-        expected_result = MembershipCardSerializer(scheme_accounts, many=True).data
+        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
 
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
@@ -510,9 +511,10 @@ class TestResources(APITestCase):
         self.assertEqual(MembershipPlanSerializer(self.scheme).data, resp.json())
 
     def test_composite_membership_plan(self):
+        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme).data)
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(MembershipPlanSerializer(self.scheme_account.scheme).data, resp.json())
+        self.assertEqual(expected_result, resp.json())
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_balance(self, mock_get_midas_balance):
@@ -525,7 +527,7 @@ class TestResources(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-        expected_keys = {'value', 'currency', 'prefix', 'suffix', 'updated_at'}
+        expected_keys = {'value', 'currency', 'updated_at'}
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], '10.0')
