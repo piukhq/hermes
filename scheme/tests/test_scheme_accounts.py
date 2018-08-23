@@ -86,7 +86,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual(0, len(resp.json()))
 
-    def test_join_account(self):
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_join_account(self, mock_send_to_mnemosyne):
         join_scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, user=self.user, status=SchemeAccount.JOIN)

@@ -83,7 +83,7 @@ class BaseLinkMixin(object):
             analytics.update_scheme_account_attribute(scheme_account)
         except Exception as ex:
             raise analytics.PushError from ex
-            pass
+
         return response_data
 
 
@@ -155,7 +155,6 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
             analytics.update_scheme_account_attribute(instance)
         except Exception as ex:
             raise analytics.PushError from ex
-            pass
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -303,8 +302,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         try:
             analytics.update_scheme_account_attribute(scheme_account)
-        except analytics.PushError:
-            pass
+        except Exception as ex:
+            raise analytics.PushError from ex
 
         return scheme_account
 
@@ -523,7 +522,6 @@ class CreateJoinSchemeAccount(APIView):
             analytics.update_scheme_account_attribute(account)
         except Exception as ex:
             raise analytics.PushError from ex
-            pass
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -923,7 +921,6 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             analytics.update_scheme_account_attribute(scheme_account)
         except Exception as ex:
             raise analytics.PushError from ex
-            pass
 
         return scheme_account
 
