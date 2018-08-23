@@ -10,11 +10,16 @@ from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, S
 
 class CredentialQuestionFormset(BaseInlineFormSet):
 
-    def clean(self):
-        super().clean()
+    def _collect_form_data(self):
         manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
         choice = [form.cleaned_data['choice'] for form in self.forms]
         answer_type = [form.cleaned_data['answer_type'] for form in self.forms]
+        return manual_questions, choice, answer_type
+
+    def clean(self):
+        super().clean()
+        manual_questions, choice, answer_type = self._collect_form_data()
+
         if manual_questions.count(True) > 1:
             raise ValidationError("You may only select one manual question")
 
