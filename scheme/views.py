@@ -51,22 +51,25 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account):
+        consent_data = []
+        user_consents = []
+        midas_consent_data = None
+
         if 'consents' in data:
             consent_data = data.pop('consents')
-        else:
-            consent_data = []
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+
+            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+            midas_consent_data = user_consent_serializer.data
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
 
-        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
-        UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+        midas_information = scheme_account.get_midas_balance(user_consents=midas_consent_data)
 
-        user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
-
-        midas_information = scheme_account.get_midas_balance(user_consents=user_consent_serializer.data)
         response_data = {
             'balance': midas_information
         }
@@ -289,15 +292,15 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 question=scheme_account.question(answer_type),
                 answer=data[answer_type],
             )
-        data['id'] = scheme_account.id
 
-        user_consents = []
-        if 'consents' in data:
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'))
-        UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
-        for user_consent in user_consents:
-            user_consent.status = ConsentStatus.SUCCESS
-            user_consent.save()
+            if 'consents' in data:
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'))
+                UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+                for user_consent in user_consents:
+                    user_consent.status = ConsentStatus.SUCCESS
+                    user_consent.save()
+
+        data['id'] = scheme_account.id
 
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
@@ -848,19 +851,16 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         try:
             if 'consents' in serializer.validated_data:
                 consent_data = serializer.validated_data.pop('consents')
-            else:
-                consent_data = []
 
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
+                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
 
-            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+                # Deserialize the user consent instances formatted to send to Midas
+                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+                for user_consent in user_consents:
+                    user_consent.save()
 
-            # Deserialize the user consent instances formatted to send to Midas
-            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
-            for user_consent in user_consents:
-                user_consent.save()
-
-            data['credentials'].update(consents=user_consent_serializer.data)
+                data['credentials'].update(consents=user_consent_serializer.data)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
