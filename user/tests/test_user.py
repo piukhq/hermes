@@ -986,7 +986,8 @@ class TestUserSettings(APITestCase):
         self.assertEqual(mock_send_to_mnemosyne.call_count, 0)
 
     @mock.patch('analytics.api.update_attributes')
-    def test_update_analytic_user_settings(self, mock_update_attribute):
+    @mock.patch('analytics.api._send_to_mnemosyne')
+    def test_update_analytic_user_settings(self, mock_send_to_mnemosyne, mock_update_attribute):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
         UserSettingFactory(user=self.user, value='0', setting=settings[1])

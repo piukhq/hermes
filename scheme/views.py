@@ -79,10 +79,8 @@ class BaseLinkMixin(object):
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
 
-        try:
-            analytics.update_scheme_account_attribute(scheme_account)
-        except Exception as ex:
-            raise analytics.PushError from ex
+
+        analytics.update_scheme_account_attribute(scheme_account)
 
         return response_data
 
@@ -151,10 +149,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
-        try:
-            analytics.update_scheme_account_attribute(instance)
-        except Exception as ex:
-            raise analytics.PushError from ex
+
+        analytics.update_scheme_account_attribute(instance)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

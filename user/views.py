@@ -10,7 +10,6 @@ from django.views.decorators.csrf import csrf_exempt
 from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
-from analytics import api
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
@@ -473,12 +472,9 @@ class UserSettings(APIView):
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
-                if slug_key in api.SETTING_CUSTOM_ATTRIBUTES:
+                if slug_key in analytics.SETTING_CUSTOM_ATTRIBUTES:
 
-                    api.update_attributes(
-                        request.user,
-                        {slug_key: user_setting.to_boolean()}
-                    )
+                    analytics.update_attribute(request.user, slug_key, user_setting.to_boolean())
 
         if validation_errors:
             return Response({
