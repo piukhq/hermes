@@ -1,3 +1,4 @@
+import analytics
 import csv
 import uuid
 import requests
@@ -10,9 +11,8 @@ from collections import OrderedDict
 from django.http import HttpResponseBadRequest
 from django.shortcuts import render, redirect
 from django.utils import timezone
-from intercom import intercom_api
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView,
-                                     UpdateAPIView)
+from rest_framework.generics import UpdateAPIView
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.views import APIView
 from scheme.encyption import AESCipher
@@ -82,10 +82,8 @@ class BaseLinkMixin(object):
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account)
+
         return response_data
 
 
@@ -153,10 +151,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance)
-        except intercom_api.IntercomException:
-            pass
+
+        analytics.update_scheme_account_attribute(instance)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -239,19 +235,16 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
-            try:
-                metadata = {
-                    'scheme name': scheme.name,
-                }
-                intercom_api.post_intercom_event(
-                    settings.INTERCOM_TOKEN,
-                    request.user.uid,
-                    intercom_api.MY360_APP_EVENT,
-                    metadata
-                )
 
-            except intercom_api.IntercomException:
-                pass
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            analytics.post_event(
+                request.user,
+                analytics.events.MY360_APP_EVENT,
+                metadata,
+                True
+            )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -302,10 +295,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         data['id'] = scheme_account.id
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 
@@ -510,20 +500,17 @@ class CreateJoinSchemeAccount(APIView):
         )
         account.save()
 
-        try:
-            metadata = {
-                'company name': scheme.company,
-                'slug': scheme.slug
-            }
-            intercom_api.post_intercom_event(
-                settings.INTERCOM_TOKEN,
-                user.uid,
-                intercom_api.ISSUED_JOIN_CARD_EVENT,
-                metadata
-            )
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account)
-        except intercom_api.IntercomException:
-            pass
+        metadata = {
+            'company name': scheme.company,
+            'slug': scheme.slug
+        }
+        analytics.post_event(
+            user,
+            analytics.events.ISSUED_JOIN_CARD_EVENT,
+            metadata,
+            True
+        )
+        analytics.update_scheme_account_attribute(account)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -916,10 +903,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                     status=SchemeAccount.PENDING
                 )
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 
