@@ -216,6 +216,7 @@ MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
+MNEMOSYNE_URL = env_var('MNEMOSYNE_URL', 'mnemosyne')
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 
@@ -324,13 +325,6 @@ if env_var('HERMES_NO_DB_TEST', False):
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
 
 FILE_UPLOAD_PERMISSIONS = 0o755
-
-# INTERCOM_TOKEN default value is for testing
-INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')
-INTERCOM_HOST = 'https://api.intercom.io'
-INTERCOM_USERS_PATH = 'users'
-INTERCOM_EVENTS_PATH = 'events'
-
 
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',

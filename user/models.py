@@ -253,7 +253,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def create_token(self):
         payload = {
             'sub': self.id,
-            'iat': arrow.utcnow().datetime,
+            'iat': arrow.utcnow().replace(minutes=-1).datetime,
         }
         token = jwt.encode(payload, self.client.secret + self.salt)
         return token.decode('unicode_escape')

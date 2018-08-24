@@ -45,8 +45,9 @@ def _default_transaction_headers():
 
 class Scheme(models.Model):
     TIERS = (
-        (1, 'Bink'),
-        (2, 'Show'),
+        (1, 'PLL'),
+        (2, 'Basic'),
+        (3, 'Partner'),
     )
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
@@ -260,6 +261,9 @@ class SchemeAccount(models.Model):
     NO_SUCH_RECORD = 444
     CONFIGURATION_ERROR = 536
     NOT_SENT = 535
+    ACCOUNT_ALREADY_EXISTS = 445
+    SERVICE_CONNECTION_ERROR = 537
+    VALIDATION_ERROR = 401
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -281,14 +285,17 @@ class SchemeAccount(models.Model):
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
         (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
-        (NOT_SENT, 'Request was not sent', 'NOT_SENT')
-
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT'),
+        (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
+        (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
+        (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
+                            ACCOUNT_ALREADY_EXISTS]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
 
     user = models.ForeignKey('user.CustomUser')
     scheme = models.ForeignKey('scheme.Scheme')
@@ -377,6 +384,8 @@ class SchemeAccount(models.Model):
                 return points
             response = self._get_balance(credentials)
             self.status = response.status_code
+            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+                self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
