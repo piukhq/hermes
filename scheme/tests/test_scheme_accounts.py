@@ -1401,33 +1401,33 @@ class TestAccessTokens(APITestCase):
         self.scheme_account.is_deleted = False
         self.scheme_account.save()
 
-    # @patch.object(SchemeAccount, 'get_midas_balance')
-    # @patch('analytics.api._send_to_mnemosyne')
-    # def test_link_credentials(self, mock_get_midas_balance, mock_send_to_mnemosyne):
-    #     mock_get_midas_balance.return_value = {
-    #         'value': '10',
-    #         'points': '100',
-    #         'points_label': '100',
-    #         'value_label': "$10",
-    #         'reward_tier': 0,
-    #         'balance': '20',
-    #         'is_stale': False
-    #     }
-    #     data = {CARD_NUMBER: "London", 'consents': []}
-    #     # Test Post Method
-    #     response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-    #                                 data=data, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 201)
-    #     response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-    #                                 data=data, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 404)
-    #     # Test Put Method
-    #     response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-    #                                data=data, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 200)
-    #     response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-    #                                data=data, ** self.auth_headers)
-    #     self.assertEqual(response.status_code, 404)
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_link_credentials(self, mock_send_to_mnemosyne, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = {
+            'value': '10',
+            'points': '100',
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': '20',
+            'is_stale': False
+        }
+        data = {CARD_NUMBER: "London", 'consents': []}
+        # Test Post Method
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                    data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 201)
+        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
+                                    data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+        # Test Put Method
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
+                                   data=data, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
+                                   data=data, ** self.auth_headers)
+        self.assertEqual(response.status_code, 404)
 
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):
