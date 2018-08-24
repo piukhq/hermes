@@ -123,7 +123,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'answer': data[answer_type]
             }
             scheme_account = SchemeAccountCredentialAnswer.objects.get(**query).scheme_account
-            data['id'] = scheme_account.id
 
             if scheme_account.is_deleted:
                 scheme_account.is_deleted = False
@@ -136,6 +135,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         except SchemeAccountCredentialAnswer.DoesNotExist:
             scheme_account = self._create_account(user, data, answer_type)
 
+        data['id'] = scheme_account.id
         return scheme_account, data
 
     @staticmethod
@@ -175,7 +175,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     user_consent.status = ConsentStatus.SUCCESS
                     user_consent.save()
 
-        data['id'] = scheme_account.id
         try:
             intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
         except intercom_api.IntercomException:
@@ -210,7 +209,7 @@ class SchemeAccountJoinMixin:
                 for user_consent in user_consents:
                     user_consent.save()
 
-                    data['credentials'].update(consents=user_consent_serializer.data)
+                data['credentials'].update(consents=user_consent_serializer.data)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
