@@ -474,13 +474,11 @@ class UserSettings(APIView):
             else:
                 user_setting.save()
                 if slug_key in api.SETTING_CUSTOM_ATTRIBUTES:
-                    try:
-                        api.update_attributes(
-                            request.user.uid,
-                            {slug_key: user_setting.to_boolean()}
-                        )
-                    except Exception as ex:
-                        raise analytics.PushError from ex
+
+                    api.update_attributes(
+                        request.user,
+                        {slug_key: user_setting.to_boolean()}
+                    )
 
         if validation_errors:
             return Response({
@@ -496,10 +494,8 @@ class UserSettings(APIView):
         Responds with a 204 - No Content.
         """
         UserSetting.objects.filter(user=request.user).delete()
-        try:
-            analytics.reset_user_settings(request.user)
-        except Exception as ex:
-            raise analytics.PushError from ex
+
+        analytics.reset_user_settings(request.user)
 
         return Response(status=HTTP_204_NO_CONTENT)
 

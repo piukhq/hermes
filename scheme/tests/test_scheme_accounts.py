@@ -472,57 +472,57 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_accounts[0]['scheme'], scheme_2.id)
         self.assertEqual(scheme_accounts[1]['scheme'], scheme_1.id)
 
-    # @patch.object(SchemeAccount, '_get_balance')
-    # @patch('analytics.api._send_to_mnemosyne')
-    # def test_my360_create_account_view_non_generic_my360_scheme(self, mock_get_midas_balance, mock_send_to_mnemosyne):
-    #     # Given:
-    #     # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
-    #     # a barcode scheme credential question with one_question_link is created for each scheme
-    #     # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
-    #     # 'deep_blue_slug' scheme accounts do not exist in 'Bink system'
-    #
-    #     response_mock = MagicMock()
-    #     response_mock.json = MagicMock(return_value={
-    #         'value': Decimal('10'),
-    #         'points': Decimal('100'),
-    #         'points_label': '100',
-    #         'value_label': "$10",
-    #         'reward_tier': 0,
-    #         'balance': Decimal('20'),
-    #         'is_stale': False
-    #     })
-    #     response_mock.status_code = 200
-    #     mock_get_midas_balance.return_value = response_mock
-    #
-    #     scheme_0 = SchemeFactory(slug='my360', id=999)
-    #     scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
-    #     scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
-    #
-    #     SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
-    #     SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
-    #     SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
-    #
-    #     # When the front end requests [POST] /schemes/accounts/my360
-    #     data = {
-    #         BARCODE: '123456789',
-    #         'scheme': scheme_1.id,
-    #         'order': 1,
-    #         'consents': []
-    #     }
-    #     response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
-    #
-    #     # Then one scheme accounts are created in Bink
-    #     self.assertEqual(response.status_code, 201)
-    #
-    #     scheme_accounts = response.json()
-    #     self.assertEqual(len(scheme_accounts), 1)
-    #     self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
-    #     self.assertEqual(scheme_accounts[0]['order'], 1)
-    #     self.assertIn('id', scheme_accounts[0])
-    #     self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
-    #     self.assertEqual(scheme_accounts[0]['status_name'], "Active")
-    #     self.assertEqual(scheme_accounts[0]['scheme'], scheme_1.id)
-    #     self.assertTrue(mock_send_to_mnemosyne.called)
+    @patch.object(SchemeAccount, '_get_balance')
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_my360_create_account_view_non_generic_my360_scheme(self, mock_send_to_mnemosyne, mock_get_midas_balance,):
+        # Given:
+        # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
+        # a barcode scheme credential question with one_question_link is created for each scheme
+        # ['food_cellar_slug', 'deep_blue_slug'] scheme accounts exist in 'My360 system'
+        # 'deep_blue_slug' scheme accounts do not exist in 'Bink system'
+
+        response_mock = MagicMock()
+        response_mock.json = MagicMock(return_value={
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        })
+        response_mock.status_code = 200
+        mock_get_midas_balance.return_value = response_mock
+
+        scheme_0 = SchemeFactory(slug='my360', id=999)
+        scheme_1 = SchemeFactory(slug='deep_blue_slug', id=998)
+        scheme_2 = SchemeFactory(slug='food_cellar_slug', id=997)
+
+        SchemeCredentialQuestionFactory(scheme=scheme_0, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_1, type=BARCODE, one_question_link=True)
+        SchemeCredentialQuestionFactory(scheme=scheme_2, type=BARCODE, one_question_link=True)
+
+        # When the front end requests [POST] /schemes/accounts/my360
+        data = {
+            BARCODE: '123456789',
+            'scheme': scheme_1.id,
+            'order': 1,
+            'consents': []
+        }
+        response = self.client.post('/schemes/accounts/my360', **self.auth_headers, data=data)
+
+        # Then one scheme accounts are created in Bink
+        self.assertEqual(response.status_code, 201)
+
+        scheme_accounts = response.json()
+        self.assertEqual(len(scheme_accounts), 1)
+        self.assertEqual(scheme_accounts[0]['barcode'], '123456789')
+        self.assertEqual(scheme_accounts[0]['order'], 1)
+        self.assertIn('id', scheme_accounts[0])
+        self.assertEqual(scheme_accounts[0]['balance']['points'], '100.00')
+        self.assertEqual(scheme_accounts[0]['status_name'], "Active")
+        self.assertEqual(scheme_accounts[0]['scheme'], scheme_1.id)
+        self.assertTrue(mock_send_to_mnemosyne.called)
 
     @patch.object(CreateMy360AccountsAndLink, 'get_my360_schemes', return_value=[])
     @patch.object(SchemeAccount, '_get_balance')
@@ -646,7 +646,7 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 1)
 
-    # @patch('analytics.api.post_event')
+    @patch('analytics.api.post_event')
     @patch('analytics.api._send_to_mnemosyne')
     @patch.object(
         CreateMy360AccountsAndLink,
@@ -659,7 +659,7 @@ class TestSchemeAccountViews(APITestCase):
         mock_get_midas_balance,
         mock_get_my360_schemes,
         mock_send_to_mnemosyne,
-        # mock_post_event,
+        mock_post_event,
     ):
         # Given:
         # ['my360', 'food_cellar_slug', 'deep_blue_slug'] schemes exist in 'Bink system'
@@ -709,9 +709,6 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_1, user=self.user)), 0)
         self.assertEqual(len(SchemeAccount.objects.filter(scheme=scheme_0, user=self.user)), 0)
-
-        # self.assertEqual(len(mock_post_event.call_args[0]), 4)
-        # self.assertEqual(mock_post_event.call_args[0][3]['scheme name'], scheme_0.name)
         self.assertTrue(mock_send_to_mnemosyne.called)
 
     @patch('analytics.api.post_event')

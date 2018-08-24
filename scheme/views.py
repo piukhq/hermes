@@ -237,19 +237,16 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
-            try:
-                metadata = {
-                    'scheme name': scheme.name,
-                }
-                analytics.post_event(
-                    request.user,
-                    analytics.events.MY360_APP_EVENT,
-                    metadata,
-                    True
-                )
 
-            except Exception as ex:
-                raise analytics.PushError from ex
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            analytics.post_event(
+                request.user,
+                analytics.events.MY360_APP_EVENT,
+                metadata,
+                True
+            )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -300,10 +297,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
             user_consent.status = ConsentStatus.SUCCESS
             user_consent.save()
 
-        try:
-            analytics.update_scheme_account_attribute(scheme_account)
-        except Exception as ex:
-            raise analytics.PushError from ex
+        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 
@@ -508,20 +502,17 @@ class CreateJoinSchemeAccount(APIView):
         )
         account.save()
 
-        try:
-            metadata = {
-                'company name': scheme.company,
-                'slug': scheme.slug
-            }
-            analytics.post_event(
-                user,
-                analytics.events.ISSUED_JOIN_CARD_EVENT,
-                metadata,
-                True
-            )
-            analytics.update_scheme_account_attribute(account)
-        except Exception as ex:
-            raise analytics.PushError from ex
+        metadata = {
+            'company name': scheme.company,
+            'slug': scheme.slug
+        }
+        analytics.post_event(
+            user,
+            analytics.events.ISSUED_JOIN_CARD_EVENT,
+            metadata,
+            True
+        )
+        analytics.update_scheme_account_attribute(account)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -917,10 +908,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                     status=SchemeAccount.PENDING
                 )
 
-        try:
-            analytics.update_scheme_account_attribute(scheme_account)
-        except Exception as ex:
-            raise analytics.PushError from ex
+        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 
