@@ -79,7 +79,6 @@ class BaseLinkMixin(object):
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
 
-
         analytics.update_scheme_account_attribute(scheme_account)
 
         return response_data
