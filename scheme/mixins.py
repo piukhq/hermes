@@ -290,11 +290,12 @@ class SchemeAccountJoinMixin:
         data = {
             'scheme_account_id': scheme_account.id,
             'credentials': encrypted_credentials,
-            'user_id': user_id
+            'user_id': user_id,
+            'status': scheme_account.status,
+            'journey_type': JourneyTypes.JOIN.value
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
-                                 json=data, headers=headers)
+        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug), json=data, headers=headers)
 
         message = response.json().get('message')
         if not message == "success":
