@@ -74,7 +74,7 @@ def _send_to_mnemosyne(user, event=None, attributes=None):
     if attributes:
         payload['attributes'] = attributes
 
-    destination = '{}/service'.format(settings.MNEMOSYNE_URL)
+    destination = '{}/analytics/service'.format(settings.MNEMOSYNE_URL)
     headers = {
         'content-type': 'application/json',
         'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
