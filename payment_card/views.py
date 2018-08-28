@@ -5,19 +5,16 @@ from io import StringIO
 import arrow
 import requests
 from django.conf import settings
-from django.http import HttpResponseBadRequest, JsonResponse
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import generics, serializers as rest_framework_serializers, status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from intercom import intercom_api
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -26,8 +23,6 @@ from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
-from payment_card import metis
-from user.models import Organisation, ClientApplication
 
 
 class ListPaymentCard(generics.ListAPIView):

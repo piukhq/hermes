@@ -1,3 +1,4 @@
+import datetime
 import json
 from decimal import Decimal
 from unittest.mock import patch
@@ -200,7 +201,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
 
-    @patch('intercom.intercom_api')
+    @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation(self, *_):
         payload = {
@@ -231,10 +232,15 @@ class TestResources(APITestCase):
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
-    @patch('intercom.intercom_api')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_creation(self, mock_get_midas_balance, *_):
+    def test_membership_card_creation(self, mock_get_midas_balance, mock_date, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -312,7 +318,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
 
-    @patch('intercom.intercom_api')
+    @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_card_creation_filter(self, mock_get_midas_balance, *_):
@@ -417,7 +423,7 @@ class TestResources(APITestCase):
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
-    @patch('intercom.intercom_api')
+    @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_composite_payment_card_post(self, *_):
         new_sa = SchemeAccountEntryFactory(user=self.user).scheme_account
@@ -462,9 +468,13 @@ class TestResources(APITestCase):
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
-    @patch('intercom.intercom_api')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_composite_membership_card_post(self, mock_get_midas_balance, *_):
+    def test_composite_membership_card_post(self, mock_get_midas_balance, mock_date, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),

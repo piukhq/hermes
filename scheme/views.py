@@ -1,22 +1,18 @@
-import analytics
 import csv
 from io import StringIO
 
-from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
-from rest_framework.generics import UpdateAPIView
-from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
-from intercom import intercom_api
+import analytics
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -90,7 +86,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance.is_deleted = True
         instance.save()
 
-        analytics.update_scheme_account_attribute(instance)
+        analytics.update_scheme_account_attribute(instance, request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -224,7 +220,7 @@ class CreateJoinSchemeAccount(APIView):
             metadata,
             True
         )
-        analytics.update_scheme_account_attribute(account)
+        analytics.update_scheme_account_attribute(account, user)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)

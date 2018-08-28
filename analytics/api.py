@@ -34,8 +34,8 @@ def reset_user_settings(user):
     update_attributes(user, dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES))
 
 
-def update_scheme_account_attribute(account):
-    update_attribute(account.user, account.scheme.company, "{},{},{},{}".format(
+def update_scheme_account_attribute(account, user):
+    update_attribute(user, account.scheme.company, "{},{},{},{}".format(
         str(account.is_deleted).lower(),
         account.status_key,
         _get_today_datetime().strftime("%Y/%m/%d"),

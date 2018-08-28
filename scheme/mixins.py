@@ -10,7 +10,7 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.generics import get_object_or_404
 
-from intercom import intercom_api
+import analytics
 from scheme.encyption import AESCipher
 from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer
 from scheme.serializers import (JoinSerializer, MidasUserConsentSerializer, UpdateCredentialSerializer,
@@ -58,10 +58,8 @@ class BaseLinkMixin(object):
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account, user)
+
         return response_data
 
 
@@ -97,19 +95,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
-            try:
-                metadata = {
-                    'scheme name': scheme.name,
-                }
-                intercom_api.post_intercom_event(
-                    settings.INTERCOM_TOKEN,
-                    user.uid,
-                    intercom_api.MY360_APP_EVENT,
-                    metadata
-                )
-
-            except intercom_api.IntercomException:
-                pass
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            analytics.post_event(
+                user,
+                analytics.events.MY360_APP_EVENT,
+                metadata,
+                True
+            )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -175,10 +169,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     user_consent.status = ConsentStatus.SUCCESS
                     user_consent.save()
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 
@@ -258,10 +249,7 @@ class SchemeAccountJoinMixin:
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 
