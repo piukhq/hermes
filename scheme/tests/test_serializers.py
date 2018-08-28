@@ -5,17 +5,12 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
-from scheme.models import SchemeCredentialQuestion
-from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer, SchemeSerializer
-from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeFactory)
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer, \
-    UserConsentSerializer, UpdateUserConsentSerializer, MidasUserConsentSerializer
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory,\
-    ConsentFactory, UserConsentFactory
-from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus
-from unittest.mock import MagicMock, patch
-
+from scheme.models import ConsentStatus, JourneyTypes, SchemeCredentialQuestion
+from scheme.serializers import (CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
+                                MidasUserConsentSerializer, SchemeSerializer, UpdateUserConsentSerializer,
+                                UserConsentSerializer)
+from scheme.tests.factories import (ConsentFactory, SchemeAccountFactory, SchemeCredentialQuestionFactory,
+                                    SchemeFactory, UserConsentFactory)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 

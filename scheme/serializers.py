@@ -481,10 +481,11 @@ class JoinSerializer(SchemeAnswerSerializer):
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
-        required_question_types = []
-        for question in scheme.join_questions:
-            if question.required:
-                required_question_types.append(question.type)
+        required_question_types = [
+            question.type
+            for question in scheme.join_questions
+            if question.required
+        ]
 
         # Validate scheme join questions
         if not required_question_types:
@@ -497,6 +498,9 @@ class JoinSerializer(SchemeAnswerSerializer):
                                               "to \"Join & Link\" for scheme: {}".format(scheme))
 
         # Validate request join questions
+        return self._validate_join_questions(scheme, data)
+
+    def _validate_join_questions(self, scheme, data):
         request_join_question_types = data.keys()
         data['credentials'] = {}
         for question in scheme.join_questions:

@@ -7,14 +7,8 @@ from faker import Factory
 
 from scheme import models
 from scheme.credentials import USER_NAME
-from scheme.models import Consent
-from scheme.models import Consent, UserConsent, JourneyTypes, ConsentStatus
-from faker import Factory
-from scheme.credentials import USER_NAME
-from django.utils import timezone
-
+from scheme.models import Consent, ConsentStatus, JourneyTypes, UserConsent
 from user.tests.factories import UserFactory
-
 
 fake = Factory.create()
 

@@ -360,8 +360,8 @@ class SchemeAccount(models.Model):
         """
         required_credentials = {
             question.type for question in self.scheme.questions.filter(
-            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-        )
+                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
+            )
         }
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question

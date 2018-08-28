@@ -50,6 +50,10 @@ coverage = "==4.0.1"
 factory_boy = "==2.5.2"
 fake-factory = "==0.5.9"
 httpretty = "==0.8.14"
+pytest = "*"
+pytest-cov = "*"
+"flake8" = "*"
+xenon = "*"
 
 [requires]
 python_version = "3.6"
