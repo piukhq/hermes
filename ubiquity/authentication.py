@@ -20,11 +20,11 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             if bundle.client.client_id != organisation_id:
                 raise KeyError
 
-            user_id = jwt.decode(token, bundle.client.secret, verify=True, algorithms=['HS512'])['User ID']
+            external_id = jwt.decode(token, bundle.client.secret, verify=True, algorithms=['HS512'])['User ID']
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
-        return bundle, user_id
+        return bundle, external_id
 
     def authenticate(self, request):
         token = self.get_token(request, b'bearer')
@@ -43,9 +43,9 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
         if not token or "." not in token:
             return None
 
-        bundle, email = self.authenticate_credentials(token)
+        bundle, external_id = self.authenticate_credentials(token)
         try:
-            user = CustomUser.objects.get(email=email, client=bundle.client)
+            user = CustomUser.objects.get(external_id=external_id, client=bundle.client)
         except CustomUser.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 

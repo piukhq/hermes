@@ -20,8 +20,8 @@ class TestPaymentCardAccountImages(APITestCase):
         organisation = OrganisationFactory(name='set up authentication')
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
-        email = 'test@user.com'
-        cls.user = UserFactory(email=email, client=client)
+        external_id = 'test@user.com'
+        cls.user = UserFactory(external_id=external_id, client=client, email=external_id)
 
         # Payment cards
         cls.payment_card_account_entry = PaymentCardAccountEntryFactory(user=cls.user)
@@ -55,7 +55,7 @@ class TestPaymentCardAccountImages(APITestCase):
             SchemeImageFactory(image_type_code=3, scheme=cls.membership_card_account.scheme),
         ]
 
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
         super().setUpClass()
 
