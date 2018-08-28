@@ -1,3 +1,4 @@
+import analytics
 import csv
 from io import StringIO
 
@@ -8,6 +9,8 @@ from django.utils import timezone
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
+from rest_framework.generics import UpdateAPIView
+from rest_framework.generics import (RetrieveAPIView, ListAPIView, GenericAPIView, get_object_or_404, ListCreateAPIView)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
@@ -86,10 +89,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         instance = self.get_object()
         instance.is_deleted = True
         instance.save()
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, instance, request.user)
-        except intercom_api.IntercomException:
-            pass
+
+        analytics.update_scheme_account_attribute(instance)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -213,20 +214,17 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
         SchemeAccountEntry.objects.create(scheme_account=account, user=user)
 
-        try:
-            metadata = {
-                'company name': scheme.company,
-                'slug': scheme.slug
-            }
-            intercom_api.post_intercom_event(
-                settings.INTERCOM_TOKEN,
-                user.uid,
-                intercom_api.ISSUED_JOIN_CARD_EVENT,
-                metadata
-            )
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, account, user)
-        except intercom_api.IntercomException:
-            pass
+        metadata = {
+            'company name': scheme.company,
+            'slug': scheme.slug
+        }
+        analytics.post_event(
+            user,
+            analytics.events.ISSUED_JOIN_CARD_EVENT,
+            metadata,
+            True
+        )
+        analytics.update_scheme_account_attribute(account)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
