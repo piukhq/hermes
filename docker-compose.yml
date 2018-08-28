@@ -7,21 +7,10 @@ services:
   redis:
     image: redis:3
 
-  migrate:
-    depends_on:
-    - db
-    - influxdb
-    - redis
-    image: custom-hermes:latest
-    build: .
-    command: '/usr/local/bin/python manage.py migrate'
-    environment:
-    - HERMES_DATABASE_NAME=postgres
-    - HERMES_DATABASE_USER=postgres
-    - HERMES_DATABASE_HOST=db
-    - INFLUX_HOST=influxdb
-    - REDIS_HOST=redis
-
+  # the postgres db needs migrations
+  # please run: docker exec -it NAME_OF_HERMES_CONTAINER  bash
+  # followed by: python manage.py migrate
+  # and: python manage.py createsuperuser
   hermes:
     depends_on:
     - db
@@ -38,3 +27,10 @@ services:
     - HERMES_DATABASE_HOST=db
     - INFLUX_HOST=influxdb
     - REDIS_HOST=redis
+    - NO_AZURE_STORAGE=False
+    - HERMES_STATIC_URL=https://bink.blob.core.windows.net/dev-static/hermes/
+    - HERMES_MEDIA_ROOT=/media/hermes/media/
+    - AZURE_ACCOUNT_NAME=bink
+    - AZURE_ACCOUNT_KEY=xaeP9dmuYEWf/gthvteUj2utPcIM/B4dPRPoyHAd22LEI/6l/XJhYnzu2I66rI7PEdgoyvvDKJNYcmxd9vsLhA==
+    - AZURE_CONTAINER=dev-media/hermes
+    - AZURE_CUSTOM_DOMAIN=https://content.bink-dev.com/hermes
