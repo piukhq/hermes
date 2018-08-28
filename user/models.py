@@ -1,11 +1,11 @@
+import base64
+import os
+import random
 import uuid
 from string import ascii_letters, digits
 
 import arrow
-import base64
 import jwt
-import os
-import random
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
@@ -166,6 +166,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
     salt = models.CharField(max_length=8)
+    external_id = models.CharField(max_length=50, db_index=True, null=True, blank=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -174,7 +175,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
-        unique_together = ('client', 'email',)
 
     def get_full_name(self):
         return self.email

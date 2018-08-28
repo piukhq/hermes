@@ -117,8 +117,8 @@ class TestResources(APITestCase):
         organisation = OrganisationFactory(name='set up authentication')
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
-        email = 'test@user.com'
-        self.user = UserFactory(email=email, client=client)
+        external_id = 'test@user.com'
+        self.user = UserFactory(external_id=external_id, client=client, email=external_id)
         self.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
 
@@ -138,7 +138,7 @@ class TestResources(APITestCase):
         self.payment_card_account = self.payment_card_account_entry.payment_card_account
         self.payment_card = self.payment_card_account.payment_card
 
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_get_single_payment_card(self):
@@ -549,8 +549,8 @@ class TestMembershipCardCredentials(APITestCase):
         organisation = OrganisationFactory(name='set up authentication for credentials')
         client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
-        email = 'credentials@user.com'
-        self.user = UserFactory(email=email, client=client)
+        external_id = 'credentials@user.com'
+        self.user = UserFactory(external_id=external_id, client=client, email=external_id)
         self.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True, field_type=0)
@@ -566,7 +566,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, email).get_token()
+        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_update_new_and_existing_credentials(self):

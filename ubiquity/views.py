@@ -18,8 +18,8 @@ from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountS
                                 ListSchemeAccountSerializer)
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
-from ubiquity.influx_audit import audit
 from ubiquity.censor_empty_fields import censor_and_decorate
+from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
@@ -71,12 +71,13 @@ class ServiceView(ModelViewSet):
             'client_id': request.bundle.client.pk,
             'bundle_id': request.bundle.bundle_id,
             'email': consent_data['email'],
-            'uid': request.prop_id,
+            'external_id': request.prop_id,
             'password': str(uuid.uuid4()).lower().replace('-', 'A&')
         }
 
         try:
-            user = CustomUser.objects.get(email=new_user_data['email'], client=request.bundle.client)
+            user = CustomUser.objects.get(email=new_user_data['email'], client=request.bundle.client,
+                                          external_id=request.prop_id)
         except CustomUser.DoesNotExist:
             status_code = 201
             new_user = NewRegisterSerializer(data=new_user_data)

@@ -44,13 +44,17 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
     uid = serializers.CharField(read_only=True)
+    external_id = serializers.CharField(required=False, max_length=50)
 
     def create(self, validated_data):
         email = validated_data['email']
         password = validated_data['password']
-
+        external_id = validated_data.get('external_id')
         client_id = validated_data.get('client_id')
-        if client_id:
+
+        if client_id and external_id:
+            user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id)
+        elif client_id:
             user = CustomUser.objects.create_user(email, password, client_id=client_id)
         else:
             user = CustomUser.objects.create_user(email, password)
@@ -77,6 +81,7 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+
     def validate(self, data):
         data = super().validate(data)
         email = CustomUser.objects.normalize_email(data['email'])
