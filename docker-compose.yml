@@ -1,0 +1,40 @@
+version: '3'
+services:
+  db:
+    image: postgres:latest
+  influxdb:
+    image: influxdb:latest
+  redis:
+    image: redis:3
+
+  migrate:
+    depends_on:
+    - db
+    - influxdb
+    - redis
+    image: custom-hermes:latest
+    build: .
+    command: '/usr/local/bin/python manage.py migrate'
+    environment:
+    - HERMES_DATABASE_NAME=postgres
+    - HERMES_DATABASE_USER=postgres
+    - HERMES_DATABASE_HOST=db
+    - INFLUX_HOST=influxdb
+    - REDIS_HOST=redis
+
+  hermes:
+    depends_on:
+    - db
+    - influxdb
+    - redis
+    image: custom-hermes:latest
+    build: .
+    ports:
+    - 9000:9000
+    command: '/usr/local/bin/uwsgi --http :9000 --chdir /app --wsgi-file hermes/wsgi.py --master --threads "2" --processes "4"'
+    environment:
+    - HERMES_DATABASE_NAME=postgres
+    - HERMES_DATABASE_USER=postgres
+    - HERMES_DATABASE_HOST=db
+    - INFLUX_HOST=influxdb
+    - REDIS_HOST=redis

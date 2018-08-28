@@ -354,10 +354,13 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
 
+REDIS_HOST = env_var('REDIS_HOST', 'localhost')
+REDIS_PORT = env_var('REDIS_PORT', 6379)
+
 cache_options = {
     'redis': {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://localhost:6379/1",
+        "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },
