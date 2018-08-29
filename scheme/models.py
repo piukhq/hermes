@@ -3,22 +3,22 @@ import re
 import socket
 import sre_constants
 import uuid
+from enum import Enum, IntEnum
 
 import arrow
 import requests
-from enum import Enum, IntEnum
-
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
-from django.db import models
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.utils import timezone
 from django.template.defaultfilters import truncatewords
+from django.utils import timezone
+
+from common.models import Image
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 
