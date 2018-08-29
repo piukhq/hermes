@@ -9,7 +9,7 @@ from scheme.encyption import AESCipher
 from rest_framework.test import APITestCase
 from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory
+    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory, UserConsentFactory
 from scheme.tests.factories import ConsentFactory
 from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import CreateMy360AccountsAndLink
@@ -50,6 +50,15 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_account_answer_password = SchemeCredentialAnswerFactory(answer="test_password",
                                                                            question=password_question,
                                                                            scheme_account=cls.scheme_account)
+        cls.consent = ConsentFactory.create(
+            scheme=cls.scheme,
+            slug=secrets.token_urlsafe()
+        )
+        metadata1 = {'journey': JourneyTypes.LINK.value}
+        metadata2 = {'journey': JourneyTypes.JOIN.value}
+        cls.scheme_account_consent1 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata1)
+        cls.scheme_account_consent2 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata2)
+
         cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
         barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
@@ -120,7 +129,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
-    def test_delete_sctest_delete_schemes_accountshemes_accounts(self, mock_date, mock_update_custom_attr):
+    def test_delete_schemes_account(self, mock_date, mock_update_custom_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
@@ -142,7 +151,49 @@ class TestSchemeAccountViews(APITestCase):
     @patch('intercom.intercom_api.update_user_custom_attribute')
     @patch('intercom.intercom_api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+    def test_link_schemes_account_no_consents(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+        link_scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
+        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account.user.create_token()}
+        data = {
+            CARD_NUMBER: "London",
+            PASSWORD: "sdfsdf",
+        }
+
+        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
+                                    data=data, **auth_headers, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+
+        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+
+        self.assertEqual(
+            mock_update_custom_attr.call_args[0][3],
+            "false,ACTIVE,2000/05/19,{}".format(link_scheme_account.scheme.slug)
+        )
+
+    @patch('intercom.intercom_api.update_user_custom_attribute')
+    @patch('intercom.intercom_api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
@@ -156,37 +207,33 @@ class TestSchemeAccountViews(APITestCase):
 
         test_reply = True
         test_reply2 = False
+        consent1 = ConsentFactory.create(scheme=self.scheme_account.scheme, slug=secrets.token_urlsafe())
+        consent2 = ConsentFactory.create(scheme=self.scheme_account.scheme, slug=secrets.token_urlsafe(),
+                                         required=False)
 
-        consent1 = ConsentFactory.create(
-            scheme=self.scheme_account.scheme,
-            slug=secrets.token_urlsafe()
-        )
-
-        consent2 = ConsentFactory.create(
-            scheme=self.scheme_account.scheme,
-            slug=secrets.token_urlsafe(),
-            required=False
-        )
-
-        data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
-                "consents": [
-                    {"id": "{}".format(consent1.id), "value": test_reply},
-                    {"id": "{}".format(consent2.id), "value": test_reply2}
-                ]
-                }
+        data = {
+            CARD_NUMBER: "London",
+            PASSWORD: "sdfsdf",
+            "consents": [
+                {"id": "{}".format(self.consent.id), "value": test_reply},
+                {"id": "{}".format(consent1.id), "value": test_reply},
+                {"id": "{}".format(consent2.id), "value": test_reply2}
+            ]
+        }
 
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
 
         set_values = UserConsent.objects.filter(scheme_account=self.scheme_account).values()
-        self.assertEqual(len(set_values), 2, "Incorrect number of consents found expected 2")
-        for set_value in set_values:
-            if set_value['slug'] == consent1.slug:
-                self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
-            elif set_value['slug'] == consent2.slug:
-                self.assertEqual(set_value['value'], test_reply2, "Incorrect Consent value set")
+        self.assertEqual(len(set_values), 5, "Incorrect number of consents found expected 5")
+        saved_consents = [self.consent, consent1, consent2]
+        for consent in saved_consents:
+            user_consent = UserConsent.objects.get(scheme_account=self.scheme_account, slug=consent.slug)
+            if consent is consent2:
+                self.assertEqual(user_consent.value, test_reply2)
             else:
-                self.assertTrue(False, "Consents not set")
+                self.assertEqual(user_consent.value, test_reply)
+
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
@@ -194,36 +241,6 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
 
-        self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
-        )
-
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_put_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-        manual_question_type = self.scheme_account.scheme.manual_question.type
-        data = {manual_question_type: "Scotland"}
-        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                   data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
-        self.assertEqual(response.data[manual_question_type], "Scotland")
-        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
         self.assertEqual(
             mock_update_custom_attr.call_args[0][3],
             "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
@@ -337,18 +354,34 @@ class TestSchemeAccountViews(APITestCase):
             'title': 'mr'
         })
 
+    def test_scheme_account_collect_consents(self):
+        consents = self.scheme_account.collect_consents()
+
+        self.assertEqual(len(consents), 2)
+        expected_keys = {'id', 'slug', 'value', 'created_on', 'journey_type'}
+        for consent in consents:
+            self.assertEqual(set(consent.keys()), expected_keys)
+
+    def test_scheme_account_collect_consents_no_data(self):
+        self.assertEqual(self.scheme_account1.collect_consents(), [])
+
     def test_scheme_account_third_party_identifier(self):
         self.assertEqual(self.scheme_account.third_party_identifier, self.second_scheme_account_answer.answer)
         self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
-            self.scheme_account.credentials(user_consents=[])))
+            self.scheme_account.credentials()))
 
-        self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
-                                                 'password': 'test_password',
-                                                 'username': self.scheme_account_answer.answer,
-                                                 'consents': []})
+        self.assertEqual(decrypted_credentials['card_number'], self.second_scheme_account_answer.answer)
+        self.assertEqual(decrypted_credentials['password'], 'test_password')
+        self.assertEqual(decrypted_credentials['username'], self.scheme_account_answer.answer)
+
+        consents = decrypted_credentials['consents']
+        self.assertEqual(len(consents), 2)
+        expected_keys = {'id', 'slug', 'value', 'created_on', 'journey_type'}
+        for consent in consents:
+            self.assertEqual(set(consent.keys()), expected_keys)
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, user=self.user)
@@ -1034,9 +1067,7 @@ class TestSchemeAccountViews(APITestCase):
         mock_request.return_value.json.return_value = {'message': 'success'}
 
         scheme = SchemeFactory()
-        link_question = SchemeCredentialQuestionFactory(scheme=scheme,
-                                                        type=USER_NAME,
-                                                        manual_question=True,
+        link_question = SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True,
                                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
