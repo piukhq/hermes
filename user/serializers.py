@@ -43,6 +43,7 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
+    uid = serializers.CharField(read_only=True)
     external_id = serializers.CharField(required=False, max_length=50)
 
     def create(self, validated_data):
@@ -75,6 +76,7 @@ class RegisterSerializer(serializers.Serializer):
         ret = OrderedDict()
         ret['email'] = instance.email
         ret['api_key'] = instance.create_token()
+        ret['uid'] = instance.uid
         return ret
 
 
@@ -230,6 +232,7 @@ class TwitterRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
+    uid = serializers.CharField(read_only=True)
 
 
 class ResetTokenSerializer(serializers.Serializer):

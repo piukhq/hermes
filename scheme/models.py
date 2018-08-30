@@ -4,6 +4,7 @@ import socket
 import sre_constants
 import uuid
 from decimal import Decimal
+from enum import Enum, IntEnum
 
 import arrow
 import requests
@@ -48,8 +49,9 @@ def _default_transaction_headers():
 
 class Scheme(models.Model):
     TIERS = (
-        (1, 'Bink'),
-        (2, 'Show'),
+        (1, 'PLL'),
+        (2, 'Basic'),
+        (3, 'Partner'),
     )
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
@@ -157,15 +159,17 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class Consent(models.Model):
+class JourneyTypes(Enum):
     JOIN = 0
     LINK = 1
     ADD = 2
 
+
+class Consent(models.Model):
     journeys = (
-        (JOIN, 'join'),
-        (LINK, 'link'),
-        (ADD, 'add'),
+        (JourneyTypes.JOIN.value, 'join'),
+        (JourneyTypes.LINK.value, 'link'),
+        (JourneyTypes.ADD.value, 'add'),
     )
 
     check_box = models.BooleanField()
@@ -175,6 +179,8 @@ class Consent(models.Model):
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
+    slug = models.SlugField(max_length=50, help_text="Slug must match the opt-in field name in the request"
+                                                     " sent to the merchant e.g marketing_opt_in")
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
@@ -187,6 +193,9 @@ class Consent(models.Model):
 
     def __str__(self):
         return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
+
+    class Meta:
+        unique_together = ('slug', 'scheme', 'journey')
 
 
 class Exchange(models.Model):
@@ -265,6 +274,9 @@ class SchemeAccount(models.Model):
     NO_SUCH_RECORD = 444
     CONFIGURATION_ERROR = 536
     NOT_SENT = 535
+    ACCOUNT_ALREADY_EXISTS = 445
+    SERVICE_CONNECTION_ERROR = 537
+    VALIDATION_ERROR = 401
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -286,14 +298,17 @@ class SchemeAccount(models.Model):
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
         (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
-        (NOT_SENT, 'Request was not sent', 'NOT_SENT')
-
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT'),
+        (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
+        (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
+        (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
+                            ACCOUNT_ALREADY_EXISTS]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -364,23 +379,29 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self):
+    def credentials(self, user_consents=None):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None
+
+        if user_consents is not None:
+            credentials.update(consents=user_consents)
+
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self):
+    def get_midas_balance(self, user_consents=None):
         points = None
         try:
-            credentials = self.credentials()
+            credentials = self.credentials(user_consents)
             if not credentials:
                 return points
             response = self._get_balance(credentials)
             self.status = response.status_code
+            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+                self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
@@ -399,18 +420,19 @@ class SchemeAccount(models.Model):
             'credentials': credentials,
             'user_set': user_set,
             'status': self.status,
+            'journey_type': JourneyTypes.LINK.value,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)
         return response
 
-    def get_cached_balance(self):
+    def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance()
+            balance = self.get_midas_balance(user_consents=user_consents)
             balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
@@ -541,7 +563,7 @@ class SchemeAccount(models.Model):
         return answer
 
     def __str__(self):
-        return str(self.scheme.name)
+        return "{} - id: {}".format(self.scheme.name, self.id)
 
     class Meta:
         ordering = ['order', '-created']
@@ -686,12 +708,27 @@ def encryption_handler(sender, instance, **kwargs):
         instance.answer = encrypted_answer
 
 
+class ConsentStatus(IntEnum):
+    PENDING = 0
+    SUCCESS = 1
+    FAILED = 2
+
+
 class UserConsent(models.Model):
-    created_on = models.DateTimeField(auto_now_add=True)
-    modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
-    consent = models.ForeignKey(Consent, related_name='user_consent')
+    created_on = models.DateTimeField(default=timezone.now)
+    user = models.ForeignKey('user.CustomUser', null=True, on_delete=models.SET_NULL)
+    scheme = models.ForeignKey(Scheme, null=True, on_delete=models.SET_NULL)
+    scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
+    metadata = JSONField()
+    slug = models.SlugField(max_length=50)
     value = models.BooleanField()
+    status = models.IntegerField(choices=[(status.value, status.name) for status in ConsentStatus],
+                                 default=ConsentStatus.PENDING)
+
+    @property
+    def short_text(self):
+        metadata = dict(self.metadata)
+        return truncatewords(metadata.get('text'), 5)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
+        return '{} - {}: {}'.format(self.user, self.slug, self.value)

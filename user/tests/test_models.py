@@ -1,5 +1,5 @@
 from django.test import TestCase
-from user.models import Setting, UserSetting, CustomUser
+from user.models import Setting, UserSetting, CustomUser, UserDetail
 
 
 class TestSettings(TestCase):
@@ -37,3 +37,25 @@ class TestUserSettings(TestCase):
     def test_to_boolean_invalid_value(self):
         user_setting = UserSetting(user=self.user, value='not_a_number')
         self.assertIsNone(user_setting.to_boolean())
+
+
+class TestUserProfile(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.user = CustomUser(email='test@test.com')
+        cls.user_profile = UserDetail(user=cls.user)
+        super().setUpClass()
+
+    def test_set_field_no_conversion(self):
+        phone_number = '123'
+        self.user_profile.set_field('phone', phone_number)
+        self.assertEqual(self.user_profile.phone, phone_number)
+
+    def test_set_field_with_conversion(self):
+        test_address_1 = '1 ascot road'
+        self.user_profile.set_field('address_1', test_address_1)
+        self.assertEqual(self.user_profile.address_line_1, test_address_1)
+
+    def test_set_field_bad_attribute(self):
+        with self.assertRaises(AttributeError):
+            self.user_profile.set_field('bad_field', 'bad')

@@ -10,10 +10,11 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.generics import get_object_or_404
 
-from intercom import intercom_api
+import analytics
 from scheme.encyption import AESCipher
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import JoinSerializer, UpdateCredentialSerializer
+from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer
+from scheme.serializers import (JoinSerializer, MidasUserConsentSerializer, UpdateCredentialSerializer,
+                                UserConsentSerializer)
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 
 
@@ -26,21 +27,39 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account, user):
+        consent_data = []
+        user_consents = []
+        midas_consent_data = None
+
+        if 'consents' in data:
+            consent_data = data.pop('consents')
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+
+            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+            midas_consent_data = user_consent_serializer.data
+
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
-        midas_information = scheme_account.get_cached_balance()
+
+        midas_information = scheme_account.get_cached_balance(user_consents=midas_consent_data)
+
         response_data = {
-            'balance': {**midas_information},
+            'balance': midas_information,
             'status': scheme_account.status,
             'status_name': scheme_account.status_name
         }
         response_data.update(dict(data))
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+
+        if consent_data and scheme_account.status == SchemeAccount.ACTIVE:
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
+
+        analytics.update_scheme_account_attribute(scheme_account, user)
+
         return response_data
 
 
@@ -76,19 +95,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
-            try:
-                metadata = {
-                    'scheme name': scheme.name,
-                }
-                intercom_api.post_intercom_event(
-                    settings.INTERCOM_TOKEN,
-                    user.uid,
-                    intercom_api.MY360_APP_EVENT,
-                    metadata
-                )
-
-            except intercom_api.IntercomException:
-                pass
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            analytics.post_event(
+                user,
+                analytics.events.MY360_APP_EVENT,
+                metadata,
+                True
+            )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -102,7 +117,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'answer': data[answer_type]
             }
             scheme_account = SchemeAccountCredentialAnswer.objects.get(**query).scheme_account
-            data['id'] = scheme_account.id
 
             if scheme_account.is_deleted:
                 scheme_account.is_deleted = False
@@ -115,6 +129,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         except SchemeAccountCredentialAnswer.DoesNotExist:
             scheme_account = self._create_account(user, data, answer_type)
 
+        data['id'] = scheme_account.id
         return scheme_account, data
 
     @staticmethod
@@ -147,11 +162,14 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 answer=data[answer_type],
             )
 
-        data['id'] = scheme_account.id
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+            if 'consents' in data:
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
+                UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+                for user_consent in user_consents:
+                    user_consent.status = ConsentStatus.SUCCESS
+                    user_consent.save()
+
+        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 
@@ -166,11 +184,24 @@ class SchemeAccountJoinMixin:
             'user': request.user
         })
         serializer.is_valid(raise_exception=True)
-        serializer.save()  # Save consents
         data = serializer.validated_data
         data['scheme'] = scheme_id
         scheme_account = self.create_join_account(data, request.user, scheme_id)
+
         try:
+            if 'consents' in serializer.validated_data:
+                consent_data = serializer.validated_data.pop('consents')
+
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, request.user)
+                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+                # Deserialize the user consent instances formatted to send to Midas
+                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
+                for user_consent in user_consents:
+                    user_consent.save()
+
+                data['credentials'].update(consents=user_consent_serializer.data)
+
             data['id'] = scheme_account.id
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], request.user)
@@ -181,15 +212,21 @@ class SchemeAccountJoinMixin:
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
             return response_dict, status.HTTP_201_CREATED
-
+        except serializers.ValidationError:
+            self.handle_failed_join(scheme_account)
+            raise
         except Exception as e:
-            scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-            [answer.delete() for answer in scheme_account_answers]
-            scheme_account.status = SchemeAccount.JOIN
-            scheme_account.save()
-            sentry.captureException()
+            self.handle_failed_join(scheme_account)
+            return {'message': 'Unknown error with join'}, status.HTTP_200_OK
 
-            return {'message': 'Error with join'}, status.HTTP_200_OK
+    @staticmethod
+    def handle_failed_join(scheme_account):
+        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
+        [answer.delete() for answer in scheme_account_answers]
+
+        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.save()
+        sentry.captureException()
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
@@ -212,10 +249,7 @@ class SchemeAccountJoinMixin:
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
-        try:
-            intercom_api.update_account_status_custom_attribute(settings.INTERCOM_TOKEN, scheme_account, user)
-        except intercom_api.IntercomException:
-            pass
+        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 
@@ -223,8 +257,8 @@ class SchemeAccountJoinMixin:
     def save_user_profile(credentials, user):
         for question, answer in credentials.items():
             try:
-                setattr(user.profile, question, answer)
-            except Exception:
+                user.profile.set_field(question, answer)
+            except AttributeError:
                 continue
         user.profile.save()
 
@@ -243,11 +277,12 @@ class SchemeAccountJoinMixin:
         data = {
             'scheme_account_id': scheme_account.id,
             'credentials': encrypted_credentials,
-            'user_id': user_id
+            'user_id': user_id,
+            'status': scheme_account.status,
+            'journey_type': JourneyTypes.JOIN.value
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug),
-                                 json=data, headers=headers)
+        response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug), json=data, headers=headers)
 
         message = response.json().get('message')
         if not message == "success":
@@ -262,6 +297,9 @@ class UpdateCredentialsMixin:
         serializer = UpdateCredentialSerializer(data=data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        if 'consents' in data:
+            data.pop('consents')
+
         updated_credentials = []
 
         for credential_type in data.keys():

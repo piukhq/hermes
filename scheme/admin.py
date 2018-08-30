@@ -2,10 +2,11 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
+from scheme.forms import ConsentForm
 from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeAccountImage, SchemeBalanceDetails, SchemeCredentialQuestion,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, SchemeDetail,
-                           SchemeImage, UserConsent)
+                           SchemeCredentialQuestionChoice,
+                           SchemeCredentialQuestionChoiceValue, SchemeDetail, SchemeImage, UserConsent)
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -93,8 +94,8 @@ class SchemeAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeImage)
 class SchemeImageAdmin(admin.ModelAdmin):
-    list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('scheme', 'status', 'created')
+    list_display = ('scheme', 'description', 'image_type_code_name', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('scheme', 'image_type_code', 'status', 'created')
     search_fields = ('scheme__name', 'description')
     raw_id_fields = ('scheme',)
 
@@ -136,8 +137,8 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeAccountImage)
 class SchemeAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('scheme', 'description', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('scheme', 'status', 'created')
+    list_display = ('scheme', 'description', 'image_type_code_name', 'status', 'start_date', 'end_date', 'created',)
+    list_filter = ('scheme', 'image_type_code', 'status', 'created')
     search_fields = ('scheme__name', 'description')
     raw_id_fields = ('scheme_accounts',)
 
@@ -168,13 +169,14 @@ class ExchangeAdmin(admin.ModelAdmin):
 
 @admin.register(UserConsent)
 class UserConsentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'consent', 'value', 'created_on', 'modified_on')
-    search_fields = ('user__email', 'consent__scheme__slug', 'value')
-    list_filter = ('consent__scheme__slug', 'value', 'consent__journey', 'consent__required', 'consent__is_enabled')
+    list_display = ('id', 'slug', 'scheme_account', 'status', 'short_text', 'value', 'created_on')
+    search_fields = ('scheme_account', 'user', 'slug', 'journey', 'metadata__text', 'value')
+    readonly_fields = ('metadata', 'value', 'scheme_account', 'slug', 'created_on', 'user', 'scheme', 'status')
 
 
 @admin.register(Consent)
 class ConsentAdmin(admin.ModelAdmin):
+    form = ConsentForm
     list_display = ('id', 'check_box', 'short_text', 'scheme', 'is_enabled', 'required', 'order',
                     'journey', 'created_on', 'modified_on')
     search_fields = ('scheme__slug', 'text')
@@ -182,6 +184,11 @@ class ConsentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Consent.all_objects.all()
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:  # editing an existing object
+            return self.readonly_fields + ('slug', 'check_box')
+        return self.readonly_fields
 
 
 class SchemeCredentialQuestionChoiceValueInline(admin.TabularInline):

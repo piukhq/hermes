@@ -215,6 +215,7 @@ LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
 HADES_URL = env_var('HADES_URL', 'http://dev.hades.loyaltyangels.local')
+MNEMOSYNE_URL = env_var('MNEMOSYNE_URL', 'http://mnemosyne.test')
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 
@@ -323,12 +324,6 @@ if env_var('HERMES_NO_DB_TEST', False):
 
 FILE_UPLOAD_PERMISSIONS = 0o755
 
-# INTERCOM_TOKEN default value is for testing
-INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')
-INTERCOM_HOST = 'https://api.intercom.io'
-INTERCOM_USERS_PATH = 'users'
-INTERCOM_EVENTS_PATH = 'events'
-
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',
                  '675911', '557062', '557061', '556677', '554988', '554987', '554397', '554201', '554112', '552140',
@@ -359,10 +354,13 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
 
+REDIS_HOST = env_var('REDIS_HOST', 'localhost')
+REDIS_PORT = env_var('REDIS_PORT', 6379)
+
 cache_options = {
     'redis': {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://localhost:6379/1",
+        "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },

@@ -1,5 +1,6 @@
 import datetime
 import json
+import secrets
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
@@ -8,10 +9,11 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
-from scheme.credentials import (BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME, LAST_NAME, PASSWORD, PHONE,
-                                TITLE, USER_NAME)
+from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
+                                LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import Consent, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, UserConsent
+from scheme.models import (JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion,
+                           UserConsent)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory,
                                     SchemeAccountImageFactory, SchemeCredentialAnswerFactory,
@@ -86,7 +88,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual(0, len(resp.json()))
 
-    def test_join_account(self):
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_join_account(self, mock_send_to_mnemosyne):
         join_scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
@@ -119,15 +122,18 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['action_status'], 'ACTIVE')
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
-    def test_delete_sctest_delete_schemes_accountshemes_accounts(self, mock_date, mock_update_custom_attr):
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    def test_delete_sctest_delete_schemes_accountshemes_accounts(self, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "true,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(self.scheme_account.scheme.company): 'true,ACTIVE,2000/05/19,{}'.format(
+                    self.scheme_account.scheme.slug)
+            }
         )
 
         deleted_scheme_account = SchemeAccount.all_objects.get(id=self.scheme_account.id)
@@ -140,10 +146,10 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+    def test_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
@@ -160,14 +166,13 @@ class TestSchemeAccountViews(APITestCase):
 
         consent1 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=1
+            slug=secrets.token_urlsafe()
         )
 
         consent2 = ConsentFactory.create(
             scheme=self.scheme_account.scheme,
-            journey=Consent.LINK,
-            order=2
+            slug=secrets.token_urlsafe(),
+            required=False
         )
 
         data = {CARD_NUMBER: "London", PASSWORD: "sdfsdf",
@@ -177,17 +182,15 @@ class TestSchemeAccountViews(APITestCase):
                 ]
                 }
 
-        # add an existing conesent to user consents to verify updates correctly
-        UserConsent.objects.create(user=self.user, consent=consent2, value=not test_reply2)
-
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers, format='json')
-        set_values = UserConsent.objects.filter(user=self.user).values()
+
+        set_values = UserConsent.objects.filter(scheme_account=self.scheme_account).values()
         self.assertEqual(len(set_values), 2, "Incorrect number of consents found expected 2")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
-            elif set_value['consent_id'] == consent2.id:
+            elif set_value['slug'] == consent2.slug:
                 self.assertEqual(set_value['value'], test_reply2, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consents not set")
@@ -196,17 +199,20 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
 
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(self.scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
+                    self.scheme_account.scheme.slug)
+            }
         )
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_put_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_custom_attr):
+    def test_put_link_schemes_account(self, mock_get_midas_balance, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
@@ -227,10 +233,13 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data[manual_question_type], "Scotland")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
+        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "false,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(self.scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
+                    self.scheme_account.scheme.slug)
+            }
         )
 
     def test_list_schemes_accounts(self):
@@ -244,9 +253,9 @@ class TestSchemeAccountViews(APITestCase):
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
-    def test_wallet_only(self, mock_date, mock_update_custom_attr):
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    def test_wallet_only(self, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
 
         scheme = SchemeFactory()
@@ -262,8 +271,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(SchemeAccount.objects.get(pk=content['id']).status, SchemeAccount.WALLET_ONLY)
 
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "false,WALLET_ONLY,2000/05/19,{}".format(scheme.slug)
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(scheme.company): 'false,WALLET_ONLY,2000/05/19,{}'.format(scheme.slug)
+            }
         )
 
     def test_scheme_account_update_status(self):
@@ -346,11 +357,12 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_encrypted_credentials(self):
         decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
-            self.scheme_account.credentials()))
+            self.scheme_account.credentials(user_consents=[])))
 
         self.assertEqual(decrypted_credentials, {'card_number': self.second_scheme_account_answer.answer,
                                                  'password': 'test_password',
-                                                 'username': self.scheme_account_answer.answer})
+                                                 'username': self.scheme_account_answer.answer,
+                                                 'consents': []})
 
     def test_scheme_account_encrypted_credentials_bad(self):
         scheme_account = SchemeAccountFactory(scheme=self.scheme)
@@ -385,11 +397,12 @@ class TestSchemeAccountViews(APITestCase):
                     return False
         return True
 
-    @patch('intercom.intercom_api.post_intercom_event')
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
-    def test_create_join_account_and_notify_intercom(self, mock_date, mock_update_custom_attr,
-                                                     mock_post_intercom_event):
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_attribute')
+    @patch('analytics.api._get_today_datetime')
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_create_join_account_and_notify_analytics(self, mock_post_event, mock_date,
+                                                      mock_update_attr, mock_send_to_mnemosyne):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         scheme = SchemeFactory()
 
@@ -414,21 +427,21 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIn('scheme', json)
         self.assertIn('status', json)
 
-        self.assertEqual(mock_post_intercom_event.call_count, 1)
-        self.assertEqual(len(mock_post_intercom_event.call_args[0]), 4)
+        self.assertEqual(mock_post_event.call_count, 1)
+        self.assertEqual(len(mock_post_event.call_args), 2)
 
-        self.assertEqual(mock_update_custom_attr.call_count, 1)
-        self.assertEqual(len(mock_update_custom_attr.call_args[0]), 4)
-        self.assertEqual(mock_update_custom_attr.call_args[0][2], scheme.company)
+        self.assertEqual(mock_update_attr.call_count, 1)
+        self.assertEqual(len(mock_update_attr.call_args[0]), 3)
+        self.assertEqual(mock_update_attr.call_args[0][1], scheme.company)
 
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
+            mock_update_attr.call_args[0][2],
             "false,JOIN,2000/05/19,{}".format(scheme.slug)
         )
 
-    @patch('intercom.intercom_api.post_intercom_event')
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_create_join_account_against_user_setting(self, mock_update_custom_attr, mock_post_intercom_event):
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_attributes')
+    def test_create_join_account_against_user_setting(self, mock_update_attr, mock_post_event):
         scheme = SchemeFactory()
 
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, manual_question=True)
@@ -447,8 +460,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(json['code'], 200)
         self.assertEqual(json['message'], 'User has disabled join cards for this scheme')
 
-        self.assertFalse(mock_post_intercom_event.called)
-        self.assertFalse(mock_update_custom_attr.called)
+        self.assertFalse(mock_post_event.called)
+        self.assertFalse(mock_update_attr.called)
 
     def test_register_join_endpoint_missing_credential_question(self):
         scheme = SchemeFactory()
@@ -559,7 +572,7 @@ class TestSchemeAccountViews(APITestCase):
         test_reply = 1
         consent1 = ConsentFactory.create(
             scheme=scheme,
-            journey=Consent.JOIN,
+            journey=JourneyTypes.JOIN.value,
             order=1
         )
 
@@ -573,10 +586,13 @@ class TestSchemeAccountViews(APITestCase):
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data, format='json')
 
-        set_values = UserConsent.objects.filter(user=self.user).values()
+        new_scheme_account = SchemeAccountEntry.objects.get(
+            user=self.user, scheme_account__scheme=scheme).scheme_account
+
+        set_values = UserConsent.objects.filter(scheme_account=new_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         for set_value in set_values:
-            if set_value['consent_id'] == consent1.id:
+            if set_value['slug'] == consent1.slug:
                 self.assertEqual(set_value['value'], test_reply, "Incorrect Consent value set")
             else:
                 self.assertTrue(False, "Consent not set")
@@ -619,19 +635,23 @@ class TestSchemeAccountViews(APITestCase):
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-        SchemeCredentialQuestionFactory(scheme=scheme,
-                                        type=EMAIL,
-                                        manual_question=True,
+        SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, manual_question=True,
                                         options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PHONE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=TITLE, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=FIRST_NAME, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=LAST_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_1, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_2, options=SchemeCredentialQuestion.JOIN)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=TOWN_CITY, options=SchemeCredentialQuestion.JOIN)
 
         phone_number = '01234567890'
         title = 'mr'
         first_name = 'bob'
         last_name = 'test'
+        address_1 = '1 ascot road'
+        address_2 = 'caversham'
+        town_city = 'ascot'
         data = {
             'save_user_information': True,
             'order': 2,
@@ -642,6 +662,9 @@ class TestSchemeAccountViews(APITestCase):
             'title': title,
             'first_name': first_name,
             'last_name': last_name,
+            'address_1': address_1,
+            'address_2': address_2,
+            'town_city': town_city,
         }
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 201)
@@ -651,6 +674,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(user_profile.phone, phone_number)
         self.assertEqual(user_profile.first_name, first_name)
         self.assertEqual(user_profile.last_name, last_name)
+        self.assertEqual(user_profile.address_line_1, address_1)
+        self.assertEqual(user_profile.address_line_2, address_2)
+        self.assertEqual(user_profile.city, town_city)
 
     @patch('requests.post', auto_spec=True, return_value=MagicMock())
     def test_register_join_endpoint_set_scheme_status_to_join_on_fail(self, mock_request):
@@ -675,8 +701,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(mock_request.called)
 
         resp_json = resp.json()
-        self.assertIn('Error with join', resp_json['message'])
-        sae = SchemeAccountEntry.objects.filter(user=self.user, scheme_account__scheme__id=scheme.id).first()
+        self.assertIn('Unknown error with join', resp_json['message'])
+        sae = SchemeAccountEntry.objects.get(user=self.user, scheme_account__scheme__id=scheme.id)
         self.assertEqual(sae.scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=sae.scheme_account.id)
@@ -804,6 +830,20 @@ class TestSchemeAccountModel(APITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
 
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_invalid_status(self, mock_request):
+        invalid_status = 502
+        mock_request.return_value.status_code = invalid_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        # check this status hasn't been added to scheme account status
+        self.assertNotIn(invalid_status, [status[0] for status in SchemeAccount.EXTENDED_STATUSES])
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
+
 
 class TestAccessTokens(APITestCase):
     @classmethod
@@ -840,9 +880,9 @@ class TestAccessTokens(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestAccessTokens, cls).setUpClass()
 
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    @patch('intercom.intercom_api._get_today_datetime')
-    def test_retrieve_scheme_accounts(self, mock_date, mock_update_custom_attr):
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    def test_retrieve_scheme_accounts(self, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
 
         # GET Request
@@ -854,8 +894,11 @@ class TestAccessTokens(APITestCase):
         response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 204)
         self.assertEqual(
-            mock_update_custom_attr.call_args[0][3],
-            "true,ACTIVE,2000/05/19,{}".format(self.scheme_account.scheme.slug)
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(self.scheme_account.scheme.company):
+                    'true,ACTIVE,2000/05/19,{}'.format(self.scheme_account.scheme.slug)
+            }
         )
 
         response = self.client.delete('/schemes/accounts/{}'.format(self.scheme_account2.id), **self.auth_headers)
@@ -866,17 +909,18 @@ class TestAccessTokens(APITestCase):
         self.scheme_account.save()
 
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_credentials(self, mock_get_midas_balance):
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_link_credentials(self, mock_send_to_mnemosyne, mock_get_midas_balance):
         mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
+            'value': '10',
+            'points': '100',
             'points_label': '100',
             'value_label': "$10",
             'reward_tier': 0,
-            'balance': Decimal('20'),
+            'balance': '20',
             'is_stale': False
         }
-        data = {CARD_NUMBER: "London"}
+        data = {CARD_NUMBER: "London", 'consents': []}
         # Test Post Method
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
                                     data=data, **self.auth_headers)

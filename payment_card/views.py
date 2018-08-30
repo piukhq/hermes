@@ -10,13 +10,11 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import generics, serializers as rest_framework_serializers, status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from intercom import intercom_api
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -69,11 +67,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
 
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance, request.user)
-        except intercom_api.IntercomException:
-            sentry.captureException()
-
         return Response(serializer.data)
 
     def delete(self, request, *args, **kwargs):
@@ -95,11 +88,6 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             'date': arrow.get(instance.created).timestamp}, headers={
             'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
             'Content-Type': 'application/json'})
-
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, instance, request.user)
-        except intercom_api.IntercomException:
-            sentry.captureException()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -154,11 +142,6 @@ class ListCreatePaymentCardAccount(APIView):
                 # if the payment card exists already in another user, link it to this user and import all the scheme
                 # accounts currently linked to it.
                 self._link_account_to_new_user(account, user)
-
-            try:
-                intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, account, user)
-            except intercom_api.IntercomException:
-                sentry.captureException()
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
             return response_serializer.data, status.HTTP_201_CREATED, account
@@ -360,12 +343,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
-
-        try:
-            intercom_api.update_payment_account_custom_attribute(settings.INTERCOM_TOKEN, payment_card_account,
-                                                                 request.user)
-        except intercom_api.IntercomException:
-            sentry.captureException()
 
         return Response({
             'id': payment_card_account.id,
