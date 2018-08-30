@@ -58,10 +58,6 @@ class BaseLinkMixin(object):
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
             UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
 
-            for user_consent in user_consents:
-                user_consent.status = ConsentStatus.SUCCESS
-                user_consent.save()
-
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
@@ -76,8 +72,14 @@ class BaseLinkMixin(object):
         response_data['status_name'] = scheme_account.status_name
         response_data.update(dict(data))
 
-        if scheme_account.status != SchemeAccount.ACTIVE:
+        if scheme_account.status == SchemeAccount.ACTIVE:
             for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
+        else:
+            user_consents = scheme_account.collect_pending_consents()
+            for user_consent in user_consents:
+                user_consent = UserConsent.objects.get(id=user_consent['id'])
                 user_consent.delete()
 
         analytics.update_scheme_account_attribute(scheme_account)
@@ -854,7 +856,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 for user_consent in user_consents:
                     user_consent.save()
 
-                user_consents = scheme_account.collect_consents()
+                user_consents = scheme_account.collect_pending_consents()
                 data['credentials'].update(consents=user_consents)
 
             data['id'] = scheme_account.id

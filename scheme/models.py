@@ -372,25 +372,27 @@ class SchemeAccount(models.Model):
             self.save()
             return None
 
-        saved_consents = self.collect_consents()
+        saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def collect_consents(self):
-        user_consents = self.userconsent_set.all().values()
+    def collect_pending_consents(self):
+        user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
+        formatted_user_consents = []
+        for user_consent in user_consents:
+            formatted_user_consents.append(
+                {
+                    "id": user_consent['id'],
+                    "slug": user_consent['slug'],
+                    "value": user_consent['value'],
+                    "created_on": arrow.get(user_consent['created_on']).for_json(),
+                    "journey_type": user_consent['metadata']['journey']
+                }
+            )
 
-        return [
-            {
-                "id": user_consent['id'],
-                "slug": user_consent['slug'],
-                "value": user_consent['value'],
-                "created_on": arrow.get(user_consent['created_on']).for_json(),
-                "journey_type": user_consent['metadata']['journey']
-            }
-            for user_consent in user_consents
-        ]
+        return formatted_user_consents
 
     def get_midas_balance(self):
         points = None

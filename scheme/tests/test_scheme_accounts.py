@@ -11,7 +11,7 @@ from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, Lis
 from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
     SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory, UserConsentFactory
 from scheme.tests.factories import ConsentFactory
-from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
+from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, ConsentStatus
 from scheme.views import CreateMy360AccountsAndLink
 from user.models import Setting
 from scheme.models import JourneyTypes
@@ -56,8 +56,10 @@ class TestSchemeAccountViews(APITestCase):
         )
         metadata1 = {'journey': JourneyTypes.LINK.value}
         metadata2 = {'journey': JourneyTypes.JOIN.value}
-        cls.scheme_account_consent1 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata1)
-        cls.scheme_account_consent2 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata2)
+        cls.scheme_account_consent1 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata1,
+                                                         status=ConsentStatus.PENDING)
+        cls.scheme_account_consent2 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata2,
+                                                         status=ConsentStatus.SUCCESS)
 
         cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
@@ -236,6 +238,7 @@ class TestSchemeAccountViews(APITestCase):
         saved_consents = [self.consent, consent1, consent2]
         for consent in saved_consents:
             user_consent = UserConsent.objects.get(scheme_account=self.scheme_account, slug=consent.slug)
+            self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
             if consent is consent2:
                 self.assertEqual(user_consent.value, test_reply2)
             else:
@@ -254,6 +257,38 @@ class TestSchemeAccountViews(APITestCase):
                     self.scheme_account.scheme.slug)
             }
         )
+
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,
+                                                                 mock_update_attr):
+        error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = None
+
+        metadata = {'journey': JourneyTypes.LINK.value}
+        success_scheme_account_consent = UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata,
+                                                            status=ConsentStatus.SUCCESS)
+        UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata, status=ConsentStatus.PENDING)
+        test_reply = True
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + error_scheme_account.user.create_token()}
+        data = {
+            CARD_NUMBER: "London",
+            PASSWORD: "sdfsdf",
+            "consents": [
+                {"id": "{}".format(self.consent.id), "value": test_reply},
+            ]
+        }
+
+        response = self.client.post('/schemes/accounts/{0}/link'.format(error_scheme_account.id),
+                                    data=data, **auth_headers, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        set_values = UserConsent.objects.filter(scheme_account=error_scheme_account).values()
+        self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
+        successful_consent = set_values[0]
+        self.assertEqual(successful_consent['id'], success_scheme_account_consent.id)
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
@@ -365,16 +400,17 @@ class TestSchemeAccountViews(APITestCase):
             'title': 'mr'
         })
 
-    def test_scheme_account_collect_consents(self):
-        consents = self.scheme_account.collect_consents()
+    def test_scheme_account_collect_pending_consents(self):
+        consents = self.scheme_account.collect_pending_consents()
 
-        self.assertEqual(len(consents), 2)
+        self.assertEqual(len(consents), 1)
         expected_keys = {'id', 'slug', 'value', 'created_on', 'journey_type'}
-        for consent in consents:
-            self.assertEqual(set(consent.keys()), expected_keys)
+        consent = consents[0]
+        self.assertEqual(set(consent.keys()), expected_keys)
+        self.assertEqual(consent['id'], self.scheme_account_consent1.id)
 
-    def test_scheme_account_collect_consents_no_data(self):
-        self.assertEqual(self.scheme_account1.collect_consents(), [])
+    def test_scheme_account_collect_pending_consents_no_data(self):
+        self.assertEqual(self.scheme_account1.collect_pending_consents(), [])
 
     def test_scheme_account_third_party_identifier(self):
         self.assertEqual(self.scheme_account.third_party_identifier, self.second_scheme_account_answer.answer)
@@ -389,7 +425,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(decrypted_credentials['username'], self.scheme_account_answer.answer)
 
         consents = decrypted_credentials['consents']
-        self.assertEqual(len(consents), 2)
+        self.assertEqual(len(consents), 1)
         expected_keys = {'id', 'slug', 'value', 'created_on', 'journey_type'}
         for consent in consents:
             self.assertEqual(set(consent.keys()), expected_keys)
