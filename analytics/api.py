@@ -58,7 +58,8 @@ def update_attributes(user, attributes):
 def _send_to_mnemosyne(user, event=None, attributes=None):
 
     if not settings.MNEMOSYNE_URL:
-        raise PushError  # Defaults to None for now, but we cannot miss events
+        # assume we are not using mnemosine and avoid sending data
+        return None
 
     payload = {
         'service': 'hermes',
