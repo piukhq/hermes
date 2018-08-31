@@ -10,12 +10,12 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+import analytics
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
 from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import (CreateSchemeAccountSerializer, GetSchemeAccountSerializer, LinkSchemeSerializer,
-                                ListSchemeAccountSerializer)
+from scheme.serializers import (CreateSchemeAccountSerializer, LinkSchemeSerializer)
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -189,12 +189,10 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
 
 class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = MembershipCardSerializer
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'PATCH': MembershipCardSerializer,
-        'DELETE': GetSchemeAccountSerializer,
-        'OPTIONS': GetSchemeAccountSerializer,
+        'DELETE': MembershipCardSerializer,
     }
 
     def get_queryset(self):
@@ -222,7 +220,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        return super().delete(request, *args, **kwargs)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        instance.is_deleted = True
+        instance.save()
+
+        analytics.update_scheme_account_attribute(instance, request.user)
+        return Response(serializer.data)
 
     @staticmethod
     @censor_and_decorate
@@ -260,7 +264,6 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'POST': CreateSchemeAccountSerializer,
-        'OPTIONS': ListSchemeAccountSerializer,
     }
 
     def get_queryset(self):
