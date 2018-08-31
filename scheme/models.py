@@ -3,20 +3,22 @@ import re
 import socket
 import sre_constants
 import uuid
-import requests
 from enum import Enum, IntEnum
 
+import arrow
+import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
-from django.db import models
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.utils import timezone
 from django.template.defaultfilters import truncatewords
+from django.utils import timezone
+
+from common.models import Image
 from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
 from scheme.encyption import AESCipher
 
@@ -363,23 +365,39 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self, user_consents=None):
+    def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             self.status = SchemeAccount.INCOMPLETE
             self.save()
             return None
 
-        if user_consents is not None:
-            credentials.update(consents=user_consents)
+        saved_consents = self.collect_pending_consents()
+        credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self, user_consents=None):
+    def collect_pending_consents(self):
+        user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
+        formatted_user_consents = []
+        for user_consent in user_consents:
+            formatted_user_consents.append(
+                {
+                    "id": user_consent['id'],
+                    "slug": user_consent['slug'],
+                    "value": user_consent['value'],
+                    "created_on": arrow.get(user_consent['created_on']).for_json(),
+                    "journey_type": user_consent['metadata']['journey']
+                }
+            )
+
+        return formatted_user_consents
+
+    def get_midas_balance(self):
         points = None
         try:
-            credentials = self.credentials(user_consents)
+            credentials = self.credentials()
             if not credentials:
                 return points
             response = self._get_balance(credentials)
