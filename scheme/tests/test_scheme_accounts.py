@@ -1268,6 +1268,46 @@ class TestSchemeAccountViews(APITestCase):
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
 
+    def test_update_user_consent(self):
+        user_consent = UserConsentFactory(status=ConsentStatus.PENDING)
+        data = {'status': ConsentStatus.SUCCESS.value}
+
+        resp = self.client.put('/schemes/user_consent/{}'.format(user_consent.id), **self.auth_service_headers,
+                               data=data)
+        self.assertEqual(resp.status_code, 200)
+        user_consent.refresh_from_db()
+        self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
+
+    def test_update_user_consents_with_failed_deletes_consent(self):
+        user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
+        data = {'status': ConsentStatus.FAILED.value}
+
+        resp = self.client.put('/schemes/user_consent/{}'.format(user_consent.id), **self.auth_service_headers,
+                               data=data)
+        self.assertEqual(resp.status_code, 400)
+        user_consent.refresh_from_db()
+        self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
+
+    def test_update_user_consents_cant_delete_success_consent(self):
+        user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
+        data = {'status': ConsentStatus.FAILED.value}
+
+        resp = self.client.put('/schemes/user_consent/{}'.format(user_consent.id), **self.auth_service_headers,
+                               data=data)
+        self.assertEqual(resp.status_code, 400)
+        user_consent.refresh_from_db()
+        self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
+
+    def test_update_user_consents_cant_update_success_consent(self):
+        user_consent = UserConsentFactory(status=ConsentStatus.SUCCESS)
+        data = {'status': ConsentStatus.PENDING.value}
+
+        resp = self.client.put('/schemes/user_consent/{}'.format(user_consent.id), **self.auth_service_headers,
+                               data=data)
+        self.assertEqual(resp.status_code, 400)
+        user_consent.refresh_from_db()
+        self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
+
 
 class TestSchemeAccountModel(APITestCase):
     def test_missing_credentials(self):

@@ -164,7 +164,8 @@ class UpdateUserConsent(UpdateAPIView):
 
     def put(self, request, *args, **kwargs):
         if request.data.get('status') == ConsentStatus.FAILED:
-            serializer = self.get_serializer(data=request.data)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
             serializer.is_valid(raise_exception=True)
 
             consent = self.get_object()
