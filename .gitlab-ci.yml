@@ -49,6 +49,19 @@ build-master:
   only:
     - tags
 
+build-ubiquity:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --pull -t "$CI_REGISTRY/hermes:ubiquity" .
+    - docker push "$CI_REGISTRY/hermes:ubiquity"
+  only:
+    - feature/ubiquity
+
 deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
@@ -60,6 +73,18 @@ deploy-dev:
     - kubectl delete po $(kubectl get po --no-headers=true -l run=hermes -o custom-columns=:metadata.name)
   only:
     - develop
+
+deploy-ubiquity:
+  stage: deploy
+  image: binkops.azurecr.io/kubedeployer:latest
+  environment: dev
+  script:
+    - bash collectstatic.sh
+    - ENVIRONMENT=dev deploystatic
+    - kubectl config use-context dev
+    - kubectl delete po $(kubectl get po -n ukbanking --no-headers=true -l project=hermes -o custom-columns=:metadata.name -n ukbanking) -n ukbanking
+  only:
+    - feature/ubiquity
 
 deploy-staging:
   stage: deploy
