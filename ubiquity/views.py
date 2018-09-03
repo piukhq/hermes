@@ -359,7 +359,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
         audit.write_to_db(updated_entries, many=True)
 
 
-class CreateDeleteLinkView(ModelViewSet):
+class CardLinkView(ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
 
     @censor_and_decorate
@@ -489,7 +489,13 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
         return Response(message, status=status_code)
 
 
-class MembershipPlans(ModelViewSet, IdentifyCardMixin):
+class MembershipPlanView(ModelViewSet):
+    authentication_classes = (PropertyAuthentication,)
+    queryset = Scheme.objects
+    serializer_class = MembershipPlanSerializer
+
+
+class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
     queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
@@ -507,12 +513,6 @@ class MembershipPlans(ModelViewSet, IdentifyCardMixin):
 
         scheme = get_object_or_404(Scheme, id=json['scheme_id'])
         return Response(MembershipPlanSerializer(scheme).data)
-
-
-class MembershipPlan(ModelViewSet):
-    authentication_classes = (PropertyAuthentication,)
-    queryset = Scheme.objects
-    serializer_class = MembershipPlanSerializer
 
 
 class MembershipTransactionView(ModelViewSet):

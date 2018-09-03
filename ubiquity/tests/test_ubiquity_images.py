@@ -55,7 +55,7 @@ class TestPaymentCardAccountImages(APITestCase):
             SchemeImageFactory(image_type_code=3, scheme=cls.membership_card_account.scheme),
         ]
 
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
+        token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
         super().setUpClass()
 

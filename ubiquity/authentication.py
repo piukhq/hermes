@@ -17,7 +17,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             bundle_id = token_data['Bundle ID']
             organisation_id = token_data['Organisation ID']
             bundle = self.model.objects.get(bundle_id=bundle_id)
-            if bundle.client.client_id != organisation_id:
+            if bundle.client.organisation.name != organisation_id:
                 raise KeyError
 
             external_id = jwt.decode(token, bundle.client.secret, verify=True, algorithms=['HS512'])['User ID']
@@ -31,9 +31,9 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         if not token or "." not in token:
             return None
 
-        bundle, user_id = self.authenticate_credentials(token)
+        bundle, external_id = self.authenticate_credentials(token)
         setattr(request, 'bundle', bundle)
-        setattr(request, 'prop_id', user_id)
+        setattr(request, 'prop_id', external_id)
         return bundle, None
 
 

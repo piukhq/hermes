@@ -34,7 +34,7 @@ class TestRegistration(APITestCase):
 
     def test_service_registration(self):
         data = {
-            'client_id': self.bundle.client.client_id,
+            'organisation_id': self.bundle.client.organisation.name,
             'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id
         }
@@ -55,7 +55,7 @@ class TestRegistration(APITestCase):
         bundle = ClientApplicationBundleFactory(bundle_id='test.other.user', client=client)
 
         data = {
-            'client_id': bundle.client.client_id,
+            'organisation_id': bundle.client.organisation.name,
             'client_secret': bundle.client.secret,
             'bundle_id': bundle.bundle_id
         }
@@ -73,7 +73,7 @@ class TestRegistration(APITestCase):
 
     def test_service_registration_wrong_data(self):
         data = {
-            'client_id': self.bundle.client.client_id,
+            'organisation_id': self.bundle.client.organisation.name,
             'client_secret': self.bundle.client.secret,
             'bundle_id': self.bundle.bundle_id,
         }
@@ -93,7 +93,7 @@ class TestRegistration(APITestCase):
 
     def test_service_registration_wrong_header(self):
         data = {
-            'client_id': self.bundle.client.client_id,
+            'organisation_id': self.bundle.client.organisation.name,
             'client_secret': self.bundle.client.secret,
             'bundle_id': 'wrong bundle id'
         }
@@ -138,7 +138,7 @@ class TestResources(APITestCase):
         self.payment_card_account = self.payment_card_account_entry.payment_card_account
         self.payment_card = self.payment_card_account.payment_card
 
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
+        token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_get_single_payment_card(self):
@@ -566,7 +566,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        token = GenerateJWToken(client.client_id, client.secret, bundle.bundle_id, external_id).get_token()
+        token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     def test_update_new_and_existing_credentials(self):
