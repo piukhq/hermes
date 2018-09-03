@@ -2,7 +2,7 @@ from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer, \
-    UserConsentSerializer, UpdateUserConsentSerializer, MidasUserConsentSerializer
+    UserConsentSerializer, UpdateUserConsentSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory,\
     ConsentFactory, UserConsentFactory
 from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
@@ -277,21 +277,3 @@ class TestUpdateUserConsentSerializer(TestCase):
         serializer = self.serializer_class(user_consent, data={'status': 0})
 
         self.assertFalse(serializer.is_valid())
-
-
-class TestMidasUserConsentSerializer(TestCase):
-    def setUp(self):
-        self.serializer_class = MidasUserConsentSerializer
-        self.scheme = SchemeFactory()
-        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        self.user_consent1 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
-        self.user_consent2 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
-        self.user_consent3 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
-
-    def test_serializer_returns_correct_fields(self):
-        consents = [self.user_consent1, self.user_consent2, self.user_consent3]
-        consents_data = self.serializer_class(consents, many=True)
-
-        expected_fields = {'id', 'slug', 'value', 'created_on'}
-        for consent_dict in consents_data.data:
-            self.assertEqual(set(consent_dict.keys()), expected_fields)

@@ -28,7 +28,7 @@ from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSche
                                 SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
                                 SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
                                 QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
-                                MidasUserConsentSerializer, UpdateUserConsentSerializer)
+                                UpdateUserConsentSerializer)
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -51,24 +51,19 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account):
-        consent_data = []
         user_consents = []
-        midas_consent_data = None
 
         if 'consents' in data:
             consent_data = data.pop('consents')
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
             UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
 
-            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
-            midas_consent_data = user_consent_serializer.data
-
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
 
-        midas_information = scheme_account.get_midas_balance(user_consents=midas_consent_data)
+        midas_information = scheme_account.get_midas_balance()
 
         response_data = {
             'balance': midas_information
@@ -77,10 +72,15 @@ class BaseLinkMixin(object):
         response_data['status_name'] = scheme_account.status_name
         response_data.update(dict(data))
 
-        if consent_data and scheme_account.status == SchemeAccount.ACTIVE:
+        if scheme_account.status == SchemeAccount.ACTIVE:
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
+        else:
+            user_consents = scheme_account.collect_pending_consents()
+            for user_consent in user_consents:
+                user_consent = UserConsent.objects.get(id=user_consent['id'])
+                user_consent.delete()
 
         analytics.update_scheme_account_attribute(scheme_account)
 
@@ -161,6 +161,18 @@ class UpdateUserConsent(UpdateAPIView):
     authentication_classes = (ServiceAuthentication,)
     queryset = UserConsent.objects.all()
     serializer_class = UpdateUserConsentSerializer
+
+    def put(self, request, *args, **kwargs):
+        if request.data.get('status') == ConsentStatus.FAILED:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            consent = self.get_object()
+            consent.delete()
+            return Response(serializer.data)
+        else:
+            return self.update(request, *args, **kwargs)
 
 
 class LinkCredentials(BaseLinkMixin, GenericAPIView):
@@ -842,12 +854,11 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data)
                 UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
 
-                # Deserialize the user consent instances formatted to send to Midas
-                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
                 for user_consent in user_consents:
                     user_consent.save()
 
-                data['credentials'].update(consents=user_consent_serializer.data)
+                user_consents = scheme_account.collect_pending_consents()
+                data['credentials'].update(consents=user_consents)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
