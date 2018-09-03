@@ -79,8 +79,6 @@ deploy-ubiquity:
   image: binkops.azurecr.io/kubedeployer:latest
   environment: dev
   script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=dev deploystatic
     - kubectl config use-context dev
     - kubectl delete po $(kubectl get po -n ukbanking --no-headers=true -l project=hermes -o custom-columns=:metadata.name -n ukbanking) -n ukbanking
   only:
