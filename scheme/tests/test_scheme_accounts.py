@@ -327,7 +327,8 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_update_status(self):
         data = {
-            'status': 9
+            'status': 9,
+            'journey': 'join'
         }
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id), data=data,
                                     **self.auth_service_headers)
@@ -337,7 +338,10 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
-                                    data={'status': 112},
+                                    data={
+                                        'status': 112,
+                                        'journey': None
+                                    },
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])

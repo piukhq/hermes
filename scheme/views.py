@@ -538,13 +538,25 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+
+        journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+
+        needs_saving = False
+
+        if journey == 'join':
+            scheme_account.join_date = timezone.now()
+            needs_saving = True
+
         if new_status_code != scheme_account.status:
             scheme_account.status = new_status_code
+            needs_saving = True
+
+        if needs_saving:
             scheme_account.save()
 
         return Response({
