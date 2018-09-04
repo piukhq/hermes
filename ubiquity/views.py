@@ -308,6 +308,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
             return scheme_account, status.HTTP_201_CREATED
 
         else:
+            # todo implement enrol
             raise NotImplemented
 
     @staticmethod

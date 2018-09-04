@@ -10,7 +10,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
 from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import IssuerFactory
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -134,9 +134,11 @@ class TestResources(APITestCase):
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
-        self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user)
-        self.payment_card_account = self.payment_card_account_entry.payment_card_account
-        self.payment_card = self.payment_card_account.payment_card
+        issuer = IssuerFactory(name='Barclays')
+        self.payment_card = PaymentCardFactory(slug='launchpad-visa', system='visa')
+        self.payment_card_account = PaymentCardAccountFactory(issuer=issuer, payment_card=self.payment_card)
+        self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
+                                                                         payment_card_account=self.payment_card_account)
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
@@ -209,14 +211,11 @@ class TestResources(APITestCase):
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
                 "first_six_digits": 523456,
-                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
-                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
                 "year": 22,
                 "month": 3,
-                "country": "UK",
                 "order": 1
             },
             "account": {
@@ -339,14 +338,11 @@ class TestResources(APITestCase):
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
                 "first_six_digits": 523456,
-                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
-                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
                 "year": 22,
                 "month": 3,
-                "country": "UK",
                 "order": 1
             },
             "account": {
@@ -363,10 +359,13 @@ class TestResources(APITestCase):
         self.assertIn('issuer not allowed', resp.json()['detail'])
 
         payload = {
-            "order": 1,
             "membership_plan": self.scheme.id,
-            "barcode": "3038401022657083",
-            "last_name": "Test"
+            "add_fields": [
+                {
+                    "column": "barcode",
+                    "value": "3038401022657083"
+                }
+            ]
         }
         resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
         self.assertIn('membership plan not allowed', resp.json()['detail'])
@@ -432,14 +431,11 @@ class TestResources(APITestCase):
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
                 "first_six_digits": 523456,
-                "issuer": self.payment_card_account_entry.payment_card_account.issuer.id,
-                "payment_card": self.payment_card_account_entry.payment_card_account.payment_card.id,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
                 "year": 22,
                 "month": 3,
-                "country": "UK",
                 "order": 1
             },
             "account": {

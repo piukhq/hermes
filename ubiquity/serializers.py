@@ -2,6 +2,7 @@ import arrow
 from arrow.parser import ParserError
 from rest_framework import serializers
 
+from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
@@ -145,16 +146,24 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 class PaymentCardTranslationSerializer(serializers.Serializer):
     pan_start = serializers.IntegerField(source='first_six_digits')
     pan_end = serializers.IntegerField(source='last_four_digits')
-    issuer = serializers.IntegerField()
-    payment_card = serializers.IntegerField()
+    issuer = serializers.SerializerMethodField()
+    payment_card = serializers.SerializerMethodField()
     name_on_card = serializers.CharField()
     token = serializers.CharField()
     fingerprint = serializers.CharField()
     expiry_year = serializers.IntegerField(source='year')
     expiry_month = serializers.IntegerField(source='month')
-    country = serializers.CharField()
+    country = serializers.CharField(required=False, default='UK')
     order = serializers.IntegerField(required=False, default=0)
     currency_code = serializers.CharField(required=False, default='GBP')
+
+    @staticmethod
+    def get_issuer(_):
+        return Issuer.objects.get(name='Barclays').id
+
+    @staticmethod
+    def get_payment_card(_):
+        return PaymentCard.objects.get(slug='launchpad-visa').id
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
