@@ -25,7 +25,7 @@ class GenerateJWToken:
 
 
 if __name__ == '__main__':
-    bundle = 'com.bink.wallet'
-    organisation = 'Loyalty Angels'
-    secret = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
+    bundle = 'com.barclays.test'
+    organisation = 'Barclays'
+    secret = "R8aLVYe10vbidYTXqdinXfLOeX00uYUUuzEmAfQsHUqQicTb0L"
     print(GenerateJWToken(organisation, secret, bundle, 'test@delete.mail').get_token())
