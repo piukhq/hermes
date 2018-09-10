@@ -1253,14 +1253,22 @@ class TestSchemeAccountViews(APITestCase):
                                         manual_question=True,
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+        consent = ConsentFactory(scheme=scheme)
 
         data = {
             'save_user_information': False,
             'order': 2,
             'username': 'testbink',
-            'password': 'password'
+            'password': 'password',
+            'consents': [
+                {
+                    "id": consent.id,
+                    "value": True
+                }
+            ]
 
         }
+
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(mock_request.called)
@@ -1271,6 +1279,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
+        with self.assertRaises(UserConsent.DoesNotExist):
+            UserConsent.objects.get(scheme_account_id=scheme_account.id)
 
     def test_update_user_consent(self):
         user_consent = UserConsentFactory(status=ConsentStatus.PENDING)
