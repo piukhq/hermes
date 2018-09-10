@@ -899,7 +899,10 @@ class Join(SwappableSerializerMixin, GenericAPIView):
     @staticmethod
     def handle_failed_join(scheme_account):
         scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        [answer.delete() for answer in scheme_account_answers]
+        for answer in scheme_account_answers:
+            answer.delete()
+
+        scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
