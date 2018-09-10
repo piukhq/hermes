@@ -13,10 +13,10 @@ class GenerateJWToken:
 
     def _format_payload(self, email):
         self.payload = {
-            "Organisation ID": self.organisation_id,
-            "Bundle ID": self.bundle_id,
-            "User ID": email or "test@binktest.com",
-            "Property ID": 'not currently used for authentication',
+            "organisation_id": self.organisation_id,
+            "bundle_id": self.bundle_id,
+            "user_id": email or "test@binktest.com",
+            "property_id": 'not currently used for authentication',
             "iat": arrow.utcnow().timestamp
         }
 
