@@ -14,13 +14,13 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
     def authenticate_credentials(self, token):
         try:
             token_data = jwt.decode(token, verify=False, algorithms=['HS512'])
-            bundle_id = token_data['Bundle ID']
-            organisation_id = token_data['Organisation ID']
+            bundle_id = token_data['bundle_id']
+            organisation_id = token_data['organisation_id']
             bundle = self.model.objects.get(bundle_id=bundle_id)
             if bundle.client.organisation.name != organisation_id:
                 raise KeyError
 
-            external_id = jwt.decode(token, bundle.client.secret, verify=True, algorithms=['HS512'])['User ID']
+            external_id = jwt.decode(token, bundle.client.secret, verify=True, algorithms=['HS512'])['user_id']
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
