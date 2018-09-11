@@ -337,6 +337,7 @@ class ReferenceImageSerializer(serializers.ModelSerializer):
 
 class StatusSerializer(serializers.Serializer):
     status = serializers.IntegerField()
+    journey = serializers.CharField()
 
 
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):

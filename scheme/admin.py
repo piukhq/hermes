@@ -6,6 +6,9 @@ from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue)
+import re
+
+slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -49,6 +52,13 @@ class SchemeForm(ModelForm):
                                   'exceed {}'.format(Scheme.MAX_POINTS_VALUE_LENGTH - 1))
 
         return point_name
+
+    def clean_slug(self):
+        slug = self.cleaned_data['slug']
+        if slug_regex.match(slug):
+            return slug
+        else:
+            raise ValidationError('Slug must only contain lowercase letters and hyphens')
 
 
 @admin.register(Scheme)

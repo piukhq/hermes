@@ -327,7 +327,8 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_update_status(self):
         data = {
-            'status': 9
+            'status': 9,
+            'journey': 'join'
         }
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id), data=data,
                                     **self.auth_service_headers)
@@ -337,7 +338,10 @@ class TestSchemeAccountViews(APITestCase):
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
-                                    data={'status': 112},
+                                    data={
+                                        'status': 112,
+                                        'journey': None
+                                    },
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
@@ -1249,14 +1253,22 @@ class TestSchemeAccountViews(APITestCase):
                                         manual_question=True,
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
+        consent = ConsentFactory(scheme=scheme)
 
         data = {
             'save_user_information': False,
             'order': 2,
             'username': 'testbink',
-            'password': 'password'
+            'password': 'password',
+            'consents': [
+                {
+                    "id": consent.id,
+                    "value": True
+                }
+            ]
 
         }
+
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(mock_request.called)
@@ -1267,6 +1279,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account.status_name, 'Join')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=scheme_account.id)
+        with self.assertRaises(UserConsent.DoesNotExist):
+            UserConsent.objects.get(scheme_account_id=scheme_account.id)
 
     def test_update_user_consent(self):
         user_consent = UserConsentFactory(status=ConsentStatus.PENDING)
