@@ -96,6 +96,7 @@ MIDDLEWARE = (
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'dictfilter.django.middleware.dictfilter_middleware',
+    'hermes.middleware.accept_version',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -144,7 +145,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-    )
+    ),
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning'
 }
 
 WSGI_APPLICATION = 'hermes.wsgi.application'
