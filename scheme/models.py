@@ -379,6 +379,38 @@ class SchemeAccount(models.Model):
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        manual_question = self.scheme.manual_question
+        scan_question = self.scheme.scan_question
+
+        # No need to save if one is missing since there will not be any regex conversion required
+        if not all([manual_question, scan_question]):
+            return credentials
+
+        questions = (manual_question.type, scan_question.type)
+
+        for index, question in enumerate(questions):
+            if question in credentials:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.question(question),
+                    scheme_account=self,
+                    defaults={'answer': credentials[question]})
+
+                # Update credentials with the missing identifier value if there is a regex conversion available.
+                missing_question = questions[abs(index - 1)]
+                value = getattr(self, missing_question)
+
+                if missing_question not in credentials and value is not None:
+                    credentials.update({missing_question: value})
+
+        return credentials
+
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
         formatted_user_consents = []
