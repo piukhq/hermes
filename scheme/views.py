@@ -949,10 +949,13 @@ class Join(SwappableSerializerMixin, GenericAPIView):
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(question_type),
                 scheme_account=scheme_account,
-                answer=credentials_dict[question_type])
+                defaults={'answer': credentials_dict[question_type]}
+            )
+
+        updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
 
         encrypted_credentials = AESCipher(
-            settings.AES_KEY.encode()).encrypt(json.dumps(credentials_dict)).decode('utf-8')
+            settings.AES_KEY.encode()).encrypt(json.dumps(updated_credentials)).decode('utf-8')
 
         data = {
             'scheme_account_id': scheme_account.id,

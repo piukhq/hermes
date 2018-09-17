@@ -1571,6 +1571,57 @@ class TestAccessTokens(APITestCase):
                                    **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
+    def test_update_or_create_primary_credentials_barcode_to_card_number(self):
+        scheme = SchemeFactory(card_number_regex='^([0-9]{19})([0-9]{5})$')
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        manual_question=True)
+
+        SchemeCredentialQuestionFactory(type=BARCODE,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        scan_question=True)
+
+        self.scheme_account.scheme = scheme
+
+        credentials = {'barcode': '633204003025524460012345'}
+        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        self.assertEqual(new_credentials, {'barcode': '633204003025524460012345',
+                                           'card_number': '6332040030255244600'})
+
+    def test_update_or_create_primary_credentials_card_number_to_barcode(self):
+        scheme = SchemeFactory(barcode_regex='^([0-9]{19})([0-9]{5})$')
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        manual_question=True)
+
+        SchemeCredentialQuestionFactory(type=BARCODE,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        scan_question=True)
+
+        self.scheme_account.scheme = scheme
+
+        credentials = {'card_number': '633204003025524460012345'}
+        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        self.assertEqual(new_credentials, {'card_number': '633204003025524460012345',
+                                           'barcode': '6332040030255244600'})
+
+    def test_update_or_create_primary_credentials_does_nothing_when_only_one_primary_cred_in_scheme(self):
+        scheme = SchemeFactory(card_number_regex='^([0-9]{19})([0-9]{5})$')
+        SchemeCredentialQuestionFactory(type=CARD_NUMBER,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        manual_question=True)
+
+        self.scheme_account.scheme = scheme
+
+        credentials = {'barcode': '633204003025524460012345'}
+        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        self.assertEqual(new_credentials, {'barcode': '633204003025524460012345'})
+
 
 class TestSchemeAccountImages(APITestCase):
     @classmethod
