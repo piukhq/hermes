@@ -41,7 +41,9 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         return datetime
 
     def to_representation(self, instance):
-        response = {'timestamp': int(instance.timestamp.timestamp())}
+
+        response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
+
         if instance.latitude and instance.longitude:
             response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
 
