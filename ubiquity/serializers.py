@@ -261,7 +261,7 @@ class SchemeDetailSerializer(serializers.ModelSerializer):
 class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeBalanceDetails
-        exclude = ('scheme_id',)
+        exclude = ('scheme_id', 'id')
 
 
 class MembershipPlanSerializer(serializers.ModelSerializer):
