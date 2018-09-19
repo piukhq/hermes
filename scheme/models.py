@@ -266,6 +266,7 @@ class SchemeAccount(models.Model):
     ACCOUNT_ALREADY_EXISTS = 445
     SERVICE_CONNECTION_ERROR = 537
     VALIDATION_ERROR = 401
+    PRE_REGISTERED_CARD = 406
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -291,10 +292,11 @@ class SchemeAccount(models.Model):
         (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
+        (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            ACCOUNT_ALREADY_EXISTS]
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
@@ -412,6 +414,11 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
+
+        if self.status == SchemeAccount.PRE_REGISTERED_CARD:
+            self.status = SchemeAccount.JOIN
+            for answer in self.schemeaccountcredentialanswer_set.all():
+                answer.delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
