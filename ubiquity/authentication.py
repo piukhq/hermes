@@ -17,6 +17,8 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             bundle_id = token_data['bundle_id']
             organisation_id = token_data['organisation_id']
             bundle = self.model.objects.get(bundle_id=bundle_id)
+            if token_data['property_id'] and token_data['iat']:
+                pass                                                # if not present will raise Key Error
             if bundle.client.organisation.name != organisation_id:
                 raise KeyError
 
