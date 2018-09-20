@@ -76,30 +76,26 @@ class ServiceView(ModelViewSet):
         }
 
         try:
-            user = CustomUser.objects.get(email=new_user_data['email'], client=request.bundle.client,
-                                          external_id=request.prop_id)
+            user = CustomUser.objects.get(client=request.bundle.client, external_id=request.prop_id)
         except CustomUser.DoesNotExist:
             status_code = 201
             new_user = NewRegisterSerializer(data=new_user_data)
             new_user.is_valid(raise_exception=True)
             user = new_user.save()
+            consent = self._add_consent(user, consent_data)
+        else:
+            if not user.is_active:
+                status_code = 201
+                user.is_active = True
+                user.save()
 
-        if not user.is_active:
-            status_code = 201
-            user.is_active = True
-            user.save()
+                if hasattr(user, 'serviceconsent'):
+                    user.serviceconsent.delete()
 
-        if hasattr(user, 'serviceconsent'):
-            user.serviceconsent.delete()
+                consent = self._add_consent(user, consent_data)
 
-        try:
-            consent = self.get_serializer(data={'user': user.pk, **consent_data})
-            consent.is_valid(raise_exception=True)
-            consent.save()
-        except ValidationError:
-            user.is_active = False
-            user.save()
-            raise ParseError
+            else:
+                consent = self.get_serializer(user.serviceconsent)
 
         return Response(consent.data, status=status_code)
 
@@ -110,6 +106,18 @@ class ServiceView(ModelViewSet):
         request.user.is_active = False
         request.user.save()
         return Response(response)
+
+    def _add_consent(self, user, consent_data):
+        try:
+            consent = self.get_serializer(data={'user': user.pk, **consent_data})
+            consent.is_valid(raise_exception=True)
+            consent.save()
+        except ValidationError:
+            user.is_active = False
+            user.save()
+            raise ParseError
+
+        return consent
 
 
 class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
