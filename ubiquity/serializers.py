@@ -40,9 +40,15 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
 
         return datetime
 
+    @staticmethod
+    def _is_valid(value):
+        if value or isinstance(value, (int, float)):
+            return True
+        return False
+
     def to_representation(self, instance):
         response = {'timestamp': int(instance.timestamp.timestamp())}
-        if instance.latitude and instance.longitude:
+        if self._is_valid(instance.latitude) and self._is_valid(instance.longitude):
             response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
 
         return {
