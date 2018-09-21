@@ -328,9 +328,9 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
     def _collect_credentials_answers(self, data):
         scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-        add_fields = self._collect_field_content('add_fields', data)
-        auth_fields = self._collect_field_content('authorise_fields', data)
-        enrol_fields = self._collect_field_content('enrol_fields', data)
+        add_fields = self._collect_field_content('add_fields', data['account'])
+        auth_fields = self._collect_field_content('authorise_fields', data['account'])
+        enrol_fields = self._collect_field_content('enrol_fields', data['account'])
 
         if not add_fields and not enrol_fields:
             raise ParseError()

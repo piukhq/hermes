@@ -251,18 +251,21 @@ class TestResources(APITestCase):
         }
         payload = {
             "membership_plan": self.scheme.id,
-            "add_fields": [
-                {
-                    "column": "barcode",
-                    "value": "3038401022657083"
-                }
-            ],
-            "authorise_fields": [
-                {
-                    "column": "last_name",
-                    "value": "Test"
-                }
-            ]
+            "account":
+            {
+                "add_fields": [
+                    {
+                        "column": "barcode",
+                        "value": "3038401022657083"
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "Test"
+                    }
+                ]
+            }
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **self.auth_headers)
@@ -360,14 +363,17 @@ class TestResources(APITestCase):
 
         payload = {
             "membership_plan": self.scheme.id,
-            "add_fields": [
-                {
-                    "column": "barcode",
-                    "value": "3038401022657083"
-                }
-            ]
+            "account": {
+                "add_fields": [
+                    {
+                        "column": "barcode",
+                        "value": "3038401022657083"
+                    }
+                ]
+            }
         }
-        resp = self.client.post(reverse('membership-cards'), data=payload, **self.auth_headers)
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
         self.assertIn('membership plan not allowed', resp.json()['detail'])
 
     @httpretty.activate
@@ -483,18 +489,20 @@ class TestResources(APITestCase):
         }
         payload = {
             "membership_plan": self.scheme.id,
-            "add_fields": [
-                {
-                    "column": "barcode",
-                    "value": "1234401022657083"
-                }
-            ],
-            "authorise_fields": [
-                {
-                    "column": "last_name",
-                    "value": "Test Composite"
-                }
-            ]
+            "account": {
+                "add_fields": [
+                    {
+                        "column": "barcode",
+                        "value": "1234401022657083"
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "Test Composite"
+                    }
+                ]
+            }
         }
         expected_links = {
             'id': new_pca.id,
