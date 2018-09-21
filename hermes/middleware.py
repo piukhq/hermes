@@ -17,11 +17,7 @@ def accept_version(get_response):
             except ValueError:
                 pass
             request.META['HTTP_ACCEPT'] = 'application/json;version={}'.format(version_number)
-            request.path_info = '/ubiquity{}'.format(request.path_info)
-            request.path = '/ubiquity{}'.format(request.path)
-
         response = get_response(request)
-
         return response
 
     return middleware
