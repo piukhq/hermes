@@ -149,6 +149,13 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
+    def get_question_type_dict(self):
+        result = {0: {}, 1: {}, 2: {}}
+        for question in self.questions.all():
+            result[question.field_type].update({question.label: question.type})
+
+        return result
+
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
 
@@ -613,10 +620,10 @@ class SchemeCredentialQuestion(models.Model):
     # ubiquity fields
     validation = models.TextField(null=True, blank=True, max_length=250)
     description = models.CharField(null=True, blank=True, max_length=250)
-    common_name = models.CharField(null=True, blank=True, max_length=50)
+    # common_name = models.CharField(null=True, blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(null=True, blank=True, choices=FIELD_TYPE_CHOICES)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES)
 
     @property
     def required(self):

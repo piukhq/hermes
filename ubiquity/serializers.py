@@ -248,7 +248,8 @@ class ActiveCardAuditSerializer(serializers.ModelSerializer):
 
 
 class SchemeQuestionSerializer(serializers.ModelSerializer):
-    column = serializers.CharField(source='type')
+    column = serializers.CharField(source='label')
+    common_name = serializers.CharField(source='type')
     type = serializers.IntegerField(source='answer_type')
 
     class Meta:
@@ -409,7 +410,7 @@ class MembershipCardSerializer(serializers.Serializer):
         for answer in instance.schemeaccountcredentialanswer_set.all():
             if answer.question.field_type:
                 fields_type[answer.question.field_type].append({
-                    'column': answer.question.type,
+                    'column': answer.question.label,
                     'value': answer.clean_answer()
                 })
 

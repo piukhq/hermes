@@ -320,17 +320,22 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
             raise NotImplemented
 
     @staticmethod
-    def _collect_field_content(field, data):
-        return {
-            item['column']: item['value']
-            for item in data[field]
-        } if field in data else None
+    def _collect_field_content(field, data, label_to_type):
+        try:
+            return {
+                label_to_type[item['column']]: item['value']
+                for item in data[field]
+            } if field in data else None
+        except KeyError:
+            raise ParseError('column not coherent with membership plan')
 
     def _collect_credentials_answers(self, data):
         scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-        add_fields = self._collect_field_content('add_fields', data['account'])
-        auth_fields = self._collect_field_content('authorise_fields', data['account'])
-        enrol_fields = self._collect_field_content('enrol_fields', data['account'])
+        question_type_dict = scheme.get_question_type_dict()
+
+        add_fields = self._collect_field_content('add_fields', data['account'], question_type_dict[0])
+        auth_fields = self._collect_field_content('authorise_fields', data['account'], question_type_dict[1])
+        enrol_fields = self._collect_field_content('enrol_fields', data['account'], question_type_dict[2])
 
         if not add_fields and not enrol_fields:
             raise ParseError()
