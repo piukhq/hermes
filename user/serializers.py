@@ -160,7 +160,7 @@ class UserSerializer(serializers.ModelSerializer):
             user_detail_serializer = UserProfileSerializer(user_detail_instance,
                                                            data=validated_data['profile'],
                                                            partial=True)
-            user_detail_serializer.is_valid()
+            user_detail_serializer.is_valid(raise_exception=True)
             user_detail_serializer.save()
 
         if email:
