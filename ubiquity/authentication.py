@@ -2,6 +2,7 @@ import jwt
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
+from rest_framework.exceptions import NotFound
 
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
@@ -18,7 +19,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             organisation_id = token_data['organisation_id']
             bundle = self.model.objects.get(bundle_id=bundle_id)
             if token_data['property_id'] and token_data['iat']:
-                pass                                                # if not present will raise Key Error
+                pass  # if not present will raise Key Error
             if bundle.client.organisation.name != organisation_id:
                 raise KeyError
 
@@ -37,6 +38,30 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         setattr(request, 'bundle', bundle)
         setattr(request, 'prop_id', external_id)
         return bundle, None
+
+
+class ServiceAuthentication(ServiceRegistrationAuthentication):
+    model = ClientApplicationBundle
+    expected_fields = []
+
+    def authenticate(self, request):
+        token = self.get_token(request, b'bearer')
+        if not token or "." not in token:
+            return None
+
+        bundle, external_id = self.authenticate_credentials(token)
+
+        try:
+            user = CustomUser.objects.get(external_id=external_id, client=bundle.client)
+        except CustomUser.DoesNotExist:
+            raise NotFound
+
+        if not user.is_active:
+            raise NotFound
+
+        setattr(request, 'bundle', bundle)
+        setattr(request, 'prop_id', external_id)
+        return user, None
 
 
 class PropertyAuthentication(ServiceRegistrationAuthentication):
@@ -62,4 +87,4 @@ class PropertyOrServiceAuthentication(BaseAuthentication):
         if request.method == 'POST':
             return ServiceRegistrationAuthentication().authenticate(request)
 
-        return PropertyAuthentication().authenticate(request)
+        return ServiceAuthentication().authenticate(request)
