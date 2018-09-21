@@ -6,8 +6,7 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
-                                get_images_for_scheme_account)
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation
 from user.models import CustomUser
@@ -274,6 +273,16 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         model = Scheme
         exclude = ('name',)
 
+    @staticmethod
+    def _filter_images(instance):
+        filtered_images = {
+            image.image_type_code: image
+            for image in instance.images.all()
+            if image.image_type_code in [image.HERO, image.ICON]
+        }
+
+        return list(filtered_images.values())
+
     def to_representation(self, instance):
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
@@ -316,7 +325,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': UbiquityImageSerializer(instance.images.all(), many=True).data,
+            'images': UbiquityImageSerializer(self._filter_images(instance), many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
@@ -382,8 +391,20 @@ class UbiquityBalanceSerializer(serializers.Serializer):
 
 class MembershipCardSerializer(serializers.Serializer):
 
+    @staticmethod
+    def _filter_images(tier, images):
+        filtered_images = {
+            image.image_type_code: image
+            for image in images
+            if image.image_type_code in [image.HERO, image.ICON] or (
+                image.image_type_code == image.TIER and image.reward_tier == tier)
+        }
+
+        return list(filtered_images.values())
+
     def to_representation(self, instance):
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
+        images = instance.scheme.images.all()
         fields_type = {0: [], 1: [], 2: []}
         for answer in instance.schemeaccountcredentialanswer_set.all():
             if answer.question.field_type:
@@ -412,7 +433,7 @@ class MembershipCardSerializer(serializers.Serializer):
                 'barcode_type': instance.scheme.barcode_type,
                 'colour': instance.scheme.colour
             },
-            'images': get_images_for_scheme_account(instance, UbiquityImageSerializer, add_type=False),
+            'images': UbiquityImageSerializer(self._filter_images(reward_tier, images), many=True).data,
             'account': {
                 'tier': reward_tier,
                 'add_fields': fields_type[0],
