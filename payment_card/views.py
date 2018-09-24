@@ -114,6 +114,8 @@ class ListCreatePaymentCardAccount(APIView):
         request_serializer: serializers.PaymentCardAccountSerializer
         response_serializer: serializers.PaymentCardAccountSerializer
         responseMessages:
+            - code 200:
+              message: same as created. Occurs if already exists
             - code: 400
               message: Error code 400 is indicative of serializer errors. The error response will show more information.
             - code: 403
@@ -127,12 +129,13 @@ class ListCreatePaymentCardAccount(APIView):
                 account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
                                                          expiry_month=data['expiry_month'],
                                                          expiry_year=data['expiry_year'])
+                reply_status = status.HTTP_200_OK
             except PaymentCardAccount.DoesNotExist:
                 account = PaymentCardAccount(**data)
                 result = self._create_payment_card_account(account, user)
                 if not isinstance(result, PaymentCardAccount):
                     return result
-
+                reply_status = status.HTTP_201_CREATED
                 self.apply_barclays_images(account)
 
             except Exception as e:
@@ -144,7 +147,7 @@ class ListCreatePaymentCardAccount(APIView):
                 self._link_account_to_new_user(account, user)
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
-            return response_serializer.data, status.HTTP_201_CREATED, account
+            return response_serializer.data, reply_status, account
         return serializer.errors, status.HTTP_400_BAD_REQUEST, None
 
     @staticmethod
