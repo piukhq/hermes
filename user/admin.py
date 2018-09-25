@@ -72,10 +72,10 @@ class CustomUserDetail(UserAdmin):
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()
-    list_display = ('email', 'uid', 'first_name', 'last_name', 'gender', 'date_of_birth', 'is_active', 'is_staff',)
+    list_display = ('email', 'uid', 'external_id', 'last_name', 'date_of_birth', 'is_active', 'is_staff',)
     list_filter = ('is_staff',)
     filter_horizontal = ()
-    search_fields = ('email', 'uid', 'profile__first_name', 'profile__last_name',)
+    search_fields = ('email', 'uid', 'external_id', 'profile__first_name', 'profile__last_name',)
     exclude = ('salt',)
 
 

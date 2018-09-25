@@ -44,7 +44,7 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
     uid = serializers.CharField(read_only=True)
-    external_id = serializers.CharField(required=False, max_length=50)
+    external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
         email = validated_data['email']

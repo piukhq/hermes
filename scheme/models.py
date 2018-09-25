@@ -624,7 +624,7 @@ class SchemeCredentialQuestion(models.Model):
     # common_name = models.CharField(null=True, blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
 
     @property
     def required(self):
