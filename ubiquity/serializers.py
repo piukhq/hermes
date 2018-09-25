@@ -1,5 +1,8 @@
 import arrow
+import jwt
+import requests
 from arrow.parser import ParserError
+from django.conf import settings
 from rest_framework import serializers
 
 from payment_card.models import Issuer, PaymentCard
@@ -10,6 +13,30 @@ from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, L
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation
 from user.models import CustomUser
+
+
+class MembershipTransactionsMixin:
+
+    @staticmethod
+    def _get_auth_token(user_id):
+        payload = {
+            'sub': user_id
+        }
+        token = jwt.encode(payload, settings.TOKEN_SECRET)
+        return 'token {}'.format(token.decode('unicode_escape'))
+
+    def _get_transactions(self, user_id, mcard_id):
+        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
+        headers = {'Authorization': self._get_auth_token(user_id), 'Content-Type': 'application/json'}
+        resp = requests.get(url, headers=headers)
+        return resp.json() if resp.status_code == 200 else []
+
+    def get_transactions_id(self, user_id, mcard_id):
+        return [tx['id'] for tx in self._get_transactions(user_id, mcard_id)]
+
+    def get_transactions_data(self, user_id, mcard_id):
+        resp = self._get_transactions(user_id, mcard_id)
+        return self.get_serializer(resp, many=True).data if resp else []
 
 
 class ServiceConsentSerializer(serializers.ModelSerializer):
@@ -390,7 +417,7 @@ class UbiquityBalanceSerializer(serializers.Serializer):
         exclude = ('scheme',)
 
 
-class MembershipCardSerializer(serializers.Serializer):
+class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
     def _filter_images(tier, images):
@@ -406,6 +433,9 @@ class MembershipCardSerializer(serializers.Serializer):
     def to_representation(self, instance):
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
         images = instance.scheme.images.all()
+        transactions = self.get_transactions_id(
+            self.context['request'].user.id, instance.id
+        ) if self.context.get('request') else None
         fields_type = {0: [], 1: [], 2: []}
         for answer in instance.schemeaccountcredentialanswer_set.all():
             if answer.question.field_type:
@@ -423,7 +453,7 @@ class MembershipCardSerializer(serializers.Serializer):
             'id': instance.id,
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': [],
+            'membership_transactions': transactions,
             'status': {
                 'state': instance.status,
                 'reason_code': reason_code_translation[instance.status]
@@ -444,31 +474,30 @@ class MembershipCardSerializer(serializers.Serializer):
             'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
         }
 
+    class CreateMembershipCardSerializer(ListSchemeAccountSerializer):
+        scheme = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
 
-class CreateMembershipCardSerializer(ListSchemeAccountSerializer):
-    scheme = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
+        @staticmethod
+        def get_balances(obj):
+            balances = obj.balances if obj.balances else None
+            return BalanceSerializer(balances).data
 
-    @staticmethod
-    def get_balances(obj):
-        balances = obj.balances if obj.balances else None
-        return BalanceSerializer(balances).data
+        @staticmethod
+        def get_payment_cards(obj):
+            links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
+            return MembershipCardLinksSerializer(links, many=True).data
 
-    @staticmethod
-    def get_payment_cards(obj):
-        links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
-        return MembershipCardLinksSerializer(links, many=True).data
-
-    class Meta(ListSchemeAccountSerializer.Meta):
-        read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards', 'membership_plan')
-        fields = ('id',
-                  'status',
-                  'order',
-                  'created',
-                  'action_status',
-                  'status_name',
-                  'barcode',
-                  'card_label',
-                  'images',
-                  'balances',
-                  'payment_cards',
-                  'membership_plan')
+        class Meta(ListSchemeAccountSerializer.Meta):
+            read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards', 'membership_plan')
+            fields = ('id',
+                      'status',
+                      'order',
+                      'created',
+                      'action_status',
+                      'status_name',
+                      'barcode',
+                      'card_label',
+                      'images',
+                      'balances',
+                      'payment_cards',
+                      'membership_plan')

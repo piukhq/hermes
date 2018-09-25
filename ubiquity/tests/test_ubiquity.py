@@ -17,7 +17,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
@@ -187,20 +187,21 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_get_single_membership_card(self, mock_get_midas_balance):
+    def test_get_single_membership_card(self, mock_get_midas_balance, _):
         mock_get_midas_balance.return_value = self.scheme_account.balances
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_get_all_membership_cards(self, mock_get_midas_balance):
+    def test_get_all_membership_cards(self, mock_get_midas_balance, _):
         mock_get_midas_balance.return_value = self.scheme_account.balances
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
-
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
@@ -238,6 +239,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_creation(self, mock_get_midas_balance, mock_date, *_):
@@ -254,26 +256,27 @@ class TestResources(APITestCase):
         payload = {
             "membership_plan": self.scheme.id,
             "account":
-            {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "3038401022657083"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test"
-                    }
-                ]
-            }
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
-    def test_cards_linking(self):
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
+    def test_cards_linking(self, _):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
         SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
@@ -293,8 +296,9 @@ class TestResources(APITestCase):
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
 
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_card_rule_filtering(self, mock_get_midas_balance):
+    def test_card_rule_filtering(self, mock_get_midas_balance, _):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -475,6 +479,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_composite_membership_card_post(self, mock_get_midas_balance, mock_date, *_):
@@ -532,8 +537,9 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_balance(self, mock_get_midas_balance):
+    def test_membership_card_balance(self, mock_get_midas_balance, _):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -577,7 +583,8 @@ class TestMembershipCardCredentials(APITestCase):
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
-    def test_update_new_and_existing_credentials(self):
+    @patch.object(MembershipTransactionsMixin, '_get_transactions')
+    def test_update_new_and_existing_credentials(self, _):
         payload = {
             'authorise_fields': [
                 {
