@@ -440,8 +440,9 @@ class SchemeAccount(models.Model):
 
         if not balance:
             balance = self.get_midas_balance(user_consents=user_consents)
-            balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
-            cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+            if balance:
+                balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
+                cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
         if balance != self.balances and balance:
             self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]

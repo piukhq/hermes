@@ -1,6 +1,5 @@
 import uuid
 
-import jwt
 import requests
 from django.conf import settings
 from django.utils import timezone
@@ -21,7 +20,7 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer)
 from user.models import CustomUser
@@ -224,7 +223,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
         account = self.get_object()
         new_answers = self._collect_updated_answers(request.data)
         self.update_credentials(account, new_answers)
-        return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+        return Response(self.get_serializer(account).data,
+                        status=status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -296,7 +296,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
-        return Response(MembershipCardSerializer(account).data, status=status_code)
+        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
     def _handle_membership_card_creation(self, request):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
@@ -465,7 +465,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         account, status_code = self._handle_membership_card_creation(request)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
-        return Response(MembershipCardSerializer(account).data, status=status_code)
+        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
 class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
@@ -529,17 +529,9 @@ class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
         return Response(MembershipPlanSerializer(scheme).data)
 
 
-class MembershipTransactionView(ModelViewSet):
+class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = TransactionsSerializer
-
-    @staticmethod
-    def _get_auth_token(user_id):
-        payload = {
-            'sub': user_id
-        }
-        token = jwt.encode(payload, settings.TOKEN_SECRET)
-        return token.decode('unicode_escape')
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -559,8 +551,5 @@ class MembershipTransactionView(ModelViewSet):
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, kwargs['mcard_id'])
-        headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
-        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
+        response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
         return Response(response)
