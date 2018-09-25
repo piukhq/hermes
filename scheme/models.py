@@ -154,6 +154,22 @@ class JourneyTypes(Enum):
     ADD = 2
 
 
+class Control(models.Model):
+    JOIN_KEY = 'join_button'
+    ADD_KEY = 'add_button'
+
+    KEY_CHOICES = (
+        (JOIN_KEY, 'Join Button - Add Card screen'),
+        (ADD_KEY, 'Add Button - Add Card screen')
+    )
+
+    key = models.CharField(max_length=50, choices=KEY_CHOICES)
+    label = models.CharField(max_length=50, blank=True)
+    hint_text = models.CharField(max_length=250, blank=True)
+
+    scheme = models.ForeignKey(Scheme, related_name="controls")
+
+
 class Consent(models.Model):
     journeys = (
         (JourneyTypes.JOIN.value, 'join'),

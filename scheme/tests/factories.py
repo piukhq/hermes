@@ -3,7 +3,7 @@ from datetime import datetime
 import factory
 from factory.fuzzy import FuzzyAttribute
 from scheme import models
-from scheme.models import Consent, UserConsent, JourneyTypes, ConsentStatus
+from scheme.models import Consent, UserConsent, JourneyTypes, ConsentStatus, Control
 from faker import Factory
 from scheme.credentials import USER_NAME
 from django.utils import timezone
@@ -56,6 +56,20 @@ class ConsentFactory(factory.DjangoModelFactory):
     order = 1
     journey = JourneyTypes.LINK.value
     slug = FuzzyAttribute(fake.slug)
+
+
+KEY_CHOICES = [x[0] for x in Control.KEY_CHOICES]
+
+
+class ControlFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = Control
+
+    key = factory.fuzzy.FuzzyChoice(KEY_CHOICES)
+    label = fake.sentence(nb_words=3)
+    hint_text = fake.sentence(nb_words=10)
+
+    scheme = factory.SubFactory(SchemeFactory)
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
