@@ -6,7 +6,7 @@ from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
 from django.shortcuts import get_object_or_404
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus
+    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus, Control
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -39,6 +39,13 @@ class ConsentsSerializer(serializers.ModelSerializer):
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
+class ControlSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Control
+        exclude = ('id', 'scheme')
+
+
 class TransactionHeaderSerializer(serializers.Serializer):
     """ This serializer is required to convert a list of header titles into a
     form which the front end requires ie a list of key pairs where the key is
@@ -63,6 +70,7 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
+    controls = ControlSerializer(many=True, read_only=True)
 
     class Meta:
         model = Scheme
