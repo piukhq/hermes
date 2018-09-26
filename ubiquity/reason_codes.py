@@ -61,3 +61,26 @@ reason_code_translation = {
     536: None,
     535: None
 }
+
+ubiquity_status_translation = {
+    0: 'pending',
+    1: 'authorised',
+    403: 'failed',
+    432: 'unauthorised',
+    530: 'failed',
+    531: 'failed',
+    532: 'failed',
+    5: 'unauthorised',
+    434: 'failed',
+    429: 'failed',
+    503: 'failed',
+    520: 'failed',
+    9: 'failed',
+    10: 'pending',
+    404: 'unauthorised',
+    533: 'unauthorised',
+    900: 'suggested',
+    444: 'failed',
+    536: 'failed',
+    535: 'failed',
+}
