@@ -274,6 +274,12 @@ class TestResources(APITestCase):
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
+        create_data = resp.data
+        # replay and check same data with 200 response
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, create_data)
 
     @patch.object(MembershipTransactionsMixin, '_get_transactions')
     def test_cards_linking(self, _):

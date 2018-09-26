@@ -14,7 +14,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
 from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import (CreateSchemeAccountSerializer, LinkSchemeSerializer)
+from scheme.serializers import LinkSchemeSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -22,7 +22,8 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
-                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer)
+                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
+                                  UbiquityCreateSchemeAccountSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -271,7 +272,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
-        'POST': CreateSchemeAccountSerializer,
+        'POST': UbiquityCreateSchemeAccountSerializer,
     }
 
     def get_queryset(self):
@@ -305,15 +306,21 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
 
         if add_fields:
+
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            scheme_account, _ = self.create_account(add_data, request.user)
+            scheme_account, _, account_created = self.create_account(add_data, request.user)
             if auth_fields:
                 serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
                 self.link_account(serializer, scheme_account, request.user)
                 scheme_account.link_date = timezone.now()
                 scheme_account.save()
 
-            return scheme_account, status.HTTP_201_CREATED
+            if account_created:
+                return_status = status.HTTP_201_CREATED
+            else:
+                return_status = status.HTTP_200_OK
+
+            return scheme_account, return_status
 
         else:
             # todo implement enrol
