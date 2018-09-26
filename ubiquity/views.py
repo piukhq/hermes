@@ -220,8 +220,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
+        try:
+            new_answers = self._collect_updated_answers(request.data['account'])
+        except KeyError:
+            raise ParseError
+
         account = self.get_object()
-        new_answers = self._collect_updated_answers(request.data)
         self.update_credentials(account, new_answers)
         return Response(self.get_serializer(account).data,
                         status=status.HTTP_200_OK)
