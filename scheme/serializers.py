@@ -207,6 +207,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
+    verify_account_exists = True
 
     def validate(self, data):
         try:
@@ -224,11 +225,12 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         if answer_type not in self.allowed_answers(scheme):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
-            .exclude(status=SchemeAccount.JOIN)
-        for sa in scheme_accounts.all():
-            if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
-                raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
+        if self.verify_account_exists:
+            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme)\
+                .exclude(status=SchemeAccount.JOIN)
+            for sa in scheme_accounts.all():
+                if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
+                    raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
 
         return data
 

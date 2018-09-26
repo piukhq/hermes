@@ -9,7 +9,8 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer)
+from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation
 from user.models import CustomUser
@@ -501,3 +502,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                       'balances',
                       'payment_cards',
                       'membership_plan')
+
+
+class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
+    verify_account_exists = False

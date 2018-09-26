@@ -91,7 +91,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-
+        account_created = False
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
@@ -127,13 +127,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
         except SchemeAccountCredentialAnswer.DoesNotExist:
-            scheme_account = self._create_account(user, data, answer_type)
+            scheme_account, account_created = self._create_account(user, data, answer_type)
 
         data['id'] = scheme_account.id
-        return scheme_account, data
+        return scheme_account, data, account_created
 
     @staticmethod
     def _create_account(user, data, answer_type):
+        account_created = False      # Required for /ubiquity
+
         if type(data) == int:
             return data
 
@@ -155,7 +157,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     status=SchemeAccount.WALLET_ONLY
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-
+                account_created = True
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=scheme_account.question(answer_type),
@@ -171,7 +173,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
         analytics.update_scheme_account_attribute(scheme_account, user)
 
-        return scheme_account
+        return scheme_account, account_created
 
 
 class SchemeAccountJoinMixin:
