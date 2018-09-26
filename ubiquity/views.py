@@ -14,7 +14,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
 from scheme.models import Scheme, SchemeAccount
-from scheme.serializers import (CreateSchemeAccountSerializer, LinkSchemeSerializer)
+from scheme.serializers import LinkSchemeSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
