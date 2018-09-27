@@ -535,7 +535,7 @@ class TestResources(APITestCase):
     def test_membership_plan(self):
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(MembershipPlanSerializer(self.scheme).data, resp.json())
+        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme).data), resp.json())
 
     def test_composite_membership_plan(self):
         expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme).data)
