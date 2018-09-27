@@ -6,7 +6,7 @@ from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
 from django.shortcuts import get_object_or_404
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus
+    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus, Control
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -37,6 +37,13 @@ class ConsentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consent
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
+
+
+class ControlSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Control
+        exclude = ('id', 'scheme')
 
 
 class TransactionHeaderSerializer(serializers.Serializer):
@@ -171,8 +178,8 @@ class SchemeAnswerSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=250, required=False)
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.DateField(input_formats=["%d/%M/%Y"], required=False)
-    phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
-    phone_2 = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    phone = serializers.CharField(max_length=250, required=False)
+    phone_2 = serializers.CharField(max_length=250, required=False)
     gender = serializers.CharField(max_length=250, required=False)
     address_1 = serializers.CharField(max_length=250, required=False)
     address_2 = serializers.CharField(max_length=250, required=False)
@@ -196,6 +203,11 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+
+        # temporary fix to iceland
+        if self.context['scheme_account'].scheme.slug == 'iceland-bonus-card':
+            return data
+
         missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(

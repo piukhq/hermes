@@ -5,7 +5,7 @@ from django.forms import BaseInlineFormSet, ModelForm
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue)
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control)
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -30,6 +30,11 @@ class CredentialQuestionFormset(BaseInlineFormSet):
 class CredentialQuestionInline(admin.TabularInline):
     model = SchemeCredentialQuestion
     formset = CredentialQuestionFormset
+    extra = 0
+
+
+class ControlInline(admin.TabularInline):
+    model = Control
     extra = 0
 
 
@@ -63,7 +68,7 @@ class SchemeForm(ModelForm):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline,)
+    inlines = (CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active', )

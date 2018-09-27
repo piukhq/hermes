@@ -2,11 +2,11 @@ from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer, \
-    UserConsentSerializer, UpdateUserConsentSerializer
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory,\
-    ConsentFactory, UserConsentFactory
+    UserConsentSerializer, UpdateUserConsentSerializer, ControlSerializer
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory, \
+    ConsentFactory, UserConsentFactory, ControlFactory
 from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus
+from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus, Control
 from unittest.mock import MagicMock, patch
 
 from user.tests.factories import UserFactory
@@ -84,6 +84,30 @@ class TestAnswerValidation(TestCase):
             "date_of_birth": "22/11/1999"
         })
         self.assertTrue(serializer.is_valid())
+
+    def test_temporary_iceland_fix_ignores_question_validation(self):
+        scheme = SchemeFactory(slug='iceland-bonus-card')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertTrue(serializer.is_valid())
+
+    def test_temporary_iceland_fix_doesnt_break_question_validation(self):
+        scheme = SchemeFactory(slug='not-iceland')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertFalse(serializer.is_valid())
 
 
 class TestSchemeSerializer(TestCase):
@@ -277,3 +301,23 @@ class TestUpdateUserConsentSerializer(TestCase):
         serializer = self.serializer_class(user_consent, data={'status': 0})
 
         self.assertFalse(serializer.is_valid())
+
+
+class TestControlSerializer(TestCase):
+    def setUp(self):
+        self.scheme = SchemeFactory()
+
+        self.control = ControlFactory(scheme=self.scheme, key=Control.JOIN_KEY)
+
+        self.serializer_class = ControlSerializer
+
+    def test_correct_control_representation(self):
+        serializer = self.serializer_class(self.control)
+
+        keys = ['key', 'label', 'hint_text']
+
+        self.assertEqual(len(serializer.data.keys()), 3)
+        for key in keys:
+            self.assertIn(key, serializer.data)
+
+        self.assertEqual(serializer.data['key'], 'join_button')
