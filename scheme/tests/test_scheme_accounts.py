@@ -467,6 +467,22 @@ class TestSchemeAccountViews(APITestCase):
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
 
+    def test_temporary_iceland_fix_ignores_credential_validation_for_iceland(self):
+        scheme = SchemeFactory(slug='iceland-bonus-card')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+
+        self.assertIsNotNone(scheme_account.credentials(), {})
+
+    def test_temporary_iceland_fix_credential_validation_for_not_iceland(self):
+        scheme = SchemeFactory(slug='not-iceland')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+
+        self.assertIsNone(scheme_account.credentials())
+
     def test_scheme_account_answer_serializer(self):
         """
         If this test breaks you need to add the new credential to the SchemeAccountAnswerSerializer

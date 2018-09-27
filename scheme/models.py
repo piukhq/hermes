@@ -371,9 +371,11 @@ class SchemeAccount(models.Model):
     def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
-            self.status = SchemeAccount.INCOMPLETE
-            self.save()
-            return None
+            # temporary fix for iceland
+            if self.scheme.slug != 'iceland-bonus-card':
+                self.status = SchemeAccount.INCOMPLETE
+                self.save()
+                return None
 
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
