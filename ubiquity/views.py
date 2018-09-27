@@ -519,11 +519,19 @@ class MembershipPlanView(ModelViewSet):
     queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
 
+    @censor_and_decorate
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
 
 class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
     queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
+
+    @censor_and_decorate
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @censor_and_decorate
     def identify(self, request):
