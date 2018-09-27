@@ -290,6 +290,33 @@ class TestSchemeAccountViews(APITestCase):
         successful_consent = set_values[0]
         self.assertEqual(successful_consent['id'], success_scheme_account_consent.id)
 
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_link_schemes_account_pre_registered_card_error(self, mock_get_balance, mock_date, mock_update_attr):
+        scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
+        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
+                                      scheme_account=scheme_account)
+
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_balance.return_value.status_code = SchemeAccount.PRE_REGISTERED_CARD
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account.user.create_token()}
+        data = {
+            CARD_NUMBER: "1234",
+            PASSWORD: "abcd",
+        }
+
+        current_credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
+        self.assertEqual(len(current_credentials), 1)
+        response = self.client.post('/schemes/accounts/{0}/link'.format(scheme_account.id),
+                                    data=data, **auth_headers, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, 900)
+        credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
+        self.assertEqual(len(credentials), 0)
+
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(type(response.data), ReturnList)
@@ -439,6 +466,22 @@ class TestSchemeAccountViews(APITestCase):
         encrypted_credentials = scheme_account.credentials()
         self.assertIsNone(encrypted_credentials)
         self.assertEqual(scheme_account.status, SchemeAccount.INCOMPLETE)
+
+    def test_temporary_iceland_fix_ignores_credential_validation_for_iceland(self):
+        scheme = SchemeFactory(slug='iceland-bonus-card')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+
+        self.assertIsNotNone(scheme_account.credentials(), {})
+
+    def test_temporary_iceland_fix_credential_validation_for_not_iceland(self):
+        scheme = SchemeFactory(slug='not-iceland')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+
+        self.assertIsNone(scheme_account.credentials())
 
     def test_scheme_account_answer_serializer(self):
         """

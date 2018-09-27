@@ -3,6 +3,7 @@ import json
 import time
 import requests
 from django.conf import settings
+from raven.contrib.django.raven_compat.models import client as sentry
 
 OLYMPUS_SERVICE_TRACKING_TYPE = 6  # Defined in Mnemosyne project
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
@@ -24,10 +25,14 @@ def post_event(user, event_name, metadata=None, to_intercom=False):
     if metadata:
         event['data'] = metadata
 
-    _send_to_mnemosyne(
-        user=user,
-        event=event
-    )
+    try:
+        _send_to_mnemosyne(
+            user=user,
+            event=event
+        )
+    except PushError:
+        sentry.captureException()
+        pass
 
 
 def reset_user_settings(user):
@@ -50,7 +55,11 @@ def update_attribute(user, key, value):
 
 
 def update_attributes(user, attributes):
-    _send_to_mnemosyne(user, attributes=attributes)
+    try:
+        _send_to_mnemosyne(user, attributes=attributes)
+    except PushError:
+        sentry.captureException()
+        pass
 
 
 # Private Methods

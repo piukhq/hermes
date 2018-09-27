@@ -85,6 +85,30 @@ class TestAnswerValidation(TestCase):
         })
         self.assertTrue(serializer.is_valid())
 
+    def test_temporary_iceland_fix_ignores_question_validation(self):
+        scheme = SchemeFactory(slug='iceland-bonus-card')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertTrue(serializer.is_valid())
+
+    def test_temporary_iceland_fix_doesnt_break_question_validation(self):
+        scheme = SchemeFactory(slug='not-iceland')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertFalse(serializer.is_valid())
+
 
 class TestSchemeSerializer(TestCase):
     def test_get_link_questions(self):

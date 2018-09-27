@@ -203,6 +203,11 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+
+        # temporary fix to iceland
+        if self.context['scheme_account'].scheme.slug == 'iceland-bonus-card':
+            return data
+
         missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
