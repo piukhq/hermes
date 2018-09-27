@@ -19,7 +19,7 @@ from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
@@ -28,7 +28,7 @@ from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
 
-class PaymentCardConsentMixin:
+class PaymentCardCreationMixin:
     @staticmethod
     def _create_payment_card_consent(consent_data, pcard):
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
@@ -47,6 +47,33 @@ class PaymentCardConsentMixin:
             consents = serializer.validated_data
 
         PaymentCardAccount.objects.filter(pk=pcard_pk).update(consents=consents)
+
+    def payment_card_already_exists(self, data, user):
+        query = {
+            'fingerprint': data['fingerprint'],
+            'expiry_month': data['expiry_month'],
+            'expiry_year': data['expiry_year'],
+        }
+        try:
+            card = PaymentCardAccount.objects.get(**query)
+        except PaymentCardAccount.DoesNotExist:
+            return False, None, None
+
+        if user in card.user_set.all():
+            return True, card, status.HTTP_200_OK
+
+        self._link_account_to_new_user(card, user)
+        return True, card, status.HTTP_201_CREATED
+
+    @staticmethod
+    def _link_account_to_new_user(account, user):
+        if account.is_deleted:
+            account.is_deleted = False
+            account.save()
+
+        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
+        for scheme_account in account.scheme_account_set.all():
+            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
 
 class ServiceView(ModelViewSet):
@@ -120,7 +147,7 @@ class ServiceView(ModelViewSet):
         return consent
 
 
-class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -158,7 +185,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardConsentMixin, Model
         return super().delete(request, *args, **kwargs)
 
 
-class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -188,11 +215,15 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin,
         except KeyError:
             raise ParseError
 
+        exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
+        if exists:
+            return Response(self.get_serializer(pcard).data, status=status_code)
+
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
         if status_code == status.HTTP_201_CREATED:
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
-        return Response(message, status=status_code)
+        return Response(self.get_serializer(pcard).data, status=status_code)
 
 
 class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelViewSet):
@@ -310,7 +341,6 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
 
         if add_fields:
-
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
             scheme_account, _, account_created = self.create_account(add_data, request.user)
             if auth_fields:
@@ -479,7 +509,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
-class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentMixin, ModelViewSet):
+class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -504,6 +534,10 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardConsentM
             consent = request.data['account']['consents']
         except KeyError:
             raise ParseError
+
+        exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
+        if exists:
+            return Response(self.get_serializer(pcard).data, status=status_code)
 
         mcard = get_object_or_404(SchemeAccount, pk=kwargs['mcard_id'])
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)

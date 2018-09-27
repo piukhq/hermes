@@ -141,7 +141,7 @@ class TestPaymentCard(APITestCase):
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
         # The stub is called indirectly via the View so we can only verify the stub has been called
         self.assertTrue(httpretty.has_request())
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertNotIn('psp_token', response.data)
         self.assertNotIn('token', response.data)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
