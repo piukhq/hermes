@@ -592,16 +592,18 @@ class TestMembershipCardCredentials(APITestCase):
     @patch.object(MembershipTransactionsMixin, '_get_transactions')
     def test_update_new_and_existing_credentials(self, _):
         payload = {
-            'authorise_fields': [
-                {
-                    'column': 'last_name',
-                    'value': 'New Last Name'
-                },
-                {
-                    'column': 'password',
-                    'value': 'newpassword'
-                }
-            ]
+            'account': {
+                'authorise_fields': [
+                    {
+                        'column': 'last_name',
+                        'value': 'New Last Name'
+                    },
+                    {
+                        'column': 'password',
+                        'value': 'newpassword'
+                    }
+                ]
+            }
         }
         resp = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
                                  content_type='application/json', **self.auth_headers)
