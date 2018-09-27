@@ -9,10 +9,10 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (BalanceSerializer, GetSchemeAccountSerializer, ListSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer)
+from scheme.serializers import (BalanceSerializer, CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
+                                ListSchemeAccountSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
-from ubiquity.reason_codes import reason_code_translation
+from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from user.models import CustomUser
 
 
@@ -152,10 +152,11 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
 
     def to_representation(self, instance):
+        status = 'active' if instance.consents else 'pending'
         return {
             "id": instance.id,
             "membership_cards": self.get_membership_cards(instance),
-            "status": instance.status,
+            "status": status,
             "card": {
                 "first_six_digits": str(instance.pan_start),
                 "last_four_digits": str(instance.pan_end),
@@ -456,8 +457,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
             'membership_transactions': transactions,
             'status': {
-                'state': instance.status,
-                'reason_code': reason_code_translation[instance.status]
+                'state': ubiquity_status_translation[instance.status],
+                'reason_codes': [
+                    reason_code_translation[instance.status],
+                ]
             },
             'card': {
                 'barcode': instance.barcode,
