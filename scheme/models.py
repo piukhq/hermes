@@ -151,7 +151,7 @@ class Scheme(models.Model):
 
     def get_question_type_dict(self):
         result = {0: {}, 1: {}, 2: {}}
-        for question in self.questions.all():
+        for question in self.questions.filter(field_type__isnull=False).all():
             result[question.field_type].update({question.label: question.type})
 
         return result
