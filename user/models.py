@@ -166,7 +166,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
     salt = models.CharField(max_length=8)
-    external_id = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+    external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
 
     USERNAME_FIELD = 'uid'
 
