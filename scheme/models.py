@@ -125,8 +125,8 @@ class Scheme(models.Model):
     digital_only = models.BooleanField(default=False)
     plan_name = models.CharField(max_length=50, null=True, blank=True)
     plan_name_card = models.CharField(max_length=50, null=True, blank=True)
-    plan_summary = models.TextField(null=True, blank=True, max_length=250)
-    plan_description = models.TextField(null=True, blank=True, max_length=500)
+    plan_summary = models.TextField(default='', blank=True, max_length=250)
+    plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
 
     @property
@@ -619,9 +619,9 @@ class SchemeCredentialQuestion(models.Model):
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
     # ubiquity fields
-    validation = models.TextField(null=True, blank=True, max_length=250)
-    description = models.CharField(null=True, blank=True, max_length=250)
-    # common_name = models.CharField(null=True, blank=True, max_length=50)
+    validation = models.TextField(default='', blank=True, max_length=250)
+    description = models.CharField(default='', blank=True, max_length=250)
+    # common_name = models.CharField(default='', blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
     field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
@@ -683,10 +683,10 @@ class SchemeDetail(models.Model):
 
 class SchemeBalanceDetails(models.Model):
     scheme_id = models.ForeignKey('Scheme')
-    currency = models.CharField(null=True, blank=True, max_length=50)
-    prefix = models.CharField(null=True, blank=True, max_length=50)
-    suffix = models.CharField(null=True, blank=True, max_length=50)
-    description = models.TextField(null=True, blank=True, max_length=250)
+    currency = models.CharField(default='', blank=True, max_length=50)
+    prefix = models.CharField(default='', blank=True, max_length=50)
+    suffix = models.CharField(default='', blank=True, max_length=50)
+    description = models.TextField(default='', blank=True, max_length=250)
 
     class Meta:
         verbose_name_plural = 'balance details'
