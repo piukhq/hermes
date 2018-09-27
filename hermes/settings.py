@@ -355,3 +355,6 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
+
+# how many seconds leeway is allowed to account for clock skew in JWT validation
+CLOCK_SKEW_LEEWAY = env_var('CLOCK_SKEW_LEEWAY', 180)

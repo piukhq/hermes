@@ -61,7 +61,10 @@ class JwtAuthentication(BaseAuthentication):
         Returns CustomUser instance.
         """
         try:
-            token_contents = jwt.decode(key, verify=False)
+            token_contents = jwt.decode(
+                key,
+                verify=False,
+                leeway=settings.CLOCK_SKEW_LEEWAY)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
@@ -71,7 +74,11 @@ class JwtAuthentication(BaseAuthentication):
             raise exceptions.AuthenticationFailed(_('User does not exist.'))
 
         try:
-            token_contents = jwt.decode(key, user.client.secret + user.salt, verify=True)
+            token_contents = jwt.decode(
+                key,
+                user.client.secret + user.salt,
+                verify=True,
+                leeway=settings.CLOCK_SKEW_LEEWAY)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
         return user, None
