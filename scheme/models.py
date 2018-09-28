@@ -150,7 +150,11 @@ class Scheme(models.Model):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
     def get_question_type_dict(self):
-        result = {0: {}, 1: {}, 2: {}}
+        field_types = self.questions.first()
+        if not field_types:
+            return {}
+
+        result = {field_types.ADD_FIELD: {}, field_types.AUTH_FIELD: {}, field_types.ENROL_FIELD: {}}
         for question in self.questions.filter(field_type__isnull=False).all():
             result[question.field_type].update({question.label: question.type})
 
@@ -365,11 +369,10 @@ class SchemeAccount(models.Model):
 
         A scan or manual question is an optional if one of the other exists
         """
-        required_credentials = {
-            question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
-        }
+        questions = self.scheme.questions.filter(
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE])
+
+        required_credentials = {question.type for question in questions}
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
@@ -585,6 +588,10 @@ class SchemeCredentialQuestion(models.Model):
     LINK_AND_JOIN = (LINK | JOIN)
     MERCHANT_IDENTIFIER = (1 << 3)
 
+    ADD_FIELD = 0
+    AUTH_FIELD = 1
+    ENROL_FIELD = 2
+
     OPTIONS = (
         (NONE, 'None'),
         (LINK, 'Link'),
@@ -603,9 +610,9 @@ class SchemeCredentialQuestion(models.Model):
     )
 
     FIELD_TYPE_CHOICES = (
-        (0, 'add'),
-        (1, 'auth'),
-        (2, 'enrol'),
+        (ADD_FIELD, 'add'),
+        (AUTH_FIELD, 'auth'),
+        (ENROL_FIELD, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
