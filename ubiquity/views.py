@@ -254,12 +254,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         try:
-            new_answers = self._collect_updated_answers(request.data['account'])
+            account = self.get_object()
+            new_answers = self._collect_updated_answers(request.data['account'], account.scheme)
         except KeyError:
             raise ParseError
 
-        account = self.get_object()
-        self.update_credentials(account, new_answers)
+        self.update_credentials(account, new_answers, )
         return Response(self.get_serializer(account).data,
                         status=status.HTTP_200_OK)
 
@@ -279,16 +279,22 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
         return Response(MembershipPlanSerializer(mcard.scheme).data)
 
     @staticmethod
-    def _collect_updated_answers(data):
-        auth_fields = {
-            item['column']: item['value']
-            for item in data['authorise_fields']
-        } if 'authorise_fields' in data else None
+    def _collect_updated_answers(data, scheme):
+        label_to_type = scheme.get_question_type_dict()
+        field_types = scheme.questions.first()
 
-        enrol_fields = {
-            item['column']: item['value']
-            for item in data['enrol_fields']
-        } if 'enrol_fields' in data else None
+        try:
+            auth_fields = {
+                label_to_type[field_types.AUTH_FIELD][item['column']]: item['value']
+                for item in data['authorise_fields']
+            } if 'authorise_fields' in data else None
+
+            enrol_fields = {
+                label_to_type[field_types.ENROL_FIELD][item['column']]: item['value']
+                for item in data['enrol_fields']
+            } if 'enrol_fields' in data else None
+        except KeyError:
+            raise ParseError
 
         if not auth_fields and not enrol_fields:
             raise ParseError()
