@@ -478,34 +478,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
         }
 
-    class CreateMembershipCardSerializer(ListSchemeAccountSerializer):
-        scheme = serializers.PrimaryKeyRelatedField(source='scheme', read_only=True)
-
-        @staticmethod
-        def get_balances(obj):
-            balances = obj.balances if obj.balances else None
-            return BalanceSerializer(balances).data
-
-        @staticmethod
-        def get_payment_cards(obj):
-            links = PaymentCardSchemeEntry.objects.filter(scheme_account=obj).all()
-            return MembershipCardLinksSerializer(links, many=True).data
-
-        class Meta(ListSchemeAccountSerializer.Meta):
-            read_only_fields = GetSchemeAccountSerializer.Meta.read_only_fields + ('payment_cards', 'membership_plan')
-            fields = ('id',
-                      'status',
-                      'order',
-                      'created',
-                      'action_status',
-                      'status_name',
-                      'barcode',
-                      'card_label',
-                      'images',
-                      'balances',
-                      'payment_cards',
-                      'membership_plan')
-
 
 class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
     verify_account_exists = False

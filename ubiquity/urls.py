@@ -6,7 +6,7 @@ from ubiquity.views import (CompositeMembershipCardView, CompositePaymentCardVie
 
 service_view = {'get': 'retrieve', 'post': 'create', 'delete': 'destroy'}
 cards_plural = {'get': 'list', 'post': 'create'}
-cards_singular = {'get': 'retrieve', 'delete': 'destroy', 'patch': 'update'}
+cards_singular = {'get': 'retrieve', 'delete': 'destroy', 'patch': 'update', 'put': 'replace'}
 link_payment = {'patch': 'update_payment', 'delete': 'destroy_payment'}
 link_membership = {'patch': 'update_membership', 'delete': 'destroy_membership'}
 

@@ -87,7 +87,7 @@ class IdentifyCardMixin:
 
 
 class SchemeAccountCreationMixin(SwappableSerializerMixin):
-    def create_account(self, data, user):
+    def create_account(self, data, user, user_pk=None):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -127,13 +127,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
         except SchemeAccountCredentialAnswer.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type)
+            scheme_account, account_created = self._create_account(user, data, answer_type, user_pk)
 
         data['id'] = scheme_account.id
         return scheme_account, data, account_created
 
     @staticmethod
-    def _create_account(user, data, answer_type):
+    def _create_account(user, data, answer_type, user_pk=None):
         account_created = False      # Required for /ubiquity
 
         if type(data) == int:
@@ -151,11 +151,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account.status = SchemeAccount.WALLET_ONLY
                 scheme_account.save()
             except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
+                scheme_account = SchemeAccount(
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
                 )
+                if user_pk is not None:
+                    scheme_account.pk = user_pk
+                scheme_account.save(force_insert=True)
+
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
                 account_created = True
             SchemeAccountCredentialAnswer.objects.create(
