@@ -9,8 +9,7 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (BalanceSerializer, CreateSchemeAccountSerializer, GetSchemeAccountSerializer,
-                                ListSchemeAccountSerializer)
+from scheme.serializers import CreateSchemeAccountSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from user.models import CustomUser
