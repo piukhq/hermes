@@ -238,7 +238,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         'GET': MembershipCardSerializer,
         'PATCH': MembershipCardSerializer,
         'DELETE': MembershipCardSerializer,
-        'PUT':  MembershipCardSerializer,
+        'PUT':  UbiquityCreateSchemeAccountSerializer,
         'POST': UbiquityCreateSchemeAccountSerializer,
     }
 
@@ -274,8 +274,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     def replace(self, request, *args, **kwargs):
         # The objective of this end point is to replace an membership card with a new one keeping
         # the same id. The idea is to delete the membership account cascading any deletes and then
-        # recreate it forcing the same id.  Forcing an id on create is permitted in Django
-        account_id = self.get_object.pk
+        # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
+        try:
+            account_id = self.get_object().pk
+        except AttributeError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
         SchemeAccount.objects.get(pk=account_id).delete()
         account, status_code = self._handle_membership_card_creation(request, account_id)
         if status_code == status.HTTP_201_CREATED:
