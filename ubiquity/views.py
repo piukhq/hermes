@@ -183,7 +183,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         super().delete(request, *args, **kwargs)
-        return Response(status=status.HTTP_200_OK)
+        return Response({}, status=status.HTTP_200_OK)
 
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
@@ -270,7 +270,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
         instance.save()
 
         analytics.update_scheme_account_attribute(instance, request.user)
-        return Response(status=status.HTTP_200_OK)
+        return Response({}, status=status.HTTP_200_OK)
 
     @staticmethod
     @censor_and_decorate
@@ -426,30 +426,26 @@ class CardLinkView(ModelViewSet):
     @censor_and_decorate
     def update_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
-        link = self._update_link(request, *args, **kwargs)
+        link, status_code = self._update_link(request, *args, **kwargs)
         serializer = self.get_serializer(link.payment_card_account)
-        return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response(serializer.data, status_code)
 
     @censor_and_decorate
     def update_membership(self, request, *args, **kwargs):
         self.serializer_class = MembershipCardSerializer
-        link = self._update_link(request, *args, **kwargs)
+        link, status_code = self._update_link(request, *args, **kwargs)
         serializer = self.get_serializer(link.scheme_account)
-        return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response(serializer.data, status_code)
 
     @censor_and_decorate
     def destroy_payment(self, request, *args, **kwargs):
-        self.serializer_class = PaymentCardSerializer
         pcard, _ = self._destroy_link(request, *args, **kwargs)
-        serializer = self.get_serializer(pcard)
-        return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response({}, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
-        self.serializer_class = MembershipCardSerializer
         _, mcard = self._destroy_link(request, *args, **kwargs)
-        serializer = self.get_serializer(mcard)
-        return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response({}, status.HTTP_200_OK)
 
     def _destroy_link(self, request, *args, **kwargs):
         pcard, mcard = self._collect_cards(kwargs['pcard_id'], kwargs['mcard_id'], request.user.id)
@@ -464,11 +460,14 @@ class CardLinkView(ModelViewSet):
 
     def _update_link(self, request, *args, **kwargs):
         pcard, mcard = self._collect_cards(kwargs['pcard_id'], kwargs['mcard_id'], request.user.id)
+        status_code = status.HTTP_200_OK
+        link, created = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
+        if created:
+            status_code = status.HTTP_201_CREATED
 
-        link, _ = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
         link.activate_link()
         audit.write_to_db(link)
-        return link
+        return link, status_code
 
     @staticmethod
     def _collect_cards(payment_card_id, membership_card_id, user_id):
