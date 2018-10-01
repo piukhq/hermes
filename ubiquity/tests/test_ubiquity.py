@@ -608,4 +608,3 @@ class TestMembershipCardCredentials(APITestCase):
         resp = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
                                  content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertIn('password', [entry['column'] for entry in resp.json()['account']['authorise_fields']])
