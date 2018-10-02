@@ -20,7 +20,7 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.serializers import (ListMembershipCardSerializer, ListMembershipPlanSerializer, ListPaymentCardSerializer,
+from ubiquity.serializers import (ListMembershipPlanSerializer, ListPaymentCardSerializer,
                                   MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
@@ -182,6 +182,10 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
         return Response(self.get_serializer(pcard).data)
 
     @censor_and_decorate
+    def replace(self, request, *args, **kwargs):
+        return Response("not implemented yet", status.HTTP_403_FORBIDDEN)
+
+    @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         super().delete(request, *args, **kwargs)
         return Response({}, status=status.HTTP_200_OK)
@@ -228,12 +232,14 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         return Response(self.get_serializer(pcard).data, status=status_code)
 
 
-class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelViewSet):
+class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAccountCreationMixin, BaseLinkMixin,
+                         ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'PATCH': MembershipCardSerializer,
         'DELETE': MembershipCardSerializer,
+        'PUT': UbiquityCreateSchemeAccountSerializer
     }
 
     def get_queryset(self):
@@ -263,6 +269,22 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
         self.update_credentials(account, new_answers, )
         return Response(self.get_serializer(account).data,
                         status=status.HTTP_200_OK)
+
+    @censor_and_decorate
+    def replace(self, request, *args, **kwargs):
+        # The objective of this end point is to replace an membership card with a new one keeping
+        # the same id. The idea is to delete the membership account cascading any deletes and then
+        # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
+        try:
+            account_id = self.get_object().pk
+        except AttributeError:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        SchemeAccount.objects.get(pk=account_id).delete()
+        account, status_code = self._handle_membership_card_creation(request, account_id)
+        if status_code == status.HTTP_201_CREATED:
+            # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
+            status_code = status.HTTP_200_OK
+        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -309,39 +331,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, ModelVie
 
         return out
 
-
-class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelViewSet):
-    authentication_classes = (PropertyAuthentication,)
-    override_serializer_classes = {
-        'GET': ListMembershipCardSerializer,
-        'POST': UbiquityCreateSchemeAccountSerializer,
-    }
-
-    def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
-        if self.request.allowed_schemes:
-            query['scheme__in'] = self.request.allowed_schemes
-
-        return SchemeAccount.objects.filter(**query)
-
-    @censor_and_decorate
-    def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset())
-
-        for account in accounts:
-            account.get_cached_balance()
-
-        return Response(self.get_serializer(accounts, many=True).data)
-
-    @censor_and_decorate
-    def create(self, request, *args, **kwargs):
-        account, status_code = self._handle_membership_card_creation(request)
-        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
-
-    def _handle_membership_card_creation(self, request):
+    def _handle_membership_card_creation(self, request, use_pk=None):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
@@ -349,7 +339,7 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
 
         if add_fields:
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            scheme_account, _, account_created = self.create_account(add_data, request.user)
+            scheme_account, _, account_created = self.create_account(add_data, request.user, use_pk)
             if auth_fields:
                 serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
                 self.link_account(serializer, scheme_account, request.user)
@@ -403,22 +393,27 @@ class ListMembershipCardView(SchemeAccountCreationMixin, BaseLinkMixin, ModelVie
             allowed_types.append(scheme.one_question_link.type)
         return allowed_types
 
-    @staticmethod
-    def _link_to_all_payment_cards(mcard, user):
-        updated_entries = []
-        for pcard in user.payment_card_account_set.all():
-            other_entry = PaymentCardSchemeEntry.objects.filter(payment_card_account=pcard).first()
-            entry, _ = PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
 
-            if other_entry:
-                entry.active_link = other_entry.active_link
-                entry.save()
-            else:
-                entry.activate_link()
+class ListMembershipCardView(MembershipCardView):
+    authentication_classes = (PropertyAuthentication,)
+    override_serializer_classes = {
+        'GET': MembershipCardSerializer,
+        'POST': UbiquityCreateSchemeAccountSerializer,
+    }
 
-            updated_entries.append(entry)
+    @censor_and_decorate
+    def list(self, request, *args, **kwargs):
+        accounts = self.filter_queryset(self.get_queryset())
 
-        audit.write_to_db(updated_entries, many=True)
+        for account in accounts:
+            account.get_cached_balance()
+
+        return Response(self.get_serializer(accounts, many=True).data)
+
+    @censor_and_decorate
+    def create(self, request, *args, **kwargs):
+        account, status_code = self._handle_membership_card_creation(request)
+        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
 class CardLinkView(ModelViewSet):

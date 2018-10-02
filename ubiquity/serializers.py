@@ -9,7 +9,7 @@ from payment_card.models import Issuer, PaymentCard, PaymentCardImage
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import (CreateSchemeAccountSerializer)
+from scheme.serializers import CreateSchemeAccountSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from user.models import CustomUser
@@ -489,17 +489,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             },
             'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
         }
-
-
-class ListMembershipCardSerializer(MembershipCardSerializer):
-    @staticmethod
-    def _get_ubiquity_images(tier, images):
-        return [
-            image.id
-            for image in images
-            if image.image_type_code in [image.HERO, image.ICON] or (
-                    image.image_type_code == image.TIER and image.reward_tier == tier)
-        ]
 
 
 class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
