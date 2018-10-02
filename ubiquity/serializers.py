@@ -348,7 +348,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'authorisation_required': instance.authorisation_required,
                 'transactions_available': instance.has_transactions,
                 'digital_only': instance.digital_only,
-                'has_balance': instance.has_points,
+                'has_points': instance.has_points,
                 'apps': [
                     {
                         'app_id': instance.ios_scheme,
