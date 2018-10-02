@@ -459,7 +459,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         images = instance.scheme.images.all()
         transactions = self.get_transactions_id(
             self.context['request'].user.id, instance.id
-        ) if self.context.get('request') and instance.scheme.has_transactions else None
+        ) if self.context.get('request') and instance.scheme.has_transactions else []
 
         try:
             reward_tier = instance.balances[0]['reward_tier']
