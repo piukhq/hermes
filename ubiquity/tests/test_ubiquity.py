@@ -282,6 +282,61 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
 
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_membership_card_delete(self, mock_get_midas_balance, mock_date, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        create_data = resp.data
+        # replay and check same data with 200 response
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, create_data)
+        account_id = resp.data['id']
+
+        resp_del = self.client.delete(reverse('membership-card', args=[account_id]), data="{}",
+                                      content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_del.status_code, 200)
+        resp2 = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                 **self.auth_headers)
+        self.assertEqual(resp2.status_code, 201)
+
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_cards_linking(self, _):
         payment_card_account = self.payment_card_account_entry.payment_card_account
