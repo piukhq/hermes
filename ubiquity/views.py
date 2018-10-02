@@ -20,11 +20,10 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.serializers import (ListMembershipPlanSerializer, ListPaymentCardSerializer,
-                                  MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
-                                  UbiquityCreateSchemeAccountSerializer, ListMembershipCardSerializer)
+                                  UbiquityCreateSchemeAccountSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -193,7 +192,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = ListPaymentCardSerializer
+    serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
         query = {
@@ -397,7 +396,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 class ListMembershipCardView(MembershipCardView):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
-        'GET': ListMembershipCardSerializer,
+        'GET': MembershipCardSerializer,
         'POST': UbiquityCreateSchemeAccountSerializer,
     }
 
@@ -413,7 +412,7 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
-        return Response(ListMembershipCardSerializer(account, context={'request': request}).data, status=status_code)
+        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
 class CardLinkView(ModelViewSet):
@@ -562,7 +561,7 @@ class MembershipPlanView(ModelViewSet):
 class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
     queryset = Scheme.objects
-    serializer_class = ListMembershipPlanSerializer
+    serializer_class = MembershipPlanSerializer
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
