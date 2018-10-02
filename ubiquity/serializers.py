@@ -174,6 +174,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
             },
             "images": self._get_images(instance),
             "account": {
+                "verification_in_progress": False,
+                "status": 1,
                 "consents": instance.consents
             }
         }
