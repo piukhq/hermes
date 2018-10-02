@@ -287,7 +287,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
-    @patch.object(MembershipTransactionsMixin, '_get_transactions')
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_delete(self, mock_get_midas_balance, mock_date, *_):
