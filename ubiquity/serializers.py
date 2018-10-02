@@ -5,7 +5,7 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from payment_card.models import Issuer, PaymentCard, PaymentCardImage
+from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
@@ -181,11 +181,12 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         }
 
 
-class ListPaymentCardSerializer(PaymentCardSerializer):
-    @staticmethod
-    def _get_images(instance):
-        payment_card_images = PaymentCardImage.objects.filter(payment_card=instance.payment_card)
-        return [image.id for image in payment_card_images]
+# not used for now but will be needed
+# class ListPaymentCardSerializer(PaymentCardSerializer):
+#     @staticmethod
+#     def _get_images(instance):
+#         payment_card_images = PaymentCardImage.objects.filter(payment_card=instance.payment_card)
+#         return [image.id for image in payment_card_images]
 
 
 class PaymentCardTranslationSerializer(serializers.Serializer):
@@ -391,14 +392,15 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         }
 
 
-class ListMembershipPlanSerializer(MembershipPlanSerializer):
-    @staticmethod
-    def _get_ubiquity_images(instance):
-        return [
-            image.id
-            for image in instance.images.all()
-            if image.image_type_code in [image.HERO, image.ICON]
-        ]
+# not used for now but will be needed
+# class ListMembershipPlanSerializer(MembershipPlanSerializer):
+#     @staticmethod
+#     def _get_ubiquity_images(instance):
+#         return [
+#             image.id
+#             for image in instance.images.all()
+#             if image.image_type_code in [image.HERO, image.ICON]
+#         ]
 
 
 class UbiquityBalanceSerializer(serializers.Serializer):
@@ -495,20 +497,21 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
 
 
-class ListMembershipCardSerializer(MembershipCardSerializer):
-    @staticmethod
-    def _get_ubiquity_images(tier, images):
-        return [
-            image.id
-            for image in images
-            if image.image_type_code in [image.HERO, image.ICON] or (
-                    image.image_type_code == image.TIER and image.reward_tier == tier)
-        ]
-
-    def _get_transactions(self, instance):
-        return self.get_transactions_id(
-            self.context['request'].user.id, instance.id
-        ) if self.context.get('request') and instance.scheme.has_transactions else []
+# not used for now but will be needed
+# class ListMembershipCardSerializer(MembershipCardSerializer):
+#     @staticmethod
+#     def _get_ubiquity_images(tier, images):
+#         return [
+#             image.id
+#             for image in images
+#             if image.image_type_code in [image.HERO, image.ICON] or (
+#                     image.image_type_code == image.TIER and image.reward_tier == tier)
+#         ]
+#
+#     def _get_transactions(self, instance):
+#         return self.get_transactions_id(
+#             self.context['request'].user.id, instance.id
+#         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
 
 class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
