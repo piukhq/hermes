@@ -67,7 +67,7 @@ class TestPaymentCardAccountImages(APITestCase):
         self.assertIn('images', json[0])
         self.assertIsInstance(json[0]['images'], list)
 
-    @patch.object(MembershipTransactionsMixin, '_get_transactions')
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_images_in_membership_card_response(self, mock_get_midas_balance, _):
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)

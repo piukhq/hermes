@@ -24,7 +24,7 @@ from ubiquity.serializers import (ListMembershipPlanSerializer, ListPaymentCardS
                                   MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
-                                  UbiquityCreateSchemeAccountSerializer)
+                                  UbiquityCreateSchemeAccountSerializer, ListMembershipCardSerializer)
 from user.models import CustomUser
 from user.serializers import NewRegisterSerializer
 
@@ -397,7 +397,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 class ListMembershipCardView(MembershipCardView):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
-        'GET': MembershipCardSerializer,
+        'GET': ListMembershipCardSerializer,
         'POST': UbiquityCreateSchemeAccountSerializer,
     }
 
@@ -413,7 +413,7 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         account, status_code = self._handle_membership_card_creation(request)
-        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
+        return Response(ListMembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
 class CardLinkView(ModelViewSet):
