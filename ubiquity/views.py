@@ -20,8 +20,7 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.serializers import (ListMembershipPlanSerializer, ListPaymentCardSerializer,
-                                  MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
+from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
                                   UbiquityCreateSchemeAccountSerializer)
@@ -193,7 +192,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = ListPaymentCardSerializer
+    serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
         query = {
@@ -562,7 +561,7 @@ class MembershipPlanView(ModelViewSet):
 class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
     queryset = Scheme.objects
-    serializer_class = ListMembershipPlanSerializer
+    serializer_class = MembershipPlanSerializer
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

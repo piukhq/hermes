@@ -5,7 +5,7 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from payment_card.models import Issuer, PaymentCard, PaymentCardImage
+from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
@@ -25,18 +25,18 @@ class MembershipTransactionsMixin:
         token = jwt.encode(payload, settings.TOKEN_SECRET)
         return 'token {}'.format(token.decode('unicode_escape'))
 
-    def _get_transactions(self, user_id, mcard_id):
+    def _get_hades_transactions(self, user_id, mcard_id):
         url = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, mcard_id)
         headers = {'Authorization': self._get_auth_token(user_id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
         return resp.json() if resp.status_code == 200 else []
 
     def get_transactions_id(self, user_id, mcard_id):
-        return [tx['id'] for tx in self._get_transactions(user_id, mcard_id)]
+        return [tx['id'] for tx in self._get_hades_transactions(user_id, mcard_id)]
 
     def get_transactions_data(self, user_id, mcard_id):
-        resp = self._get_transactions(user_id, mcard_id)
-        return self.get_serializer(resp, many=True).data if resp else []
+        resp = self._get_hades_transactions(user_id, mcard_id)
+        return TransactionsSerializer(resp, many=True).data if resp else []
 
 
 class ServiceConsentSerializer(serializers.ModelSerializer):
@@ -181,11 +181,12 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         }
 
 
-class ListPaymentCardSerializer(PaymentCardSerializer):
-    @staticmethod
-    def _get_images(instance):
-        payment_card_images = PaymentCardImage.objects.filter(payment_card=instance.payment_card)
-        return [image.id for image in payment_card_images]
+# not used for now but will be needed
+# class ListPaymentCardSerializer(PaymentCardSerializer):
+#     @staticmethod
+#     def _get_images(instance):
+#         payment_card_images = PaymentCardImage.objects.filter(payment_card=instance.payment_card)
+#         return [image.id for image in payment_card_images]
 
 
 class PaymentCardTranslationSerializer(serializers.Serializer):
@@ -391,14 +392,15 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         }
 
 
-class ListMembershipPlanSerializer(MembershipPlanSerializer):
-    @staticmethod
-    def _get_ubiquity_images(instance):
-        return [
-            image.id
-            for image in instance.images.all()
-            if image.image_type_code in [image.HERO, image.ICON]
-        ]
+# not used for now but will be needed
+# class ListMembershipPlanSerializer(MembershipPlanSerializer):
+#     @staticmethod
+#     def _get_ubiquity_images(instance):
+#         return [
+#             image.id
+#             for image in instance.images.all()
+#             if image.image_type_code in [image.HERO, image.ICON]
+#         ]
 
 
 class UbiquityBalanceSerializer(serializers.Serializer):
@@ -456,12 +458,14 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
+    def _get_transactions(self, instance):
+        return self.get_transactions_data(
+            self.context['request'].user.id, instance.id
+        ) if self.context.get('request') and instance.scheme.has_transactions else []
+
     def to_representation(self, instance):
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
         images = instance.scheme.images.all()
-        transactions = self.get_transactions_id(
-            self.context['request'].user.id, instance.id
-        ) if self.context.get('request') and instance.scheme.has_transactions else []
 
         try:
             reward_tier = instance.balances[0]['reward_tier']
@@ -472,7 +476,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'id': instance.id,
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': transactions,
+            'membership_transactions': self._get_transactions(instance),
             'status': {
                 'state': ubiquity_status_translation[instance.status],
                 'reason_codes': [
@@ -491,6 +495,23 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             },
             'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
         }
+
+
+# not used for now but will be needed
+# class ListMembershipCardSerializer(MembershipCardSerializer):
+#     @staticmethod
+#     def _get_ubiquity_images(tier, images):
+#         return [
+#             image.id
+#             for image in images
+#             if image.image_type_code in [image.HERO, image.ICON] or (
+#                     image.image_type_code == image.TIER and image.reward_tier == tier)
+#         ]
+#
+#     def _get_transactions(self, instance):
+#         return self.get_transactions_id(
+#             self.context['request'].user.id, instance.id
+#         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
 
 class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
