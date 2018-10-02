@@ -114,13 +114,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         try:
             query = {
                 'scheme_account__scheme__id': data['scheme'],
-                'answer': data[answer_type]
+                'answer': data[answer_type],
+                'scheme_account__is_deleted': False
             }
             scheme_account = SchemeAccountCredentialAnswer.objects.get(**query).scheme_account
-
-            if scheme_account.is_deleted:
-                scheme_account.is_deleted = False
-                scheme_account.save()
 
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
             for card in scheme_account.payment_card_account_set.all():
@@ -144,7 +141,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account = SchemeAccount.objects.get(
                     user_set__id=user.id,
                     scheme_id=data['scheme'],
-                    status=SchemeAccount.JOIN
+                    status=SchemeAccount.JOIN,
+                    is_deleted=False
                 )
 
                 scheme_account.order = data['order']
