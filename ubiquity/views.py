@@ -367,12 +367,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('column not coherent with membership plan')
 
     def _collect_credentials_answers(self, data):
-        scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-        question_type_dict = scheme.get_question_type_dict()
+        try:
+            scheme = get_object_or_404(Scheme, id=data['membership_plan'])
+            question_type_dict = scheme.get_question_type_dict()
 
-        add_fields = self._collect_field_content('add_fields', data['account'], question_type_dict[0])
-        auth_fields = self._collect_field_content('authorise_fields', data['account'], question_type_dict[1])
-        enrol_fields = self._collect_field_content('enrol_fields', data['account'], question_type_dict[2])
+            add_fields = self._collect_field_content('add_fields', data['account'], question_type_dict[0])
+            auth_fields = self._collect_field_content('authorise_fields', data['account'], question_type_dict[1])
+            enrol_fields = self._collect_field_content('enrol_fields', data['account'], question_type_dict[2])
+        except KeyError:
+            raise ParseError()
 
         if not add_fields and not enrol_fields:
             raise ParseError()
