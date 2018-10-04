@@ -87,11 +87,9 @@ class IdentifyCardMixin:
 
 
 class SchemeAccountCreationMixin(SwappableSerializerMixin):
-    def create_account(self, data, user, user_pk=None):
+    def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        account_created = False
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
         if scheme.url == settings.MY360_SCHEME_URL:
@@ -110,6 +108,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
                 ]
             })
+        return serializer
+
+    def create_account(self, data, user, user_pk=None):
+        serializer = self.get_validated_data(data, user)
+        return self.create_account_with_valid_data(serializer, user, user_pk)
+
+    def create_account_with_valid_data(self, serializer, user, user_pk=None):
+        account_created = False
+        data = serializer.validated_data
         answer_type = serializer.context['answer_type']
         try:
             query = {

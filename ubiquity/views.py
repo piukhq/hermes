@@ -3,6 +3,7 @@ import uuid
 import requests
 from django.conf import settings
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -270,12 +271,17 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         # The objective of this end point is to replace an membership card with a new one keeping
         # the same id. The idea is to delete the membership account cascading any deletes and then
         # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
+
+        original_scheme_account = self.get_object()
+        serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
+        account_pk = original_scheme_account.pk
         try:
-            account_id = self.get_object().pk
-        except AttributeError:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        SchemeAccount.objects.get(pk=account_id).delete()
-        account, status_code = self._handle_membership_card_creation(request, account_id)
+            with transaction.atomic():
+                original_scheme_account.delete()
+                account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
+                                                                             enrol_fields, account_pk)
+        except Exception:
+            raise ParseError
         if status_code == status.HTTP_201_CREATED:
             # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
             status_code = status.HTTP_200_OK
@@ -320,7 +326,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return out_fields
 
-    def _handle_membership_card_creation(self, request, use_pk=None):
+    def _verify_membership_card_creation(self, request):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
@@ -328,10 +334,17 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         if add_fields:
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            scheme_account, _, account_created = self.create_account(add_data, request.user, use_pk)
+            serializer = self.get_validated_data(add_data, request.user)
+
+        return serializer, auth_fields, enrol_fields
+
+    def _handle_membership_card_creation(self, user,  serializer, auth_fields, enrol_fields, use_pk=None):
+
+        if serializer and serializer.validated_data:
+            scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
             if auth_fields:
                 serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-                self.link_account(serializer, scheme_account, request.user)
+                self.link_account(serializer, scheme_account, user)
                 scheme_account.link_date = timezone.now()
                 scheme_account.save()
 
@@ -344,6 +357,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         else:
             # todo implement enrol
+            if enrol_fields:
+                pass
             raise NotImplemented
 
     def _collect_credentials_answers(self, data):
@@ -395,7 +410,9 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        account, status_code = self._handle_membership_card_creation(request)
+        serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
+        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
+                                                                     enrol_fields)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
@@ -488,7 +505,9 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        account, status_code = self._handle_membership_card_creation(request)
+        serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
+        account, status_code = self._handle_membership_card_creation(request.user,  serializer, auth_fields,
+                                                                     enrol_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
