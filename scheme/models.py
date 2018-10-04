@@ -150,15 +150,10 @@ class Scheme(models.Model):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
     def get_question_type_dict(self):
-        field_types = self.questions.first()
-        if not field_types:
-            return {}
-
-        result = {field_types.ADD_FIELD: {}, field_types.AUTH_FIELD: {}, field_types.ENROL_FIELD: {}}
-        for question in self.questions.filter(field_type__isnull=False).all():
-            result[question.field_type].update({question.label: question.type})
-
-        return result
+        return {
+            question.label: question.type
+            for question in self.questions.filter(field_type__isnull=False).all()
+        }
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
