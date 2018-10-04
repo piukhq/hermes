@@ -6,7 +6,7 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 

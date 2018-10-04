@@ -240,6 +240,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         'DELETE': MembershipCardSerializer,
         'PUT': UbiquityCreateSchemeAccountSerializer
     }
+    create_update_fields = ('add_fields', 'authorise_fields', 'enrol_fields')
 
     def get_queryset(self):
         query = {
@@ -259,15 +260,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
-        try:
-            account = self.get_object()
-            new_answers = self._collect_updated_answers(request.data['account'], account.scheme)
-        except KeyError:
-            raise ParseError
-
-        self.update_credentials(account, new_answers, )
-        return Response(self.get_serializer(account).data,
-                        status=status.HTTP_200_OK)
+        account = self.get_object()
+        new_answers = self._collect_updated_answers(request.data, account.scheme)
+        self.update_credentials(account, new_answers)
+        return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
@@ -301,34 +297,28 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return Response(MembershipPlanSerializer(mcard.scheme).data)
 
     @staticmethod
-    def _collect_updated_answers(data, scheme):
+    def _collect_field_content(field, data, label_to_type):
+        return {
+            label_to_type[item['column']]: item['value']
+            for item in data.get(field, [])
+        }
+
+    def _collect_updated_answers(self, data, scheme):
         label_to_type = scheme.get_question_type_dict()
-        field_types = scheme.questions.first()
-
+        out_fields = {}
         try:
-            auth_fields = {
-                label_to_type[field_types.AUTH_FIELD][item['column']]: item['value']
-                for item in data['authorise_fields']
-            } if 'authorise_fields' in data else None
+            for field_name in self.create_update_fields:
+                out_fields.update(
+                    self._collect_field_content(field_name, data['account'], label_to_type)
+                )
 
-            enrol_fields = {
-                label_to_type[field_types.ENROL_FIELD][item['column']]: item['value']
-                for item in data['enrol_fields']
-            } if 'enrol_fields' in data else None
         except KeyError:
             raise ParseError
 
-        if not auth_fields and not enrol_fields:
+        if not out_fields:
             raise ParseError()
 
-        out = {}
-        if auth_fields:
-            out.update(auth_fields)
-
-        if enrol_fields:
-            out.update(enrol_fields)
-
-        return out
+        return out_fields
 
     def _handle_membership_card_creation(self, request, use_pk=None):
         if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
@@ -356,33 +346,24 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             # todo implement enrol
             raise NotImplemented
 
-    @staticmethod
-    def _collect_field_content(field, data, label_to_type):
-        try:
-            return {
-                label_to_type[item['column']]: item['value']
-                for item in data[field]
-            } if field in data else None
-        except KeyError:
-            raise ParseError('column not coherent with membership plan')
-
     def _collect_credentials_answers(self, data):
         try:
             scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-            question_type_dict = scheme.get_question_type_dict()
+            label_to_type = scheme.get_question_type_dict()
+            fields = {}
 
-            add_fields = self._collect_field_content('add_fields', data['account'], question_type_dict[0])
-            auth_fields = self._collect_field_content('authorise_fields', data['account'], question_type_dict[1])
-            enrol_fields = self._collect_field_content('enrol_fields', data['account'], question_type_dict[2])
+            for field_name in self.create_update_fields:
+                fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
+
         except KeyError:
             raise ParseError()
 
-        if not add_fields and not enrol_fields:
+        if not fields['add_fields'] and not fields['enrol_fields']:
             raise ParseError()
-        if scheme.authorisation_required and not auth_fields:
+        if scheme.authorisation_required and not fields['authorise_fields']:
             raise ParseError()
 
-        return add_fields, auth_fields, enrol_fields
+        return fields['add_fields'], fields['authorise_fields'], fields['enrol_fields']
 
     @staticmethod
     def allowed_answers(scheme):
