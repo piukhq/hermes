@@ -405,7 +405,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
 class UbiquityBalanceSerializer(serializers.Serializer):
     scheme_balance = None
-    value = serializers.CharField(required=False)
+    value = serializers.CharField(required=False, source='points')
     currency = serializers.SerializerMethodField()
     prefix = serializers.SerializerMethodField()
     suffix = serializers.SerializerMethodField()
