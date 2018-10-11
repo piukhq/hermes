@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import arrow
 import jwt
 import requests
@@ -403,45 +405,63 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 #         ]
 
 
-class UbiquityBalanceSerializer(serializers.Serializer):
-    scheme_balance = None
-    value = serializers.CharField(required=False, source='points')
-    currency = serializers.SerializerMethodField()
-    prefix = serializers.SerializerMethodField()
-    suffix = serializers.SerializerMethodField()
-    updated_at = serializers.IntegerField(required=False)
+class UbiquityBalanceHandler:
+    point_info = None
+    value_info = None
+    data = None
 
-    def get_currency(self, instance):
-        if 'scheme_id' not in instance:
-            return None
-        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.currency if scheme_balance else None
+    def __init__(self, dictionary, many=False):
+        if many:
+            dictionary, *_ = dictionary
 
-    def get_prefix(self, instance):
-        if 'scheme_id' not in instance:
-            return None
-        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.prefix if scheme_balance else None
+        if 'scheme_id' in dictionary:
+            self._collect_scheme_balances_info(dictionary['scheme_id'])
 
-    def get_suffix(self, instance):
-        if 'scheme_id' not in instance:
-            return None
-        scheme_balance = self.retrieve_scheme_balance_info(instance['scheme_id'])
-        return scheme_balance.suffix if scheme_balance else None
+        self.point_balance = dictionary.get('points')
+        self.value_balance = dictionary.get('value')
+        self._format_balance_values()
+        self.updated_at = dictionary.get('updated_at')
+        self._get_balances()
 
-    def retrieve_scheme_balance_info(self, scheme_id):
-        if self.scheme_balance:
-            return self.scheme_balance
+    def _format_balance_values(self):
+        if self.point_balance:
+            self.point_balance = str(int(self.point_balance))
+        if self.value_balance:
+            self.value_balance = str(Decimal(self.value_balance).quantize(Decimal('0.01')))
 
-        scheme_balance = SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).first()
-        if scheme_balance:
-            self.scheme_balance = scheme_balance
-            return scheme_balance
+    def _collect_scheme_balances_info(self, scheme_id):
+        for balance_info in SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).all():
+            if balance_info.currency in ['GBP', 'EUR', 'USD']:
+                self.value_info = balance_info
+            else:
+                self.point_info = balance_info
 
-        return None
+    def _format_balance(self, value, info):
+        """
+        :param value:
+        :type value: string
+        :param info:
+        :type info: SchemeBalanceDetails
+        :return: dict
+        """
+        return {
+            "value": value,
+            "currency": info.currency,
+            "prefix": info.prefix,
+            "suffix": info.suffix,
+            "description": info.description,
+            "updated_at": self.updated_at
+        }
 
-    class Meta:
-        exclude = ('scheme',)
+    def _get_balances(self):
+        balances = []
+        if self.point_balance and self.point_info:
+            balances.append(self._format_balance(self.point_balance, self.point_info))
+
+        if self.value_balance and self.value_info:
+            balances.append(self._format_balance(self.value_balance, self.value_info))
+
+        self.data = balances
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
@@ -493,7 +513,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'account': {
                 'tier': reward_tier
             },
-            'balances': UbiquityBalanceSerializer(instance.balances, many=True).data if instance.balances else None
+            'balances': UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
         }
 
 
