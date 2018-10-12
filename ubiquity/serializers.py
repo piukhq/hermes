@@ -242,6 +242,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
 
 class TransactionsSerializer(serializers.Serializer):
+    scheme_info = None
     id = serializers.IntegerField()
     status = serializers.SerializerMethodField()
     timestamp = serializers.SerializerMethodField()
@@ -256,29 +257,33 @@ class TransactionsSerializer(serializers.Serializer):
     def get_timestamp(instance):
         return arrow.get(instance['date']).timestamp
 
-    @staticmethod
-    def get_amounts(instance):
-        scheme = Scheme.objects.get(schemeaccount__id=instance['scheme_account_id'])
-        scheme_balances = scheme.schemebalancedetails_set.first()
+    def _get_scheme_info(self, mcard_id):
+        if self.scheme_info:
+            return self.scheme_info
+
+        self.scheme_info = Scheme.objects.get(schemeaccount__id=mcard_id).schemebalancedetails_set.first()
+        return self.scheme_info
+
+    def get_amounts(self, instance):
+        scheme_balances = self._get_scheme_info(instance['scheme_account_id'])
         amounts = []
 
-        if instance['value']:
-            amounts.append(
-                {
-                    'currency': 'GBP',
-                    'prefix': '£',
-                    'suffix': None,
-                    'value': instance['value']
-                }
-            )
-
-        if instance['points']:
+        if scheme_balances.currency in ['GBP', 'EUR', 'USD']:
             amounts.append(
                 {
                     'currency': scheme_balances.currency,
                     'prefix': scheme_balances.prefix,
                     'suffix': scheme_balances.suffix,
-                    'value': instance['points']
+                    'value': str(Decimal(instance['points']).quantize(Decimal('0.01')))
+                }
+            )
+        else:
+            amounts.append(
+                {
+                    'currency': scheme_balances.currency,
+                    'prefix': scheme_balances.prefix,
+                    'suffix': scheme_balances.suffix,
+                    'value': str(int(instance['points']))
                 }
             )
 
