@@ -2,8 +2,8 @@ import uuid
 
 import requests
 from django.conf import settings
-from django.utils import timezone
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -331,15 +331,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('membership plan not allowed for this user.')
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
-
-        if add_fields:
-            add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            serializer = self.get_validated_data(add_data, request.user)
-
+        add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
+        serializer = self.get_validated_data(add_data, request.user)
         return serializer, auth_fields, enrol_fields
 
-    def _handle_membership_card_creation(self, user,  serializer, auth_fields, enrol_fields, use_pk=None):
-
+    def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
         if serializer and serializer.validated_data:
             scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
             if auth_fields:
@@ -373,9 +369,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         except KeyError:
             raise ParseError()
 
-        if not fields['add_fields'] and not fields['enrol_fields']:
-            raise ParseError()
-        if scheme.authorisation_required and not fields['authorise_fields']:
+        if not fields['add_fields'] and scheme.authorisation_required:
+            manual_question = scheme.questions.get(manual_question=True).type
+            try:
+                fields['add_fields'].update({manual_question: fields['authorise_fields'].pop(manual_question)})
+            except KeyError:
+                raise ParseError()
+
+        elif not fields['add_fields']:
             raise ParseError()
 
         return fields['add_fields'], fields['authorise_fields'], fields['enrol_fields']
@@ -506,7 +507,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
-        account, status_code = self._handle_membership_card_creation(request.user,  serializer, auth_fields,
+        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
                                                                      enrol_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
