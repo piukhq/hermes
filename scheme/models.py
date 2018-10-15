@@ -13,12 +13,14 @@ from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
+
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
+
 
 from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
@@ -171,6 +173,22 @@ class JourneyTypes(Enum):
     ADD = 2
 
 
+class Control(models.Model):
+    JOIN_KEY = 'join_button'
+    ADD_KEY = 'add_button'
+
+    KEY_CHOICES = (
+        (JOIN_KEY, 'Join Button - Add Card screen'),
+        (ADD_KEY, 'Add Button - Add Card screen')
+    )
+
+    key = models.CharField(max_length=50, choices=KEY_CHOICES)
+    label = models.CharField(max_length=50, blank=True)
+    hint_text = models.CharField(max_length=250, blank=True)
+
+    scheme = models.ForeignKey(Scheme, related_name="controls")
+
+
 class Consent(models.Model):
     journeys = (
         (JourneyTypes.JOIN.value, 'join'),
@@ -283,6 +301,7 @@ class SchemeAccount(models.Model):
     ACCOUNT_ALREADY_EXISTS = 445
     SERVICE_CONNECTION_ERROR = 537
     VALIDATION_ERROR = 401
+    PRE_REGISTERED_CARD = 406
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -308,10 +327,11 @@ class SchemeAccount(models.Model):
         (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
+        (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            ACCOUNT_ALREADY_EXISTS]
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
@@ -325,6 +345,7 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
+    join_date = models.DateTimeField(null=True, blank=True)
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
 
@@ -384,23 +405,73 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self, user_consents=None):
+    def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
-            self.status = SchemeAccount.INCOMPLETE
-            self.save()
-            return None
+            # temporary fix for iceland
+            if self.scheme.slug != 'iceland-bonus-card':
+                self.status = SchemeAccount.INCOMPLETE
+                self.save()
+                return None
 
-        if user_consents is not None:
-            credentials.update(consents=user_consents)
+        saved_consents = self.collect_pending_consents()
+        credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self, user_consents=None):
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        manual_question = self.scheme.manual_question
+        scan_question = self.scheme.scan_question
+
+        # No need to save if one is missing since there will not be any regex conversion required
+        if not all([manual_question, scan_question]):
+            return credentials
+
+        questions = (manual_question.type, scan_question.type)
+
+        for index, question in enumerate(questions):
+            if question in credentials:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.question(question),
+                    scheme_account=self,
+                    defaults={'answer': credentials[question]})
+
+                # Update credentials with the missing identifier value if there is a regex conversion available.
+                missing_question = questions[abs(index - 1)]
+                value = getattr(self, missing_question)
+
+                if missing_question not in credentials and value is not None:
+                    credentials.update({missing_question: value})
+
+        return credentials
+
+    def collect_pending_consents(self):
+        user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
+        formatted_user_consents = []
+        for user_consent in user_consents:
+            formatted_user_consents.append(
+                {
+                    "id": user_consent['id'],
+                    "slug": user_consent['slug'],
+                    "value": user_consent['value'],
+                    "created_on": arrow.get(user_consent['created_on']).for_json(),
+                    "journey_type": user_consent['metadata']['journey']
+                }
+            )
+
+        return formatted_user_consents
+
+    def get_midas_balance(self):
         points = None
         try:
-            credentials = self.credentials(user_consents)
+            credentials = self.credentials()
             if not credentials:
                 return points
             response = self._get_balance(credentials)
@@ -414,6 +485,11 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
+
+        if self.status == SchemeAccount.PRE_REGISTERED_CARD:
+            self.status = SchemeAccount.JOIN
+            for answer in self.schemeaccountcredentialanswer_set.all():
+                answer.delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
@@ -437,7 +513,7 @@ class SchemeAccount(models.Model):
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance(user_consents=user_consents)
+            balance = self.get_midas_balance()
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)

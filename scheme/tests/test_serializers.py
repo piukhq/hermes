@@ -1,13 +1,15 @@
-from unittest.mock import MagicMock, patch
-
 from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from scheme.serializers import ControlSerializer
+from scheme.tests.factories import ControlFactory
+from scheme.models import Control
+from unittest.mock import MagicMock, patch
 
 from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
 from scheme.models import ConsentStatus, JourneyTypes, SchemeCredentialQuestion
 from scheme.serializers import (CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
-                                MidasUserConsentSerializer, SchemeSerializer, UpdateUserConsentSerializer,
+                                SchemeSerializer, UpdateUserConsentSerializer,
                                 UserConsentSerializer)
 from scheme.tests.factories import (ConsentFactory, SchemeAccountFactory, SchemeCredentialQuestionFactory,
                                     SchemeFactory, UserConsentFactory)
@@ -79,6 +81,30 @@ class TestAnswerValidation(TestCase):
             "date_of_birth": "22/11/1999"
         })
         self.assertTrue(serializer.is_valid())
+
+    def test_temporary_iceland_fix_ignores_question_validation(self):
+        scheme = SchemeFactory(slug='iceland-bonus-card')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertTrue(serializer.is_valid())
+
+    def test_temporary_iceland_fix_doesnt_break_question_validation(self):
+        scheme = SchemeFactory(slug='not-iceland')
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        context = {
+            'scheme': scheme,
+            'scheme_account': scheme_account
+        }
+        serializer = LinkSchemeSerializer(data={}, context=context)
+        self.assertFalse(serializer.is_valid())
 
 
 class TestSchemeSerializer(TestCase):
@@ -276,19 +302,21 @@ class TestUpdateUserConsentSerializer(TestCase):
         self.assertFalse(serializer.is_valid())
 
 
-class TestMidasUserConsentSerializer(TestCase):
+class TestControlSerializer(TestCase):
     def setUp(self):
-        self.serializer_class = MidasUserConsentSerializer
         self.scheme = SchemeFactory()
-        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        self.user_consent1 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
-        self.user_consent2 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
-        self.user_consent3 = UserConsentFactory(scheme=self.scheme_account.scheme, scheme_account=self.scheme_account)
 
-    def test_serializer_returns_correct_fields(self):
-        consents = [self.user_consent1, self.user_consent2, self.user_consent3]
-        consents_data = self.serializer_class(consents, many=True)
+        self.control = ControlFactory(scheme=self.scheme, key=Control.JOIN_KEY)
 
-        expected_fields = {'id', 'slug', 'value', 'created_on'}
-        for consent_dict in consents_data.data:
-            self.assertEqual(set(consent_dict.keys()), expected_fields)
+        self.serializer_class = ControlSerializer
+
+    def test_correct_control_representation(self):
+        serializer = self.serializer_class(self.control)
+
+        keys = ['key', 'label', 'hint_text']
+
+        self.assertEqual(len(serializer.data.keys()), 3)
+        for key in keys:
+            self.assertIn(key, serializer.data)
+
+        self.assertEqual(serializer.data['key'], 'join_button')

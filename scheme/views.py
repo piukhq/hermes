@@ -8,6 +8,21 @@ from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.views import APIView
+from scheme.encyption import AESCipher
+from scheme.forms import CSVUploadForm
+from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
+                           SchemeAccountImage, UserConsent, JourneyTypes, ConsentStatus)
+
+from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
+                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
+                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
+                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
+                                SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
+                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
+                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
+                                UpdateUserConsentSerializer)
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
@@ -29,6 +44,8 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
 from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
+
+
 
 
 class SchemeAccountQuery(APIView):
@@ -95,6 +112,18 @@ class UpdateUserConsent(UpdateAPIView):
     authentication_classes = (ServiceAuthentication,)
     queryset = UserConsent.objects.all()
     serializer_class = UpdateUserConsentSerializer
+
+    def put(self, request, *args, **kwargs):
+        if request.data.get('status') == ConsentStatus.FAILED:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            consent = self.get_object()
+            consent.delete()
+            return Response(serializer.data)
+        else:
+            return self.update(request, *args, **kwargs)
 
 
 class LinkCredentials(BaseLinkMixin, GenericAPIView):
@@ -236,13 +265,25 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+
+        journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+
+        needs_saving = False
+
+        if journey == 'join':
+            scheme_account.join_date = timezone.now()
+            needs_saving = True
+
         if new_status_code != scheme_account.status:
             scheme_account.status = new_status_code
+            needs_saving = True
+
+        if needs_saving:
             scheme_account.save()
 
         return Response({

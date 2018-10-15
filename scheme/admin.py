@@ -3,10 +3,12 @@ from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.forms import ConsentForm
-from scheme.models import (Category, Consent, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeAccountImage, SchemeBalanceDetails, SchemeCredentialQuestion,
-                           SchemeCredentialQuestionChoice,
-                           SchemeCredentialQuestionChoiceValue, SchemeDetail, SchemeImage, UserConsent)
+from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+import re
+
+slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -52,6 +54,11 @@ class SchemeBalanceDetailsInline(admin.StackedInline):
     extra = 0
 
 
+class ControlInline(admin.TabularInline):
+    model = Control
+    extra = 0
+
+
 class SchemeForm(ModelForm):
     class Meta:
         model = Scheme
@@ -71,6 +78,13 @@ class SchemeForm(ModelForm):
 
         return point_name
 
+    def clean_slug(self):
+        slug = self.cleaned_data['slug']
+        if slug_regex.match(slug):
+            return slug
+        else:
+            raise ValidationError('Slug must only contain lowercase letters and hyphens')
+
 
 class SchemeDetailsInline(admin.StackedInline):
     model = SchemeDetail
@@ -79,7 +93,7 @@ class SchemeDetailsInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline)
+    inlines = (CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active',)
