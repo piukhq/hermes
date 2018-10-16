@@ -8,21 +8,6 @@ from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.views import APIView
-from scheme.encyption import AESCipher
-from scheme.forms import CSVUploadForm
-from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, Exchange, SchemeImage,
-                           SchemeAccountImage, UserConsent, JourneyTypes, ConsentStatus)
-
-from scheme.serializers import (SchemeSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer,
-                                CreateSchemeAccountSerializer, GetSchemeAccountSerializer, UpdateCredentialSerializer,
-                                SchemeAccountCredentialsSerializer, SchemeAccountIdsSerializer,
-                                StatusSerializer, ResponseLinkSerializer, DeleteCredentialSerializer,
-                                SchemeAccountSummarySerializer, ResponseSchemeAccountAndBalanceSerializer,
-                                SchemeAnswerSerializer, DonorSchemeSerializer, ReferenceImageSerializer,
-                                QuerySchemeAccountSerializer, JoinSerializer, UserConsentSerializer,
-                                UpdateUserConsentSerializer)
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
@@ -32,7 +17,7 @@ from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
-from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent)
+from scheme.models import ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer,
@@ -44,8 +29,6 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
 from ubiquity.models import SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
-
-
 
 
 class SchemeAccountQuery(APIView):

@@ -12,22 +12,15 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import (JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion,
-                           UserConsent)
+from scheme.models import (ConsentStatus, JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion, UserConsent)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
-from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory,
-                                    SchemeAccountImageFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory,
-                                    SchemeImageFactory)
+from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
+                                    SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
+                                    SchemeImageFactory,
+                                    UserConsentFactory)
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from rest_framework.test import APITestCase
-from scheme.serializers import ResponseLinkSerializer, LinkSchemeSerializer, ListSchemeAccountSerializer
-from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, \
-    SchemeAccountFactory, SchemeAccountImageFactory, SchemeImageFactory, ExchangeFactory, UserConsentFactory
-from scheme.tests.factories import ConsentFactory
-from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion, ConsentStatus
-
 from user.models import Setting
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
 
@@ -173,6 +166,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=link_scheme_account)
         SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
@@ -185,7 +179,7 @@ class TestSchemeAccountViews(APITestCase):
             'is_stale': False
         }
 
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "London",
             PASSWORD: "sdfsdf",
@@ -273,16 +267,18 @@ class TestSchemeAccountViews(APITestCase):
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,
                                                                  mock_update_attr):
+
         error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = None
 
         metadata = {'journey': JourneyTypes.LINK.value}
-        success_scheme_account_consent = UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata,
+        success_scheme_account_user_consent = UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata,
                                                             status=ConsentStatus.SUCCESS)
+        SchemeAccountEntryFactory(scheme_account=error_scheme_account, user=success_scheme_account_user_consent.user)
         UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata, status=ConsentStatus.PENDING)
         test_reply = True
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + error_scheme_account.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + success_scheme_account_user_consent.user.create_token()}
         data = {
             CARD_NUMBER: "London",
             PASSWORD: "sdfsdf",
@@ -298,19 +294,20 @@ class TestSchemeAccountViews(APITestCase):
         set_values = UserConsent.objects.filter(scheme_account=error_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         successful_consent = set_values[0]
-        self.assertEqual(successful_consent['id'], success_scheme_account_consent.id)
+        self.assertEqual(successful_consent['id'], success_scheme_account_user_consent.id)
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, '_get_balance')
     def test_link_schemes_account_pre_registered_card_error(self, mock_get_balance, mock_date, mock_update_attr):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
                                       scheme_account=scheme_account)
 
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_balance.return_value.status_code = SchemeAccount.PRE_REGISTERED_CARD
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "1234",
             PASSWORD: "abcd",
@@ -836,7 +833,7 @@ class TestSchemeAccountViews(APITestCase):
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=sae.scheme_account.id)
         with self.assertRaises(UserConsent.DoesNotExist):
-            UserConsent.objects.get(scheme_account_id=scheme_account.id)
+            UserConsent.objects.get(scheme_account_id=sae.scheme_account.id)
 
     def test_update_user_consent(self):
         user_consent = UserConsentFactory(status=ConsentStatus.PENDING)

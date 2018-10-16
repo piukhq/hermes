@@ -6,12 +6,10 @@ from rest_framework import serializers
 
 from common.models import Image
 from scheme.credentials import credential_types_set
-from scheme.models import (Consent, ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeAccountImage, SchemeCredentialQuestion, SchemeImage, UserConsent)
+from scheme.models import (Consent, ConsentStatus, Control, Exchange, Scheme, SchemeAccount,
+                           SchemeAccountCredentialAnswer, SchemeAccountImage, SchemeCredentialQuestion, SchemeImage,
+                           UserConsent)
 from user.models import CustomUser
-from django.shortcuts import get_object_or_404
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus, Control
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
@@ -42,7 +40,6 @@ class ConsentsSerializer(serializers.ModelSerializer):
 
 
 class ControlSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Control
         exclude = ('id', 'scheme')
@@ -241,7 +238,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         if self.verify_account_exists:
-            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme)\
+            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
                 .exclude(status=SchemeAccount.JOIN)
             for sa in scheme_accounts.all():
                 if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
