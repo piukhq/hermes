@@ -93,7 +93,7 @@ class SchemeDetailsInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline, ControlInline)
+    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('is_active',)
