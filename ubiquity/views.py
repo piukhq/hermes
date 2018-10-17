@@ -2,8 +2,8 @@ import uuid
 
 import requests
 from django.conf import settings
-from django.utils import timezone
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -256,7 +256,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
-        account.get_cached_balance()
         return Response(self.get_serializer(account).data)
 
     @censor_and_decorate
@@ -264,6 +263,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         new_answers = self._collect_updated_answers(request.data, account.scheme)
         self.update_credentials(account, new_answers)
+        account.delete_cached_balance()
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -338,8 +338,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return serializer, auth_fields, enrol_fields
 
-    def _handle_membership_card_creation(self, user,  serializer, auth_fields, enrol_fields, use_pk=None):
-
+    def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
         if serializer and serializer.validated_data:
             scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
             if auth_fields:
@@ -402,10 +401,6 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
-
-        for account in accounts:
-            account.get_cached_balance()
-
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate
@@ -497,16 +492,13 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
-        for account in accounts:
-            account.get_cached_balance()
-
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
-        account, status_code = self._handle_membership_card_creation(request.user,  serializer, auth_fields,
+        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
                                                                      enrol_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
