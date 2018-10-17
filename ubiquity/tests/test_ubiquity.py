@@ -338,7 +338,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp2.status_code, 201)
 
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_cards_linking(self, _):
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_cards_linking(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
         SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
@@ -533,7 +534,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
-    def test_composite_membership_card_get(self):
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_composite_membership_card_get(self, _):
         resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
@@ -806,7 +808,8 @@ class TestMembershipCardCredentials(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_update_new_and_existing_credentials(self, _):
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_update_new_and_existing_credentials(self, *_):
         payload = {
             'account': {
                 'authorise_fields': [
