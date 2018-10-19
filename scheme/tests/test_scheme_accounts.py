@@ -267,14 +267,13 @@ class TestSchemeAccountViews(APITestCase):
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,
                                                                  mock_update_attr):
-
         error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = None
 
         metadata = {'journey': JourneyTypes.LINK.value}
         success_scheme_account_user_consent = UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata,
-                                                            status=ConsentStatus.SUCCESS)
+                                                                 status=ConsentStatus.SUCCESS)
         SchemeAccountEntryFactory(scheme_account=error_scheme_account, user=success_scheme_account_user_consent.user)
         UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata, status=ConsentStatus.PENDING)
         test_reply = True

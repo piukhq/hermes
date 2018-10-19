@@ -238,8 +238,8 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         if self.verify_account_exists:
-            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme) \
-                .exclude(status=SchemeAccount.JOIN)
+            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id,
+                                                           scheme=scheme).exclude(status=SchemeAccount.JOIN)
             for sa in scheme_accounts.all():
                 if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
                     raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
