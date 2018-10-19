@@ -283,7 +283,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions(read_only=True)
-    action_status = serializers.ReadOnlyField()
+    display_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
@@ -316,7 +316,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
                   'status',
                   'order',
                   'created',
-                  'action_status',
+                  'display_status',
                   'status_name',
                   'barcode',
                   'card_label',
@@ -362,12 +362,12 @@ class SchemeAccountIdsSerializer(serializers.ModelSerializer):
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     credentials = serializers.ReadOnlyField()
     status_name = serializers.ReadOnlyField()
-    action_status = serializers.ReadOnlyField()
+    display_status = serializers.ReadOnlyField()
     scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'action_status')
+        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'display_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):

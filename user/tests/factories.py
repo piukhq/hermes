@@ -9,6 +9,8 @@ from user import models
 from user.models import ClientApplicationBundle, ClientApplication, Organisation
 
 fake = Factory.create()
+# Change seed value if we start getting duplicate data
+fake.seed(12345)
 
 
 class UserFactory(factory.DjangoModelFactory):

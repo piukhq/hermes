@@ -131,7 +131,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('is_deleted', response.data)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
         self.assertNotIn('card_number_prefix', response.data['scheme'])
-        self.assertEqual(response.data['action_status'], 'ACTIVE')
+        self.assertEqual(response.data['display_status'], SchemeAccount.ACTIVE)
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
@@ -410,7 +410,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('credentials', response.data)
         self.assertIn('scheme', response.data)
-        self.assertIn('action_status', response.data)
+        self.assertIn('display_status', response.data)
         self.assertIn('status_name', response.data)
         self.assertIn('id', response.data)
 
@@ -536,7 +536,7 @@ class TestSchemeAccountViews(APITestCase):
 
         json = resp.json()
         self.assertIsInstance(json, dict)
-        self.assertIn('action_status', json)
+        self.assertIn('display_status', json)
         self.assertIn('barcode', json)
         self.assertIn('card_label', json)
         self.assertIn('created', json)

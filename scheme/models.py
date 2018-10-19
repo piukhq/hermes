@@ -609,17 +609,12 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
 
     @property
-    def action_status(self):
-        if self.status in self.USER_ACTION_REQUIRED:
-            return 'USER_ACTION_REQUIRED'
-        elif self.status in self.SYSTEM_ACTION_REQUIRED:
-            return 'SYSTEM_ACTION_REQUIRED'
-        elif self.status == self.ACTIVE:
-            return 'ACTIVE'
-        elif self.status == self.WALLET_ONLY:
-            return 'WALLET_ONLY'
-        elif self.status == self.PENDING:
-            return 'PENDING'
+    def display_status(self):
+        if self.status == self.ACTIVE or self.status in self.SYSTEM_ACTION_REQUIRED:
+            return self.ACTIVE
+        elif self.status in [self.PENDING, self.JOIN]:
+            return self.status
+        return self.WALLET_ONLY
 
     @property
     def third_party_identifier(self):
