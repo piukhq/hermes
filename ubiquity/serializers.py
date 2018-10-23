@@ -459,14 +459,16 @@ class UbiquityBalanceHandler:
         }
 
     def _get_balances(self):
-        balances = []
-        if self.point_balance and self.point_info:
-            balances.append(self._format_balance(self.point_balance, self.point_info))
+        self.data = []
+        try:
+            self.data.append(self._format_balance(self.point_balance, self.point_info))
+        except AttributeError:
+            pass
 
-        if self.value_balance and self.value_info:
-            balances.append(self._format_balance(self.value_balance, self.value_info))
-
-        self.data = balances
+        try:
+            self.data.append(self._format_balance(self.value_balance, self.value_info))
+        except AttributeError:
+            pass
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
