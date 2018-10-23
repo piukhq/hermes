@@ -14,7 +14,7 @@ import analytics
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.serializers import LinkSchemeSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
@@ -262,6 +262,20 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     def update(self, request, *args, **kwargs):
         account = self.get_object()
         new_answers = self._collect_updated_answers(request.data, account.scheme)
+        manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
+
+        if manual_question and manual_question.type in new_answers:
+            filter = {
+                'scheme_account__scheme': account.scheme,
+                'answer': new_answers[manual_question.type]
+            }
+            exclude = {
+                'scheme_account': account
+            }
+
+            if SchemeAccountCredentialAnswer.objects.filter(**filter).exclude(**exclude).exists():
+                raise ParseError('A membership card with these credentials already exists in our system.')
+
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
