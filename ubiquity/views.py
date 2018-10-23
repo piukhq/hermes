@@ -274,7 +274,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             }
 
             if SchemeAccountCredentialAnswer.objects.filter(**filter).exclude(**exclude).exists():
-                raise ParseError('A membership card with these credentials already exists in our system.')
+                raise ParseError(
+                    'A membership card with these credentials already exists in our system. '
+                    'To add an existing card, please delete and create a new card using the post endpoint.'
+                )
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
