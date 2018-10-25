@@ -36,7 +36,8 @@ CURRENT_STATUS_CODES = (
     (900, 'Join'),
     (444, 'No user currently found'),
     (536, 'Error with the configuration or it was not possible to retrieve'),
-    (535, 'Request was not sent')
+    (535, 'Request was not sent'),
+    (600, 'Update failed. Delete and re-add card.')
 )
 
 # todo double check and confirm codes relations
@@ -60,7 +61,8 @@ reason_code_translation = {
     900: 'X200',
     444: 'X101',
     536: None,
-    535: None
+    535: None,
+    600: 'X104'
 }
 
 ubiquity_status_translation = {
@@ -84,4 +86,5 @@ ubiquity_status_translation = {
     444: 'failed',
     536: 'failed',
     535: 'failed',
+    600: 'failed'
 }

@@ -274,7 +274,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             }
 
             if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
-                return Response({"status": "failed", "reason_codes": ["X104"]}, status=status.HTTP_200_OK)
+                account.status = account.FAILED_UPDATE
+                account.save()
+                return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
