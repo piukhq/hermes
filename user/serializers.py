@@ -205,12 +205,13 @@ class SchemeAccountsSerializer(serializers.ModelSerializer):
 
 
 class SchemeAccountSerializer(serializers.Serializer):
+    # TODO(cl): look at removing this, it doesn't seem to be used anywhere
     scheme_slug = serializers.CharField(max_length=50)
     scheme_account_id = serializers.IntegerField()
     user_id = serializers.IntegerField()
     status = serializers.IntegerField()
     status_name = serializers.CharField()
-    action_status = serializers.CharField()
+    display_status = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
 
 

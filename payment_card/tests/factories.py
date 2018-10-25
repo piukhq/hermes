@@ -10,6 +10,8 @@ from user.tests.factories import UserFactory
 from payment_card import models
 
 fake = Factory.create()
+# Change seed value if we start getting duplicate data
+fake.seed(12345)
 
 
 class IssuerFactory(factory.DjangoModelFactory):

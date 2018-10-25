@@ -9,6 +9,8 @@ import factory
 from user import models
 
 fake = Factory.create()
+# Change seed value if we start getting duplicate data
+fake.seed(12345)
 
 
 class UserFactory(factory.DjangoModelFactory):
