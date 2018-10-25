@@ -1110,6 +1110,7 @@ class TestUserSettings(APITestCase):
     @mock.patch('analytics.api.update_attributes')
     def test_create_analytics_setting(self, mock_update_attribute):
         setting = SettingFactory(slug='marketing-bink')
+        UserSettingFactory(user=self.user, value='1', setting=setting)
 
         data = {
             setting.slug: '1',

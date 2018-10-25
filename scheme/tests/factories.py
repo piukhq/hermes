@@ -13,7 +13,7 @@ from user.tests.factories import UserFactory
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
-fake.seed(12345)
+fake.seed(123456)
 
 
 class CategoryFactory(factory.DjangoModelFactory):

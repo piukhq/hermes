@@ -82,8 +82,6 @@ class BaseLinkMixin(object):
                 user_consent = UserConsent.objects.get(id=user_consent['id'])
                 user_consent.delete()
 
-        analytics.update_scheme_account_attribute(scheme_account)
-
         return response_data
 
 
@@ -275,6 +273,7 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
         if type(data) == int:
             return(data)
         with transaction.atomic():
+            scheme_account_updated = False
             try:
                 scheme_account = SchemeAccount.objects.get(
                     user=user,
@@ -285,6 +284,8 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.WALLET_ONLY
                 scheme_account.save()
+                scheme_account_updated = True
+
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     user=user,
@@ -292,6 +293,12 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
                 )
+            finally:
+                if scheme_account_updated:
+                    analytics.update_scheme_account_attribute(scheme_account, SchemeAccount.JOIN)
+                else:
+                    analytics.update_scheme_account_attribute(scheme_account)
+
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=scheme_account.question(answer_type),
@@ -306,8 +313,6 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
                     user_consent.save()
 
         data['id'] = scheme_account.id
-
-        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 
@@ -512,6 +517,8 @@ class CreateJoinSchemeAccount(APIView):
         )
         account.save()
 
+        analytics.update_scheme_account_attribute(account)
+
         metadata = {
             'company name': scheme.company,
             'slug': scheme.slug
@@ -522,7 +529,6 @@ class CreateJoinSchemeAccount(APIView):
             metadata,
             True
         )
-        analytics.update_scheme_account_attribute(account)
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -553,6 +559,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             needs_saving = True
 
         if new_status_code != scheme_account.status:
+            analytics.update_scheme_account_attribute_new_status(scheme_account, new_status_code)
             scheme_account.status = new_status_code
             needs_saving = True
 
@@ -904,6 +911,8 @@ class Join(SwappableSerializerMixin, GenericAPIView):
 
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
+        analytics.update_scheme_account_attribute(scheme_account, SchemeAccount.JOIN)
+
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
         sentry.captureException()
@@ -921,6 +930,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.PENDING
                 scheme_account.save()
+
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     user=user,
@@ -928,8 +938,6 @@ class Join(SwappableSerializerMixin, GenericAPIView):
                     order=data['order'],
                     status=SchemeAccount.PENDING
                 )
-
-        analytics.update_scheme_account_attribute(scheme_account)
 
         return scheme_account
 

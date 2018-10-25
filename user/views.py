@@ -474,7 +474,11 @@ class UserSettings(APIView):
                 user_setting.save()
                 if slug_key in analytics.SETTING_CUSTOM_ATTRIBUTES:
 
-                    analytics.update_attribute(request.user, slug_key, user_setting.to_boolean())
+                    attributes = {
+                        slug_key: user_setting.to_boolean()
+                    }
+
+                    analytics.update_attributes(request.user, attributes)
 
         if validation_errors:
             return Response({

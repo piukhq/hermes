@@ -139,7 +139,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(
             mock_update_attr.call_args[0][1],
             {
-                '{0}'.format(self.scheme_account.scheme.company): 'true,ACTIVE,2000/05/19,{}'.format(
+                '{0}'.format(self.scheme_account.scheme.company):
+                    'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(
                     self.scheme_account.scheme.slug)
             }
         )
@@ -154,10 +155,9 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
-    @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_no_consents(self, mock_get_midas_balance, mock_date, mock_update_attr):
+    def test_link_schemes_account_no_consents(self, mock_get_midas_balance, mock_date):
         link_scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
@@ -189,20 +189,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
-
-        self.assertEqual(
-            mock_update_attr.call_args[0][1],
-            {
-                '{0}'.format(link_scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
-                    link_scheme_account.scheme.slug)
-            }
-        )
-
-    @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date, mock_update_attr):
+    def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
@@ -249,20 +238,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
 
-        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
-        self.assertEqual(
-            mock_update_attr.call_args[0][1],
-            {
-                '{0}'.format(self.scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
-                    self.scheme_account.scheme.slug)
-            }
-        )
-
-    @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,
-                                                                 mock_update_attr):
+    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,):
         error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = None
@@ -290,10 +268,9 @@ class TestSchemeAccountViews(APITestCase):
         successful_consent = set_values[0]
         self.assertEqual(successful_consent['id'], success_scheme_account_consent.id)
 
-    @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, '_get_balance')
-    def test_link_schemes_account_pre_registered_card_error(self, mock_get_balance, mock_date, mock_update_attr):
+    def test_link_schemes_account_pre_registered_card_error(self, mock_get_balance, mock_date):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
                                       scheme_account=scheme_account)
@@ -348,7 +325,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(
             mock_update_attr.call_args[0][1],
             {
-                '{0}'.format(scheme.company): 'false,WALLET_ONLY,2000/05/19,{}'.format(scheme.slug)
+                '{0}'.format(scheme.company):
+                    'false,WALLET_ONLY,2000/05/19,{},prev_None,current_WALLET_ONLY'.format(scheme.slug)
             }
         )
 
@@ -1008,11 +986,11 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.json(), expected_response_json)
 
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
     @patch('analytics.api._get_today_datetime')
+    @patch('analytics.api.update_attributes')
     @patch('analytics.api._send_to_mnemosyne')
-    def test_create_join_account_and_notify_analytics(self, mock_post_event, mock_date,
-                                                      mock_update_attr, mock_send_to_mnemosyne):
+    def test_create_join_account_and_notify_analytics(self, mock_post_event, mock_date, mock_update_attributes,
+                                                      mock_send_to_mnemosyne):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         scheme = SchemeFactory()
 
@@ -1040,15 +1018,7 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(mock_post_event.call_count, 1)
         self.assertEqual(len(mock_post_event.call_args), 2)
-
-        self.assertEqual(mock_update_attr.call_count, 1)
-        self.assertEqual(len(mock_update_attr.call_args[0]), 3)
-        self.assertEqual(mock_update_attr.call_args[0][1], scheme.company)
-
-        self.assertEqual(
-            mock_update_attr.call_args[0][2],
-            "false,JOIN,2000/05/19,{}".format(scheme.slug)
-        )
+        self.assertEqual(mock_update_attributes.call_count, 1)
 
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attributes')
@@ -1550,7 +1520,7 @@ class TestAccessTokens(APITestCase):
             mock_update_attr.call_args[0][1],
             {
                 '{0}'.format(self.scheme_account.scheme.company):
-                    'true,ACTIVE,2000/05/19,{}'.format(self.scheme_account.scheme.slug)
+                    'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(self.scheme_account.scheme.slug)
             }
         )
 
