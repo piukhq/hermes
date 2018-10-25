@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from decimal import ROUND_HALF_UP
 import arrow
 import jwt
 import requests
@@ -414,6 +414,7 @@ class UbiquityBalanceHandler:
     point_info = None
     value_info = None
     data = None
+    precision = None
 
     def __init__(self, dictionary, many=False):
         if many:
@@ -429,21 +430,23 @@ class UbiquityBalanceHandler:
         self._get_balances()
 
     def _format_balance_values(self):
-        if self.point_balance:
-            self.point_balance = str(int(self.point_balance))
-        if self.value_balance:
-            self.value_balance = str(Decimal(self.value_balance).quantize(Decimal('0.01')))
+        if self.point_balance is not None:
+            self.point_balance = int(self.point_balance)
+        if self.value_balance is not None and self.precision is not None:
+            self.value_balance = float(Decimal(self.value_balance).quantize(self.precision, ROUND_HALF_UP))
 
     def _collect_scheme_balances_info(self, scheme_id):
         for balance_info in SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).all():
+            # Set info for points or if known currency also set precision eg 0.01 for cents
             if balance_info.currency in ['GBP', 'EUR', 'USD']:
                 self.value_info = balance_info
+                self.precision = Decimal('0.01')
             else:
                 self.point_info = balance_info
 
     def _format_balance(self, value, info):
         """
-        :param value:
+        :param value: string
         :type value: string
         :param info:
         :type info: SchemeBalanceDetails
