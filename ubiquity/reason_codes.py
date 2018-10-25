@@ -4,6 +4,7 @@ REASON_CODES = (
     ('X101', 'Account does not exist'),
     ('X102', 'Add data rejected by merchant'),
     ('X103', 'No authorisation provided'),
+    ('X104', 'Update failed. Delete and re-add card.'),
     ('X200', 'Enrolment in progress'),
     ('X201', 'Enrolment data rejected by merchant'),
     ('X202', 'Account already exists'),

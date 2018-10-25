@@ -265,7 +265,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if manual_question and manual_question.type in new_answers:
-            filter = {
+            query = {
                 'scheme_account__scheme': account.scheme,
                 'answer': new_answers[manual_question.type]
             }
@@ -273,11 +273,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 'scheme_account': account
             }
 
-            if SchemeAccountCredentialAnswer.objects.filter(**filter).exclude(**exclude).exists():
-                raise ParseError(
-                    'A membership card with these credentials already exists in our system. '
-                    'To add an existing card, please delete and create a new card using the post endpoint.'
-                )
+            if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
+                return Response({"status": "failed", "reason_codes": ["X104"]}, status=status.HTTP_200_OK)
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
