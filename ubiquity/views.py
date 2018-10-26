@@ -335,20 +335,23 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if add_fields:
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
             serializer = self.get_validated_data(add_data, request.user)
+        else:
+            raise NotImplemented
 
         return serializer, auth_fields, enrol_fields
 
     def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
         if serializer and serializer.validated_data:
             scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
-            if auth_fields:
-                serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-                self.link_account(serializer, scheme_account, user)
-                scheme_account.link_date = timezone.now()
-                scheme_account.save()
 
             if account_created:
                 return_status = status.HTTP_201_CREATED
+                if auth_fields:
+                    serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+                    self.link_account(serializer, scheme_account, user)
+                    scheme_account.link_date = timezone.now()
+                    scheme_account.save()
+
             else:
                 return_status = status.HTTP_200_OK
 

@@ -120,17 +120,16 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         answer_type = serializer.context['answer_type']
         try:
             query = {
-                'scheme_account__scheme__id': data['scheme'],
-                'answer': data[answer_type],
-                'scheme_account__is_deleted': False
+                'scheme__id': data['scheme'],
+                'schemeaccountcredentialanswer__answer': data[answer_type],
+                'is_deleted': False
             }
-            scheme_account = SchemeAccountCredentialAnswer.objects.get(**query).scheme_account
-
+            scheme_account = SchemeAccount.objects.get(**query)
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
             for card in scheme_account.payment_card_account_set.all():
                 PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
-        except SchemeAccountCredentialAnswer.DoesNotExist:
+        except SchemeAccount.DoesNotExist:
             scheme_account, account_created = self._create_account(user, data, answer_type, user_pk)
 
         data['id'] = scheme_account.id
@@ -138,7 +137,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
     @staticmethod
     def _create_account(user, data, answer_type, user_pk=None):
-        account_created = False      # Required for /ubiquity
+        account_created = False  # Required for /ubiquity
 
         if type(data) == int:
             return data
