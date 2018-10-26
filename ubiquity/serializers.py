@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from decimal import ROUND_HALF_UP
 import arrow
 import jwt
 import requests
@@ -274,7 +274,7 @@ class TransactionsSerializer(serializers.Serializer):
                     'currency': scheme_balances.currency,
                     'prefix': scheme_balances.prefix,
                     'suffix': scheme_balances.suffix,
-                    'value': str(Decimal(instance['points']).quantize(Decimal('0.01')))
+                    'value': float(Decimal(instance['points']).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
                 }
             )
         else:
@@ -283,7 +283,7 @@ class TransactionsSerializer(serializers.Serializer):
                     'currency': scheme_balances.currency,
                     'prefix': scheme_balances.prefix,
                     'suffix': scheme_balances.suffix,
-                    'value': str(int(instance['points']))
+                    'value': int(instance['points'])
                 }
             )
 

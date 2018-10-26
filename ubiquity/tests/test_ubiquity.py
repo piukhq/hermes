@@ -472,6 +472,7 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()[0]['amounts'][0]['value'], 200)
         self.assertTrue(httpretty.has_request())
 
         uri = '{}/transactions/1'.format(settings.HADES_URL)
