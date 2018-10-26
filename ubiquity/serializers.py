@@ -492,7 +492,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     def to_representation(self, instance):
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
         images = instance.scheme.images.all()
-        instance.get_cached_balance()
+        if instance.status != instance.FAILED_UPDATE:
+            instance.get_cached_balance()
 
         try:
             reward_tier = instance.balances[0]['reward_tier']

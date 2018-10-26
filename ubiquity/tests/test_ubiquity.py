@@ -282,6 +282,30 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
 
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_membership_card_update(self, *_):
+        payload = json.dumps({
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
+        })
+        response = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]),
+                                     content_type='application/json', data=payload, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
