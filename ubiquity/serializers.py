@@ -1,5 +1,5 @@
 from decimal import Decimal
-
+from decimal import ROUND_HALF_UP
 import arrow
 import jwt
 import requests
@@ -414,6 +414,7 @@ class UbiquityBalanceHandler:
     point_info = None
     value_info = None
     data = None
+    precision = None
 
     def __init__(self, dictionary, many=False):
         if many:
@@ -424,31 +425,33 @@ class UbiquityBalanceHandler:
 
         self.point_balance = dictionary.get('points')
         self.value_balance = dictionary.get('value')
-        self._format_balance_values()
         self.updated_at = dictionary.get('updated_at')
         self._get_balances()
 
-    def _format_balance_values(self):
-        if self.point_balance:
-            self.point_balance = str(int(self.point_balance))
-        if self.value_balance:
-            self.value_balance = str(Decimal(self.value_balance).quantize(Decimal('0.01')))
-
     def _collect_scheme_balances_info(self, scheme_id):
         for balance_info in SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).all():
+            # Set info for points or known currencies and also set precision for each supported currency
             if balance_info.currency in ['GBP', 'EUR', 'USD']:
                 self.value_info = balance_info
+                self.precision = Decimal('0.01')
             else:
                 self.point_info = balance_info
 
-    def _format_balance(self, value, info):
+    def _format_balance(self, value, info, is_currency):
         """
         :param value:
-        :type value: string
+        :type value: float, int, string or Decimal
         :param info:
         :type info: SchemeBalanceDetails
         :return: dict
         """
+        # The spec requires currency to be returned as a float this is done at final format since any
+        # subsequent arithmetic function would cause a rounding error.
+        if is_currency and self.precision is not None:
+            value = float(Decimal(value).quantize(self.precision, rounding=ROUND_HALF_UP))
+        else:
+            value = int(value)
+
         return {
             "value": value,
             "currency": info.currency,
@@ -461,10 +464,10 @@ class UbiquityBalanceHandler:
     def _get_balances(self):
         self.data = []
         if self.point_balance is not None and self.point_info:
-            self.data.append(self._format_balance(self.point_balance, self.point_info))
+            self.data.append(self._format_balance(self.point_balance, self.point_info, False))
 
         if self.value_balance is not None and self.value_info:
-            self.data.append(self._format_balance(self.value_balance, self.value_info))
+            self.data.append(self._format_balance(self.value_balance, self.value_info, True))
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
