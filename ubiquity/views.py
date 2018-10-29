@@ -267,6 +267,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if manual_question and manual_question.type in new_answers:
             query = {
                 'scheme_account__scheme': account.scheme,
+                'scheme_account__is_deleted': False,
                 'answer': new_answers[manual_question.type]
             }
             exclude = {
