@@ -965,8 +965,8 @@ class TestUserSettings(APITestCase):
         self.assertEqual(data[0]['value'], '1')
         self.assertEqual(data[0]['value_type'], setting.value_type_name)
 
-    @mock.patch('analytics.api.reset_user_settings')
     @mock.patch('analytics.api._send_to_mnemosyne')
+    @mock.patch('analytics.reset_user_settings')
     def test_delete_user_settings(self, mock_reset_user_settings, mock_send_to_mnemosyne):
         settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
         UserSettingFactory(user=self.user, value='1', setting=settings[0])
