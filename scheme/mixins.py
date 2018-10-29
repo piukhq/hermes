@@ -225,7 +225,7 @@ class SchemeAccountJoinMixin:
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account)
             raise
-        except Exception as e:
+        except Exception:
             self.handle_failed_join(scheme_account)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK
 

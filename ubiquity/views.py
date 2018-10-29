@@ -353,7 +353,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
             serializer = self.get_validated_data(add_data, request.user)
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
         return serializer, auth_fields, enrol_fields
 
@@ -378,7 +378,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             # todo implement enrol
             if enrol_fields:
                 pass
-            raise NotImplemented
+            raise NotImplementedError
 
     def _collect_credentials_answers(self, data):
         try:
