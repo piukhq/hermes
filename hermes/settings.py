@@ -163,6 +163,7 @@ DATABASES = {
         'PASSWORD': env_var("HERMES_DATABASE_PASS"),
         'HOST': env_var("HERMES_DATABASE_HOST", "postgres"),
         'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
+        'CONN_MAX_AGE': None,  # unlimited persistent connections
     }
 }
 

@@ -83,7 +83,7 @@ class SchemeForm(ModelForm):
         if slug_regex.match(slug):
             return slug
         else:
-            raise ValidationError('Slug must only contain lowercase letters and hyphens')
+            raise ValidationError('Slug can only contain lowercase letters, hyphens and numbers')
 
 
 class SchemeDetailsInline(admin.StackedInline):
