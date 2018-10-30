@@ -44,7 +44,8 @@ class BaseLinkMixin(object):
         response_data = {
             'balance': midas_information,
             'status': scheme_account.status,
-            'status_name': scheme_account.status_name
+            'status_name': scheme_account.status_name,
+            'display_status': scheme_account.display_status
         }
         response_data.update(dict(data))
 

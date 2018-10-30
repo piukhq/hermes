@@ -212,6 +212,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
         link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
+        link_scheme_account_entry = SchemeAccountEntryFactory(scheme_account=link_scheme_account)
         SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
@@ -224,7 +225,7 @@ class TestSchemeAccountViews(APITestCase):
             'is_stale': False
         }
 
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "London",
             PASSWORD: "sdfsdf",
@@ -253,11 +254,12 @@ class TestSchemeAccountViews(APITestCase):
     @patch.object(SchemeAccount, '_get_balance')
     def test_link_schemes_account_error_displays_status(self, mock_get_balance, mock_date, mock_update_attr):
         scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
+        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
                                       scheme_account=scheme_account)
 
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "1234",
             PASSWORD: "abcd",
