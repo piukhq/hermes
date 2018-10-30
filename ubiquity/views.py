@@ -2,8 +2,8 @@ import uuid
 
 import requests
 from django.conf import settings
-from django.utils import timezone
 from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -14,7 +14,7 @@ import analytics
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.serializers import LinkSchemeSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
@@ -256,14 +256,31 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
-        account.get_cached_balance()
         return Response(self.get_serializer(account).data)
 
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
         new_answers = self._collect_updated_answers(request.data, account.scheme)
+        manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
+
+        if manual_question and manual_question.type in new_answers:
+            query = {
+                'scheme_account__scheme': account.scheme,
+                'scheme_account__is_deleted': False,
+                'answer': new_answers[manual_question.type]
+            }
+            exclude = {
+                'scheme_account': account
+            }
+
+            if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
+                account.status = account.FAILED_UPDATE
+                account.save()
+                return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+
         self.update_credentials(account, new_answers)
+        account.delete_cached_balance()
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -335,21 +352,23 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if add_fields:
             add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
             serializer = self.get_validated_data(add_data, request.user)
+        else:
+            raise NotImplementedError
 
         return serializer, auth_fields, enrol_fields
 
-    def _handle_membership_card_creation(self, user,  serializer, auth_fields, enrol_fields, use_pk=None):
-
+    def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
         if serializer and serializer.validated_data:
             scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
-            if auth_fields:
-                serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-                self.link_account(serializer, scheme_account, user)
-                scheme_account.link_date = timezone.now()
-                scheme_account.save()
 
             if account_created:
                 return_status = status.HTTP_201_CREATED
+                if auth_fields:
+                    serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+                    self.link_account(serializer, scheme_account, user)
+                    scheme_account.link_date = timezone.now()
+                    scheme_account.save()
+
             else:
                 return_status = status.HTTP_200_OK
 
@@ -359,7 +378,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             # todo implement enrol
             if enrol_fields:
                 pass
-            raise NotImplemented
+            raise NotImplementedError
 
     def _collect_credentials_answers(self, data):
         try:
@@ -402,10 +421,6 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
-
-        for account in accounts:
-            account.get_cached_balance()
-
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate
@@ -497,16 +512,13 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset())
-        for account in accounts:
-            account.get_cached_balance()
-
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         serializer, auth_fields, enrol_fields = self._verify_membership_card_creation(request)
-        account, status_code = self._handle_membership_card_creation(request.user,  serializer, auth_fields,
+        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
                                                                      enrol_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)

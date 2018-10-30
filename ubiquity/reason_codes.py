@@ -4,6 +4,7 @@ REASON_CODES = (
     ('X101', 'Account does not exist'),
     ('X102', 'Add data rejected by merchant'),
     ('X103', 'No authorisation provided'),
+    ('X104', 'Update failed. Delete and re-add card.'),
     ('X200', 'Enrolment in progress'),
     ('X201', 'Enrolment data rejected by merchant'),
     ('X202', 'Account already exists'),
@@ -35,10 +36,13 @@ CURRENT_STATUS_CODES = (
     (900, 'Join'),
     (444, 'No user currently found'),
     (536, 'Error with the configuration or it was not possible to retrieve'),
-    (535, 'Request was not sent')
+    (535, 'Request was not sent'),
+    (401, 'Failed validation'),
+    (445, 'Account already exists'),
+    (446, 'Update failed. Delete and re-add card.'),
+    (537, 'Service connection error')
 )
 
-# todo double check and confirm codes relations
 reason_code_translation = {
     0: 'X100',
     1: 'X300',
@@ -59,7 +63,11 @@ reason_code_translation = {
     900: 'X200',
     444: 'X101',
     536: None,
-    535: None
+    535: None,
+    401: None,
+    445: None,
+    537: None,
+    446: 'X104'
 }
 
 ubiquity_status_translation = {
@@ -83,4 +91,8 @@ ubiquity_status_translation = {
     444: 'failed',
     536: 'failed',
     535: 'failed',
+    401: 'failed',
+    445: 'failed',
+    446: 'failed',
+    537: 'failed'
 }
