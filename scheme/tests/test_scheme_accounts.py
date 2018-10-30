@@ -202,6 +202,82 @@ class TestSchemeAccountViews(APITestCase):
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_link_schemes_account_display_status(self, mock_get_midas_balance, mock_date, mock_update_attr):
+        link_scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
+        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
+        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account.user.create_token()}
+        data = {
+            CARD_NUMBER: "London",
+            PASSWORD: "sdfsdf",
+        }
+
+        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
+                                    data=data, **auth_headers, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+
+        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
+
+        self.assertEqual(
+            mock_update_attr.call_args[0][1],
+            {
+                '{0}'.format(link_scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
+                    link_scheme_account.scheme.slug)
+            }
+        )
+
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_link_schemes_account_error_displays_status(self, mock_get_balance, mock_date, mock_update_attr):
+        scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
+        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
+                                      scheme_account=scheme_account)
+
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account.user.create_token()}
+        data = {
+            CARD_NUMBER: "1234",
+            PASSWORD: "abcd",
+        }
+
+        mapping = [{'mock_response': SchemeAccount.ACTIVE, 'expected_display_status': scheme_account.ACTIVE},
+                   {'mock_response': SchemeAccount.END_SITE_DOWN, 'expected_display_status': scheme_account.ACTIVE},
+                   {'mock_response': SchemeAccount.JOIN, 'expected_display_status': scheme_account.JOIN},
+                   {'mock_response': SchemeAccount.INVALID_CREDENTIALS,
+                    'expected_display_status': scheme_account.WALLET_ONLY}]
+
+        for item in mapping:
+            mock_get_balance.return_value.status_code = item['mock_response']
+            response = self.client.post('/schemes/accounts/{0}/link'.format(scheme_account.id),
+                                        data=data, **auth_headers, format='json')
+
+            self.assertEqual(response.status_code, 201)
+            scheme_account.refresh_from_db()
+            self.assertEqual(scheme_account.status, item['mock_response'])
+            self.assertEqual(response.data['display_status'], item['expected_display_status'])
+
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
     def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = {
