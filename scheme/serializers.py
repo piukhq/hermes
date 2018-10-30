@@ -270,6 +270,7 @@ class ResponseLinkSerializer(serializers.Serializer):
     status = serializers.IntegerField(allow_null=True)
     status_name = serializers.CharField()
     balance = BalanceSerializer(allow_null=True)
+    display_status = serializers.ReadOnlyField()
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
