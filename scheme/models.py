@@ -572,11 +572,15 @@ class SchemeAccount(models.Model):
 
     @property
     def display_status(self):
-        if self.status == self.ACTIVE or self.status in self.SYSTEM_ACTION_REQUIRED:
+        # linked accounts in "system account required" should be displayed as "active".
+        # accounts in "active", "pending", and "join" statuses should be displayed as such.
+        # all other statuses should be displayed as "wallet only"
+        if self.link_date and self.status in self.SYSTEM_ACTION_REQUIRED:
             return self.ACTIVE
-        elif self.status in [self.PENDING, self.JOIN]:
+        elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
             return self.status
-        return self.WALLET_ONLY
+        else:
+            return self.WALLET_ONLY
 
     @property
     def third_party_identifier(self):
