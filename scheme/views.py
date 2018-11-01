@@ -70,6 +70,7 @@ class BaseLinkMixin(object):
         }
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
+        response_data['display_status'] = scheme_account.display_status
         response_data.update(dict(data))
 
         if scheme_account.status == SchemeAccount.ACTIVE:
