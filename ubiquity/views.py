@@ -26,7 +26,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
                                   UbiquityCreateSchemeAccountSerializer)
 from user.models import CustomUser
-from user.serializers import NewRegisterSerializer
+from user.serializers import UbiquityRegisterSerializer
 
 
 class PaymentCardCreationMixin:
@@ -107,7 +107,7 @@ class ServiceView(ModelViewSet):
             user = CustomUser.objects.get(client=request.bundle.client, external_id=request.prop_id)
         except CustomUser.DoesNotExist:
             status_code = 201
-            new_user = NewRegisterSerializer(data=new_user_data)
+            new_user = UbiquityRegisterSerializer(data=new_user_data)
             new_user.is_valid(raise_exception=True)
             user = new_user.save()
             consent = self._add_consent(user, consent_data)
