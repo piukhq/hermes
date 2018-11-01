@@ -49,7 +49,7 @@ build-master:
   only:
     - tags
 
-build-ubiquity:
+build-internal-sandbox:
   stage: build
   image: docker:latest
   services:
@@ -60,7 +60,7 @@ build-ubiquity:
     - docker build --pull -t "$CI_REGISTRY/hermes:ubiquity" .
     - docker push "$CI_REGISTRY/hermes:ubiquity"
   only:
-    - feature/ubiquity
+    - banking-api-merge
 
 deploy-dev:
   stage: deploy
@@ -73,15 +73,14 @@ deploy-dev:
   only:
     - develop
 
-deploy-ubiquity:
+deploy-internal-sandbox:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
   environment: dev
   script:
-    - kubectl delete po -n=ukbanking -l=project=hermes
     - kubectl delete po -n=ubiquity -l=project=hermes
   only:
-    - feature/ubiquity
+    - banking-api-merge
 
 deploy-staging:
   stage: deploy
