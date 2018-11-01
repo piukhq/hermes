@@ -895,7 +895,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account)
             raise
-        except Exception as e:
+        except Exception:
             self.handle_failed_join(scheme_account)
 
             return Response(
