@@ -70,6 +70,7 @@ class BaseLinkMixin(object):
         }
         response_data['status'] = scheme_account.status
         response_data['status_name'] = scheme_account.status_name
+        response_data['display_status'] = scheme_account.display_status
         response_data.update(dict(data))
 
         if scheme_account.status == SchemeAccount.ACTIVE:
@@ -202,6 +203,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         response_serializer: ResponseLinkSerializer
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'], user=self.request.user)
+        if scheme_account.scheme.slug == 'iceland-bonus-card':
+            return Response({
+                'error': 'Iceland Bonus Card is temporarily unavailable.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
                                                                       'user': request.user})
 
@@ -246,6 +251,11 @@ class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):
 
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
+        if scheme.slug == 'iceland-bonus-card':
+            return Response({
+                'error': 'Iceland Bonus Card is temporarily unavailable.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if scheme.url == settings.MY360_SCHEME_URL:
 
             metadata = {
@@ -849,6 +859,11 @@ class Join(SwappableSerializerMixin, GenericAPIView):
 
         scheme_id = int(self.kwargs['pk'])
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+        if join_scheme.slug == 'iceland-bonus-card':
+            return Response({
+                'error': 'Iceland Bonus Card is temporarily unavailable.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = JoinSerializer(data=request.data, context={
                                                                 'scheme': join_scheme,
                                                                 'user': request.user
@@ -888,7 +903,7 @@ class Join(SwappableSerializerMixin, GenericAPIView):
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account)
             raise
-        except Exception as e:
+        except Exception:
             self.handle_failed_join(scheme_account)
 
             return Response(
