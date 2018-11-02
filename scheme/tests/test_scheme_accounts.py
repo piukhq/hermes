@@ -1778,6 +1778,21 @@ class TestAccessTokens(APITestCase):
         new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'barcode': '633204003025524460012345'})
 
+    def test_update_or_create_primary_credentials_saves_non_regex_manual_question(self):
+        scheme = SchemeFactory(card_number_regex='^([0-9]{19})([0-9]{5})$')
+        SchemeCredentialQuestionFactory(type=EMAIL,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        manual_question=True)
+
+        self.scheme_account.scheme = scheme
+
+        self.assertFalse(self.scheme_account.manual_answer)
+        credentials = {'email': 'testemail@testbink.com'}
+        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        self.assertEqual(new_credentials, {'email': 'testemail@testbink.com'})
+        self.assertEqual(self.scheme_account.manual_answer.answer, 'testemail@testbink.com')
+
 
 class TestSchemeAccountImages(APITestCase):
     @classmethod
