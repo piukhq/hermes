@@ -188,17 +188,16 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_get_single_membership_card(self, mock_get_midas_balance, _):
+    def test_get_single_membership_card(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = self.scheme_account.balances
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_get_all_membership_cards(self, mock_get_midas_balance, _):
-        mock_get_midas_balance.return_value = self.scheme_account.balances
+    def test_get_all_membership_cards(self, *_):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
@@ -240,20 +239,12 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_creation(self, mock_get_midas_balance, mock_date, *_):
+    def test_membership_card_creation(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
         payload = {
             "membership_plan": self.scheme.id,
             "account":
@@ -282,8 +273,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_update(self, *_):
         payload = json.dumps({
             "account":
@@ -311,20 +302,12 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_delete(self, mock_get_midas_balance, mock_date, *_):
+    def test_membership_card_delete(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
         payload = {
             "membership_plan": self.scheme.id,
             "account":
@@ -361,8 +344,8 @@ class TestResources(APITestCase):
                                  **self.auth_headers)
         self.assertEqual(resp2.status_code, 201)
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
     def test_cards_linking(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
@@ -383,19 +366,9 @@ class TestResources(APITestCase):
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_card_rule_filtering(self, mock_get_midas_balance, _):
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-
+    def test_card_rule_filtering(self, *_):
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
         resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
@@ -415,17 +388,9 @@ class TestResources(APITestCase):
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_card_creation_filter(self, mock_get_midas_balance, *_):
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    def test_card_creation_filter(self, *_):
         self.user.client.organisation.issuers.add(IssuerFactory())
         self.user.client.organisation.schemes.add(SchemeFactory())
 
@@ -559,7 +524,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
-    @patch.object(SchemeAccount, 'get_midas_balance')
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_composite_membership_card_get(self, _):
         resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
                                **self.auth_headers)
@@ -568,21 +533,14 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_composite_membership_card_post(self, mock_get_midas_balance, mock_date, *_):
+    def test_composite_membership_card_post(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
+
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -613,21 +571,13 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_composite_membership_card_put(self, mock_get_midas_balance, mock_date, *_):
+    def test_composite_membership_card_put(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -692,21 +642,13 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_composite_membership_card_put_fail(self, mock_get_midas_balance, mock_date, *_):
+    def test_composite_membership_card_put_fail(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -786,9 +728,10 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_balance(self, mock_get_midas_balance, _):
+    def test_membership_card_balance(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
@@ -799,6 +742,7 @@ class TestResources(APITestCase):
             'is_stale': False
         }
         expected_keys = {'value', 'currency', 'updated_at'}
+        self.scheme_account.get_cached_balance()
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], 100)
@@ -832,6 +776,7 @@ class TestMembershipCardCredentials(APITestCase):
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_update_new_and_existing_credentials(self, *_):
