@@ -217,7 +217,14 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+        # Update barcode on front end if we get one from linking
+        response = out_serializer.data
+        barcode = scheme_account.barcode
+        if barcode:
+            response['barcode'] = barcode
+
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class CreateAccount(SwappableSerializerMixin, ListCreateAPIView):

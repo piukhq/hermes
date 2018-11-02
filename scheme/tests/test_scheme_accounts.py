@@ -188,6 +188,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+        self.assertIsNone(response.data.get('barcode'))
 
         self.assertEqual(len(mock_update_attr.call_args[0]), 2)
 
@@ -198,6 +199,40 @@ class TestSchemeAccountViews(APITestCase):
                     link_scheme_account.scheme.slug)
             }
         )
+
+    @patch('analytics.api.update_attributes')
+    @patch('analytics.api._get_today_datetime')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_link_schemes_account_with_updated_barcode(self, mock_get_midas_balance, mock_date, mock_update_attr):
+        link_scheme = SchemeFactory()
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=link_scheme, type=BARCODE, options=SchemeCredentialQuestion.LINK)
+        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
+        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account.user.create_token()}
+        data = {
+            BARCODE: "1234567",
+        }
+
+        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
+                                    data=data, **auth_headers, format='json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['balance']['points'], '100.00')
+        self.assertEqual(response.data['status_name'], "Active")
+        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+        self.assertTrue(response.data.get('barcode'))
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
@@ -325,6 +360,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
+        self.assertIsNone(response.data.get('barcode'))
 
         self.assertEqual(len(mock_update_attr.call_args[0]), 2)
         self.assertEqual(
@@ -1741,6 +1777,21 @@ class TestAccessTokens(APITestCase):
         credentials = {'barcode': '633204003025524460012345'}
         new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'barcode': '633204003025524460012345'})
+
+    def test_update_or_create_primary_credentials_saves_non_regex_manual_question(self):
+        scheme = SchemeFactory(card_number_regex='^([0-9]{19})([0-9]{5})$')
+        SchemeCredentialQuestionFactory(type=EMAIL,
+                                        scheme=scheme,
+                                        options=SchemeCredentialQuestion.JOIN,
+                                        manual_question=True)
+
+        self.scheme_account.scheme = scheme
+
+        self.assertFalse(self.scheme_account.manual_answer)
+        credentials = {'email': 'testemail@testbink.com'}
+        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        self.assertEqual(new_credentials, {'email': 'testemail@testbink.com'})
+        self.assertEqual(self.scheme_account.manual_answer.answer, 'testemail@testbink.com')
 
 
 class TestSchemeAccountImages(APITestCase):
