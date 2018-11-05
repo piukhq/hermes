@@ -49,7 +49,7 @@ build-master:
   only:
     - tags
 
-build-ubiquity:
+build-ukbank:
   stage: build
   image: docker:latest
   services:
@@ -74,13 +74,12 @@ deploy-dev:
   only:
     - develop
 
-deploy-ubiquity:
+deploy-ukbank:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
   environment: dev
   script:
     - kubectl delete po -n=ukbanking -l=project=hermes
-    - kubectl delete po -n=ubiquity -l=project=hermes
   only:
     - feature/ubiquity
 
