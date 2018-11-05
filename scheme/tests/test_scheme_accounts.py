@@ -223,10 +223,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
         self.assertTrue(response.data.get('barcode'))
 
-    @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_display_status(self, mock_get_midas_balance, mock_date, mock_update_attr):
+    def test_link_schemes_account_display_status(self, mock_get_midas_balance, mock_date):
         link_scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
@@ -257,16 +256,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-
-        self.assertEqual(len(mock_update_attr.call_args[0]), 2)
-
-        self.assertEqual(
-            mock_update_attr.call_args[0][1],
-            {
-                '{0}'.format(link_scheme_account.scheme.company): 'false,ACTIVE,2000/05/19,{}'.format(
-                    link_scheme_account.scheme.slug)
-            }
-        )
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
