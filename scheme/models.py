@@ -283,6 +283,7 @@ class SchemeAccount(models.Model):
     ACCOUNT_ALREADY_EXISTS = 445
     SERVICE_CONNECTION_ERROR = 537
     VALIDATION_ERROR = 401
+    FAILED_UPDATE = 446
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -308,6 +309,7 @@ class SchemeAccount(models.Model):
         (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
+        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
@@ -447,6 +449,10 @@ class SchemeAccount(models.Model):
             self.save()
 
         return balance
+
+    def delete_cached_balance(self):
+        cache_key = 'scheme_{}'.format(self.pk)
+        cache.delete(cache_key)
 
     def question(self, question_type):
         """
