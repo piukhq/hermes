@@ -390,5 +390,4 @@ INFLUX_DB_CONFIG = {
 }
 
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
-CELERY_RESULT_BACKEND = env_var('CELERY_RESULT_BACKEND', 'rpc://')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
