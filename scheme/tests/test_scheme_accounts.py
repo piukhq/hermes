@@ -192,7 +192,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date):
+    def test_link_scheme_account_with_consents(self, mock_get_midas_balance, mock_date):
         link_scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
         SchemeCredentialQuestionFactory(scheme=link_scheme, type=BARCODE, options=SchemeCredentialQuestion.LINK)
