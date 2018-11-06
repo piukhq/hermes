@@ -583,7 +583,7 @@ class SchemeAccount(models.Model):
         # linked accounts in "system account required" should be displayed as "active".
         # accounts in "active", "pending", and "join" statuses should be displayed as such.
         # all other statuses should be displayed as "wallet only"
-        if self.link_date and self.status in self.SYSTEM_ACTION_REQUIRED:
+        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
             return self.ACTIVE
         elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
             return self.status
