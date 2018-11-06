@@ -41,3 +41,5 @@ redis==2.10.6
 drf-yasg==1.10.0
 dictfilter==1.1.2
 influxdb==5.2.0
+celery==4.2.1
+

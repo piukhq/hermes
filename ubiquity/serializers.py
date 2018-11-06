@@ -1,5 +1,6 @@
 from decimal import Decimal
 from decimal import ROUND_HALF_UP
+
 import arrow
 import jwt
 import requests
@@ -14,6 +15,7 @@ from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion
 from scheme.serializers import CreateSchemeAccountSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
+from ubiquity.tasks import async_balance
 from user.models import CustomUser
 
 
@@ -493,7 +495,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
         images = instance.scheme.images.all()
         if instance.status != instance.FAILED_UPDATE:
-            instance.get_cached_balance()
+            # instance.get_cached_balance()
+            async_balance.delay(instance.id)
 
         try:
             reward_tier = instance.balances[0]['reward_tier']

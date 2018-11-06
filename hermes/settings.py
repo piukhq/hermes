@@ -392,3 +392,6 @@ INFLUX_DB_CONFIG = {
     'username': env_var('INFLUX_USER', ''),
     'password': env_var('INFLUX_PASSWORD', ''),
 }
+
+CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
+CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
