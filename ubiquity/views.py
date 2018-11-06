@@ -3,7 +3,6 @@ import uuid
 import requests
 from django.conf import settings
 from django.db import transaction
-from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -15,9 +14,9 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
-from scheme.serializers import LinkSchemeSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
+from ubiquity.tasks import async_link
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
@@ -359,10 +358,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             if account_created:
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
-                    serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-                    self.link_account(serializer, scheme_account, user)
-                    scheme_account.link_date = timezone.now()
+                    scheme_account.status = SchemeAccount.PENDING
                     scheme_account.save()
+                    async_link.delay(auth_fields, scheme_account.id, user.id)
 
             else:
                 return_status = status.HTTP_200_OK

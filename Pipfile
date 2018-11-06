@@ -44,9 +44,9 @@ ipython_genutils = "==0.1.0"
 Pillow = "==2.9.0"
 PyJWT = "==1.4.0"
 PyYAML = "==3.11"
+celery = "*"
 
 [dev-packages]
-coverage = "==4.0.1"
 factory_boy = "==2.5.2"
 fake-factory = "==0.5.9"
 httpretty = "==0.8.14"
