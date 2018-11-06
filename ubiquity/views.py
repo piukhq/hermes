@@ -280,6 +280,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
+        account.set_pending()
+
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -363,8 +365,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             if account_created:
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
-                    scheme_account.status = SchemeAccount.PENDING
-                    scheme_account.save()
+                    scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
 
             else:
