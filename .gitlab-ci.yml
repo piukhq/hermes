@@ -49,7 +49,7 @@ build-master:
   only:
     - tags
 
-build-ukbank:
+build-ukbanking:
   stage: build
   image: docker:latest
   services:
@@ -57,10 +57,10 @@ build-ukbank:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:ubiquity" .
-    - docker push "$CI_REGISTRY/hermes:ubiquity"
+    - docker build --pull -t "$CI_REGISTRY/hermes:ukbanking" .
+    - docker push "$CI_REGISTRY/hermes:ukbanking"
   only:
-    - feature/ubiquity
+    - feature/ukbanking
 
 deploy-dev:
   stage: deploy
@@ -74,14 +74,14 @@ deploy-dev:
   only:
     - develop
 
-deploy-ukbank:
+deploy-ukbanking:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
   environment: dev
   script:
     - kubectl delete po -n=ukbanking -l=project=hermes
   only:
-    - feature/ubiquity
+    - feature/ukbanking
 
 deploy-staging:
   stage: deploy
