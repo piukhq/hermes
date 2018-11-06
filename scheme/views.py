@@ -74,6 +74,8 @@ class BaseLinkMixin(object):
         response_data.update(dict(data))
 
         if scheme_account.status == SchemeAccount.ACTIVE:
+            scheme_account.link_date = timezone.now()
+
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
@@ -213,7 +215,6 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         serializer.is_valid(raise_exception=True)
 
         response_data = self.link_account(serializer, scheme_account)
-        scheme_account.link_date = timezone.now()
         scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
