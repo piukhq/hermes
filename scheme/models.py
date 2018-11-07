@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum, IntEnum
 
 import arrow
-import requests
+from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
