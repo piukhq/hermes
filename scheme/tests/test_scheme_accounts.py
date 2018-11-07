@@ -253,25 +253,26 @@ class TestSchemeAccountViews(APITestCase):
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, '_get_balance')
     def test_link_schemes_account_error_displays_status(self, mock_get_balance, mock_date, mock_update_attr):
-        scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
-                                      scheme_account=scheme_account)
+        mappings = [
+            {'mock_response': SchemeAccount.ACTIVE, 'expected_display_status': SchemeAccount.ACTIVE},
+            {'mock_response': SchemeAccount.END_SITE_DOWN, 'expected_display_status': SchemeAccount.WALLET_ONLY},
+            {'mock_response': SchemeAccount.INVALID_CREDENTIALS, 'expected_display_status': SchemeAccount.WALLET_ONLY},
+            {'mock_response': SchemeAccount.JOIN, 'expected_display_status': SchemeAccount.JOIN}
+        ]
 
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
-        data = {
-            CARD_NUMBER: "1234",
-            PASSWORD: "abcd",
-        }
+        for item in mappings:
+            scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
+            scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
+            SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
+                                          scheme_account=scheme_account)
 
-        mapping = [{'mock_response': SchemeAccount.ACTIVE, 'expected_display_status': scheme_account.ACTIVE},
-                   {'mock_response': SchemeAccount.END_SITE_DOWN, 'expected_display_status': scheme_account.ACTIVE},
-                   {'mock_response': SchemeAccount.JOIN, 'expected_display_status': scheme_account.JOIN},
-                   {'mock_response': SchemeAccount.INVALID_CREDENTIALS,
-                    'expected_display_status': scheme_account.WALLET_ONLY}]
+            mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+            auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
+            data = {
+                CARD_NUMBER: "1234",
+                PASSWORD: "abcd",
+            }
 
-        for item in mapping:
             mock_get_balance.return_value.status_code = item['mock_response']
             response = self.client.post('/schemes/accounts/{0}/link'.format(scheme_account.id),
                                         data=data, **auth_headers, format='json')
