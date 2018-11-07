@@ -71,6 +71,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_admin_env_notice',
     'django.contrib.admin',
+    'ddtrace.contrib.django',
     'rest_framework',
     'corsheaders',
     'user',
@@ -395,3 +396,10 @@ INFLUX_DB_CONFIG = {
 
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
+
+DATADOG_TRACE = {
+    'DEFAULT_SERVICE': 'hermes',
+    'TAGS': {'env': env_var('DATADOG_APM_ENV')},
+    'AGENT_HOSTNAME': env_var('DATADOG_APM_HOST', 'datadog-agent-trace.datadog'),
+    'ENABLED': env_var('DATADOG_APM_ENABLED', False)
+}

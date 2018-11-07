@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-import requests
+from hermes.traced_requests import requests
 from django.conf import settings
 from raven.contrib.django.raven_compat.models import client as sentry
 

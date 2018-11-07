@@ -2,7 +2,7 @@ import json
 import socket
 import uuid
 
-import requests
+from hermes.traced_requests import requests
 from django.conf import settings
 from django.db import transaction
 from raven.contrib.django.raven_compat.models import client as sentry
