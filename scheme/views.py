@@ -138,17 +138,27 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
+        if scheme_account.scheme.slug == 'iceland-bonus-card':
+            return Response({
+                'error': 'Iceland Bonus Card is temporarily unavailable.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
                                                                       'user': request.user})
 
         serializer.is_valid(raise_exception=True)
 
         response_data = self.link_account(serializer, scheme_account, request.user)
-        scheme_account.link_date = timezone.now()
         scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+        # Update barcode on front end if we get one from linking
+        response = out_serializer.data
+        barcode = scheme_account.barcode
+        if barcode:
+            response['barcode'] = barcode
+
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
