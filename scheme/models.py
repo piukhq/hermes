@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import Enum, IntEnum
 
 import arrow
-import requests
+from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
@@ -37,7 +37,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(status=Scheme.INACTIVE)
         schemes_without_questions = []
         for scheme in schemes:
             if len(scheme.questions.all()) == 0:
@@ -74,6 +74,15 @@ class Scheme(models.Model):
     )
     MAX_POINTS_VALUE_LENGTH = 11
 
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
+
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -108,7 +117,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -130,6 +139,10 @@ class Scheme(models.Model):
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -274,7 +287,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
     def get_queryset(self):
         return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
-            exclude(scheme__is_active=False)
+            exclude(scheme__status=Scheme.INACTIVE)
 
 
 class SchemeAccount(models.Model):
@@ -430,27 +443,35 @@ class SchemeAccount(models.Model):
         :return: credentials
         """
         manual_question = self.scheme.manual_question
+        manual_answer = None
+        if manual_question:
+            manual_answer = credentials.get(manual_question.type)
+
         scan_question = self.scheme.scan_question
+        scan_answer = None
+        if scan_question:
+            scan_answer = credentials.get(scan_question.type)
 
-        # No need to save if one is missing since there will not be any regex conversion required
-        if not all([manual_question, scan_question]):
-            return credentials
+        if manual_question and manual_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(manual_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[manual_question.type]})
 
-        questions = (manual_question.type, scan_question.type)
+        if scan_question and scan_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(scan_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[scan_question.type]})
 
-        for index, question in enumerate(questions):
-            if question in credentials:
-                SchemeAccountCredentialAnswer.objects.update_or_create(
-                    question=self.question(question),
-                    scheme_account=self,
-                    defaults={'answer': credentials[question]})
-
-                # Update credentials with the missing identifier value if there is a regex conversion available.
-                missing_question = questions[abs(index - 1)]
-                value = getattr(self, missing_question)
-
-                if missing_question not in credentials and value is not None:
-                    credentials.update({missing_question: value})
+        regex_credentials = [
+            'card_number',
+            'barcode'
+        ]
+        for question in regex_credentials:
+            value = getattr(self, question)
+            if not credentials.get(question) and value:
+                credentials.update({question: value})
 
         return credentials
 
@@ -525,6 +546,10 @@ class SchemeAccount(models.Model):
             self.save()
 
         return balance
+
+    def set_pending(self):
+        self.status = SchemeAccount.PENDING
+        self.save()
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -616,11 +641,15 @@ class SchemeAccount(models.Model):
 
     @property
     def display_status(self):
-        if self.status == self.ACTIVE or self.status in self.SYSTEM_ACTION_REQUIRED:
+        # linked accounts in "system account required" should be displayed as "active".
+        # accounts in "active", "pending", and "join" statuses should be displayed as such.
+        # all other statuses should be displayed as "wallet only"
+        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
             return self.ACTIVE
-        elif self.status in [self.PENDING, self.JOIN]:
+        elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
             return self.status
-        return self.WALLET_ONLY
+        else:
+            return self.WALLET_ONLY
 
     @property
     def third_party_identifier(self):

@@ -42,4 +42,5 @@ drf-yasg==1.10.0
 dictfilter==1.1.2
 influxdb==5.2.0
 celery==4.2.1
+ddtrace==0.15.0
 

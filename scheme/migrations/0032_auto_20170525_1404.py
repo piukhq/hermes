@@ -7,7 +7,7 @@ from django.db import migrations
 
 def update_link_dates(apps, schema_editor):
     # Update link_date for existing scheme accounts
-    scheme_accounts = apps.get_model('scheme', 'SchemeAccount').objects.filter(status=1)
+    scheme_accounts = apps.get_model('scheme', 'SchemeAccount').all_objects.filter(status=1)
     for scheme_account in scheme_accounts:
         if not scheme_account.link_date:
             scheme_account.link_date = scheme_account.created

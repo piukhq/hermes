@@ -62,6 +62,7 @@ class TestSchemeViews(APITestCase):
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
         self.assertIn('consents', response.data[0])
+        self.assertIn('status', response.data[0])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:

@@ -64,9 +64,10 @@ class TestSchemeValidation(TestCase):
             'transaction_headers': "Date,Reference,Points",
             'url': 'www.test.com',
             'point_name': 'valid',
-            'max_points_value_length': 2
+            'max_points_value_length': 2,
+            'status': 0,
         })
-        self.assertTrue(form.is_valid())
+        self.assertTrue(form.is_valid(), msg=repr(form.errors))
 
     def test_invalid_point_name(self):
         cat = CategoryFactory()
