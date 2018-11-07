@@ -37,7 +37,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(status=Scheme.INACTIVE)
         schemes_without_questions = []
         for scheme in schemes:
             if len(scheme.questions.all()) == 0:
@@ -74,6 +74,15 @@ class Scheme(models.Model):
     )
     MAX_POINTS_VALUE_LENGTH = 11
 
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
+
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -108,7 +117,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -130,6 +139,10 @@ class Scheme(models.Model):
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -274,7 +287,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
     def get_queryset(self):
         return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
-            exclude(scheme__is_active=False)
+            exclude(scheme__status=Scheme.INACTIVE)
 
 
 class SchemeAccount(models.Model):
