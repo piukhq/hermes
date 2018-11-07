@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-import requests
+from hermes.traced_requests import requests
 from django.conf import settings
 
 OLYMPUS_SERVICE_TRACKING_TYPE = 6  # Defined in Mnemosyne project
