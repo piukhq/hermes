@@ -280,6 +280,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
+        account.set_pending()
+
         return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -347,13 +349,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('membership plan not allowed for this user.')
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
-
-        if add_fields:
-            add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-            serializer = self.get_validated_data(add_data, request.user)
-        else:
-            raise NotImplementedError
-
+        add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
+        serializer = self.get_validated_data(add_data, request.user)
         return serializer, auth_fields, enrol_fields
 
     def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
@@ -363,8 +360,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             if account_created:
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
-                    scheme_account.status = SchemeAccount.PENDING
-                    scheme_account.save()
+                    scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
 
             else:
@@ -390,9 +386,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         except KeyError:
             raise ParseError()
 
-        if not fields['add_fields'] and not fields['enrol_fields']:
-            raise ParseError()
-        if scheme.authorisation_required and not fields['authorise_fields']:
+        if not fields['add_fields'] and scheme.authorisation_required:
+            manual_question = scheme.questions.get(manual_question=True).type
+            try:
+                fields['add_fields'].update({manual_question: fields['authorise_fields'].pop(manual_question)})
+            except KeyError:
+                raise ParseError()
+
+        elif not fields['add_fields']:
             raise ParseError()
 
         return fields['add_fields'], fields['authorise_fields'], fields['enrol_fields']

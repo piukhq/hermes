@@ -526,6 +526,10 @@ class SchemeAccount(models.Model):
 
         return balance
 
+    def set_pending(self):
+        self.status = SchemeAccount.PENDING
+        self.save()
+
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
         cache.delete(cache_key)
