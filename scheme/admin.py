@@ -71,7 +71,7 @@ class SchemeAdmin(admin.ModelAdmin):
     inlines = (CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('is_active', )
+    list_filter = ('status', )
     form = SchemeForm
     search_fields = ['name']
 
