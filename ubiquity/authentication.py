@@ -27,6 +27,9 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
+        if not external_id:
+            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+
         return bundle, external_id
 
     def authenticate(self, request):
