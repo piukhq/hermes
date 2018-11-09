@@ -112,7 +112,7 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     @staticmethod
     def get_id(obj):
-        return obj.payment_card_account.id
+        return obj.payment_card_account_id
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
@@ -236,7 +236,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     @staticmethod
     def get_id(obj):
-        return obj.scheme_account.id
+        return obj.scheme_account_id
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
