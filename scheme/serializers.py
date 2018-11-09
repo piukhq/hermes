@@ -69,6 +69,7 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
+    is_active = serializers.BooleanField()
 
     class Meta:
         model = Scheme
@@ -87,6 +88,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
     transaction_headers = TransactionHeaderSerializer()
+    is_active = serializers.BooleanField()
 
     class Meta:
         model = Scheme
