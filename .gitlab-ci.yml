@@ -62,19 +62,6 @@ build-ukbanking:
   only:
     - feature/ukbanking
 
-build-internal-sandbox:
-  stage: build
-  image: docker:latest
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:merge" .
-    - docker push "$CI_REGISTRY/hermes:merge"
-  only:
-    - banking-api-merge
-
 deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
@@ -94,15 +81,6 @@ deploy-ukbanking:
     - kubectl delete po -n=ukbanking -l=project=hermes
   only:
     - feature/ukbanking
-
-deploy-internal-sandbox:
-  stage: deploy
-  image: binkops.azurecr.io/kubedeployer:latest
-  environment: dev
-  script:
-    - kubectl delete po -n=ubiquity -l=project=hermes
-  only:
-    - banking-api-merge
 
 deploy-staging:
   stage: deploy
