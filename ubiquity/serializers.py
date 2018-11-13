@@ -3,7 +3,7 @@ from decimal import ROUND_HALF_UP
 
 import arrow
 import jwt
-import requests
+from hermes.traced_requests import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
