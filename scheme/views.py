@@ -17,7 +17,7 @@ from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
-from scheme.models import (Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent)
+from scheme.models import ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage, UserConsent
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer,
@@ -96,6 +96,18 @@ class UpdateUserConsent(UpdateAPIView):
     queryset = UserConsent.objects.all()
     serializer_class = UpdateUserConsentSerializer
 
+    def put(self, request, *args, **kwargs):
+        if request.data.get('status') == ConsentStatus.FAILED:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            consent = self.get_object()
+            consent.delete()
+            return Response(serializer.data)
+        else:
+            return self.update(request, *args, **kwargs)
+
 
 class LinkCredentials(BaseLinkMixin, GenericAPIView):
     serializer_class = SchemeAnswerSerializer
@@ -126,17 +138,27 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
+        if scheme_account.scheme.slug == 'iceland-bonus-card':
+            return Response({
+                'error': 'Iceland Bonus Card is temporarily unavailable.'
+            }, status=status.HTTP_400_BAD_REQUEST)
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
                                                                       'user': request.user})
 
         serializer.is_valid(raise_exception=True)
 
         response_data = self.link_account(serializer, scheme_account, request.user)
-        scheme_account.link_date = timezone.now()
         scheme_account.save()
 
         out_serializer = ResponseLinkSerializer(response_data)
-        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+        # Update barcode on front end if we get one from linking
+        response = out_serializer.data
+        barcode = scheme_account.barcode
+        if barcode:
+            response['barcode'] = barcode
+
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
@@ -236,13 +258,25 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+
+        journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+
+        needs_saving = False
+
+        if journey == 'join':
+            scheme_account.join_date = timezone.now()
+            needs_saving = True
+
         if new_status_code != scheme_account.status:
             scheme_account.status = new_status_code
+            needs_saving = True
+
+        if needs_saving:
             scheme_account.save()
 
         return Response({

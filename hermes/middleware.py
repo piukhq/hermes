@@ -1,3 +1,6 @@
+from time import perf_counter, process_time
+
+
 def accept_version(get_response):
     # One-time configuration and initialization.
 
@@ -18,6 +21,22 @@ def accept_version(get_response):
                 pass
             request.META['HTTP_ACCEPT'] = 'application/json;version={}'.format(version_number)
         response = get_response(request)
+        return response
+
+    return middleware
+
+
+def timed_request(get_response):
+    # One-time configuration and initialization.
+
+    def middleware(request):
+        start = perf_counter()
+        process_start = process_time()
+        response = get_response(request)
+        process_timer = int((process_time() - process_start) * 100000)
+        total_timer = int((perf_counter() - start) * 100000)
+        response['X-Response-Timer'] = ''.join([str(total_timer / 100), ' ms'])
+        response['X-Process-Timer'] = ''.join([str(process_timer / 100), ' ms'])
         return response
 
     return middleware

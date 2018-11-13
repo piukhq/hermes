@@ -81,6 +81,18 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+    def validate(self, data):
+        data = super().validate(data)
+        email = CustomUser.objects.normalize_email(data['email'])
+        if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
+            raise serializers.ValidationError("That user already exists")
+        return data
+
+    def validate_email(self, email):
+        return email
+
+
+class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
 
     def validate(self, data):
         data = super().validate(data)
@@ -164,7 +176,7 @@ class UserSerializer(serializers.ModelSerializer):
             user_detail_serializer = UserProfileSerializer(user_detail_instance,
                                                            data=validated_data['profile'],
                                                            partial=True)
-            user_detail_serializer.is_valid()
+            user_detail_serializer.is_valid(raise_exception=True)
             user_detail_serializer.save()
 
         if email:
@@ -209,12 +221,13 @@ class SchemeAccountsSerializer(serializers.ModelSerializer):
 
 
 class SchemeAccountSerializer(serializers.Serializer):
+    # TODO(cl): look at removing this, it doesn't seem to be used anywhere
     scheme_slug = serializers.CharField(max_length=50)
     scheme_account_id = serializers.IntegerField()
     user_id = serializers.IntegerField()
     status = serializers.IntegerField()
     status_name = serializers.CharField()
-    action_status = serializers.CharField()
+    display_status = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
 
 

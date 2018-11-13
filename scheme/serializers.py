@@ -6,8 +6,9 @@ from rest_framework import serializers
 
 from common.models import Image
 from scheme.credentials import credential_types_set
-from scheme.models import (Consent, ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeAccountImage, SchemeCredentialQuestion, SchemeImage, UserConsent)
+from scheme.models import (Consent, ConsentStatus, Control, Exchange, Scheme, SchemeAccount,
+                           SchemeAccountCredentialAnswer, SchemeAccountImage, SchemeCredentialQuestion, SchemeImage,
+                           UserConsent)
 from user.models import CustomUser
 
 
@@ -38,6 +39,12 @@ class ConsentsSerializer(serializers.ModelSerializer):
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
+class ControlSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Control
+        exclude = ('id', 'scheme')
+
+
 class TransactionHeaderSerializer(serializers.Serializer):
     """ This serializer is required to convert a list of header titles into a
     form which the front end requires ie a list of key pairs where the key is
@@ -62,6 +69,7 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
+    is_active = serializers.BooleanField()
 
     class Meta:
         model = Scheme
@@ -80,6 +88,7 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
     transaction_headers = TransactionHeaderSerializer()
+    is_active = serializers.BooleanField()
 
     class Meta:
         model = Scheme
@@ -170,8 +179,8 @@ class SchemeAnswerSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=250, required=False)
     favourite_place = serializers.CharField(max_length=250, required=False)
     date_of_birth = serializers.DateField(input_formats=["%d/%M/%Y"], required=False)
-    phone = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
-    phone_2 = serializers.RegexField(r"^[0-9]+", max_length=250, required=False)
+    phone = serializers.CharField(max_length=250, required=False)
+    phone_2 = serializers.CharField(max_length=250, required=False)
     gender = serializers.CharField(max_length=250, required=False)
     address_1 = serializers.CharField(max_length=250, required=False)
     address_2 = serializers.CharField(max_length=250, required=False)
@@ -195,6 +204,11 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
         # Validate credentials existence
         question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+
+        # temporary fix to iceland
+        if self.context['scheme_account'].scheme.slug == 'iceland-bonus-card':
+            return data
+
         missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
@@ -226,8 +240,8 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         if self.verify_account_exists:
-            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id, scheme=scheme)\
-                .exclude(status=SchemeAccount.JOIN)
+            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id,
+                                                           scheme=scheme).exclude(status=SchemeAccount.JOIN)
             for sa in scheme_accounts.all():
                 if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
                     raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
@@ -260,6 +274,7 @@ class ResponseLinkSerializer(serializers.Serializer):
     status = serializers.IntegerField(allow_null=True)
     status_name = serializers.CharField()
     balance = BalanceSerializer(allow_null=True)
+    display_status = serializers.ReadOnlyField()
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
@@ -271,7 +286,7 @@ class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
 
 class GetSchemeAccountSerializer(serializers.ModelSerializer):
     scheme = SchemeSerializerNoQuestions(read_only=True)
-    action_status = serializers.ReadOnlyField()
+    display_status = serializers.ReadOnlyField()
     barcode = serializers.ReadOnlyField()
     card_label = serializers.ReadOnlyField()
     images = serializers.SerializerMethodField()
@@ -304,7 +319,7 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
                   'status',
                   'order',
                   'created',
-                  'action_status',
+                  'display_status',
                   'status_name',
                   'barcode',
                   'card_label',
@@ -338,6 +353,7 @@ class ReferenceImageSerializer(serializers.ModelSerializer):
 
 class StatusSerializer(serializers.Serializer):
     status = serializers.IntegerField()
+    journey = serializers.CharField()
 
 
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):
@@ -349,12 +365,12 @@ class SchemeAccountIdsSerializer(serializers.ModelSerializer):
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     credentials = serializers.ReadOnlyField()
     status_name = serializers.ReadOnlyField()
-    action_status = serializers.ReadOnlyField()
+    display_status = serializers.ReadOnlyField()
     scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'action_status')
+        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'display_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):
@@ -539,12 +555,6 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
             )
 
         return credentials
-
-
-class MidasUserConsentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserConsent
-        fields = ('id', 'slug', 'value', 'created_on')
 
 
 class UpdateUserConsentSerializer(serializers.ModelSerializer):

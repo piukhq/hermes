@@ -13,12 +13,14 @@ from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
+
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
+
 
 from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
@@ -35,7 +37,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
+        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(status=Scheme.INACTIVE)
         schemes_without_questions = []
         for scheme in schemes:
             if len(scheme.questions.all()) == 0:
@@ -72,6 +74,15 @@ class Scheme(models.Model):
     )
     MAX_POINTS_VALUE_LENGTH = 11
 
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
+
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -106,7 +117,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -128,6 +139,10 @@ class Scheme(models.Model):
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -169,6 +184,22 @@ class JourneyTypes(Enum):
     JOIN = 0
     LINK = 1
     ADD = 2
+
+
+class Control(models.Model):
+    JOIN_KEY = 'join_button'
+    ADD_KEY = 'add_button'
+
+    KEY_CHOICES = (
+        (JOIN_KEY, 'Join Button - Add Card screen'),
+        (ADD_KEY, 'Add Button - Add Card screen')
+    )
+
+    key = models.CharField(max_length=50, choices=KEY_CHOICES)
+    label = models.CharField(max_length=50, blank=True)
+    hint_text = models.CharField(max_length=250, blank=True)
+
+    scheme = models.ForeignKey(Scheme, related_name="controls")
 
 
 class Consent(models.Model):
@@ -256,7 +287,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
 
     def get_queryset(self):
         return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
-            exclude(scheme__is_active=False)
+            exclude(scheme__status=Scheme.INACTIVE)
 
 
 class SchemeAccount(models.Model):
@@ -283,6 +314,7 @@ class SchemeAccount(models.Model):
     ACCOUNT_ALREADY_EXISTS = 445
     SERVICE_CONNECTION_ERROR = 537
     VALIDATION_ERROR = 401
+    PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
 
     EXTENDED_STATUSES = (
@@ -309,13 +341,14 @@ class SchemeAccount(models.Model):
         (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
+        (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
         (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            ACCOUNT_ALREADY_EXISTS]
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
@@ -327,6 +360,7 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
+    join_date = models.DateTimeField(null=True, blank=True)
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
 
@@ -386,23 +420,81 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def credentials(self, user_consents=None):
+    def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
-            self.status = SchemeAccount.INCOMPLETE
-            self.save()
-            return None
+            # temporary fix for iceland
+            if self.scheme.slug != 'iceland-bonus-card':
+                self.status = SchemeAccount.INCOMPLETE
+                self.save()
+                return None
 
-        if user_consents is not None:
-            credentials.update(consents=user_consents)
+        saved_consents = self.collect_pending_consents()
+        credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self, user_consents=None):
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        manual_question = self.scheme.manual_question
+        manual_answer = None
+        if manual_question:
+            manual_answer = credentials.get(manual_question.type)
+
+        scan_question = self.scheme.scan_question
+        scan_answer = None
+        if scan_question:
+            scan_answer = credentials.get(scan_question.type)
+
+        if manual_question and manual_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(manual_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[manual_question.type]})
+
+        if scan_question and scan_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(scan_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[scan_question.type]})
+
+        regex_credentials = [
+            'card_number',
+            'barcode'
+        ]
+        for question in regex_credentials:
+            value = getattr(self, question)
+            if not credentials.get(question) and value:
+                credentials.update({question: value})
+
+        return credentials
+
+    def collect_pending_consents(self):
+        user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
+        formatted_user_consents = []
+        for user_consent in user_consents:
+            formatted_user_consents.append(
+                {
+                    "id": user_consent['id'],
+                    "slug": user_consent['slug'],
+                    "value": user_consent['value'],
+                    "created_on": arrow.get(user_consent['created_on']).for_json(),
+                    "journey_type": user_consent['metadata']['journey']
+                }
+            )
+
+        return formatted_user_consents
+
+    def get_midas_balance(self):
         points = None
         try:
-            credentials = self.credentials(user_consents)
+            credentials = self.credentials()
             if not credentials:
                 return points
             response = self._get_balance(credentials)
@@ -416,6 +508,11 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
+
+        if self.status == SchemeAccount.PRE_REGISTERED_CARD:
+            self.status = SchemeAccount.JOIN
+            for answer in self.schemeaccountcredentialanswer_set.all():
+                answer.delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
@@ -439,7 +536,7 @@ class SchemeAccount(models.Model):
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance(user_consents=user_consents)
+            balance = self.get_midas_balance()
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
@@ -543,17 +640,16 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
 
     @property
-    def action_status(self):
-        if self.status in self.USER_ACTION_REQUIRED:
-            return 'USER_ACTION_REQUIRED'
-        elif self.status in self.SYSTEM_ACTION_REQUIRED:
-            return 'SYSTEM_ACTION_REQUIRED'
-        elif self.status == self.ACTIVE:
-            return 'ACTIVE'
-        elif self.status == self.WALLET_ONLY:
-            return 'WALLET_ONLY'
-        elif self.status == self.PENDING:
-            return 'PENDING'
+    def display_status(self):
+        # linked accounts in "system account required" should be displayed as "active".
+        # accounts in "active", "pending", and "join" statuses should be displayed as such.
+        # all other statuses should be displayed as "wallet only"
+        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
+            return self.ACTIVE
+        elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
+            return self.status
+        else:
+            return self.WALLET_ONLY
 
     @property
     def third_party_identifier(self):

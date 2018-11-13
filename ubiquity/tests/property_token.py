@@ -27,5 +27,5 @@ class GenerateJWToken:
 if __name__ == '__main__':
     bundle = 'com.barclays.test'
     organisation = 'Barclays'
-    secret = "R8aLVYe10vbidYTXqdinXfLOeX00uYUUuzEmAfQsHUqQicTb0L"
-    print(GenerateJWToken(organisation, secret, bundle, 'test@delete.mail').get_token())
+    secret = "gYxqfNqh8eTKHDpsY25nYqk7gmXD6fXinLoWc9zwIa6EosCGKvPA2jJLnMPnnQB4"
+    print(GenerateJWToken(organisation, secret, bundle, 'test@user.mail').get_token())

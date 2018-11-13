@@ -7,9 +7,9 @@ from django.conf import settings
 from django.utils import timezone
 
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory, \
-    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory
+    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory, ControlFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
-from scheme.models import SchemeCredentialQuestion
+from scheme.models import SchemeCredentialQuestion, Control
 from user.tests.factories import UserFactory
 from common.models import Image
 from scheme.models import JourneyTypes
@@ -62,6 +62,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
         self.assertIn('consents', response.data[0])
+        self.assertIn('status', response.data[0])
+        self.assertIn('is_active', response.data[0])
 
         # make sure there are no schemes that don't have questions
         for row in response.data:
@@ -287,3 +289,17 @@ class TestSchemeModel(TestCase):
         self.assertEqual(len(question_2.question_choices), 0)
         self.assertEqual(len(question_3.question_choices), 3)
         self.assertEqual(set(question_3.question_choices), {'Mrs', 'Mr', 'Miss'})
+
+    def test_scheme_controls(self):
+        scheme = SchemeFactory()
+        control1 = ControlFactory(key=Control.JOIN_KEY, label='hello', hint_text='world', scheme=scheme)
+        control2 = ControlFactory(key=Control.ADD_KEY, label='things', hint_text='stuff', scheme=scheme)
+
+        self.assertEqual(control1.scheme, scheme)
+        self.assertEqual(control2.scheme, scheme)
+        self.assertEqual(set(control1.KEY_CHOICES),
+                         {('join_button', 'Join Button - Add Card screen'),
+                          ('add_button', 'Add Button - Add Card screen')})
+        self.assertEqual(set(control2.KEY_CHOICES),
+                         {('join_button', 'Join Button - Add Card screen'),
+                          ('add_button', 'Add Button - Add Card screen')})

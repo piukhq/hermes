@@ -8,12 +8,13 @@ from django.db import transaction
 from raven.contrib.django.raven_compat.models import client as sentry
 from requests import RequestException
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
 from scheme.encyption import AESCipher
-from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer
-from scheme.serializers import (JoinSerializer, MidasUserConsentSerializer, UpdateCredentialSerializer,
+from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
+from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer)
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 
@@ -27,36 +28,37 @@ class BaseLinkMixin(object):
 
     @staticmethod
     def _link_account(data, scheme_account, user):
-        consent_data = []
         user_consents = []
-        midas_consent_data = None
 
         if 'consents' in data:
             consent_data = data.pop('consents')
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
             UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
 
-            user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
-            midas_consent_data = user_consent_serializer.data
-
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
 
-        midas_information = scheme_account.get_cached_balance(user_consents=midas_consent_data)
+        midas_information = scheme_account.get_midas_balance()
 
         response_data = {
             'balance': midas_information,
             'status': scheme_account.status,
-            'status_name': scheme_account.status_name
+            'status_name': scheme_account.status_name,
+            'display_status': scheme_account.display_status
         }
         response_data.update(dict(data))
 
-        if consent_data and scheme_account.status == SchemeAccount.ACTIVE:
+        if scheme_account.status == SchemeAccount.ACTIVE:
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
+        else:
+            user_consents = scheme_account.collect_pending_consents()
+            for user_consent in user_consents:
+                user_consent = UserConsent.objects.get(id=user_consent['id'])
+                user_consent.delete()
 
         analytics.update_scheme_account_attribute(scheme_account, user)
 
@@ -92,6 +94,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
+        if scheme.slug == 'iceland-bonus-card':
+            raise ValidationError('Iceland Bonus Card is temporarily unavailable.')
+
         if scheme.url == settings.MY360_SCHEME_URL:
             metadata = {
                 'scheme name': scheme.name,
@@ -196,6 +201,7 @@ class SchemeAccountJoinMixin:
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
+
         scheme_account = self.create_join_account(data, request.user, scheme_id)
 
         try:
@@ -205,18 +211,17 @@ class SchemeAccountJoinMixin:
                 user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, request.user)
                 UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
 
-                # Deserialize the user consent instances formatted to send to Midas
-                user_consent_serializer = MidasUserConsentSerializer(user_consents, many=True)
                 for user_consent in user_consents:
                     user_consent.save()
 
-                data['credentials'].update(consents=user_consent_serializer.data)
+                user_consents = scheme_account.collect_pending_consents()
+                data['credentials'].update(consents=user_consents)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], request.user)
 
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user.id)
+            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
@@ -232,7 +237,10 @@ class SchemeAccountJoinMixin:
     @staticmethod
     def handle_failed_join(scheme_account):
         scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        [answer.delete() for answer in scheme_account_answers]
+        for answer in scheme_account_answers:
+            answer.delete()
+
+        scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
@@ -279,10 +287,13 @@ class SchemeAccountJoinMixin:
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(question_type),
                 scheme_account=scheme_account,
-                answer=credentials_dict[question_type])
+                defaults={'answer': credentials_dict[question_type]}
+            )
+
+        updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
 
         encrypted_credentials = AESCipher(
-            settings.AES_KEY.encode()).encrypt(json.dumps(credentials_dict)).decode('utf-8')
+            settings.AES_KEY.encode()).encrypt(json.dumps(updated_credentials)).decode('utf-8')
 
         data = {
             'scheme_account_id': scheme_account.id,
