@@ -213,11 +213,11 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     def create(self, request, *args, **kwargs):
         try:
             pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
-            if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
+            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
             consent = request.data['account']['consents']
-        except KeyError:
+        except (KeyError, ValueError):
             raise ParseError
 
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
@@ -345,8 +345,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return out_fields
 
     def _verify_membership_card_creation(self, request):
-        if request.allowed_schemes and request.data['membership_plan'] not in request.allowed_schemes:
-            raise ParseError('membership plan not allowed for this user.')
+        try:
+            if request.allowed_schemes and int(request.data['membership_plan']) not in request.allowed_schemes:
+                raise ParseError('membership plan not allowed for this user.')
+        except ValueError:
+            raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
         add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
@@ -542,11 +545,11 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreation
     def create(self, request, *args, **kwargs):
         try:
             pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
-            if request.allowed_issuers and pcard_data['issuer'] not in request.allowed_issuers:
+            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
             consent = request.data['account']['consents']
-        except KeyError:
+        except (KeyError, ValueError):
             raise ParseError
 
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
@@ -574,8 +577,12 @@ class MembershipPlanView(ModelViewSet):
 
 class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
-    queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
+
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return Scheme.objects
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
