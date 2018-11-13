@@ -94,8 +94,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
-        if scheme.slug == 'iceland-bonus-card':
-            raise ValidationError('Iceland Bonus Card is temporarily unavailable.')
+        # todo re-enable or remove when we stop using fake-agents
+        # if scheme.slug == 'iceland-bonus-card':
+        #     raise ValidationError('Iceland Bonus Card is temporarily unavailable.')
 
         if scheme.url == settings.MY360_SCHEME_URL:
             metadata = {
