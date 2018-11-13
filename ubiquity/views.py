@@ -577,8 +577,12 @@ class MembershipPlanView(ModelViewSet):
 
 class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     authentication_classes = (PropertyAuthentication,)
-    queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
+
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return Scheme.objects
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
