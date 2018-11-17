@@ -365,11 +365,17 @@ CLOCK_SKEW_LEEWAY = env_var('CLOCK_SKEW_LEEWAY', 180)
 REDIS_HOST = env_var('REDIS_HOST', 'localhost')
 REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
 REDIS_PORT = env_var('REDIS_PORT', 6379)
+REDIS_DB = env_var('REDIS_DB', 1)
 
 cache_options = {
     'redis': {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://{}@{}:{}/1".format(REDIS_PASSWORD, REDIS_HOST, REDIS_PORT),
+        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
+            password=REDIS_PASSWORD,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB
+        ),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },
