@@ -363,12 +363,13 @@ ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
 CLOCK_SKEW_LEEWAY = env_var('CLOCK_SKEW_LEEWAY', 180)
 
 REDIS_HOST = env_var('REDIS_HOST', 'localhost')
+REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
 REDIS_PORT = env_var('REDIS_PORT', 6379)
 
 cache_options = {
     'redis': {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://{}:{}/1".format(REDIS_HOST, REDIS_PORT),
+        "LOCATION": "redis://{}@{}:{}/1".format(REDIS_PASSWORD, REDIS_HOST, REDIS_PORT),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },
