@@ -221,7 +221,7 @@ class SchemeAccountJoinMixin:
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], request.user)
 
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user)
+            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user.id)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
