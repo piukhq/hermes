@@ -1,15 +1,16 @@
 
+import httpretty
+from django.conf import settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from django.utils import timezone
-from django.conf import settings
-import httpretty
 
-from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount, AuthTransaction
+import ubiquity.tests.factories
 from common.models import Image
-from scheme.tests.factories import SchemeAccountFactory
-from user.models import Organisation, ClientApplication
+from payment_card.models import AuthTransaction, PaymentCardAccount
+from payment_card.tests import factories
+from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
+from user.models import ClientApplication, Organisation
 from user.tests.factories import UserFactory
 
 
@@ -44,26 +45,27 @@ class TestPaymentCard(APITestCase):
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
-        cls.user = cls.payment_card_account.user
+        cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
+            payment_card_account=cls.payment_card_account
+        )
+        cls.user = cls.payment_card_account_entry.user
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-
         cls.payment_card_image = factories.PaymentCardAccountImageFactory()
-
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_account_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card__slug={}&user__id={}'.format(self.payment_card.slug,
-                                                                           self.user.id),
+                               '?payment_card__slug={}&user_set__id={}'.format(self.payment_card.slug,
+                                                                               self.user.id),
                                **self.auth_service_headers)
         self.assertEqual(200, resp.status_code)
         self.assertEqual(resp.json()[0]['id'], self.payment_card_account.id)
 
     def test_payment_card_account_bad_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card=what&user=no',
+                               '?payment_card=what&user_set__id=no',
                                **self.auth_service_headers)
         self.assertEqual(400, resp.status_code)
 
@@ -248,8 +250,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
-        data = {'user': self.user.id,
-                'issuer': self.issuer.id,
+        data = {'issuer': self.issuer.id,
                 'status': 1,
                 'expiry_month': 4,
                 'expiry_year': 10,
@@ -293,16 +294,18 @@ class TestPaymentCard(APITestCase):
     def test_get_payment_card_scheme_accounts(self):
         token = 'test_token_123'
         user = UserFactory()
-        SchemeAccountFactory(user=user)
-        factories.PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
+        sae = SchemeAccountEntryFactory(user=user)
+        pca = factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
+        PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
+
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(len(response.data[0]), 3)
+        self.assertEqual(len(response.data[0]), 2)
         keys = list(response.data[0].keys())
         self.assertEqual(keys[0], 'scheme_id')
-        self.assertEqual(keys[1], 'user_id')
-        self.assertEqual(keys[2], 'scheme_account_id')
+        self.assertEqual(keys[1], 'scheme_account_id')
 
 
 class TestAuthTransactions(APITestCase):

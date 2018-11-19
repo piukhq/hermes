@@ -7,8 +7,8 @@ from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
-                         ClientApplicationBundle)
+from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting, UserDetail, UserSetting,
+                         valid_promo_code)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -44,13 +44,17 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
     uid = serializers.CharField(read_only=True)
+    external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
         email = validated_data['email']
         password = validated_data['password']
-
+        external_id = validated_data.get('external_id')
         client_id = validated_data.get('client_id')
-        if client_id:
+
+        if client_id and external_id:
+            user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id)
+        elif client_id:
             user = CustomUser.objects.create_user(email, password, client_id=client_id)
         else:
             user = CustomUser.objects.create_user(email, password)
@@ -81,6 +85,18 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
         data = super().validate(data)
         email = CustomUser.objects.normalize_email(data['email'])
         if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
+            raise serializers.ValidationError("That user already exists")
+        return data
+
+    def validate_email(self, email):
+        return email
+
+
+class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+
+    def validate(self, data):
+        data = super().validate(data)
+        if CustomUser.objects.filter(client_id=data['client_id'], external_id=data['external_id']).exists():
             raise serializers.ValidationError("That user already exists")
         return data
 

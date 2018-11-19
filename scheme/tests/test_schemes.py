@@ -213,7 +213,7 @@ class TestSchemeViews(APITestCase):
         self.assertIn('file', json[0])
         self.assertIn('scheme_id', json[0])
 
-    @patch('scheme.views.requests.post')
+    @patch('scheme.mixins.requests.post')
     def test_identify_image(self, mock_post):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme, image_type_code=5)

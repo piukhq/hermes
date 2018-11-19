@@ -1,12 +1,12 @@
 import base64
-import os
-
-from factory.fuzzy import FuzzyAttribute
-from django.utils import timezone
-from faker import Factory
 import factory
+import os
+from django.utils import timezone
+from factory.fuzzy import FuzzyAttribute
+from faker import Factory
 
 from user import models
+from user.models import ClientApplicationBundle, ClientApplication, Organisation
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -73,3 +73,26 @@ class MarketingCodeFactory(factory.DjangoModelFactory):
     date_to = timezone.now() + timezone.timedelta(days=7)
     description = fake.text(max_nb_chars=300)
     partner = fake.text(max_nb_chars=100)
+
+
+class OrganisationFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = Organisation
+
+    name = fake.text(max_nb_chars=100)
+
+
+class ClientApplicationFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = ClientApplication
+
+    name = fake.text(max_nb_chars=100)
+    organisation = factory.SubFactory(OrganisationFactory)
+
+
+class ClientApplicationBundleFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = ClientApplicationBundle
+
+    client = factory.SubFactory(ClientApplicationFactory)
+    bundle_id = 'com.test.fake'

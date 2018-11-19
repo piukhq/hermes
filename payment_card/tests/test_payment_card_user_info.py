@@ -1,5 +1,7 @@
 import json
 from rest_framework.test import APITestCase
+
+import ubiquity.tests.factories
 from hermes import settings
 from payment_card.tests import factories as payment_card_factories
 from scheme.tests import factories as scheme_factories
@@ -15,20 +17,28 @@ class TestPaymentCardUserInfo(APITestCase):
         cls.user_2 = user_factories.UserFactory()
         cls.user_3 = user_factories.UserFactory()
 
-        cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_1,
-                                                                                      psp_token='1144**33',
+        cls.payment_card_account_1 = payment_card_factories.PaymentCardAccountFactory(psp_token='1144**33',
                                                                                       status=1)
-        cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_2,
-                                                                                      psp_token='3344**11',
+        cls.payment_card_account_2 = payment_card_factories.PaymentCardAccountFactory(psp_token='3344**11',
                                                                                       status=1)
-        cls.payment_card_account_3 = payment_card_factories.PaymentCardAccountFactory(user=cls.user_3,
-                                                                                      psp_token='5544**11',
+        cls.payment_card_account_3 = payment_card_factories.PaymentCardAccountFactory(psp_token='5544**11',
                                                                                       status=0)
 
-        cls.scheme_account_1 = scheme_factories.SchemeAccountFactory(user=cls.user_1)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(payment_card_account=cls.payment_card_account_1,
+                                                                user=cls.user_1)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(payment_card_account=cls.payment_card_account_2,
+                                                                user=cls.user_2)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(payment_card_account=cls.payment_card_account_3,
+                                                                user=cls.user_3)
+
+        cls.scheme_account_1 = scheme_factories.SchemeAccountFactory()
         cls.scheme = cls.scheme_account_1.scheme
-        cls.scheme_account_2 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme, user=cls.user_2)
-        cls.scheme_account_3 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme, user=cls.user_3)
+        cls.scheme_account_2 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_3 = scheme_factories.SchemeAccountFactory(scheme=cls.scheme)
+
+        ubiquity.tests.factories.SchemeAccountEntryFactory(scheme_account=cls.scheme_account_1, user=cls.user_1)
+        ubiquity.tests.factories.SchemeAccountEntryFactory(scheme_account=cls.scheme_account_2, user=cls.user_2)
+        ubiquity.tests.factories.SchemeAccountEntryFactory(scheme_account=cls.scheme_account_3, user=cls.user_3)
 
         cls.scheme_question = scheme_factories.SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                                                third_party_identifier=True,
@@ -55,21 +65,21 @@ class TestPaymentCardUserInfo(APITestCase):
         data = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('1144**33', data)
-        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
+        self.assertEqual(data['1144**33']['user_set'], [self.user_1.id])
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
         self.assertEqual(data['1144**33']['card_information']['first_six'], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data['1144**33']['card_information']['last_four'], str(self.payment_card_account_1.pan_end))
 
         self.assertIn('3344**11', data)
-        self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
+        self.assertEqual(data['3344**11']['user_set'], [self.user_2.id])
         self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
         self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
         self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
 
         self.assertIn('5544**11', data)
-        self.assertEqual(data['5544**11']['user_id'], self.user_3.id)
+        self.assertEqual(data['5544**11']['user_set'], [self.user_3.id])
         self.assertEqual(data['5544**11']['scheme_account_id'], self.scheme_account_3.id)
         self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
         self.assertNotIn('card_information', data['5544**11'])
@@ -91,7 +101,7 @@ class TestPaymentCardUserInfo(APITestCase):
         data = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('1144**33', data)
-        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
+        self.assertEqual(data['1144**33']['user_set'], [self.user_1.id])
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
         self.assertEqual(data['1144**33']['card_information']['first_six'], str(self.payment_card_account_1.pan_start))

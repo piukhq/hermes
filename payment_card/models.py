@@ -1,9 +1,11 @@
+import base64
+import uuid
+
 from bulk_update.helper import bulk_update
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
-import base64
-import uuid
 
 from common.models import Image
 
@@ -85,7 +87,7 @@ class PaymentCard(models.Model):
 
         @classmethod
         def dispatch(cls, method, psp_token):
-            return {cls.COPY:   cls.copy,
+            return {cls.COPY: cls.copy,
                     cls.LEN_24: cls.len24,
                     cls.LEN_25: cls.len25}[method](psp_token)
 
@@ -140,7 +142,10 @@ class PaymentCardAccount(models.Model):
         (UNKNOWN, 'unknown')
     )
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.PaymentCardAccountEntry',
+                                      related_name='payment_card_account_set')
+    scheme_account_set = models.ManyToManyField('scheme.SchemeAccount', through='ubiquity.PaymentCardSchemeEntry',
+                                                related_name='payment_card_account_set')
     payment_card = models.ForeignKey(PaymentCard)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
@@ -157,16 +162,16 @@ class PaymentCardAccount(models.Model):
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    issuer = models.ForeignKey(Issuer)
+    issuer = models.ForeignKey(Issuer, null=True, blank=True)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+    consents = JSONField(default=[])
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return '({}) {} - {}'.format(
-            self.user.email,
+        return '{} - {}'.format(
             self.payment_card.name,
             self.name_on_card
         )
@@ -193,18 +198,18 @@ class PaymentCardAccount(models.Model):
                                      url=F('payment_card_image__url'),
                                      call_to_action=F('payment_card_image__call_to_action'),
                                      order=F('payment_card_image__order')).values(
-                                         'image_type_code',
-                                         'image_size_code',
-                                         'image',
-                                         'strap_line',
-                                         'image_description',
-                                         'url',
-                                         'call_to_action',
-                                         'order',
-                                         'status',
-                                         'start_date',
-                                         'end_date',
-                                         'created')
+            'image_type_code',
+            'image_size_code',
+            'image',
+            'strap_line',
+            'image_description',
+            'url',
+            'call_to_action',
+            'order',
+            'status',
+            'start_date',
+            'end_date',
+            'created')
 
         return images
 
