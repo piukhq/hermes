@@ -567,8 +567,12 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreation
 
 class MembershipPlanView(ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
-    queryset = Scheme.objects
     serializer_class = MembershipPlanSerializer
+
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return Scheme.objects
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
