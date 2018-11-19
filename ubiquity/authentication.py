@@ -55,11 +55,8 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
         bundle, external_id = self.authenticate_credentials(token)
 
         try:
-            user = CustomUser.objects.get(external_id=external_id, client=bundle.client)
+            user = CustomUser.objects.get(external_id=external_id, client=bundle.client, is_active=True)
         except CustomUser.DoesNotExist:
-            raise NotFound
-
-        if not user.is_active:
             raise NotFound
 
         setattr(request, 'bundle', bundle)
@@ -75,7 +72,7 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
 
         bundle, external_id = self.authenticate_credentials(token)
         try:
-            user = CustomUser.objects.get(external_id=external_id, client=bundle.client)
+            user = CustomUser.objects.get(external_id=external_id, client=bundle.client, is_active=True)
         except CustomUser.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
