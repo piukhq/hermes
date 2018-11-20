@@ -1,3 +1,4 @@
+import arrow
 from django.contrib import admin
 
 from payment_card import models
@@ -6,7 +7,7 @@ from payment_card import models
 @admin.register(models.PaymentCard)
 class PaymentCardAdmin(admin.ModelAdmin):
     list_display = ('name', 'id', 'is_active',)
-    list_filter = ('is_active', )
+    list_filter = ('is_active',)
 
 
 @admin.register(models.PaymentCardImage)
@@ -31,18 +32,24 @@ def titled_filter(title):
             instance = admin.RelatedFieldListFilter.create(*args, **kwargs)
             instance.title = title
             return instance
+
     return Wrapper
 
 
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ('user', 'payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
+    list_display = ('payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
     list_filter = (('payment_card__name', titled_filter('payment card')),
                    'status',
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
-    readonly_fields = ('token', 'psp_token', )
-    search_fields = ['user__email', 'pan_start', 'pan_end', 'token']
+    readonly_fields = ('token', 'psp_token', 'PLL_consent')
+    search_fields = ['pan_start', 'pan_end', 'token']
+    exclude = ('consent',)
+
+    def PLL_consent(self, obj):
+        when = arrow.get(obj.consent['timestamp']).format('HH:mm DD/MM/YYYY')
+        return 'Date Time: {} \nCoordinates: {}, {}'.format(when, obj.consent['latitude'], obj.consent['longitude'])
 
 
 @admin.register(models.PaymentCardAccountImage)

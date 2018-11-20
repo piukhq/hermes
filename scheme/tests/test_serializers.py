@@ -1,14 +1,19 @@
 from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from scheme.serializers import CreateSchemeAccountSerializer, SchemeSerializer, LinkSchemeSerializer, JoinSerializer, \
-    UserConsentSerializer, UpdateUserConsentSerializer, ControlSerializer
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeAccountFactory, SchemeFactory, \
-    ConsentFactory, UserConsentFactory, ControlFactory
-from scheme.credentials import BARCODE, PASSWORD, FIRST_NAME, LAST_NAME, TITLE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion, JourneyTypes, ConsentStatus, Control
+from scheme.serializers import ControlSerializer
+from scheme.tests.factories import ControlFactory
+from scheme.models import Control
 from unittest.mock import MagicMock, patch
 
+from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
+from scheme.models import ConsentStatus, JourneyTypes, SchemeCredentialQuestion
+from scheme.serializers import (CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
+                                SchemeSerializer, UpdateUserConsentSerializer,
+                                UserConsentSerializer)
+from scheme.tests.factories import (ConsentFactory, SchemeAccountFactory, SchemeCredentialQuestionFactory,
+                                    SchemeFactory, UserConsentFactory)
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 
 
@@ -31,14 +36,6 @@ class TestCreateSchemeAccountSerializer(TestCase):
         with self.assertRaises(ValidationError) as e:
             self.serializer.validate({'scheme': 2342342})
         self.assertEqual(e.exception.detail[0], "Scheme '2342342' does not exist")
-
-    def test_validate_existing_scheme_account(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme, user=self.user)
-        self.serializer.context['view'] = ''
-        with self.assertRaises(ValidationError) as e:
-            self.serializer.validate({'scheme': scheme_account.scheme.id})
-        self.assertTrue(e.exception.detail[0].startswith('You already have an account for this scheme'))
 
     def test_validate_answer_types(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, manual_question=True)
@@ -167,6 +164,8 @@ class TestUserConsentSerializer(TestCase):
                                        check_box=False, scheme=self.scheme)
 
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account)
+        self.user = self.scheme_account_entry.user
 
         self.user_consent1 = UserConsentFactory(scheme=self.scheme_account.scheme)
         self.user_consent2 = UserConsentFactory(scheme=self.scheme_account.scheme)
@@ -181,7 +180,7 @@ class TestUserConsentSerializer(TestCase):
 
         metadata_keys = ['id', 'check_box', 'text', 'required', 'order', 'journey', 'slug', 'user_email', 'scheme_slug']
 
-        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data)
+        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data, self.user)
 
         self.assertEqual(len(user_consents), 3)
         self.assertTrue(all([metadata_keys == list(consent.metadata.keys()) for consent in user_consents]))

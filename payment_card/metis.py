@@ -1,4 +1,4 @@
-import requests
+from hermes.traced_requests import requests
 import arrow
 
 from django.conf import settings

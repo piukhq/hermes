@@ -1,23 +1,24 @@
 from copy import copy
+
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import serializers
 
-from scheme.credentials import CREDENTIAL_TYPES
 from common.models import Image
-from django.shortcuts import get_object_or_404
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeImage, SchemeAccountCredentialAnswer, \
-    SchemeAccountImage, Exchange, Consent, UserConsent, ConsentStatus, Control
+from scheme.credentials import credential_types_set
+from scheme.models import (Consent, ConsentStatus, Control, Exchange, Scheme, SchemeAccount,
+                           SchemeAccountCredentialAnswer, SchemeAccountImage, SchemeCredentialQuestion, SchemeImage,
+                           UserConsent)
+from user.models import CustomUser
 
 
 class SchemeImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeImage
         exclude = ('scheme',)
 
 
 class SchemeAccountImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeAccountImage
         fields = '__all__'
@@ -33,14 +34,12 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class ConsentsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Consent
         exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
 
 
 class ControlSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Control
         exclude = ('id', 'scheme')
@@ -101,7 +100,7 @@ class UserConsentSerializer(serializers.Serializer):
     value = serializers.BooleanField()
 
     @staticmethod
-    def get_user_consents(scheme_account, consents):
+    def get_user_consents(scheme_account, consents, user):
         """
         Returns UserConsent instances from the data sent by the frontend (Consent id and a value of true/false.)
         These are not yet saved to the database.
@@ -112,13 +111,13 @@ class UserConsentSerializer(serializers.Serializer):
             consent = get_object_or_404(Consent, pk=consent['id'])
 
             user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent.slug,
-                                       user=scheme_account.user, created_on=timezone.now(),
+                                       user=user, created_on=timezone.now(),
                                        scheme=scheme_account.scheme)
 
             serializer = ConsentsSerializer(consent)
             user_consent.metadata = serializer.data
             user_consent.metadata.update({
-                'user_email': scheme_account.user.email,
+                'user_email': user.email,
                 'scheme_slug': scheme_account.scheme.slug
             })
 
@@ -222,6 +221,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     order = serializers.IntegerField()
     id = serializers.IntegerField(read_only=True)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
+    verify_account_exists = True
 
     def validate(self, data):
         try:
@@ -229,13 +229,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['request'].user, scheme=scheme)\
-            .exclude(status=SchemeAccount.JOIN)
-
-        if scheme_accounts.exists():
-            raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
-
-        answer_types = set(dict(data).keys()).intersection(set(dict(CREDENTIAL_TYPES).keys()))
+        answer_types = set(data).intersection(credential_types_set)
         if len(answer_types) != 1:
             raise serializers.ValidationError("You must submit one scan or manual question answer")
 
@@ -244,6 +238,14 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         # only allow one credential
         if answer_type not in self.allowed_answers(scheme):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
+
+        if self.verify_account_exists:
+            scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id,
+                                                           scheme=scheme).exclude(status=SchemeAccount.JOIN)
+            for sa in scheme_accounts.all():
+                if sa.schemeaccountcredentialanswer_set.filter(answer=data[answer_type]).exists():
+                    raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
+
         return data
 
     @staticmethod
@@ -295,8 +297,8 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'is_deleted')
-        read_only_fields = ('status', )
+        exclude = ('updated', 'is_deleted', 'balances', 'user_set')
+        read_only_fields = ('status',)
 
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
@@ -341,7 +343,6 @@ class QuerySchemeAccountSerializer(serializers.ModelSerializer):
 
 
 class ReferenceImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeImage
         fields = (
@@ -356,10 +357,9 @@ class StatusSerializer(serializers.Serializer):
 
 
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = SchemeAccount
-        fields = ('id', )
+        fields = ('id',)
 
 
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
@@ -370,7 +370,7 @@ class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'user', 'status', 'status_name', 'display_status')
+        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'display_status')
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):
@@ -395,7 +395,7 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_scheme_account(scheme_account):
+def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccountImageSerializer, add_type=True):
     account_images = SchemeAccountImage.objects.filter(
         scheme_accounts__id=scheme_account.id
     ).exclude(image_type_code=Image.TIER)
@@ -404,8 +404,12 @@ def get_images_for_scheme_account(scheme_account):
     images = []
 
     for image in account_images:
-        serializer = SchemeAccountImageSerializer(image)
-        images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
+        serializer = serializer_class(image)
+
+        if add_type:
+            images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
+        else:
+            images.append(serializer.data)
 
     for image in scheme_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
@@ -425,22 +429,23 @@ def get_images_for_scheme_account(scheme_account):
                 created=image.created,
                 reward_tier=image.reward_tier
             )
+            serializer = serializer_class(account_image)
 
-            serializer = SchemeAccountImageSerializer(account_image)
-            images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+            if add_type:
+                images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+            else:
+                images.append(serializer.data)
 
     return images
 
 
 class DonorSchemeInfoSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
 
 
 class HostSchemeInfoSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = Scheme
         fields = ('name', 'point_name', 'id')
@@ -483,17 +488,22 @@ class JoinSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         scheme = self.context['scheme']
+        user_id = self.context['user']
+        if isinstance(user_id, CustomUser):
+            user_id = user_id.id
+
         # Validate scheme account for this doesn't already exist
-        scheme_accounts = SchemeAccount.objects.filter(user=self.context['user'], scheme=scheme) \
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme) \
             .exclude(status=SchemeAccount.JOIN)
 
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
-        required_question_types = []
-        for question in scheme.join_questions:
-            if question.required:
-                required_question_types.append(question.type)
+        required_question_types = [
+            question.type
+            for question in scheme.join_questions
+            if question.required
+        ]
 
         # Validate scheme join questions
         if not required_question_types:
@@ -506,6 +516,9 @@ class JoinSerializer(SchemeAnswerSerializer):
                                               "to \"Join & Link\" for scheme: {}".format(scheme))
 
         # Validate request join questions
+        return self._validate_join_questions(scheme, data)
+
+    def _validate_join_questions(self, scheme, data):
         request_join_question_types = data.keys()
         data['credentials'] = {}
         for question in scheme.join_questions:

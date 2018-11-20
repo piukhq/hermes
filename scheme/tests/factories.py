@@ -1,15 +1,15 @@
 from datetime import datetime
 
 import factory
+from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
+
 from scheme import models
-from scheme.models import Consent, UserConsent, JourneyTypes, ConsentStatus, Control
+from scheme.models import Control
 from faker import Factory
 from scheme.credentials import USER_NAME
-from django.utils import timezone
-
+from scheme.models import Consent, ConsentStatus, JourneyTypes, UserConsent
 from user.tests.factories import UserFactory
-
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -46,6 +46,15 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_prefix = ''
 
 
+class SchemeBalanceDetailsFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeBalanceDetails
+
+    scheme_id = factory.SubFactory(SchemeFactory)
+    currency = fake.company()
+    suffix = fake.slug()
+
+
 class ConsentFactory(factory.DjangoModelFactory):
     class Meta:
         model = Consent
@@ -78,7 +87,6 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccount
 
-    user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
@@ -105,6 +113,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     type = USER_NAME
     label = 'Please enter your username.'
     third_party_identifier = False
+    field_type = 0
 
 
 class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):

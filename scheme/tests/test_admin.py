@@ -1,13 +1,22 @@
 from unittest.mock import MagicMock
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase
+
 from scheme.admin import CredentialQuestionFormset, SchemeForm
-from scheme.tests.factories import SchemeFactory, CategoryFactory
+from scheme.tests.factories import CategoryFactory, SchemeFactory
+
+
+class MockCredentialQuestionFormset(MagicMock):
+
+    def _collect_form_data(self):
+        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        return manual_questions, [], []
 
 
 class TestCredentialsAdmin(TestCase):
     def create_instance(self, form_data):
-        mocked_instance = MagicMock(spec=CredentialQuestionFormset)
+        mocked_instance = MockCredentialQuestionFormset(spec=CredentialQuestionFormset)
         mocked_instance.instance = MagicMock()
 
         form = MagicMock()

@@ -4,8 +4,8 @@ from django.forms import BaseInlineFormSet, ModelForm
 
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control)
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -13,9 +13,16 @@ slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 class CredentialQuestionFormset(BaseInlineFormSet):
 
+    def _collect_form_data(self):
+        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        choice = [form.cleaned_data['choice'] for form in self.forms]
+        answer_type = [form.cleaned_data['answer_type'] for form in self.forms]
+        return manual_questions, choice, answer_type
+
     def clean(self):
         super().clean()
-        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        manual_questions, choice, answer_type = self._collect_form_data()
+
         if manual_questions.count(True) > 1:
             raise ValidationError("You may only select one manual question")
 
@@ -23,13 +30,27 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
 
-        if self.instance.is_active and not any(manual_questions):
-            raise ValidationError("You must have a manual question when a scheme is set to active")
+        if self.instance.is_active:
+            if not any(manual_questions):
+                raise ValidationError("You must have a manual question when a scheme is set to active")
+
+            for pos, answer in enumerate(answer_type):
+                if answer == 2:
+                    if not choice[pos]:
+                        raise ValidationError(
+                            "When the answer_type field value is 'choice' you must provide the choices")
+                elif choice[pos]:
+                    raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
 
 
-class CredentialQuestionInline(admin.TabularInline):
+class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
     formset = CredentialQuestionFormset
+    extra = 0
+
+
+class SchemeBalanceDetailsInline(admin.StackedInline):
+    model = SchemeBalanceDetails
     extra = 0
 
 
@@ -39,7 +60,6 @@ class ControlInline(admin.TabularInline):
 
 
 class SchemeForm(ModelForm):
-
     class Meta:
         model = Scheme
         fields = '__all__'
@@ -66,12 +86,17 @@ class SchemeForm(ModelForm):
             raise ValidationError('Slug can only contain lowercase letters, hyphens and numbers')
 
 
+class SchemeDetailsInline(admin.StackedInline):
+    model = SchemeDetail
+    extra = 0
+
+
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline, ControlInline)
+    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('status', )
+    list_filter = ('status',)
     form = SchemeForm
     search_fields = ['name']
 
@@ -113,14 +138,14 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
-    inlines = (SchemeAccountCredentialAnswerInline, )
+    inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
-    search_fields = ['user__email']
+    list_display = ('scheme', 'status', 'card_number', 'is_deleted', 'created',)
+    search_fields = ['scheme__name', 'card_number']
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'user', 'link_date')
+            return self.readonly_fields + ('scheme', 'link_date')
         return self.readonly_fields
 
 
