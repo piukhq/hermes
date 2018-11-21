@@ -7,6 +7,7 @@ from django.db import transaction
 from raven.contrib.django.raven_compat.models import client as sentry
 from requests import RequestException
 from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
@@ -129,6 +130,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'is_deleted': False
             }
             scheme_account = SchemeAccount.objects.get(**query)
+
+            if user.client.organisation.name != 'Barclays':
+                raise ValidationError('Scheme Account already exists in another wallet.')
+
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
             for card in scheme_account.payment_card_account_set.all():
                 PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
