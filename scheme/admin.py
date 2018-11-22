@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
-
+from django.utils.html import format_html
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+
+from ubiquity.models import SchemeAccountEntry
+
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -140,13 +143,31 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'status', 'card_number', 'is_deleted', 'created',)
-    search_fields = ['scheme__name', 'card_number']
+    list_display = ('scheme', 'user_email', 'status', 'card_number', 'is_deleted', 'created',)
+    search_fields = ['scheme__name', 'schemeaccountentry__user__email']
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
             return self.readonly_fields + ('scheme', 'link_date')
         return self.readonly_fields
+
+    def user_email(self, obj):
+        user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                                 assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
+                     for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
+        return '</br>'.join(user_list)
+
+    user_email.allow_tags = True
+
+
+@admin.register(SchemeAccountEntry)
+class SchemeAccountEntryAdmin(admin.ModelAdmin):
+    list_display = ('scheme_account', 'user', 'status')
+    search_fields = ['scheme_account', 'user']
+
+    def status(self, obj):
+        print(obj)
+        return obj.scheme_account.status_name
 
 
 @admin.register(SchemeAccountImage)
