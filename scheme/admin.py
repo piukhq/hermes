@@ -162,7 +162,7 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeAccountEntry)
 class SchemeAccountEntryAdmin(admin.ModelAdmin):
-    list_display = ('scheme_account', 'user', 'status')
+    list_display = ('scheme_account', 'user', 'status',)
     search_fields = ['scheme_account', 'user']
 
     def status(self, obj):
