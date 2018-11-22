@@ -1,4 +1,6 @@
 from time import perf_counter, process_time
+from django.db import connection
+from django.conf import settings
 
 
 def accept_version(get_response):
@@ -52,7 +54,7 @@ def query_debug(get_response):
 
     def middleware(request):
         response = get_response(request)
-        if response.status_code and int(response.status_code/100) == 2:
+        if settings.DEBUG and response.status_code and int(response.status_code/100) == 2:
             total_timer = 0
             counter = 0
             for query in connection.queries:

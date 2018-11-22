@@ -143,7 +143,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'user_email', 'status', 'card_number', 'is_deleted', 'created',)
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
     search_fields = ['scheme__name', 'schemeaccountentry__user__email']
 
     def get_readonly_fields(self, request, obj=None):
@@ -162,11 +162,10 @@ class SchemeAccountAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeAccountEntry)
 class SchemeAccountEntryAdmin(admin.ModelAdmin):
-    list_display = ('scheme_account', 'user', 'status',)
-    search_fields = ['scheme_account', 'user']
+    list_display = ('scheme_account', 'user', 'status')
+    search_fields = ['scheme_account__scheme__name', 'user__email']
 
     def status(self, obj):
-        print(obj)
         return obj.scheme_account.status_name
 
 
