@@ -178,15 +178,19 @@ class ListCreatePaymentCardAccount(APIView):
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
+        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
+
         account.token = old_account.token
         account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
             account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
             metis.enrol_existing_payment_card(account)
         else:
             account.status = old_account.status
             account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
 
             # only delete the old card if it's on the same app
             if old_account.user_set.filter(client=user.client).exists():
