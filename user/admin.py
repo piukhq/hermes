@@ -68,7 +68,7 @@ class CustomUserDetail(UserAdmin):
     last_name.admin_order_field = 'profile__last_name'
 
     form = CustomUserModelForm
-    inlines = (ServiceConsentInline, UserDetailInline, UserSchemeAccountsInline, UserPaymentCardAccountInline)
+    inlines = (ServiceConsentInline, UserDetailInline)
     ordering = ()
     fieldsets = ()
     add_fieldsets = ()

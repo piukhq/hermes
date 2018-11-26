@@ -2,16 +2,18 @@ from django.db import models
 
 
 class SchemeAccountEntry(models.Model):
-    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE)
-    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE)
+    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
+                                       verbose_name="scheme association")
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="user email")
 
     class Meta:
         unique_together = ("scheme_account", "user")
 
 
 class PaymentCardAccountEntry(models.Model):
-    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE)
-    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE)
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
+                                             verbose_name="Payment Card User association")
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="user email")
 
     class Meta:
         unique_together = ("payment_card_account", "user")

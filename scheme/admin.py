@@ -160,13 +160,47 @@ class SchemeAccountAdmin(admin.ModelAdmin):
     user_email.allow_tags = True
 
 
-@admin.register(SchemeAccountEntry)
-class SchemeAccountEntryAdmin(admin.ModelAdmin):
-    list_display = ('scheme_account', 'user', 'status')
-    search_fields = ['scheme_account__scheme__name', 'user__email']
+class SchemeUserAssociation(SchemeAccountEntry):
+    """
+    We are using a proxy model in admin for sole purpose of using an appropriate table name which is then listed
+    in schemes and not ubiquity.  Using SchemeAccountEntry directly adds an entry in Ubiquity section called
+    SchemeAccountEntry which would confuse users as it is not ubiquity specific and is not a way of entering
+    scheme accounts ie it used to associate a scheme with a user.
 
-    def status(self, obj):
+    """
+    class Meta:
+        proxy = True
+
+
+@admin.register(SchemeUserAssociation)
+class SchemeUserAssociationAdmin(admin.ModelAdmin):
+    list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted', 'scheme_created')
+    search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
+
+    def scheme_account_link(self, obj):
+        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
+                           obj.scheme_account.id)
+
+    def user_link(self, obj):
+        user_name = obj.user.external_id
+        if not user_name:
+            user_name = obj.user.get_username()
+        if not user_name:
+            user_name = obj.user.email
+        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                           obj.user.id, user_name)
+
+    def scheme_status(self, obj):
         return obj.scheme_account.status_name
+
+    def scheme_is_deleted(self, obj):
+        return obj.scheme_account.is_deleted
+
+    def scheme_created(self, obj):
+        return obj.scheme_account.created
+
+    scheme_account_link.allow_tags = True
+    user_link.allow_tags = True
 
 
 @admin.register(SchemeAccountImage)
