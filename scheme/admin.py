@@ -174,8 +174,13 @@ class SchemeUserAssociation(SchemeAccountEntry):
 
 @admin.register(SchemeUserAssociation)
 class SchemeUserAssociationAdmin(admin.ModelAdmin):
+    def scheme_is_deleted(self, obj):
+        return obj.scheme_account.is_deleted
+
+    scheme_is_deleted.boolean = True
     list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted', 'scheme_created')
     search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
+    list_filter = ('scheme_account__is_deleted', 'scheme_account__status', 'scheme_account__scheme',)
 
     def scheme_account_link(self, obj):
         return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
@@ -192,9 +197,6 @@ class SchemeUserAssociationAdmin(admin.ModelAdmin):
 
     def scheme_status(self, obj):
         return obj.scheme_account.status_name
-
-    def scheme_is_deleted(self, obj):
-        return obj.scheme_account.is_deleted
 
     def scheme_created(self, obj):
         return obj.scheme_account.created

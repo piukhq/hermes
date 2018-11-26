@@ -95,23 +95,42 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 
 @admin.register(PaymentCardUserAssociation)
 class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
-    list_display = ('payment_card_account', 'payment_account_link', 'user', 'card_pan_start', 'card_pan_end', 'card_is_deleted', 'card_created')
-
-    def payment_account_link(self, obj):
-        return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">card id{0}</a>',
-                           obj.payment_card_account.id)
-
-    def card_pan_start(self, obj):
-        return obj.payment_card_account.pan_start
-
-    def card_pan_end(self, obj):
-        return obj.payment_card_account.pan_end
 
     def card_is_deleted(self, obj):
         return obj.payment_card_account.is_deleted
 
+    card_is_deleted.boolean = True
+
+    list_display = ('payment_card_account', 'user','payment_card_account_link', 'user_link', 'card_status',
+                    'card_is_deleted', 'card_created')
+    search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
+                     'user__email', 'user__external_id')
+
+    list_filter = (('payment_card_account__payment_card__name', titled_filter('payment card')),
+                   'payment_card_account__status',
+                   ('payment_card_account__issuer__name', titled_filter('issuer')),
+                   'payment_card_account__is_deleted')
+
+    def payment_card_account_link(self, obj):
+        return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">card (id{0}) No. {1}...{2}</a>',
+                           obj.payment_card_account.id, obj.payment_card_account.pan_start,
+                           obj.payment_card_account.pan_end)
+
+    def user_link(self, obj):
+        user_name = obj.user.external_id
+        if not user_name:
+            user_name = obj.user.get_username()
+        if not user_name:
+            user_name = obj.user.email
+        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                           obj.user.id, user_name)
+
+    def card_status(self, obj):
+        return obj.payment_card_account.status_name
+
     def card_created(self, obj):
         return obj.payment_card_account.created
+
 
 
 admin.site.register(models.Issuer)
