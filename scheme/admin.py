@@ -178,7 +178,8 @@ class SchemeUserAssociationAdmin(admin.ModelAdmin):
         return obj.scheme_account.is_deleted
 
     scheme_is_deleted.boolean = True
-    list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted', 'scheme_created')
+    list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted',
+                    'scheme_created')
     search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
     list_filter = ('scheme_account__is_deleted', 'scheme_account__status', 'scheme_account__scheme',)
 
