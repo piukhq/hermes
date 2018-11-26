@@ -209,11 +209,11 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_issuer(_):
-        return Issuer.objects.get(name='Barclays').id
+        return Issuer.objects.values('id').get(name='Barclays')['id']
 
     @staticmethod
     def get_payment_card(_):
-        return PaymentCard.objects.get(slug='launchpad-visa').id
+        return PaymentCard.objects.values('id').get(slug='visa')['id']
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
