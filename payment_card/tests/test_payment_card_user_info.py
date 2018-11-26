@@ -65,21 +65,21 @@ class TestPaymentCardUserInfo(APITestCase):
         data = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('1144**33', data)
-        self.assertEqual(data['1144**33']['user_set'], [self.user_1.id])
+        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
         self.assertEqual(data['1144**33']['card_information']['first_six'], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data['1144**33']['card_information']['last_four'], str(self.payment_card_account_1.pan_end))
 
         self.assertIn('3344**11', data)
-        self.assertEqual(data['3344**11']['user_set'], [self.user_2.id])
+        self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
         self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
         self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
         self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
 
         self.assertIn('5544**11', data)
-        self.assertEqual(data['5544**11']['user_set'], [self.user_3.id])
+        self.assertEqual(data['5544**11']['user_id'], self.user_3.id)
         self.assertEqual(data['5544**11']['scheme_account_id'], self.scheme_account_3.id)
         self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
         self.assertNotIn('card_information', data['5544**11'])
@@ -101,7 +101,7 @@ class TestPaymentCardUserInfo(APITestCase):
         data = json.loads(response.content.decode('utf-8'))
 
         self.assertIn('1144**33', data)
-        self.assertEqual(data['1144**33']['user_set'], [self.user_1.id])
+        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
         self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
         self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
         self.assertEqual(data['1144**33']['card_information']['first_six'], str(self.payment_card_account_1.pan_start))
