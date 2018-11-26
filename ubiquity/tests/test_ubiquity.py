@@ -138,7 +138,7 @@ class TestResources(APITestCase):
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
         issuer = IssuerFactory(name='Barclays')
-        self.payment_card = PaymentCardFactory(slug='launchpad-visa', system='visa')
+        self.payment_card = PaymentCardFactory(slug='visa', system='visa')
         self.payment_card_account = PaymentCardAccountFactory(issuer=issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
