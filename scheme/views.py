@@ -83,10 +83,12 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         Responds with a 204 - No content.
         """
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
+        SchemeAccountEntry.objects.get(scheme_account=instance, user__id=request.user.id).delete()
 
-        analytics.update_scheme_account_attribute(instance, request.user)
+        if instance.user_set.count() < 1:
+            instance.is_deleted = True
+            instance.save()
+            analytics.update_scheme_account_attribute(instance, request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
