@@ -1,0 +1,44 @@
+from django.contrib import admin
+from django.utils.html import format_html
+from ubiquity.models import PaymentCardSchemeEntry
+from payment_card.admin import titled_filter
+
+
+@admin.register(PaymentCardSchemeEntry)
+class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
+
+    list_display = ('payment_card_account', 'scheme_account', 'active_link', 'payment_card_account_link',
+                    'scheme_account_link', 'card_status', 'card_is_deleted', 'card_created')
+    search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
+                     'scheme_account__scheme__name', 'payment_card_account__payment_card__name')
+
+    list_filter = (('payment_card_account__payment_card__name', titled_filter('payment card')),
+                   ('scheme_account__scheme', titled_filter('membership card')),
+                   'active_link',
+                   ('payment_card_account__issuer__name', titled_filter('payment card issuer')),
+                   ('payment_card_account__is_deleted', titled_filter('payment card is deleted')),
+                   ('scheme_account__is_deleted', titled_filter('membership card is deleted')),
+                   ('payment_card_account__status', titled_filter('payment card status')),
+                   ('scheme_account__status', titled_filter('membership card status')),
+                   )
+
+    def payment_card_account_link(self, obj):
+        return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'
+                           'card (id{0}) No. {1}...{2}</a>',
+                           obj.payment_card_account.id, obj.payment_card_account.pan_start,
+                           obj.payment_card_account.pan_end)
+
+    def scheme_account_link(self, obj):
+        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
+                           obj.scheme_account.id)
+
+    def card_status(self, obj):
+        return obj.payment_card_account.status_name
+
+    def card_created(self, obj):
+        return obj.payment_card_account.created
+
+    def card_is_deleted(self, obj):
+        return obj.payment_card_account.is_deleted
+
+    card_is_deleted.boolean = True
