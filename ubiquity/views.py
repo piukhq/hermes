@@ -262,6 +262,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         new_answers = self._collect_updated_answers(request.data, account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
+        if new_answers.get('password'):
+            new_answers['password'] = new_answers['password'].encode().decode('unicode-escape')
+
         if manual_question and manual_question.type in new_answers:
             query = {
                 'scheme_account__scheme': account.scheme,
@@ -358,9 +361,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             if account_created:
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
+                    if auth_fields.get('password'):
+                        auth_fields['password'] = auth_fields['password'].encode().decode('unicode-escape')
+
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
-
             else:
                 return_status = status.HTTP_200_OK
 
