@@ -21,6 +21,7 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
                    ('payment_card_account__status', titled_filter('payment card status')),
                    ('scheme_account__status', titled_filter('membership card status')),
                    )
+    raw_id_fields = ('payment_card_account', 'scheme_account', )
 
     def payment_card_account_link(self, obj):
         return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'

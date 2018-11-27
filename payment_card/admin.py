@@ -96,11 +96,6 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 @admin.register(PaymentCardUserAssociation)
 class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
 
-    def card_is_deleted(self, obj):
-        return obj.payment_card_account.is_deleted
-
-    card_is_deleted.boolean = True
-
     list_display = ('payment_card_account', 'user', 'payment_card_account_link', 'user_link', 'card_status',
                     'card_is_deleted', 'card_created')
     search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
@@ -110,6 +105,7 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
                    'payment_card_account__status',
                    ('payment_card_account__issuer__name', titled_filter('issuer')),
                    'payment_card_account__is_deleted')
+    raw_id_fields = ('payment_card_account', 'user',)
 
     def payment_card_account_link(self, obj):
         return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'
@@ -131,6 +127,12 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
 
     def card_created(self, obj):
         return obj.payment_card_account.created
+
+    def card_is_deleted(self, obj):
+        return obj.payment_card_account.is_deleted
+
+    card_is_deleted.boolean = True
+
 
 
 admin.site.register(models.Issuer)
