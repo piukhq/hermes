@@ -37,12 +37,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(status=Scheme.INACTIVE)
-        schemes_without_questions = []
-        for scheme in schemes:
-            if len(scheme.questions.all()) == 0:
-                schemes_without_questions.append(scheme.id)
-        return schemes.exclude(id__in=schemes_without_questions)
+        return super().get_queryset().exclude(status=Scheme.INACTIVE)
 
 
 def _default_transaction_headers():
