@@ -134,5 +134,4 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
     card_is_deleted.boolean = True
 
 
-
 admin.site.register(models.Issuer)
