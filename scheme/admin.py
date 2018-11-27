@@ -170,6 +170,8 @@ class SchemeUserAssociation(SchemeAccountEntry):
     """
     class Meta:
         proxy = True
+        verbose_name = "Scheme Account to User Association"
+        verbose_name_plural = "".join([verbose_name, 's'])
 
 
 @admin.register(SchemeUserAssociation)

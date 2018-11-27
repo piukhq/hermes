@@ -3,8 +3,8 @@ from django.db import models
 
 class SchemeAccountEntry(models.Model):
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
-                                       verbose_name="scheme association")
-    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="user email")
+                                       verbose_name="Associated Scheme Account")
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
 
     class Meta:
         unique_together = ("scheme_account", "user")
@@ -12,16 +12,18 @@ class SchemeAccountEntry(models.Model):
 
 class PaymentCardAccountEntry(models.Model):
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
-                                             verbose_name="Payment Card User association")
-    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="user email")
+                                             verbose_name="Associated Payment Card Account")
+    user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
 
     class Meta:
         unique_together = ("payment_card_account", "user")
 
 
 class PaymentCardSchemeEntry(models.Model):
-    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE)
-    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE)
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
+                                             verbose_name="Associated Payment Card Account")
+    scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
+                                       verbose_name="Associated Membership Card Account")
     active_link = models.BooleanField(default=True)
 
     class Meta:
