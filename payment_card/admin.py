@@ -39,14 +39,23 @@ def titled_filter(title):
 
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ('payment_card', 'pan_start', 'pan_end', 'is_deleted', 'created',)
+    list_display = ('payment_card', 'user_email', 'pan_start', 'pan_end', 'is_deleted', 'created',)
     list_filter = (('payment_card__name', titled_filter('payment card')),
                    'status',
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
-    readonly_fields = ('token', 'psp_token', 'PLL_consent')
-    search_fields = ['pan_start', 'pan_end', 'token']
+    readonly_fields = ('token', 'psp_token', 'PLL_consent', 'user_email')
+    search_fields = ['pan_start', 'pan_end', 'token', 'paymentcardaccountentry__user__email']
     exclude = ('consent',)
+    list_per_page = 10
+
+    def user_email(self, obj):
+        user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                                 assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
+                     for assoc in PaymentCardAccountEntry.objects.filter(payment_card_account=obj.id)]
+        return '</br>'.join(user_list)
+
+    user_email.allow_tags = True
 
     def PLL_consent(self, obj):
         when = arrow.get(obj.consent['timestamp']).format('HH:mm DD/MM/YYYY')

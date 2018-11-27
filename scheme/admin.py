@@ -145,10 +145,11 @@ class SchemeAccountAdmin(admin.ModelAdmin):
     list_filter = ('is_deleted', 'status', 'scheme',)
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
     search_fields = ['scheme__name', 'schemeaccountentry__user__email']
+    list_per_page = 10
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'link_date')
+            return self.readonly_fields + ('scheme', 'link_date', 'user_email')
         return self.readonly_fields
 
     def user_email(self, obj):
