@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from hermes.traced_requests import requests
@@ -263,7 +264,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if new_answers.get('password'):
-            new_answers['password'] = new_answers['password'].encode().decode('unicode-escape')
+            # Fix for Barclays sending escaped unicode sequences for special chars. Python's json module can
+            # handle this but Django does not use this by default, hence recreating a json string to parse.
+            json_string = '{{"password": "{}"}}'.format(new_answers['password'])
+            new_answers['password'] = json.loads(json_string)['password']
 
         if manual_question and manual_question.type in new_answers:
             query = {
@@ -362,7 +366,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
                     if auth_fields.get('password'):
-                        auth_fields['password'] = auth_fields['password'].encode().decode('unicode-escape')
+                        # Fix for Barclays sending escaped unicode sequences for special chars. Python's json module can
+                        # handle this but Django does not use this by default, hence recreating a json string to parse.
+                        json_string = '{{"password": "{}"}}'.format(auth_fields['password'])
+                        auth_fields['password'] = json.loads(json_string)['password']
 
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
