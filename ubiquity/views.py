@@ -1,4 +1,4 @@
-import json
+import re
 import uuid
 
 from hermes.traced_requests import requests
@@ -26,6 +26,8 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   UbiquityCreateSchemeAccountSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
+
+escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 
 
 class PaymentCardCreationMixin:
@@ -264,10 +266,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if new_answers.get('password'):
-            # Fix for Barclays sending escaped unicode sequences for special chars. Python's json module can
-            # handle this but Django does not use this by default, hence recreating a json string to parse.
-            json_string = '{{"password": "{}"}}'.format(new_answers['password'])
-            new_answers['password'] = json.loads(json_string)['password']
+            # Fix for Barclays sending escaped unicode sequences for special chars.
+            new_answers['password'] = escaped_unicode_pattern.sub(r'\1', new_answers['password'])
 
         if manual_question and manual_question.type in new_answers:
             query = {
@@ -366,10 +366,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
                     if auth_fields.get('password'):
-                        # Fix for Barclays sending escaped unicode sequences for special chars. Python's json module can
-                        # handle this but Django does not use this by default, hence recreating a json string to parse.
-                        json_string = '{{"password": "{}"}}'.format(auth_fields['password'])
-                        auth_fields['password'] = json.loads(json_string)['password']
+                        # Fix for Barclays sending escaped unicode sequences for special chars.
+                        auth_fields['password'] = escaped_unicode_pattern.sub(r'\1', auth_fields['password'])
 
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
