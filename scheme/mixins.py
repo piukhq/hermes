@@ -94,8 +94,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
-        if scheme.slug == 'iceland-bonus-card':
-            raise serializers.ValidationError('Iceland Bonus Card is temporarily unavailable.')
+
+        if scheme.status == Scheme.SUSPENDED:
+            raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         if scheme.url == settings.MY360_SCHEME_URL:
             metadata = {
@@ -198,6 +199,10 @@ class SchemeAccountJoinMixin:
     def handle_join_request(self, request, *args, **kwargs):
         scheme_id = int(kwargs['pk'])
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+
+        if join_scheme.status == Scheme.SUSPENDED:
+            raise serializers.ValidationError('This scheme is temporarily unavailable.')
+
         serializer = JoinSerializer(data=request.data, context={
             'scheme': join_scheme,
             'user': request.user

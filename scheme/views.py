@@ -83,10 +83,12 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         Responds with a 204 - No content.
         """
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
+        SchemeAccountEntry.objects.get(scheme_account=instance, user__id=request.user.id).delete()
 
-        analytics.update_scheme_account_attribute(instance, request.user)
+        if instance.user_set.count() < 1:
+            instance.is_deleted = True
+            instance.save()
+            analytics.update_scheme_account_attribute(instance, request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -138,10 +140,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         """
         scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
-        if scheme_account.scheme.slug == 'iceland-bonus-card':
+        if scheme_account.scheme.status == Scheme.SUSPENDED:
             return Response({
-                'error': 'Iceland Bonus Card is temporarily unavailable.'
+                'error': 'This scheme is temporarily unavailable.'
             }, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
                                                                       'user': request.user})
 

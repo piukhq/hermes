@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
-
+from django.utils.html import format_html
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+
+from ubiquity.models import SchemeAccountEntry
+
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -140,13 +143,70 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'status', 'card_number', 'is_deleted', 'created',)
-    search_fields = ['scheme__name', 'card_number']
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
+    search_fields = ['scheme__name', 'schemeaccountentry__user__email']
+    list_per_page = 10
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'link_date')
+            return self.readonly_fields + ('scheme', 'link_date', 'user_email')
         return self.readonly_fields
+
+    def user_email(self, obj):
+        user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                                 assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
+                     for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
+        return '</br>'.join(user_list)
+
+    user_email.allow_tags = True
+
+
+class SchemeUserAssociation(SchemeAccountEntry):
+    """
+    We are using a proxy model in admin for sole purpose of using an appropriate table name which is then listed
+    in schemes and not ubiquity.  Using SchemeAccountEntry directly adds an entry in Ubiquity section called
+    SchemeAccountEntry which would confuse users as it is not ubiquity specific and is not a way of entering
+    scheme accounts ie it used to associate a scheme with a user.
+
+    """
+    class Meta:
+        proxy = True
+        verbose_name = "Scheme Account to User Association"
+        verbose_name_plural = "".join([verbose_name, 's'])
+
+
+@admin.register(SchemeUserAssociation)
+class SchemeUserAssociationAdmin(admin.ModelAdmin):
+
+    list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted',
+                    'scheme_created')
+    search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
+    list_filter = ('scheme_account__is_deleted', 'scheme_account__status', 'scheme_account__scheme',)
+    raw_id_fields = ('scheme_account', 'user',)
+
+    def scheme_account_link(self, obj):
+        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
+                           obj.scheme_account.id)
+
+    def user_link(self, obj):
+        user_name = obj.user.external_id
+        if not user_name:
+            user_name = obj.user.get_username()
+        if not user_name:
+            user_name = obj.user.email
+        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                           obj.user.id, user_name)
+
+    def scheme_status(self, obj):
+        return obj.scheme_account.status_name
+
+    def scheme_created(self, obj):
+        return obj.scheme_account.created
+
+    def scheme_is_deleted(self, obj):
+        return obj.scheme_account.is_deleted
+
+    scheme_is_deleted.boolean = True
 
 
 @admin.register(SchemeAccountImage)

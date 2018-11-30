@@ -77,17 +77,20 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         omit_serializer: True
         """
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
+        PaymentCardAccountEntry.objects.get(payment_card_account=instance, user__id=request.user.id).delete()
 
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
-            'payment_token': instance.psp_token,
-            'card_token': instance.token,
-            'partner_slug': instance.payment_card.slug,
-            'id': instance.id,
-            'date': arrow.get(instance.created).timestamp}, headers={
-            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-            'Content-Type': 'application/json'})
+        if instance.user_set.count() < 1:
+            instance.is_deleted = True
+            instance.save()
+
+            requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
+                'payment_token': instance.psp_token,
+                'card_token': instance.token,
+                'partner_slug': instance.payment_card.slug,
+                'id': instance.id,
+                'date': arrow.get(instance.created).timestamp}, headers={
+                'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                'Content-Type': 'application/json'})
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

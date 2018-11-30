@@ -1,3 +1,4 @@
+import re
 import uuid
 
 from hermes.traced_requests import requests
@@ -9,7 +10,6 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-import analytics
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
@@ -26,6 +26,12 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   UbiquityCreateSchemeAccountSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
+
+escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
+
+
+def replace_escaped_unicode(match):
+    return match.group(1).encode().decode('unicode-escape')
 
 
 class PaymentCardCreationMixin:
@@ -263,6 +269,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         new_answers = self._collect_updated_answers(request.data, account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
+        if new_answers.get('password'):
+            # Fix for Barclays sending escaped unicode sequences for special chars.
+            new_answers['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, new_answers['password'])
+
         if manual_question and manual_question.type in new_answers:
             query = {
                 'scheme_account__scheme': account.scheme,
@@ -307,11 +317,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
-
-        analytics.update_scheme_account_attribute(instance, request.user)
+        super().delete(request, *args, **kwargs)
         return Response({}, status=status.HTTP_200_OK)
 
     @staticmethod
@@ -363,9 +369,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             if account_created:
                 return_status = status.HTTP_201_CREATED
                 if auth_fields:
+                    if auth_fields.get('password'):
+                        # Fix for Barclays sending escaped unicode sequences for special chars.
+                        auth_fields['password'] = escaped_unicode_pattern.sub(
+                                replace_escaped_unicode,
+                                auth_fields['password']
+                        )
+
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
-
             else:
                 return_status = status.HTTP_200_OK
 
