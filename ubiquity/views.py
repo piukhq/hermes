@@ -30,6 +30,10 @@ from user.serializers import UbiquityRegisterSerializer
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 
 
+def replace_escaped_unicode(match):
+    return match.group(1).encode().decode('unicode-escape')
+
+
 class PaymentCardCreationMixin:
     @staticmethod
     def _create_payment_card_consent(consent_data, pcard):
@@ -267,7 +271,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         if new_answers.get('password'):
             # Fix for Barclays sending escaped unicode sequences for special chars.
-            new_answers['password'] = escaped_unicode_pattern.sub(r'\1', new_answers['password'])
+            new_answers['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, new_answers['password'])
 
         if manual_question and manual_question.type in new_answers:
             query = {
@@ -367,7 +371,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 if auth_fields:
                     if auth_fields.get('password'):
                         # Fix for Barclays sending escaped unicode sequences for special chars.
-                        auth_fields['password'] = escaped_unicode_pattern.sub(r'\1', auth_fields['password'])
+                        auth_fields['password'] = escaped_unicode_pattern.sub(
+                                replace_escaped_unicode,
+                                auth_fields['password']
+                        )
 
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
