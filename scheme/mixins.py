@@ -199,6 +199,10 @@ class SchemeAccountJoinMixin:
     def handle_join_request(self, request, *args, **kwargs):
         scheme_id = int(kwargs['pk'])
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+
+        if join_scheme.status == Scheme.SUSPENDED:
+            raise serializers.ValidationError('This scheme is temporarily unavailable.')
+
         serializer = JoinSerializer(data=request.data, context={
             'scheme': join_scheme,
             'user': request.user
