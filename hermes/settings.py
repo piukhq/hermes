@@ -413,5 +413,5 @@ DATADOG_TRACE = {
     'ENABLED': env_var('DATADOG_APM_ENABLED', False)
 }
 
-# Organisation allowed to add already existing scheme accounts (Organisation name used by Barclays in django admin)
+# client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
