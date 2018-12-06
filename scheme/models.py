@@ -765,12 +765,13 @@ class SchemeCredentialQuestionChoice(models.Model):
 class SchemeCredentialQuestionChoiceValue(models.Model):
     choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
     value = models.CharField(max_length=250)
+    order = models.IntegerField(default=0)
 
     def __str__(self):
         return self.value
 
     class Meta:
-        ordering = ['value']
+        ordering = ['order','value']
 
 
 class SchemeDetail(models.Model):
