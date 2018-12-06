@@ -132,7 +132,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             }
             scheme_account = SchemeAccount.objects.get(**query)
 
-            if user.client.organisation.name != 'Barclays':
+            if user.client_id != settings.ALLOWED_CLIENT_ID:
                 raise ValidationError('Scheme Account already exists in another wallet.')
 
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)

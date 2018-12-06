@@ -115,8 +115,9 @@ class TestRegistration(APITestCase):
 class TestResources(APITestCase):
 
     def setUp(self):
-        organisation = OrganisationFactory(name='Barclays')
-        client = ClientApplicationFactory(organisation=organisation, name='set up client application')
+        organisation = OrganisationFactory(name='test_organisation')
+        client = ClientApplicationFactory(organisation=organisation, name='set up client application',
+                                          client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
         external_id = 'test@user.com'
         self.user = UserFactory(external_id=external_id, client=client, email=external_id)
