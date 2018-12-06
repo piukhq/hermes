@@ -771,7 +771,7 @@ class SchemeCredentialQuestionChoiceValue(models.Model):
         return self.value
 
     class Meta:
-        ordering = ['order','value']
+        ordering = ['order', 'value']
 
 
 class SchemeDetail(models.Model):
