@@ -362,24 +362,36 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         serializer = self.get_validated_data(add_data, request.user)
         return serializer, auth_fields, enrol_fields
 
+    @staticmethod
+    def _handle_existing_scheme_account(scheme_account, user, auth_fields):
+        existing_answers = scheme_account.get_auth_fields()
+        for k, v in existing_answers.items():
+            if auth_fields.get(k) != v:
+                raise ParseError('This card already exists, but the provided credentials do not match.')
+
+        SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        for card in scheme_account.payment_card_account_set.all():
+            PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
+
     def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, use_pk=None):
         if serializer and serializer.validated_data:
             scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
+            return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-            if account_created:
-                return_status = status.HTTP_201_CREATED
-                if auth_fields:
-                    if auth_fields.get('password'):
-                        # Fix for Barclays sending escaped unicode sequences for special chars.
-                        auth_fields['password'] = escaped_unicode_pattern.sub(
-                                replace_escaped_unicode,
-                                auth_fields['password']
-                        )
+            if auth_fields:
+                if auth_fields.get('password'):
+                    # Fix for Barclays sending escaped unicode sequences for special chars.
+                    auth_fields['password'] = escaped_unicode_pattern.sub(
+                        replace_escaped_unicode,
+                        auth_fields['password']
+                    )
 
+                if account_created:
                     scheme_account.set_pending()
                     async_link.delay(auth_fields, scheme_account.id, user.id)
-            else:
-                return_status = status.HTTP_200_OK
+                else:
+                    auth_fields = auth_fields or {}
+                    self._handle_existing_scheme_account(scheme_account, user, auth_fields)
 
             return scheme_account, return_status
 

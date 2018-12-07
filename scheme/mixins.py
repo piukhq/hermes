@@ -16,7 +16,7 @@ from scheme.encyption import AESCipher
 from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer)
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry
 
 
 class BaseLinkMixin(object):
@@ -132,13 +132,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             }
             scheme_account = SchemeAccount.objects.get(**query)
 
-            if user.client_id != settings.ALLOWED_CLIENT_ID:
-                raise ValidationError('Scheme Account already exists in another wallet.')
+            if user.client_id == settings.ALLOWED_CLIENT_ID:
+                return scheme_account, data, account_created
 
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
-            for card in scheme_account.payment_card_account_set.all():
-                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
-
+            raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
             scheme_account, account_created = self._create_account(user, data, answer_type, user_pk)
 
