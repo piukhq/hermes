@@ -45,11 +45,15 @@ def _default_transaction_headers():
 
 
 class Scheme(models.Model):
+    PLL = 1
+    BASIC = 2
+    PARTNER = 3
     TIERS = (
         (1, 'PLL'),
         (2, 'Basic'),
         (3, 'Partner'),
     )
+    TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
         (1, 'QrCode'),

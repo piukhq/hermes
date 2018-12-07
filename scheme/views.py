@@ -1,9 +1,11 @@
 import csv
 from io import StringIO
 
+import requests
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
@@ -13,6 +15,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from hermes.settings import ROLLBACK_TRANSACTIONS_URL
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -262,16 +265,21 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         DO NOT USE - NOT FOR APP ACCESS
         """
 
+        scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
-        scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
 
         needs_saving = False
 
         if journey == 'join':
+            scheme = scheme_account.scheme
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+                self.notify_rollback_transactions(scheme.slug, scheme_account_id)
+
             scheme_account.join_date = timezone.now()
             needs_saving = True
 
@@ -286,6 +294,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'id': scheme_account.id,
             'status': new_status_code
         })
+
+    @staticmethod
+    def notify_rollback_transactions(scheme_slug, scheme_account_id):
+        try:
+            data = {'scheme_account_id': scheme_account_id}
+            requests.post('{}/{}'.format(ROLLBACK_TRANSACTIONS_URL, scheme_slug), data=data)
+        except requests.exceptions.RequestException:
+            sentry.captureException()
+            pass
 
 
 class Pagination(PageNumberPagination):
