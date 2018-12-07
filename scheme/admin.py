@@ -1,11 +1,14 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
-
+from django.utils.html import format_html
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control)
+                           SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+
+from ubiquity.models import SchemeAccountEntry
+
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -13,9 +16,16 @@ slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 class CredentialQuestionFormset(BaseInlineFormSet):
 
+    def _collect_form_data(self):
+        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        choice = [form.cleaned_data['choice'] for form in self.forms]
+        answer_type = [form.cleaned_data['answer_type'] for form in self.forms]
+        return manual_questions, choice, answer_type
+
     def clean(self):
         super().clean()
-        manual_questions = [form.cleaned_data['manual_question'] for form in self.forms]
+        manual_questions, choice, answer_type = self._collect_form_data()
+
         if manual_questions.count(True) > 1:
             raise ValidationError("You may only select one manual question")
 
@@ -23,13 +33,27 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
 
-        if self.instance.is_active and not any(manual_questions):
-            raise ValidationError("You must have a manual question when a scheme is set to active")
+        if self.instance.is_active:
+            if not any(manual_questions):
+                raise ValidationError("You must have a manual question when a scheme is set to active")
+
+            for pos, answer in enumerate(answer_type):
+                if answer == 2:
+                    if not choice[pos]:
+                        raise ValidationError(
+                            "When the answer_type field value is 'choice' you must provide the choices")
+                elif choice[pos]:
+                    raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
 
 
-class CredentialQuestionInline(admin.TabularInline):
+class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
     formset = CredentialQuestionFormset
+    extra = 0
+
+
+class SchemeBalanceDetailsInline(admin.StackedInline):
+    model = SchemeBalanceDetails
     extra = 0
 
 
@@ -39,7 +63,6 @@ class ControlInline(admin.TabularInline):
 
 
 class SchemeForm(ModelForm):
-
     class Meta:
         model = Scheme
         fields = '__all__'
@@ -66,12 +89,17 @@ class SchemeForm(ModelForm):
             raise ValidationError('Slug can only contain lowercase letters, hyphens and numbers')
 
 
+class SchemeDetailsInline(admin.StackedInline):
+    model = SchemeDetail
+    extra = 0
+
+
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (CredentialQuestionInline, ControlInline)
+    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('is_active', )
+    list_filter = ('status',)
     form = SchemeForm
     search_fields = ['name']
 
@@ -113,15 +141,72 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
-    inlines = (SchemeAccountCredentialAnswerInline, )
+    inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('user', 'scheme', 'status', 'is_deleted', 'created',)
-    search_fields = ['user__email']
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
+    search_fields = ['scheme__name', 'schemeaccountentry__user__email']
+    list_per_page = 10
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'user', 'link_date')
+            return self.readonly_fields + ('scheme', 'link_date', 'user_email')
         return self.readonly_fields
+
+    def user_email(self, obj):
+        user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                                 assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
+                     for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
+        return '</br>'.join(user_list)
+
+    user_email.allow_tags = True
+
+
+class SchemeUserAssociation(SchemeAccountEntry):
+    """
+    We are using a proxy model in admin for sole purpose of using an appropriate table name which is then listed
+    in schemes and not ubiquity.  Using SchemeAccountEntry directly adds an entry in Ubiquity section called
+    SchemeAccountEntry which would confuse users as it is not ubiquity specific and is not a way of entering
+    scheme accounts ie it used to associate a scheme with a user.
+
+    """
+    class Meta:
+        proxy = True
+        verbose_name = "Scheme Account to User Association"
+        verbose_name_plural = "".join([verbose_name, 's'])
+
+
+@admin.register(SchemeUserAssociation)
+class SchemeUserAssociationAdmin(admin.ModelAdmin):
+
+    list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted',
+                    'scheme_created')
+    search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
+    list_filter = ('scheme_account__is_deleted', 'scheme_account__status', 'scheme_account__scheme',)
+    raw_id_fields = ('scheme_account', 'user',)
+
+    def scheme_account_link(self, obj):
+        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
+                           obj.scheme_account.id)
+
+    def user_link(self, obj):
+        user_name = obj.user.external_id
+        if not user_name:
+            user_name = obj.user.get_username()
+        if not user_name:
+            user_name = obj.user.email
+        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
+                           obj.user.id, user_name)
+
+    def scheme_status(self, obj):
+        return obj.scheme_account.status_name
+
+    def scheme_created(self, obj):
+        return obj.scheme_account.created
+
+    def scheme_is_deleted(self, obj):
+        return obj.scheme_account.is_deleted
+
+    scheme_is_deleted.boolean = True
 
 
 @admin.register(SchemeAccountImage)

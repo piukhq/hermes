@@ -1,7 +1,7 @@
 import datetime
 import json
 import time
-import requests
+from hermes.traced_requests import requests
 from django.conf import settings
 from raven.contrib.django.raven_compat.models import client as sentry
 from scheme.models import SchemeAccount
@@ -94,7 +94,8 @@ def update_attributes(user, attributes):
 def _send_to_mnemosyne(user, event=None, attributes=None):
 
     if not settings.MNEMOSYNE_URL:
-        raise PushError  # Defaults to None for now, but we cannot miss events
+        # assume we are not using mnemosine and avoid sending data
+        return None
 
     payload = {
         'service': 'hermes',

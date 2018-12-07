@@ -48,6 +48,7 @@ class TestRegisterNewUserViews(TestCase):
             'password': 'Password1',
             'client_id': BINK_CLIENT_ID,
             'bundle_id': BINK_BUNDLE_ID,
+            'external_id': email
         }
 
         response = client.post(reverse('new_register_user'), data)
@@ -69,6 +70,7 @@ class TestRegisterNewUserViews(TestCase):
             'password': 'Password1',
             'client_id': app.client_id,
             'bundle_id': 'com.bink.test',
+            'external_id': email
         }
 
         response = client.post(reverse('new_register_user'), data)
@@ -90,6 +92,7 @@ class TestRegisterNewUserViews(TestCase):
             'password': 'Password1',
             'client_id': BINK_CLIENT_ID,
             'bundle_id': BINK_BUNDLE_ID,
+            'external_id': email
         }
 
         response = client.post(reverse('new_register_user'), data)
@@ -100,6 +103,7 @@ class TestRegisterNewUserViews(TestCase):
             'password': 'Password1',
             'client_id': app.client_id,
             'bundle_id': 'com.bink.test',
+            'external_id': email
         }
 
         response = client.post(reverse('new_register_user'), data)

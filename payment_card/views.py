@@ -1,30 +1,28 @@
-from io import StringIO
 import csv
 import json
+from io import StringIO
 
-from django.http import HttpResponseBadRequest, JsonResponse
+import arrow
+from hermes.traced_requests import requests
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from django.conf import settings
-from rest_framework import generics, status
-from rest_framework import serializers as rest_framework_serializers
+from rest_framework import generics, serializers as rest_framework_serializers, status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-import requests
-import arrow
 
+from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
-from payment_card.payment_card_scheme_accounts import payment_card_scheme_accounts
-from payment_card import serializers
 from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
-from payment_card import metis
-from user.models import Organisation, ClientApplication
+from user.models import ClientApplication, Organisation
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -36,7 +34,6 @@ class ListPaymentCard(generics.ListAPIView):
 
 
 class PaymentCardAccountQuery(APIView):
-
     authentication_classes = (ServiceAuthentication,)
 
     def get(self, request):
@@ -60,8 +57,8 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.PaymentCardAccountSerializer
 
     def get_queryset(self):
-        user = self.request.user
-        return PaymentCardAccount.objects.filter(user=user)
+        user_id = self.request.user.id
+        return self.queryset.filter(user_set__id=user_id)
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
@@ -80,15 +77,18 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         omit_serializer: True
         """
         instance = self.get_object()
-        instance.is_deleted = True
-        instance.save()
+        PaymentCardAccountEntry.objects.get(payment_card_account=instance, user__id=request.user.id).delete()
 
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
-            'payment_token': instance.psp_token,
-            'card_token': instance.token,
-            'partner_slug': instance.payment_card.slug,
-            'id': instance.id,
-            'date': arrow.get(instance.created).timestamp}, headers={
+        if instance.user_set.count() < 1:
+            instance.is_deleted = True
+            instance.save()
+
+            requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
+                'payment_token': instance.psp_token,
+                'card_token': instance.token,
+                'partner_slug': instance.payment_card.slug,
+                'id': instance.id,
+                'date': arrow.get(instance.created).timestamp}, headers={
                 'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                 'Content-Type': 'application/json'})
 
@@ -96,17 +96,22 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
 
 class ListCreatePaymentCardAccount(APIView):
+    serializer_class = serializers.PaymentCardAccountSerializer
 
     def get(self, request):
         """List payment card accounts
         ---
         response_serializer: serializers.PaymentCardAccountSerializer
         """
-        accounts = [serializers.PaymentCardAccountSerializer(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(user=request.user)]
+        accounts = [self.serializer_class(instance=account).data for account in
+                    PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
         return Response(accounts, status=200)
 
     def post(self, request):
+        message, status_code, _ = self.create_payment_card_account(request.data, request.user)
+        return Response(message, status=status_code)
+
+    def create_payment_card_account(self, data, user):
         """Add a payment card account
         ---
         request_serializer: serializers.PaymentCardAccountSerializer
@@ -118,34 +123,44 @@ class ListCreatePaymentCardAccount(APIView):
               message: A payment card account by that fingerprint and expiry already exists.
         """
 
-        serializer = serializers.CreatePaymentCardAccountSerializer(data=request.data)
+        serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
         if serializer.is_valid():
             data = serializer.validated_data
-            data['user'] = request.user
+            try:
+                account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
+                                                         expiry_month=data['expiry_month'],
+                                                         expiry_year=data['expiry_year'])
+            except PaymentCardAccount.DoesNotExist:
+                account = PaymentCardAccount(**data)
+                result = self._create_payment_card_account(account, user)
+                if not isinstance(result, PaymentCardAccount):
+                    return result
+                self.apply_barclays_images(account)
 
-            account = PaymentCardAccount(**data)
+            except Exception as e:
+                raise e
 
-            if account.payment_card.system != PaymentCard.MASTERCARD:
-                accounts = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
-                                                             expiry_month=account.expiry_month,
-                                                             expiry_year=account.expiry_year)
-                if accounts.exists():
-                    return Response({'error': 'A payment card account by that fingerprint and expiry already exists.',
-                                     'code': '403'}, status=status.HTTP_403_FORBIDDEN)
-
-            # create_payment_card_account either returns the created account, or an error response.
-            result = self.create_payment_card_account(account, request.user)
-            if not isinstance(result, PaymentCardAccount):
-                return result
-
-            self.apply_barclays_images(account)
+            else:
+                # if the payment card exists already in another user, link it to this user and import all the scheme
+                # accounts currently linked to it.
+                self._link_account_to_new_user(account, user)
 
             response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
-            return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return response_serializer.data, status.HTTP_201_CREATED, account
+        return serializer.errors, status.HTTP_400_BAD_REQUEST, None
 
     @staticmethod
-    def create_payment_card_account(account, user):
+    def _link_account_to_new_user(account, user):
+        if account.is_deleted:
+            account.is_deleted = False
+            account.save()
+
+        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
+        for scheme_account in account.scheme_account_set.all():
+            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+
+    @staticmethod
+    def _create_payment_card_account(account, user):
         if account.payment_card.system == PaymentCard.MASTERCARD:
             # get the oldest matching account
             old_account = PaymentCardAccount.all_objects.filter(
@@ -154,28 +169,34 @@ class ListCreatePaymentCardAccount(APIView):
             if old_account:
                 return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
         account.save()
+        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
         metis.enrol_new_payment_card(account)
         return account
 
     @staticmethod
     def supercede_old_card(account, old_account, user):
         # if the clients are the same but the users don't match, reject the card.
-        if old_account.user != user and old_account.user.client == user.client:
+        if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
+                client=user.client).exists():
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+
+        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
 
         account.token = old_account.token
         account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
             account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
             metis.enrol_existing_payment_card(account)
         else:
             account.status = old_account.status
             account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
 
             # only delete the old card if it's on the same app
-            if old_account.user.client == user.client:
+            if old_account.user_set.filter(client=user.client).exists():
                 old_account.is_deleted = True
                 old_account.save()
 
@@ -208,28 +229,41 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
 
     def get_queryset(self):
         token = self.kwargs.get('token')
-        data = payment_card_scheme_accounts(token)
-        return data
+        payment_card_account = PaymentCardAccount.objects.filter(token=token).first()
+        scheme_account_set = payment_card_account.scheme_account_set.all()
+
+        return [
+            {
+                'scheme_id': scheme.scheme_id,
+                'scheme_account_id': scheme.id
+            }
+            for scheme in list(scheme_account_set)
+        ]
 
 
 class RetrieveLoyaltyID(View):
     authentication_classes = ServiceAuthentication,
 
-    def post(self, request, scheme_slug):
+    @staticmethod
+    def post(request, scheme_slug):
         response_data = []
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
-            payment_card = PaymentCardAccount.objects.filter(token=payment_card_token).first()
-            if payment_card:
+            payment_card_entry = PaymentCardAccountEntry.objects.filter(
+                payment_card_account__token=payment_card_token).first()
+            if payment_card_entry:
+                payment_card = payment_card_entry.payment_card_account
                 try:
-                    scheme_account = SchemeAccount.objects.get(user=payment_card.user, scheme=scheme)
+                    scheme_account_entry = SchemeAccountEntry.objects.get(user=payment_card_entry.user,
+                                                                          scheme_account__scheme=scheme)
                 except ObjectDoesNotExist:
                     # the user was matched but is not registered in that scheme
                     response_data.append({payment_card_token: None})
                 else:
+                    scheme_account = scheme_account_entry.scheme_account
                     response_data.append({
                         payment_card.token: scheme_account.third_party_identifier,
                         'scheme_account_id': scheme_account.id
@@ -242,28 +276,39 @@ class RetrieveLoyaltyID(View):
 class RetrievePaymentCardUserInfo(View):
     authentication_classes = ServiceAuthentication,
 
-    def post(self, request, scheme_slug):
+    @staticmethod
+    def post(request, scheme_slug):
         response_data = {}
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
+        bink_client_app = ClientApplication.objects.get(name='Bink')
         for payment_card_token in payment_card_tokens:
-            payment_cards = PaymentCardAccount.objects.filter(token=payment_card_token)
+            payment_card_entries = PaymentCardAccountEntry.objects.filter(
+                payment_card_account__token=payment_card_token)
 
             # if there's no payment card for this token, leave it out of the returned data.
-            if not payment_cards.exists():
+            if not payment_card_entries.exists():
                 continue
 
             scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
                                                            status=SchemeAccount.ACTIVE,
-                                                           user__in=(p.user for p in payment_cards))
+                                                           user_set__id__in=(p.user.id for p in payment_card_entries))
             if scheme_accounts.exists():
                 scheme_account = scheme_accounts.order_by('created').first()
+                user_set = scheme_account.user_set
+                bink_user = user_set.filter(client_id=bink_client_app.client_id).order_by('date_joined').first()
+                if bink_user:
+                    user_id = bink_user.id
+                else:
+                    user = user_set.order_by('date_joined').first()
+                    user_id = user.id
+
                 response_data[payment_card_token] = {
                     'loyalty_id': scheme_account.third_party_identifier,
                     'scheme_account_id': scheme_account.id,
-                    'user_id': scheme_account.user.id,
+                    'user_id': user_id,
                     'credentials': scheme_account.credentials()
                 }
             else:
@@ -271,15 +316,16 @@ class RetrievePaymentCardUserInfo(View):
                 response_data[payment_card_token] = {
                     'loyalty_id': None,
                     'scheme_account_id': None,
-                    'user_id': payment_cards.first().user.id,
+                    'user_id': payment_card_entries.first().user.id,
                     'credentials': '',
                 }
 
-            active_card = next((x for x in payment_cards if x.status == PaymentCardAccount.ACTIVE), None)
+            active_card = next(
+                (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None)
             if active_card:
                 response_data[payment_card_token]['card_information'] = {
-                    'first_six': active_card.pan_start,
-                    'last_four': active_card.pan_end
+                    'first_six': active_card.payment_card_account.pan_start,
+                    'last_four': active_card.payment_card_account.pan_end
                 }
 
         return JsonResponse(response_data, safe=False)
@@ -356,10 +402,13 @@ def csv_upload(request):
             csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
             for row in csvreader:
                 for email in row:
-                    payment_card_account = PaymentCardAccount.objects.filter(user__email=email.lstrip(),
-                                                                             payment_card=payment_card)
-                    if payment_card_account:
-                        image_instance.payment_card_accounts.add(payment_card_account.first())
+                    payment_card_account_entry = PaymentCardAccountEntry.objects.filter(
+                        user__email=email.lstrip(),
+                        payment_card_account__payment_card=payment_card)
+                    if payment_card_account_entry:
+                        image_instance.payment_card_accounts.add(
+                            payment_card_account_entry.first().payment_card_account
+                        )
                     else:
                         image_instance.delete()
                         return HttpResponseBadRequest()

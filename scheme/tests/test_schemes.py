@@ -62,14 +62,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('link_questions', response.data[0])
         self.assertIn('join_questions', response.data[0])
         self.assertIn('consents', response.data[0])
-
-        # make sure there are no schemes that don't have questions
-        for row in response.data:
-            self.assertTrue(
-                len(row['link_questions']) > 0 or
-                len(row['join_questions']) > 0 or
-                row['manual_question'] is not None or
-                row['scan_question'] is not None)
+        self.assertIn('status', response.data[0])
+        self.assertIn('is_active', response.data[0])
 
     def test_scheme_consents(self):
         scheme2 = SchemeFactory()
@@ -211,7 +205,7 @@ class TestSchemeViews(APITestCase):
         self.assertIn('file', json[0])
         self.assertIn('scheme_id', json[0])
 
-    @patch('scheme.views.requests.post')
+    @patch('scheme.mixins.requests.post')
     def test_identify_image(self, mock_post):
         scheme = SchemeFactory()
         SchemeImageFactory(scheme=scheme, image_type_code=5)

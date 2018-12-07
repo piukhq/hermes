@@ -12,9 +12,6 @@ exports = {
     'scheme-accounts': {
         'model': SchemeAccount,
         'fields': {
-            'user': {
-                'email': None,
-            },
             'scheme': {
                 'name': None,
             },

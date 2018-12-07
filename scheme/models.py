@@ -3,14 +3,17 @@ import re
 import socket
 import sre_constants
 import uuid
+from decimal import Decimal
 from enum import Enum, IntEnum
 
 import arrow
-import requests
+from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
+from django.core.cache import cache
+
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -18,8 +21,9 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
+
 from common.models import Image
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
 
@@ -33,12 +37,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
-        schemes_without_questions = []
-        for scheme in schemes:
-            if len(scheme.questions.all()) == 0:
-                schemes_without_questions.append(scheme.id)
-        return schemes.exclude(id__in=schemes_without_questions)
+        return super().get_queryset().exclude(status=Scheme.INACTIVE)
 
 
 def _default_transaction_headers():
@@ -69,6 +68,15 @@ class Scheme(models.Model):
         (4, '4 (0+)'),
     )
     MAX_POINTS_VALUE_LENGTH = 11
+
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
 
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
@@ -104,7 +112,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -117,6 +125,19 @@ class Scheme(models.Model):
                                       help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    # ubiquity fields
+    authorisation_required = models.BooleanField(default=False)
+    digital_only = models.BooleanField(default=False)
+    plan_name = models.CharField(max_length=50, null=True, blank=True)
+    plan_name_card = models.CharField(max_length=50, null=True, blank=True)
+    plan_summary = models.TextField(default='', blank=True, max_length=250)
+    plan_description = models.TextField(default='', blank=True, max_length=500)
+    enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -137,6 +158,12 @@ class Scheme(models.Model):
     @property
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
+
+    def get_question_type_dict(self):
+        return {
+            question.label: question.type
+            for question in self.questions.filter(field_type__isnull=False).all()
+        }
 
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
@@ -254,8 +281,8 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True).\
-            exclude(scheme__is_active=False)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
+            exclude(scheme__status=Scheme.INACTIVE)
 
 
 class SchemeAccount(models.Model):
@@ -283,6 +310,7 @@ class SchemeAccount(models.Model):
     SERVICE_CONNECTION_ERROR = 537
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
+    FAILED_UPDATE = 446
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -309,6 +337,7 @@ class SchemeAccount(models.Model):
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
         (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
+        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
@@ -317,7 +346,8 @@ class SchemeAccount(models.Model):
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
+                                      related_name='scheme_account_set')
     scheme = models.ForeignKey('scheme.Scheme')
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
@@ -326,9 +356,11 @@ class SchemeAccount(models.Model):
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
     join_date = models.DateTimeField(null=True, blank=True)
-
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
+
+    # ubiquity fields
+    balances = JSONField(default=dict(), null=True, blank=True)
 
     @property
     def status_name(self):
@@ -363,11 +395,10 @@ class SchemeAccount(models.Model):
 
         A scan or manual question is an optional if one of the other exists
         """
-        required_credentials = {
-            question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
-        }
+        questions = self.scheme.questions.filter(
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE])
+
+        required_credentials = {question.type for question in questions}
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
@@ -482,10 +513,11 @@ class SchemeAccount(models.Model):
         return points
 
     def _get_balance(self, credentials):
+        user_set = ','.join([str(u.id) for u in self.user_set.all()])
         parameters = {
             'scheme_account_id': self.id,
-            'user_id': self.user.id,
             'credentials': credentials,
+            'user_set': user_set,
             'status': self.status,
             'journey_type': JourneyTypes.LINK.value,
         }
@@ -493,6 +525,30 @@ class SchemeAccount(models.Model):
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)
         return response
+
+    def get_cached_balance(self, user_consents=None):
+        cache_key = 'scheme_{}'.format(self.pk)
+        balance = cache.get(cache_key)
+
+        if not balance:
+            balance = self.get_midas_balance()
+            if balance:
+                balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
+                cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+
+        if balance != self.balances and balance:
+            self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]
+            self.save()
+
+        return balance
+
+    def set_pending(self):
+        self.status = SchemeAccount.PENDING
+        self.save()
+
+    def delete_cached_balance(self):
+        cache_key = 'scheme_{}'.format(self.pk)
+        cache.delete(cache_key)
 
     def question(self, question_type):
         """
@@ -583,7 +639,7 @@ class SchemeAccount(models.Model):
         # linked accounts in "system account required" should be displayed as "active".
         # accounts in "active", "pending", and "join" statuses should be displayed as such.
         # all other statuses should be displayed as "wallet only"
-        if self.link_date and self.status in self.SYSTEM_ACTION_REQUIRED:
+        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
             return self.ACTIVE
         elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
             return self.status
@@ -613,36 +669,8 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
-    @property
-    def images(self):
-        qualifiers = SchemeAccountImage.objects.filter(scheme=self.scheme,
-                                                       scheme_accounts__id=self.id,
-                                                       scheme_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
-                                     image_size_code=F('scheme_image__size_code'),
-                                     image=F('scheme_image__image'),
-                                     strap_line=F('scheme_image__strap_line'),
-                                     image_description=F('scheme_image__description'),
-                                     url=F('scheme_image__url'),
-                                     call_to_action=F('scheme_image__call_to_action'),
-                                     order=F('scheme_image__order'))\
-            .values('image_type_code',
-                    'image_size_code',
-                    'image',
-                    'strap_line',
-                    'image_description',
-                    'url',
-                    'call_to_action',
-                    'order',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created')
-
-        return images
-
     def __str__(self):
-        return "{0} - {1} - id: {2}".format(self.user.email, self.scheme.name, self.id)
+        return "{} - id: {}".format(self.scheme.name, self.id)
 
     class Meta:
         ordering = ['order', '-created']
@@ -656,8 +684,12 @@ class SchemeCredentialQuestion(models.Model):
     LINK_AND_JOIN = (LINK | JOIN)
     MERCHANT_IDENTIFIER = (1 << 3)
 
+    ADD_FIELD = 0
+    AUTH_FIELD = 1
+    ENROL_FIELD = 2
+
     OPTIONS = (
-        (0, 'None'),
+        (NONE, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
@@ -665,16 +697,37 @@ class SchemeCredentialQuestion(models.Model):
         (MERCHANT_IDENTIFIER, 'Merchant Identifier')
     )
 
+    # ubiquity choices
+    ANSWER_TYPE_CHOICES = (
+        (0, 'text'),
+        (1, 'sensitive'),
+        (2, 'choice'),
+        (3, 'boolean'),
+    )
+
+    FIELD_TYPE_CHOICES = (
+        (ADD_FIELD, 'add'),
+        (AUTH_FIELD, 'auth'),
+        (ENROL_FIELD, 'enrol'),
+    )
+
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
     order = models.IntegerField(default=0)
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
     third_party_identifier = models.BooleanField(default=False)
-
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
+
+    # ubiquity fields
+    validation = models.TextField(default='', blank=True, max_length=250)
+    description = models.CharField(default='', blank=True, max_length=250)
+    # common_name = models.CharField(default='', blank=True, max_length=50)
+    answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
+    choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
 
     @property
     def required(self):
@@ -718,6 +771,28 @@ class SchemeCredentialQuestionChoiceValue(models.Model):
 
     class Meta:
         ordering = ['value']
+
+
+class SchemeDetail(models.Model):
+    TYPE_CHOICES = (
+        (0, 'Tier'),
+    )
+
+    scheme_id = models.ForeignKey('Scheme')
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+
+
+class SchemeBalanceDetails(models.Model):
+    scheme_id = models.ForeignKey('Scheme')
+    currency = models.CharField(default='', blank=True, max_length=50)
+    prefix = models.CharField(default='', blank=True, max_length=50)
+    suffix = models.CharField(default='', blank=True, max_length=50)
+    description = models.TextField(default='', blank=True, max_length=250)
+
+    class Meta:
+        verbose_name_plural = 'balance details'
 
 
 class SchemeAccountCredentialAnswer(models.Model):
