@@ -415,6 +415,15 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
+    def get_auth_fields(self):
+        credentials = self._collect_credentials()
+        link_fields = [field.type for field in self.scheme.link_questions]
+        return {
+            k: v
+            for k, v in credentials.items()
+            if k in link_fields
+        }
+
     def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
@@ -765,12 +774,13 @@ class SchemeCredentialQuestionChoice(models.Model):
 class SchemeCredentialQuestionChoiceValue(models.Model):
     choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
     value = models.CharField(max_length=250)
+    order = models.IntegerField(default=0)
 
     def __str__(self):
         return self.value
 
     class Meta:
-        ordering = ['value']
+        ordering = ['order', 'value']
 
 
 class SchemeDetail(models.Model):

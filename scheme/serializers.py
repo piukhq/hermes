@@ -9,6 +9,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Consent, ConsentStatus, Control, Exchange, Scheme, SchemeAccount,
                            SchemeAccountCredentialAnswer, SchemeAccountImage, SchemeCredentialQuestion, SchemeImage,
                            UserConsent)
+from ubiquity.models import PaymentCardAccountEntry
 from user.models import CustomUser
 
 
@@ -240,6 +241,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         if self.verify_account_exists:
+            self.check_scheme_linked_to_same_payment_card(user_id=self.context['request'].user.id, scheme_id=scheme.id)
             scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.context['request'].user.id,
                                                            scheme=scheme).exclude(status=SchemeAccount.JOIN)
             for sa in scheme_accounts.all():
@@ -247,6 +249,19 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
                     raise serializers.ValidationError("You already added this account for scheme: '{0}'".format(scheme))
 
         return data
+
+    @staticmethod
+    def check_scheme_linked_to_same_payment_card(user_id, scheme_id):
+        pca_ids = PaymentCardAccountEntry.objects.values('payment_card_account_id').filter(user_id=user_id).all()
+        # todo when the linking of cards is implemented in bink, change this to use PaymentCardSchemeEntry table
+        for pca_id in pca_ids:
+            filter_query = {
+                'payment_card_account_set__id': pca_id['payment_card_account_id'],
+                'scheme_account_set__scheme_id': scheme_id
+            }
+            if CustomUser.objects.values('scheme_account_set__id').filter(**filter_query).count() >= 1:
+                raise serializers.ValidationError("An account for this scheme is already associated "
+                                                  "with one of the payment cards in your wallet.")
 
     @staticmethod
     def allowed_answers(scheme):
