@@ -1127,6 +1127,73 @@ class TestSchemeAccountModel(APITestCase):
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
 
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_link_limit_exceeded(self, mock_request):
+        test_status = SchemeAccount.LINK_LIMIT_EXCEEDED
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_card_not_registered(self, mock_request):
+        test_status = SchemeAccount.CARD_NOT_REGISTERED
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_card_number_error(self, mock_request):
+        test_status = SchemeAccount.CARD_NUMBER_ERROR
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_balance_general_error(self, mock_request):
+        test_status = SchemeAccount.GENERAL_ERROR
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_join_error(self, mock_request):
+        test_status = SchemeAccount.JOIN_ERROR
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)\
+
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_get_midas_join_in_progress(self, mock_request):
+        test_status = SchemeAccount.JOIN_IN_PROGRESS
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory()
+        points = scheme_account.get_midas_balance()
+
+        self.assertIsNone(points)
+        self.assertTrue(mock_request.called)
+        self.assertEqual(scheme_account.status, test_status)
+
 
 class TestAccessTokens(APITestCase):
     @classmethod
