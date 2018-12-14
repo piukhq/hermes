@@ -20,7 +20,7 @@ from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 
@@ -82,6 +82,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         if instance.user_set.count() < 1:
             instance.is_deleted = True
             instance.save()
+            PaymentCardSchemeEntry.objects.filter(payment_card_account=instance).delete()
 
             requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
                 'payment_token': instance.psp_token,
