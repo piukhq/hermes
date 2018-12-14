@@ -311,6 +311,12 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    CARD_NUMBER_ERROR = 436
+    LINK_LIMIT_EXCEEDED = 437
+    CARD_NOT_REGISTERED = 438
+    GENERAL_ERROR = 439
+    JOIN_IN_PROGRESS = 441
+    JOIN_ERROR = 538
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -337,14 +343,21 @@ class SchemeAccount(models.Model):
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
         (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
-        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE')
+        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE'),
+        (CARD_NUMBER_ERROR, 'Invalid card_number', 'CARD_NUMBER_ERROR'),
+        (LINK_LIMIT_EXCEEDED, 'You can only Link one card per day.', 'LINK_LIMIT_EXCEEDED'),
+        (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
+        (GENERAL_ERROR, 'General Error such as incorrect user details', 'GENERAL_ERROR'),
+        (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
+        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD]
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
+                            CARD_NOT_REGISTERED, GENERAL_ERROR, JOIN_IN_PROGRESS]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
