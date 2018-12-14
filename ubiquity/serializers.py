@@ -147,7 +147,11 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 
     @staticmethod
     def get_membership_cards(obj):
-        links = PaymentCardSchemeEntry.objects.filter(payment_card_account=obj).all()
+        query = {
+            'payment_card_account': obj,
+            'scheme_account__is_deleted': False
+        }
+        links = PaymentCardSchemeEntry.objects.filter(**query).all()
         return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
@@ -492,7 +496,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
     def to_representation(self, instance):
-        payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
+        query = {
+            'scheme_account': instance,
+            'payment_card_account__is_deleted': False
+        }
+        payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
         if instance.status != instance.FAILED_UPDATE:
             # instance.get_cached_balance()
