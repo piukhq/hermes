@@ -4,7 +4,7 @@ import socket
 import sre_constants
 import uuid
 from decimal import Decimal
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 import arrow
 from hermes.traced_requests import requests
@@ -175,10 +175,11 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class JourneyTypes(Enum):
+class JourneyTypes(IntEnum):
     JOIN = 0
     LINK = 1
     ADD = 2
+    UPDATE = 3
 
 
 class Control(models.Model):
@@ -508,13 +509,13 @@ class SchemeAccount(models.Model):
 
         return formatted_user_consents
 
-    def get_midas_balance(self):
+    def get_midas_balance(self, journey):
         points = None
         try:
             credentials = self.credentials()
             if not credentials:
                 return points
-            response = self._get_balance(credentials)
+            response = self._get_balance(credentials, journey)
             self.status = response.status_code
             if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
                 self.status = SchemeAccount.UNKNOWN_ERROR
@@ -534,14 +535,14 @@ class SchemeAccount(models.Model):
             self.save()
         return points
 
-    def _get_balance(self, credentials):
+    def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
         parameters = {
             'scheme_account_id': self.id,
             'credentials': credentials,
             'user_set': user_set,
             'status': self.status,
-            'journey_type': JourneyTypes.LINK.value,
+            'journey_type': journey.value,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
@@ -553,7 +554,7 @@ class SchemeAccount(models.Model):
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance()
+            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
