@@ -3,11 +3,11 @@ from decimal import ROUND_HALF_UP
 
 import arrow
 import jwt
-from hermes.traced_requests import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
+from hermes.traced_requests import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
@@ -139,8 +139,8 @@ class UbiquityImageSerializer(serializers.Serializer):
 
 class PaymentCardSerializer(PaymentCardAccountSerializer):
     membership_cards = serializers.SerializerMethodField()
-    first_six_digits = serializers.IntegerField(source='pan_start')
-    last_four_digits = serializers.IntegerField(source='pan_end')
+    first_six_digits = serializers.CharField(source='pan_start')
+    last_four_digits = serializers.CharField(source='pan_end')
     year = serializers.IntegerField(source='expiry_year')
     month = serializers.IntegerField(source='expiry_month')
     token = None
@@ -198,8 +198,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 
 
 class PaymentCardTranslationSerializer(serializers.Serializer):
-    pan_start = serializers.IntegerField(source='first_six_digits')
-    pan_end = serializers.IntegerField(source='last_four_digits')
+    pan_start = serializers.CharField(source='first_six_digits')
+    pan_end = serializers.CharField(source='last_four_digits')
     issuer = serializers.SerializerMethodField()
     payment_card = serializers.SerializerMethodField()
     name_on_card = serializers.CharField()
@@ -221,8 +221,8 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
-    pan_start = serializers.IntegerField(source='first_six_digits', required=False)
-    pan_end = serializers.IntegerField(source='last_four_digits', required=False)
+    pan_start = serializers.CharField(source='first_six_digits', required=False)
+    pan_end = serializers.CharField(source='last_four_digits', required=False)
     issuer = serializers.IntegerField(required=False)
     payment_card = serializers.IntegerField(required=False)
     name_on_card = serializers.CharField(required=False)
