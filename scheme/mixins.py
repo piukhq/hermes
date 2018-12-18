@@ -60,8 +60,6 @@ class BaseLinkMixin(object):
                 user_consent = UserConsent.objects.get(id=user_consent['id'])
                 user_consent.delete()
 
-        analytics.update_scheme_account_attribute(scheme_account, user)
-
         return response_data
 
 
@@ -102,12 +100,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             metadata = {
                 'scheme name': scheme.name,
             }
-            analytics.post_event(
-                user,
-                analytics.events.MY360_APP_EVENT,
-                metadata,
-                True
-            )
+            if user.client_id == settings.BINK_CLIENT_ID:
+                analytics.post_event(
+                    user,
+                    analytics.events.MY360_APP_EVENT,
+                    metadata,
+                    True
+                )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -181,10 +180,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 account_created = True
 
             finally:
-                if scheme_account_updated:
-                    analytics.update_scheme_account_attribute(scheme_account, SchemeAccount.JOIN)
-                else:
-                    analytics.update_scheme_account_attribute(scheme_account)
+                if scheme_account_updated and user.client_id == settings.BINK_CLIENT_ID:
+                    analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                elif user.client_id == settings.BINK_CLIENT_ID and account_created:
+                    analytics.update_scheme_account_attribute(scheme_account, user)
 
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
@@ -245,21 +244,22 @@ class SchemeAccountJoinMixin:
 
             return response_dict, status.HTTP_201_CREATED
         except serializers.ValidationError:
-            self.handle_failed_join(scheme_account)
+            self.handle_failed_join(scheme_account, request.user)
             raise
         except Exception:
-            self.handle_failed_join(scheme_account)
+            self.handle_failed_join(scheme_account, request.user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK
 
     @staticmethod
-    def handle_failed_join(scheme_account):
+    def handle_failed_join(scheme_account, user):
         scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
         for answer in scheme_account_answers:
             answer.delete()
 
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
-        analytics.update_scheme_account_attribute(scheme_account, SchemeAccount.JOIN)
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
@@ -267,6 +267,9 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
+
+        update = False
+
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
@@ -278,6 +281,7 @@ class SchemeAccountJoinMixin:
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.PENDING
                 scheme_account.save()
+                update = True
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     scheme_id=data['scheme'],
@@ -286,7 +290,10 @@ class SchemeAccountJoinMixin:
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
-        analytics.update_scheme_account_attribute(scheme_account, user)
+        if user.client_id == settings.BINK_CLIENT_ID and update:
+            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+        elif user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 

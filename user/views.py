@@ -477,8 +477,8 @@ class UserSettings(APIView):
                     attributes = {
                         slug_key: user_setting.to_boolean()
                     }
-
-                    analytics.update_attributes(request.user, attributes)
+                    if request.user.client_id == settings.BINK_CLIENT_ID:
+                        analytics.update_attributes(request.user, attributes)
 
         if validation_errors:
             return Response({
@@ -494,8 +494,8 @@ class UserSettings(APIView):
         Responds with a 204 - No Content.
         """
         UserSetting.objects.filter(user=request.user).delete()
-
-        analytics.reset_user_settings(request.user)
+        if request.user.client_id == settings.BINK_CLIENT_ID:
+            analytics.reset_user_settings(request.user)
 
         return Response(status=HTTP_204_NO_CONTENT)
 

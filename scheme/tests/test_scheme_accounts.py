@@ -143,7 +143,7 @@ class TestSchemeAccountViews(APITestCase):
             mock_update_attr.call_args[0][1],
             {
                 '{0}'.format(self.scheme_account.scheme.company):
-                    'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(
+                    'true,ACTIVE,2000/05/19,{},prev_ACTIVE,current_ACTIVE'.format(
                     self.scheme_account.scheme.slug)
             }
         )
@@ -1139,7 +1139,7 @@ class TestAccessTokens(APITestCase):
             mock_update_attr.call_args[0][1],
             {
                 '{0}'.format(self.scheme_account.scheme.company):
-                    'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(self.scheme_account.scheme.slug)
+                    'true,ACTIVE,2000/05/19,{},prev_ACTIVE,current_ACTIVE'.format(self.scheme_account.scheme.slug)
             }
         )
 

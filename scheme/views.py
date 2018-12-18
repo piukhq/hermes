@@ -13,6 +13,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from hermes import settings
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -88,7 +89,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         if instance.user_set.count() < 1:
             instance.is_deleted = True
             instance.save()
-            analytics.update_scheme_account_attribute(instance, request.user)
+            if request.user.client_id == settings.BINK_CLIENT_ID:
+                analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -150,8 +152,13 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
 
         serializer.is_valid(raise_exception=True)
 
+        old_status = scheme_account.status
+
         response_data = self.link_account(serializer, scheme_account, request.user)
         scheme_account.save()
+
+        if request.user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, request.user, old_status)
 
         out_serializer = ResponseLinkSerializer(response_data)
 
@@ -235,18 +242,19 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
         SchemeAccountEntry.objects.create(scheme_account=account, user=user)
 
-        analytics.update_scheme_account_attribute(account)
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(account, user)
 
-        metadata = {
-            'company name': scheme.company,
-            'slug': scheme.slug
-        }
-        analytics.post_event(
-            user,
-            analytics.events.ISSUED_JOIN_CARD_EVENT,
-            metadata,
-            True
-        )
+            metadata = {
+                'company name': scheme.company,
+                'slug': scheme.slug
+            }
+            analytics.post_event(
+                user,
+                analytics.events.ISSUED_JOIN_CARD_EVENT,
+                metadata,
+                True
+            )
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -258,11 +266,13 @@ class UpdateSchemeAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
 
+    # TODO Check the user associated with this scheme account is a Bink native user
     def post(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
 
+        user = request.data.get('user')
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:

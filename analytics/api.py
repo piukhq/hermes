@@ -49,7 +49,7 @@ def get_status(status):
     return status
 
 
-def update_scheme_account_attribute_new_status(account, new_status):
+def update_scheme_account_attribute_new_status(account, user, new_status):
     current_status = get_status(new_status)
 
     attributes = {
@@ -62,10 +62,10 @@ def update_scheme_account_attribute_new_status(account, new_status):
             current_status
         )}
 
-    update_attributes(account.user, attributes)
+    update_attributes(user, attributes)
 
 
-def update_scheme_account_attribute(account, old_status=None):
+def update_scheme_account_attribute(account, user, old_status=None):
     previous_status = get_status(old_status)
 
     attributes = {
@@ -78,7 +78,7 @@ def update_scheme_account_attribute(account, old_status=None):
             account.status_key
         )}
 
-    update_attributes(account.user, attributes)
+    update_attributes(user, attributes)
 
 
 def update_attributes(user, attributes):
