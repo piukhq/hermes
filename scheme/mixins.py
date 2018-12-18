@@ -180,10 +180,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 account_created = True
 
             finally:
-                if scheme_account_updated and user.client_id == settings.BINK_CLIENT_ID:
-                    analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
-                elif user.client_id == settings.BINK_CLIENT_ID and account_created:
-                    analytics.update_scheme_account_attribute(scheme_account, user)
+                if user.client_id == settings.BINK_CLIENT_ID:
+                    if scheme_account_updated:
+                        analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                    elif account_created:
+                        analytics.update_scheme_account_attribute(scheme_account, user)
 
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,

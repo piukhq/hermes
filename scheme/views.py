@@ -272,7 +272,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         DO NOT USE - NOT FOR APP ACCESS
         """
 
-        user = request.data.get('user')
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
