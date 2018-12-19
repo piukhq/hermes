@@ -667,7 +667,6 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
