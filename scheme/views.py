@@ -266,7 +266,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = StatusSerializer
 
-    # TODO Check the user associated with this scheme account is a Bink native user
     def post(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
@@ -279,16 +278,20 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
 
+        link_scheme_to_user = SchemeAccountEntry.objects.get(scheme_account=scheme_account.id)
+        user = CustomUser.objects.get(id=link_scheme_to_user.user.id)
+
         needs_saving = False
 
         if journey == 'join':
             scheme_account.join_date = timezone.now()
             needs_saving = True
 
-        if new_status_code != scheme_account.status:
-            analytics.update_scheme_account_attribute_new_status(scheme_account, new_status_code)
-            scheme_account.status = new_status_code
-            needs_saving = True
+        if user.client_id == settings.BINK_CLIENT_ID:
+            if new_status_code != scheme_account.status:
+                analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                scheme_account.status = new_status_code
+                needs_saving = True
 
         if needs_saving:
             scheme_account.save()
