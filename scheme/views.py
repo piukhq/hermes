@@ -27,7 +27,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -89,8 +89,12 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         if instance.user_set.count() < 1:
             instance.is_deleted = True
             instance.save()
+
             if request.user.client_id == settings.BINK_CLIENT_ID:
                 analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
+
+            PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
+            analytics.update_scheme_account_attribute(instance, request.user)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
