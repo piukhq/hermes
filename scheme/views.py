@@ -16,7 +16,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from hermes.settings import HERMES_SENTRY_DSN, ROLLBACK_TRANSACTIONS_URL
+from hermes.settings import HERMES_SENTRY_DSN, ROLLBACK_TRANSACTIONS_URL, SERVICE_API_KEY
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -315,12 +315,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'loyalty_card_id': scheme_account.third_party_identifier,
             'scheme_account_id': scheme_account.id,
         })
+        headers = {
+            'Content-Type': "application/json",
+            'Authorization': "token " + SERVICE_API_KEY,
+        }
         try:
-            requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, content_type='application/json')
+            requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, headers=headers)
         except requests.exceptions.RequestException:
             if HERMES_SENTRY_DSN:
                 sentry.captureException()
-            pass
 
 
 class Pagination(PageNumberPagination):
