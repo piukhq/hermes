@@ -16,7 +16,7 @@ from scheme.encyption import AESCipher
 from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer)
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry
 
 
 class BaseLinkMixin(object):
@@ -40,7 +40,7 @@ class BaseLinkMixin(object):
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
 
-        midas_information = scheme_account.get_midas_balance()
+        midas_information = scheme_account.get_midas_balance(journey=JourneyTypes.LINK)
 
         response_data = {
             'balance': midas_information,
@@ -130,15 +130,12 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'schemeaccountcredentialanswer__answer': data[answer_type],
                 'is_deleted': False
             }
-            scheme_account = SchemeAccount.objects.get(**query)
+            scheme_account = SchemeAccount.objects.filter(**query).distinct().get()
 
-            if user.client_id != settings.ALLOWED_CLIENT_ID:
-                raise ValidationError('Scheme Account already exists in another wallet.')
+            if user.client_id == settings.ALLOWED_CLIENT_ID:
+                return scheme_account, data, account_created
 
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
-            for card in scheme_account.payment_card_account_set.all():
-                PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
-
+            raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
             scheme_account, account_created = self._create_account(user, data, answer_type, user_pk)
 

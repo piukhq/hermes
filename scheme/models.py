@@ -4,7 +4,7 @@ import socket
 import sre_constants
 import uuid
 from decimal import Decimal
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 import arrow
 from hermes.traced_requests import requests
@@ -179,10 +179,11 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class JourneyTypes(Enum):
+class JourneyTypes(IntEnum):
     JOIN = 0
     LINK = 1
     ADD = 2
+    UPDATE = 3
 
 
 class Control(models.Model):
@@ -315,6 +316,12 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    CARD_NUMBER_ERROR = 436
+    LINK_LIMIT_EXCEEDED = 437
+    CARD_NOT_REGISTERED = 438
+    GENERAL_ERROR = 439
+    JOIN_IN_PROGRESS = 441
+    JOIN_ERROR = 538
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -341,14 +348,21 @@ class SchemeAccount(models.Model):
         (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
         (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
-        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE')
+        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE'),
+        (CARD_NUMBER_ERROR, 'Invalid card_number', 'CARD_NUMBER_ERROR'),
+        (LINK_LIMIT_EXCEEDED, 'You can only Link one card per day.', 'LINK_LIMIT_EXCEEDED'),
+        (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
+        (GENERAL_ERROR, 'General Error such as incorrect user details', 'GENERAL_ERROR'),
+        (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
+        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD]
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
+                            CARD_NOT_REGISTERED, GENERAL_ERROR, JOIN_IN_PROGRESS]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -418,6 +432,15 @@ class SchemeAccount(models.Model):
                 required_credentials.discard(scan_question.type)
 
         return required_credentials.difference(set(credential_types))
+
+    def get_auth_fields(self):
+        credentials = self._collect_credentials()
+        link_fields = [field.type for field in self.scheme.link_questions]
+        return {
+            k: v
+            for k, v in credentials.items()
+            if k in link_fields
+        }
 
     def credentials(self):
         credentials = self._collect_credentials()
@@ -490,13 +513,13 @@ class SchemeAccount(models.Model):
 
         return formatted_user_consents
 
-    def get_midas_balance(self):
+    def get_midas_balance(self, journey):
         points = None
         try:
             credentials = self.credentials()
             if not credentials:
                 return points
-            response = self._get_balance(credentials)
+            response = self._get_balance(credentials, journey)
             self.status = response.status_code
             if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
                 self.status = SchemeAccount.UNKNOWN_ERROR
@@ -516,14 +539,14 @@ class SchemeAccount(models.Model):
             self.save()
         return points
 
-    def _get_balance(self, credentials):
+    def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
         parameters = {
             'scheme_account_id': self.id,
             'credentials': credentials,
             'user_set': user_set,
             'status': self.status,
-            'journey_type': JourneyTypes.LINK.value,
+            'journey_type': journey.value,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
@@ -535,7 +558,7 @@ class SchemeAccount(models.Model):
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance()
+            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
@@ -769,12 +792,13 @@ class SchemeCredentialQuestionChoice(models.Model):
 class SchemeCredentialQuestionChoiceValue(models.Model):
     choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
     value = models.CharField(max_length=250)
+    order = models.IntegerField(default=0)
 
     def __str__(self):
         return self.value
 
     class Meta:
-        ordering = ['value']
+        ordering = ['order', 'value']
 
 
 class SchemeDetail(models.Model):
