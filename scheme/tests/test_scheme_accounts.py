@@ -1204,10 +1204,9 @@ class TestSchemeAccountModel(APITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, test_status) \
- \
-        @ patch('requests.get', auto_spec=True, return_value=MagicMock())
+        self.assertEqual(scheme_account.status, test_status)
 
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
         test_status = SchemeAccount.JOIN_IN_PROGRESS
         mock_request.return_value.status_code = test_status
