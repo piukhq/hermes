@@ -3,11 +3,11 @@ from decimal import ROUND_HALF_UP
 
 import arrow
 import jwt
-from hermes.traced_requests import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
+from hermes.traced_requests import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
@@ -139,15 +139,19 @@ class UbiquityImageSerializer(serializers.Serializer):
 
 class PaymentCardSerializer(PaymentCardAccountSerializer):
     membership_cards = serializers.SerializerMethodField()
-    first_six_digits = serializers.IntegerField(source='pan_start')
-    last_four_digits = serializers.IntegerField(source='pan_end')
+    first_six_digits = serializers.CharField(source='pan_start')
+    last_four_digits = serializers.CharField(source='pan_end')
     year = serializers.IntegerField(source='expiry_year')
     month = serializers.IntegerField(source='expiry_month')
     token = None
 
     @staticmethod
     def get_membership_cards(obj):
-        links = PaymentCardSchemeEntry.objects.filter(payment_card_account=obj).all()
+        query = {
+            'payment_card_account': obj,
+            'scheme_account__is_deleted': False
+        }
+        links = PaymentCardSchemeEntry.objects.filter(**query).all()
         return MembershipCardLinksSerializer(links, many=True).data
 
     class Meta(PaymentCardAccountSerializer.Meta):
@@ -194,8 +198,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 
 
 class PaymentCardTranslationSerializer(serializers.Serializer):
-    pan_start = serializers.IntegerField(source='first_six_digits')
-    pan_end = serializers.IntegerField(source='last_four_digits')
+    pan_start = serializers.CharField(source='first_six_digits')
+    pan_end = serializers.CharField(source='last_four_digits')
     issuer = serializers.SerializerMethodField()
     payment_card = serializers.SerializerMethodField()
     name_on_card = serializers.CharField()
@@ -217,8 +221,8 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
-    pan_start = serializers.IntegerField(source='first_six_digits', required=False)
-    pan_end = serializers.IntegerField(source='last_four_digits', required=False)
+    pan_start = serializers.CharField(source='first_six_digits', required=False)
+    pan_end = serializers.CharField(source='last_four_digits', required=False)
     issuer = serializers.IntegerField(required=False)
     payment_card = serializers.IntegerField(required=False)
     name_on_card = serializers.CharField(required=False)
@@ -492,7 +496,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
     def to_representation(self, instance):
-        payment_cards = PaymentCardSchemeEntry.objects.filter(scheme_account=instance).all()
+        query = {
+            'scheme_account': instance,
+            'payment_card_account__is_deleted': False
+        }
+        payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
         if instance.status != instance.FAILED_UPDATE:
             # instance.get_cached_balance()
