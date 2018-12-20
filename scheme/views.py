@@ -16,7 +16,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from hermes.settings import ROLLBACK_TRANSACTIONS_URL
+from hermes.settings import HERMES_SENTRY_DSN, ROLLBACK_TRANSACTIONS_URL
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -305,37 +305,22 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         :type scheme_account: scheme.models.SchemeAccount
         :type user_id: int
         """
+        payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
+        data = json.dumps({
+            'date_joined': scheme_account.join_date,
+            'scheme_provider': scheme_slug,
+            'payment_card_token': [card['token'] for card in payment_cards],
+            'user_id': user_id,
+            'credentials': scheme_account.credentials(),
+            'loyalty_card_id': scheme_account.third_party_identifier,
+            'scheme_account_id': scheme_account.id,
+        })
         try:
-            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
-            data = json.dumps({
-                'date_joined': scheme_account.join_date,
-                'scheme_provider': scheme_slug,
-                'payment_card_token': [card['token'] for card in payment_cards],
-                'user_id': user_id,
-                'credentials': scheme_account.credentials(),
-                'loyalty_card_id': scheme_account.third_party_identifier,
-                'scheme_account_id': scheme_account.id,
-            })
             requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, content_type='application/json')
         except requests.exceptions.RequestException:
-            sentry.captureException()
+            if HERMES_SENTRY_DSN:
+                sentry.captureException()
             pass
-
-
-"""
-class PostJoinHandlingSerializer(serializers.Serializer):
-    # fields needed for lookup
-    date_joined = serializers.DateField()
-    scheme_provider = serializers.CharField()
-    payment_card_token = serializers.ListField()
-
-    # fields needed from hermes
-    user_id = serializers.IntegerField()
-    credentials = serializers.CharField()
-    loyalty_card_id = serializers.CharField()
-    scheme_account_id = serializers.IntegerField()
-
-"""
 
 
 class Pagination(PageNumberPagination):

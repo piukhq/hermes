@@ -4,7 +4,6 @@ import secrets
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
-import requests
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
@@ -13,8 +12,8 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import (ConsentStatus, JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, UserConsent, Scheme)
+from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion, UserConsent)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
@@ -515,20 +514,10 @@ class TestSchemeAccountViews(APITestCase):
     @patch('scheme.views.sentry')
     @patch('scheme.views.requests.post')
     def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
-        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', 123)
+        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account, self.user.id)
 
         self.assertFalse(mock_sentry.captureException.called)
         self.assertTrue(mock_post.called)
-        self.assertEqual(mock_post.call_args[1]['data'], {'scheme_account_id': 123})
-
-    @patch('scheme.views.sentry')
-    @patch('scheme.views.requests.post', side_effect=requests.exceptions.HTTPError)
-    def test_notify_join_for_rollback_transactions_http_error(self, mock_post, mock_sentry):
-        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', 123)
-
-        self.assertTrue(mock_sentry.captureException.called)
-        self.assertTrue(mock_post.called)
-        self.assertEqual(mock_post.call_args[1]['data'], {'scheme_account_id': 123})
 
     def test_scheme_accounts_active(self):
         scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
@@ -1215,10 +1204,10 @@ class TestSchemeAccountModel(APITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, test_status)\
+        self.assertEqual(scheme_account.status, test_status) \
+ \
+        @ patch('requests.get', auto_spec=True, return_value=MagicMock())
 
-
-    @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
         test_status = SchemeAccount.JOIN_IN_PROGRESS
         mock_request.return_value.status_code = test_status
