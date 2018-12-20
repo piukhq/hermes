@@ -313,7 +313,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 'payment_card_token': [card['token'] for card in payment_cards],
                 'user_id': user_id,
                 'credentials': scheme_account.credentials(),
-                'loyalty_card_id': scheme_account.card_number,
+                'loyalty_card_id': scheme_account.third_party_identifier,
                 'scheme_account_id': scheme_account.id,
             })
             requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, content_type='application/json')
