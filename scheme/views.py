@@ -1,4 +1,5 @@
 import csv
+import json
 from io import StringIO
 
 import requests
@@ -16,6 +17,7 @@ from rest_framework.views import APIView
 
 import analytics
 from hermes.settings import ROLLBACK_TRANSACTIONS_URL
+from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -29,7 +31,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -279,7 +281,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if journey == 'join':
             scheme = scheme_account.scheme
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
-                self.notify_rollback_transactions(scheme.slug, scheme_account_id)
+                self.notify_rollback_transactions(scheme.slug, scheme_account, request.user.id)
 
             scheme_account.join_date = timezone.now()
             needs_saving = True
@@ -297,13 +299,43 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     @staticmethod
-    def notify_rollback_transactions(scheme_slug, scheme_account_id):
+    def notify_rollback_transactions(scheme_slug, scheme_account, user_id):
+        """
+        :type scheme_slug: str
+        :type scheme_account: scheme.models.SchemeAccount
+        :type user_id: int
+        """
         try:
-            data = {'scheme_account_id': scheme_account_id}
-            requests.post('{}/{}'.format(ROLLBACK_TRANSACTIONS_URL, scheme_slug), data=data)
+            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
+            data = json.dumps({
+                'date_joined': scheme_account.join_date,
+                'scheme_provider': scheme_slug,
+                'payment_card_token': [card['token'] for card in payment_cards],
+                'user_id': user_id,
+                'credentials': scheme_account.credentials(),
+                'loyalty_card_id': scheme_account.card_number,
+                'scheme_account_id': scheme_account.id,
+            })
+            requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, content_type='application/json')
         except requests.exceptions.RequestException:
             sentry.captureException()
             pass
+
+
+"""
+class PostJoinHandlingSerializer(serializers.Serializer):
+    # fields needed for lookup
+    date_joined = serializers.DateField()
+    scheme_provider = serializers.CharField()
+    payment_card_token = serializers.ListField()
+
+    # fields needed from hermes
+    user_id = serializers.IntegerField()
+    credentials = serializers.CharField()
+    loyalty_card_id = serializers.CharField()
+    scheme_account_id = serializers.IntegerField()
+
+"""
 
 
 class Pagination(PageNumberPagination):
