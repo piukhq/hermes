@@ -143,8 +143,8 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
-    search_fields = ['scheme__name', 'schemeaccountentry__user__email']
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'card_number', 'created',)
+    search_fields = ['scheme__name', 'schemeaccountentry__user__email', 'schemeaccountcredentialanswer__answer']
     list_per_page = 10
 
     def get_readonly_fields(self, request, obj=None):
