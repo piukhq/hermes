@@ -626,6 +626,15 @@ class SchemeAccount(models.Model):
                     return None
         return None
 
+    def get_transaction_matching_user_id(self):
+        bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
+        if bink_user.exists():
+            user_id = bink_user.first().get('id')
+        else:
+            user_id = self.user_set.order_by('date_joined').values('id').first().get('id')
+
+        return user_id
+
     @property
     def barcode(self):
         barcode_answer = self.barcode_answer

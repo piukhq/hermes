@@ -281,7 +281,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if journey == 'join':
             scheme = scheme_account.scheme
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
-                self.notify_rollback_transactions(scheme.slug, scheme_account, request.user.id)
+                self.notify_rollback_transactions(scheme.slug, scheme_account)
 
             scheme_account.join_date = timezone.now()
             needs_saving = True
@@ -299,12 +299,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     @staticmethod
-    def notify_rollback_transactions(scheme_slug, scheme_account, user_id):
+    def notify_rollback_transactions(scheme_slug, scheme_account):
         """
         :type scheme_slug: str
         :type scheme_account: scheme.models.SchemeAccount
-        :type user_id: int
         """
+        user_id = scheme_account.get_transaction_matching_user_id()
         payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
         data = json.dumps({
             'date_joined': scheme_account.join_date,
