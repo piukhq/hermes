@@ -6,9 +6,10 @@ from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
-
+from scheme.credentials import credential_types_set
 from ubiquity.models import SchemeAccountEntry
-
+from common.admin import InputFilter
+from django.db.models import Q
 import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -139,12 +140,41 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class CardNumberFilter(InputFilter):
+    parameter_name = 'card_number'
+    title = 'Card Number Match'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        card_number = Q(schemeaccountcredentialanswer__answer__icontains=term,
+                        schemeaccountcredentialanswer__question__type='card_number')
+        return queryset.filter(card_number)
+
+
+class UserEmailFilter(InputFilter):
+    parameter_name = 'user_email'
+    title = 'User Email Matching'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        any_email = (
+                Q(schemeaccountentry__user__email__icontains=term) |
+                Q(schemeaccountcredentialanswer__answer__icontains=term,
+                  schemeaccountcredentialanswer__question__type='email'))
+        return queryset.filter(any_email)
+
+
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
-    list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'card_number', 'created',)
-    search_fields = ['scheme__name', 'schemeaccountentry__user__email', 'schemeaccountcredentialanswer__answer']
+    list_filter = (CardNumberFilter, UserEmailFilter, 'is_deleted', 'status', 'scheme',)
+    # list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'card_number', 'created',)
+    # search_fields = ['scheme__name', 'schemeaccountentry__user__email', 'schemeaccountcredentialanswer__answer']
+    list_display = ('scheme', 'status', 'is_deleted',  'created')
     list_per_page = 10
 
     def get_readonly_fields(self, request, obj=None):
@@ -157,6 +187,19 @@ class SchemeAccountAdmin(admin.ModelAdmin):
                                  assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
                      for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
         return '</br>'.join(user_list)
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if queryset is None:
+            print(queryset)
+        return queryset, use_distinct
+
+    def get_list_display(self, request):
+        list_display = super().get_list_display(request)
+        return list_display
+
+
+
 
     user_email.allow_tags = True
 
