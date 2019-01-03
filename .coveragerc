@@ -6,6 +6,8 @@ omit = *migrations*
        manage.py
        hermes/wsgi.py
        hermes/runners.py
+       scheme/admin.py
+       common/admin.py
 branch = True
 
 [report]
