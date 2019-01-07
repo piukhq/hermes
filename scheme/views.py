@@ -55,6 +55,11 @@ class SchemesList(ListAPIView):
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return SchemeAccount.objects
+
 
 class RetrieveScheme(RetrieveAPIView):
     """
@@ -62,6 +67,11 @@ class RetrieveScheme(RetrieveAPIView):
     """
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
+
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return SchemeAccount.objects
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
