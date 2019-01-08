@@ -93,8 +93,6 @@ class Organisation(models.Model):
     """
     name = models.CharField(max_length=100, unique=True)
     terms_and_conditions = models.TextField(blank=True)
-    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
-    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
 
     def __str__(self):
         return self.name
@@ -130,6 +128,8 @@ class ClientApplicationBundle(models.Model):
     """
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
+    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
+    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
 
     @classmethod
     def get_bink_bundles(cls):

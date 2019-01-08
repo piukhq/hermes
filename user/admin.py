@@ -95,13 +95,20 @@ class ClientApplicationAdmin(admin.ModelAdmin):
     search_fields = ('name', 'organisation__name', 'client_id')
 
 
+@admin.register(ClientApplicationBundle)
+class ClientApplicationBundleAdmin(admin.ModelAdmin):
+    list_display = ('bundle_id', 'client')
+    search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
+    filter_horizontal = ('schemes', 'issuers')
+    list_filter = ('client__organisation__name', 'client__name', 'issuers', 'schemes')
+
+
 @admin.register(Organisation)
 class OrganisationAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
-    filter_horizontal = ('schemes', 'issuers')
 
 
-admin.site.register([ClientApplicationBundle, ClientApplicationKit])
+admin.site.register(ClientApplicationKit)
 admin.site.register(Setting)
 admin.site.register(MarketingCode)
