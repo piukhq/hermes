@@ -323,7 +323,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'Authorization': "token " + SERVICE_API_KEY,
         }
         try:
-            requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data, headers=headers)
+            resp = requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data, headers=headers)
+            resp.raise_for_status()
         except requests.exceptions.RequestException:
             if HERMES_SENTRY_DSN:
                 sentry.captureException()
