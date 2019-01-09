@@ -13,6 +13,7 @@ from scheme.models import SchemeCredentialQuestion, Control
 from user.tests.factories import UserFactory
 from common.models import Image
 from scheme.models import JourneyTypes
+from user.models import ClientApplicationBundle
 
 
 class TestSchemeImages(APITestCase):
@@ -25,7 +26,14 @@ class TestSchemeImages(APITestCase):
                                        start_date=timezone.now() - timezone.timedelta(hours=1),
                                        end_date=timezone.now() + timezone.timedelta(hours=1))
 
-        SchemeCredentialQuestionFactory(scheme=cls.image.scheme, options=SchemeCredentialQuestion.LINK)
+        scheme_credential_question = SchemeCredentialQuestionFactory(
+            scheme=cls.image.scheme,
+            options=SchemeCredentialQuestion.LINK)
+        cls.scheme = scheme_credential_question.scheme
+
+        cls.bundle, created = ClientApplicationBundle.objects.get_or_create(bundle_id='com.bink.wallet',
+                                                                            client=user.client)
+        cls.bundle.schemes.add(cls.scheme.id)
 
         super().setUpClass()
 
@@ -46,13 +54,18 @@ class TestSchemeViews(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        cls.user = UserFactory()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super().setUpClass()
 
     def test_scheme_list(self):
         SchemeCredentialQuestionFactory(manual_question=True)
-        SchemeFactory()
+        scheme = SchemeFactory()
+        bundle, created = ClientApplicationBundle.objects.get_or_create(
+            bundle_id='com.bink.wallet',
+            client=self.user.client)
+        bundle.schemes.add(scheme.id)
+
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200,)

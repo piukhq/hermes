@@ -58,7 +58,7 @@ class SchemesList(ListAPIView):
     def get_queryset(self):
         if self.request.allowed_schemes:
             return Scheme.objects.filter(id__in=self.request.allowed_schemes)
-        return SchemeAccount.objects
+        return Scheme.objects
 
 
 class RetrieveScheme(RetrieveAPIView):
@@ -71,7 +71,7 @@ class RetrieveScheme(RetrieveAPIView):
     def get_queryset(self):
         if self.request.allowed_schemes:
             return Scheme.objects.filter(id__in=self.request.allowed_schemes)
-        return SchemeAccount.objects
+        return Scheme.objects
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
