@@ -5,8 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.permissions import BasePermission
-
-from user.models import CustomUser
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from user.models import CustomUser, ClientApplicationBundle
 
 
 class JwtAuthentication(BaseAuthentication):
@@ -54,10 +54,24 @@ class JwtAuthentication(BaseAuthentication):
         if not token or "." not in token:
             return None
 
-        user, _ = self.authenticate_credentials(token)
-        setattr(request, 'allowed_issuers', [issuer.pk for issuer in user.client.organisation.issuers.all()])
-        setattr(request, 'allowed_schemes', [scheme.pk for scheme in user.client.organisation.schemes.all()])
-        return user, _
+        user, credentials = self.authenticate_credentials(token)
+        # Finds the bundle_id from login2 assuming the user has logged in post upgrade
+        # otherwise 'com.bink.wallet' will be used for the the users application client
+        # this will fail if no 'com.bink.wallet' exists or if multiple matches are found
+        bundle_id = credentials.get('bundle_id', 'com.bink.wallet')
+        try:
+            bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id, client=user.client)
+        except ObjectDoesNotExist:
+            raise exceptions.AuthenticationFailed('Bundle Id not configured')
+        except MultipleObjectsReturned:
+            # This should not occur after release as unique together constraint has been added in a migration
+            # Covers edge case of duplicate already exists which would cause the unique together migration to fail
+            # then this error message will help debug
+            raise exceptions.AuthenticationFailed(f"Multiple '{bundle_id}' bundle ids for client '{user.client}'")
+
+        setattr(request, 'allowed_issuers', [issuer.pk for issuer in bundle.issuers.all()])
+        setattr(request, 'allowed_schemes', [scheme.pk for scheme in bundle.schemes.all()])
+        return user, None
 
     def authenticate_credentials(self, key):
         """
@@ -88,7 +102,7 @@ class JwtAuthentication(BaseAuthentication):
                 leeway=settings.CLOCK_SKEW_LEEWAY)
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
-        return user, None
+        return user, token_contents
 
     def authenticate_header(self, request):
         return 'Token'

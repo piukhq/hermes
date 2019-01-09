@@ -131,6 +131,9 @@ class ClientApplicationBundle(models.Model):
     issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
     schemes = models.ManyToManyField('scheme.Scheme', blank=True)
 
+    class Meta:
+        unique_together = ('client', 'bundle_id',)
+
     @classmethod
     def get_bink_bundles(cls):
         return cls.objects.filter(client_id=BINK_APP_ID)
