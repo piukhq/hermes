@@ -58,7 +58,10 @@ class JwtAuthentication(BaseAuthentication):
         # Finds the bundle_id from login2 assuming the user has logged in post upgrade
         # otherwise 'com.bink.wallet' will be used for the the users application client
         # this will fail if no 'com.bink.wallet' exists or if multiple matches are found
-        bundle_id = credentials.get('bundle_id', 'com.bink.wallet')
+        # Note bundle_id may be set to '' in token
+        bundle_id = credentials.get('bundle_id', '')
+        if not bundle_id:
+            bundle_id = 'com.bink.wallet'
         try:
             bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id, client=user.client)
         except ObjectDoesNotExist:
