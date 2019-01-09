@@ -280,10 +280,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if journey == 'join':
             scheme = scheme_account.scheme
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
-                self.notify_rollback_transactions(scheme.slug, scheme_account)
+            join_date = timezone.now()
+            scheme_account.join_date = join_date
 
-            scheme_account.join_date = timezone.now()
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+                self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
+
             needs_saving = True
 
         if new_status_code != scheme_account.status:
@@ -299,15 +301,16 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     @staticmethod
-    def notify_rollback_transactions(scheme_slug, scheme_account):
+    def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
         """
         :type scheme_slug: str
         :type scheme_account: scheme.models.SchemeAccount
+        :type join_date: datetime.datetime
         """
         user_id = scheme_account.get_transaction_matching_user_id()
         payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
         data = json.dumps({
-            'date_joined': scheme_account.join_date,
+            'date_joined': join_date.date().isoformat(),
             'scheme_provider': scheme_slug,
             'payment_card_token': [card['token'] for card in payment_cards],
             'user_id': user_id,
@@ -320,7 +323,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'Authorization': "token " + SERVICE_API_KEY,
         }
         try:
-            requests.post(ROLLBACK_TRANSACTIONS_URL, data=data, headers=headers)
+            requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data, headers=headers)
         except requests.exceptions.RequestException:
             if HERMES_SENTRY_DSN:
                 sentry.captureException()
