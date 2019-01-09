@@ -257,8 +257,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def has_module_perms(self, app_label):
         return True
 
-    def create_token(self):
+    def create_token(self, bundle_id=''):
         payload = {
+            'bundle_id': bundle_id,
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }

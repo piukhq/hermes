@@ -227,13 +227,16 @@ class Login(GenericAPIView):
         credentials = self.get_credentials(serializer.data)
         user = authenticate(**credentials)
 
+        bundle_id = request.POST.get('bundle_id', '')
+
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
         if not user.is_active:
             return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
-        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
+        out_serializer = ResponseAuthSerializer({'email': user.email,
+                                                 'api_key': user.create_token(bundle_id), 'uid': user.uid})
         return Response(out_serializer.data)
 
     @classmethod
