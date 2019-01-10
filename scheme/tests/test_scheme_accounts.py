@@ -13,7 +13,7 @@ from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CRED
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, UserConsent)
+                           SchemeCredentialQuestion, UserConsent, Scheme)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
@@ -79,6 +79,10 @@ class TestSchemeAccountViews(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.scheme_account_image = SchemeAccountImageFactory()
+
+        cls.join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        join_card = SchemeAccountFactory(scheme=cls.join_scheme, status=SchemeAccount.JOIN)
+        cls.join_entry = SchemeAccountEntryFactory(scheme_account=join_card)
 
         super().setUpClass()
 
@@ -449,6 +453,27 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('barcode_regex', response.data[0]['scheme'])
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
+
+    def test_list_schemes_accounts_with_suspended_scheme(self):
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.join_entry.user.create_token()}
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertTrue(len(response.json()) > 0)
+        scheme_account = response.json()[0]
+        self.assertEqual(scheme_account['status_name'], 'Join')
+        self.assertEqual(scheme_account['scheme']['slug'], self.join_scheme.slug)
+
+        self.join_scheme.status = Scheme.SUSPENDED
+        self.join_scheme.save()
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertEqual(response.json(), [])
+
+        self.join_scheme.status = Scheme.ACTIVE
+        self.join_scheme.save()
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertTrue(len(response.json()) > 0)
+        scheme_account = response.json()[0]
+        self.assertEqual(scheme_account['status_name'], 'Join')
+        self.assertEqual(scheme_account['scheme']['slug'], self.join_scheme.slug)
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')

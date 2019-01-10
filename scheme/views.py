@@ -180,7 +180,10 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        return SchemeAccount.objects.filter(user_set__id=user_id)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
+        scheme_accounts = scheme_accounts.exclude(status=SchemeAccount.JOIN, scheme__status=Scheme.SUSPENDED)
+
+        return scheme_accounts
 
     def post(self, request, *args, **kwargs):
         """
