@@ -77,6 +77,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('consents', response.data[0])
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
+        if created:
+            bundle.delete()
 
     def test_scheme_consents(self):
         scheme2 = SchemeFactory()

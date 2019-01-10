@@ -34,6 +34,8 @@ class TestOrder(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(SchemeAccount.objects.get(id=scheme_account.id).order, 6)
         self.assertEqual(PaymentCardAccount.objects.get(id=payment_card_account.id).order, 20)
+        if created:
+            bundle.delete()
 
     def test_scheme_list_other_bundle(self):
         scheme_account_entry = SchemeAccountEntryFactory()
@@ -62,3 +64,5 @@ class TestOrder(APITestCase):
         self.assertEqual(type(response.data), ReturnList)
         self.assertEqual(SchemeAccount.objects.get(id=scheme_account.id).order, 6)
         self.assertEqual(PaymentCardAccount.objects.get(id=payment_card_account.id).order, 20)
+        if created:
+            bundle.delete()
