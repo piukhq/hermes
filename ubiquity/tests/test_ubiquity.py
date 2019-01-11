@@ -292,8 +292,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 200)
         self.assertEqual(resp_membership.status_code, 200)
 
-        self.user.client.organisation.issuers.add(IssuerFactory())
-        self.user.client.organisation.schemes.add(SchemeFactory())
+        self.bundle.issuers.add(IssuerFactory())
+        self.bundle.schemes.add(SchemeFactory())
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
@@ -307,8 +307,8 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
-        self.user.client.organisation.issuers.add(IssuerFactory())
-        self.user.client.organisation.schemes.add(SchemeFactory())
+        self.bundle.issuers.add(IssuerFactory())
+        self.bundle.schemes.add(SchemeFactory())
 
         payload = {
             "card": {

@@ -30,11 +30,6 @@ class TestSchemeImages(APITestCase):
             scheme=cls.image.scheme,
             options=SchemeCredentialQuestion.LINK)
         cls.scheme = scheme_credential_question.scheme
-
-        cls.bundle, created = ClientApplicationBundle.objects.get_or_create(bundle_id='com.bink.wallet',
-                                                                            client=user.client)
-        cls.bundle.schemes.add(cls.scheme.id)
-
         super().setUpClass()
 
     def test_no_draft_images_in_schemes_list(self):
