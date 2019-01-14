@@ -190,7 +190,11 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        return SchemeAccount.objects.filter(user_set__id=user_id)
+        q = SchemeAccount.objects.filter(user_set__id=user_id)
+
+        if self.request.allowed_schemes:
+            return q.filter(scheme__id__in=self.request.allowed_schemes)
+        return q
 
     def post(self, request, *args, **kwargs):
         """
