@@ -9,12 +9,12 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
-from rest_framework.response import Response
 
 import analytics
 from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
-from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
+from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
+                           SchemeCredentialQuestion, UserConsent)
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -320,13 +320,19 @@ class SchemeAccountJoinMixin:
 
 
 class UpdateCredentialsMixin:
+
     @staticmethod
     def update_credentials(scheme_account, data):
+        """
+        :type scheme_account: scheme.models.SchemeAccount
+        :type data: dict
+        :rtype: dict
+        """
         serializer = UpdateCredentialSerializer(data=data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if 'consents' in data:
-            data.pop('consents')
+            del data['consents']
 
         updated_credentials = []
 
@@ -338,7 +344,30 @@ class UpdateCredentialsMixin:
 
         return {'updated': updated_credentials}
 
-    def check_for_existing_card_with_same_data(self, account, scheme_id, main_answer):
+    def replace_credentials_and_scheme(self, scheme_account, data, scheme_id):
+        """
+        :type scheme_account: scheme.models.SchemeAccount
+        :type data: dict
+        :type scheme_id: int
+        """
+        scheme = get_object_or_404(Scheme, id=scheme_id)
+        self._check_required_data_presence(scheme, data)
+
+        if scheme_account.scheme != scheme:
+            scheme_account.scheme = scheme
+            scheme_account.save()
+
+        scheme_account.schemeaccountcredentialanswer_set.all().delete()
+        return self.update_credentials(scheme_account, data)
+
+    @staticmethod
+    def card_with_same_data_already_exists(account, scheme_id, main_answer):
+        """
+        :type account: scheme.models.SchemeAccount
+        :type scheme_id: int
+        :type main_answer: string
+        :return:
+        """
         query = {
             'scheme_account__scheme': scheme_id,
             'scheme_account__is_deleted': False,
@@ -349,16 +378,37 @@ class UpdateCredentialsMixin:
         }
 
         if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
-            account.status = account.FAILED_UPDATE
-            account.save()
-            return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+            return True
+
+        return False
 
     @staticmethod
     def _get_new_answers(serializer, auth_fields):
+        """
+        :type serializer: ubiquity.serializers.UbiquityCreateSchemeAccountSerializer
+        :type auth_fields: dict
+        :rtype: (dict, int, str)
+        """
         data = serializer.validated_data
         scheme_id = data.pop('scheme')
-        data.pop('order')
+        del data['order']
         new_answers = {**data, **auth_fields}
         main_answer, *_ = data.values()
 
         return new_answers, scheme_id, main_answer
+
+    @staticmethod
+    def _check_required_data_presence(scheme, data):
+        """
+        :type scheme: scheme.models.Scheme
+        :type data: dict
+        """
+
+        query_value = [SchemeCredentialQuestion.ADD_FIELD, ]
+        if scheme.authorisation_required:
+            query_value.append(SchemeCredentialQuestion.AUTH_FIELD)
+
+        required_questions = scheme.questions.values('type').filter(field_type__in=query_value).all()
+        for question in required_questions:
+            if question['type'] not in data.keys():
+                raise ValidationError('required field {} is missing.'.format(question['type']))

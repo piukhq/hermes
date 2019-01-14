@@ -1,5 +1,4 @@
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
 
 import arrow
 import jwt

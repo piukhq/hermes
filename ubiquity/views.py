@@ -273,7 +273,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             new_answers['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, new_answers['password'])
 
         if manual_question and manual_question.type in new_answers:
-            self.check_for_existing_card_with_same_data(account, account.scheme, new_answers[manual_question.type])
+            if self.card_with_same_data_already_exists(account, account.scheme, new_answers[manual_question.type]):
+                account.status = account.FAILED_UPDATE
+                account.save()
+                return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
         self.update_credentials(account, new_answers)
         account.delete_cached_balance()
@@ -287,14 +290,16 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         serializer, auth_fields, enrol_fields = self._collect_membership_card_creation_data(request)
         new_answers, scheme_id, main_answer = self._get_new_answers(serializer, auth_fields)
 
-        self.check_for_existing_card_with_same_data(account, scheme_id, main_answer)
-        self.update_credentials(account, new_answers)
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+            raise ParseError('membership plan not allowed for this user.')
 
-        if account.scheme_id != scheme_id:
-            account.scheme_id = scheme_id
+        if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+            account.status = account.FAILED_UPDATE
             account.save()
+        else:
+            self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
-        return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+        return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -332,6 +337,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return out_fields
 
     def _collect_membership_card_creation_data(self, request):
+        """
+        :type request: ModelViewSet.request
+        :rtype: (ubiquity.serializers.UbiquityCreateSchemeAccountSerializer, dict, dict)
+        """
         try:
             if request.allowed_schemes and int(request.data['membership_plan']) not in request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
