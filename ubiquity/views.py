@@ -19,8 +19,9 @@ from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
-                                  PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
-                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
+                                  PaymentCardConsentSerializer, PaymentCardReplaceSerializer, PaymentCardSerializer,
+                                  PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
+                                  ServiceConsentSerializer, TransactionsSerializer,
                                   UbiquityCreateSchemeAccountSerializer)
 from ubiquity.tasks import async_link
 from user.models import CustomUser
@@ -79,6 +80,22 @@ class PaymentCardCreationMixin:
         PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+
+    def _collect_creation_data(self, request):
+        """
+        :type request: ModelViewSet.request
+        :rtype: (dict, dict)
+        """
+        try:
+            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
+            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
+                raise ParseError('issuer not allowed for this user.')
+
+            consent = request.data['account']['consents']
+        except (KeyError, ValueError):
+            raise ParseError
+
+        return pcard_data, consent
 
 
 class ServiceView(ModelViewSet):
@@ -187,7 +204,19 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
-        return Response("not implemented yet", status.HTTP_403_FORBIDDEN)
+        account = self.get_object()
+        pcard_data, consent = self._collect_creation_data(request)
+        if pcard_data['fingerprint'] != account.fingerprint:
+            raise ParseError('cannot override fingerprint.')
+
+        pcard_data['token'] = account.token
+        new_card_data = PaymentCardReplaceSerializer(data=pcard_data)
+        new_card_data.is_valid(raise_exception=True)
+        PaymentCardAccount.objects.filter(pk=account.pk).update(**new_card_data.validated_data)
+        # todo should we replace the consent too?
+
+        account.refresh_from_db()
+        return Response(self.get_serializer(account).data, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -216,15 +245,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        try:
-            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
-            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
-                raise ParseError('issuer not allowed for this user.')
-
-            consent = request.data['account']['consents']
-        except (KeyError, ValueError):
-            raise ParseError
-
+        pcard_data, consent = self._collect_creation_data(request)
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
             return Response(self.get_serializer(pcard).data, status=status_code)
