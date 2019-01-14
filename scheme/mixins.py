@@ -9,6 +9,7 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
 
 import analytics
 from hermes.traced_requests import requests
@@ -336,3 +337,28 @@ class UpdateCredentialsMixin:
             updated_credentials.append(credential_type)
 
         return {'updated': updated_credentials}
+
+    def check_for_existing_card_with_same_data(self, account, scheme_id, main_answer):
+        query = {
+            'scheme_account__scheme': scheme_id,
+            'scheme_account__is_deleted': False,
+            'answer': main_answer
+        }
+        exclude = {
+            'scheme_account': account
+        }
+
+        if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
+            account.status = account.FAILED_UPDATE
+            account.save()
+            return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _get_new_answers(serializer, auth_fields):
+        data = serializer.validated_data
+        scheme_id = data.pop('scheme')
+        data.pop('order')
+        new_answers = {**data, **auth_fields}
+        main_answer, *_ = data.values()
+
+        return new_answers, scheme_id, main_answer
