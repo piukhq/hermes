@@ -353,7 +353,7 @@ class SchemeAccount(models.Model):
         (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    JOIN_ACTION_REQUIRED = [CARD_NOT_REGISTERED]
+    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
                             ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
                             GENERAL_ERROR, JOIN_IN_PROGRESS]
@@ -528,8 +528,7 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        if self.status == SchemeAccount.PRE_REGISTERED_CARD:
-            self.status = SchemeAccount.JOIN
+        if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
             for answer in self.schemeaccountcredentialanswer_set.all():
                 answer.delete()
         if self.status != SchemeAccount.PENDING:
