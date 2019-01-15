@@ -181,7 +181,8 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
     def get_queryset(self):
         user_id = self.request.user.id
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
-        scheme_accounts = scheme_accounts.exclude(status=SchemeAccount.JOIN, scheme__status=Scheme.SUSPENDED)
+        scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
+                                                  scheme__status=Scheme.SUSPENDED)
 
         return scheme_accounts
 
