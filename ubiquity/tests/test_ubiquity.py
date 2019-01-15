@@ -150,6 +150,66 @@ class TestResources(APITestCase):
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_replace(self, *_):
+        pca = PaymentCardAccountFactory(token='original-token')
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
+        correct_payload = {
+            "card": {
+                "last_four_digits": "5234",
+                "currency_code": "GBP",
+                "first_six_digits": "523456",
+                "name_on_card": "test user 2",
+                "token": "token-to-ignore",
+                "fingerprint": str(pca.fingerprint),
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(correct_payload),
+                               content_type='application/json', **self.auth_headers)
+        pca.refresh_from_db()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(pca.token, 'original-token')
+        self.assertEqual(pca.pan_end, correct_payload['card']['last_four_digits'])
+
+        wrong_payload = {
+            "card": {
+                "last_four_digits": "5234",
+                "currency_code": "GBP",
+                "first_six_digits": "523456",
+                "name_on_card": "test user 2",
+                "token": "token-to-ignore",
+                "fingerprint": "this-is-not-{}".format(pca.fingerprint),
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(wrong_payload),
+                               content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
+
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')

@@ -81,7 +81,8 @@ class PaymentCardCreationMixin:
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _collect_creation_data(self, request):
+    @staticmethod
+    def _collect_creation_data(request):
         """
         :type request: ModelViewSet.request
         :rtype: (dict, dict)
