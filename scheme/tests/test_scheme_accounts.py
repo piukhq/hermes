@@ -80,12 +80,6 @@ class TestSchemeAccountViews(APITestCase):
 
         cls.scheme_account_image = SchemeAccountImageFactory()
 
-        cls.join_scheme = SchemeFactory(status=Scheme.ACTIVE)
-        join_card = SchemeAccountFactory(scheme=cls.join_scheme, status=SchemeAccount.JOIN)
-        error_join_card = SchemeAccountFactory(scheme=cls.join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
-        cls.join_entry = SchemeAccountEntryFactory(scheme_account=join_card)
-        cls.error_join_entry = SchemeAccountEntryFactory(scheme_account=error_join_card)
-
         super().setUpClass()
 
     def test_scheme_account_query(self):
@@ -457,36 +451,44 @@ class TestSchemeAccountViews(APITestCase):
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
 
     def test_list_schemes_accounts_with_suspended_scheme(self):
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.join_entry.user.create_token()}
+        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
+        join_entry = SchemeAccountEntryFactory(scheme_account=join_card)
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + join_entry.user.create_token()}
+
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertTrue(len(response.json()) > 0)
         scheme_account = response.json()[0]
         self.assertEqual(scheme_account['status_name'], 'Join')
-        self.assertEqual(scheme_account['scheme']['slug'], self.join_scheme.slug)
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
-        self.join_scheme.status = Scheme.SUSPENDED
-        self.join_scheme.save()
+        join_scheme.status = Scheme.SUSPENDED
+        join_scheme.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertEqual(response.json(), [])
 
-        self.join_scheme.status = Scheme.ACTIVE
-        self.join_scheme.save()
+        join_scheme.status = Scheme.ACTIVE
+        join_scheme.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertTrue(len(response.json()) > 0)
         scheme_account = response.json()[0]
         self.assertEqual(scheme_account['status_name'], 'Join')
-        self.assertEqual(scheme_account['scheme']['slug'], self.join_scheme.slug)
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
     def test_list_error_schemes_account_with_suspended_scheme(self):
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + self.error_join_entry.user.create_token()}
+        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        error_join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
+        error_join_entry = SchemeAccountEntryFactory(scheme_account=error_join_card)
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + error_join_entry.user.create_token()}
+
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertTrue(len(response.json()) > 0)
         scheme_account = response.json()[0]
         self.assertEqual(scheme_account['status_name'], 'Unknown Card number')
-        self.assertEqual(scheme_account['scheme']['slug'], self.join_scheme.slug)
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
-        self.join_scheme.status = Scheme.SUSPENDED
-        self.join_scheme.save()
+        join_scheme.status = Scheme.SUSPENDED
+        join_scheme.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertEqual(response.json(), [])
 
