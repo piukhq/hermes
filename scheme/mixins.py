@@ -154,7 +154,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account = SchemeAccount.objects.get(
                     user_set__id=user.id,
                     scheme_id=data['scheme'],
-                    status=SchemeAccount.JOIN,
+                    status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
                     is_deleted=False
                 )
 
@@ -259,7 +259,7 @@ class SchemeAccountJoinMixin:
                 scheme_account = SchemeAccount.objects.get(
                     user_set__id=user.id,
                     scheme_id=scheme_id,
-                    status=SchemeAccount.JOIN
+                    status__in=SchemeAccount.JOIN_ACTION_REQUIRED
                 )
 
                 scheme_account.order = data['order']
