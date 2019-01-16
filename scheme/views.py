@@ -85,7 +85,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(user_set__id=self.request.user.id)
+        queryset = SchemeAccount.objects.filter(user_set__id=self.request.user.id)
+        if self.request.allowed_schemes:
+            return queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        return queryset
 
     def delete(self, request, *args, **kwargs):
         """
