@@ -345,6 +345,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
+            if self.request.allowed_schemes:
+                queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
             queryset = queryset.filter(user_set__id=self.request.user.id)
         return queryset
 
