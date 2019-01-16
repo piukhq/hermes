@@ -9,6 +9,7 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
+from django.http import Http404
 
 import analytics
 from hermes.traced_requests import requests
@@ -195,6 +196,10 @@ class SchemeAccountJoinMixin:
 
     def handle_join_request(self, request, *args, **kwargs):
         scheme_id = int(kwargs['pk'])
+
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+            raise Http404
+
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
         if join_scheme.status == Scheme.SUSPENDED:

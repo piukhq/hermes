@@ -139,7 +139,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
+        queryset = SchemeAccount.objects
+        if self.request.allowed_schemes:
+            queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account, request.user)
@@ -152,7 +155,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
+        queryset = SchemeAccount.objects
+        if self.request.allowed_schemes:
+            queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         if scheme_account.scheme.status == Scheme.SUSPENDED:
             return Response({
