@@ -1,9 +1,13 @@
 import re
 import uuid
 
+from hermes import settings as project_settings
 from hermes.traced_requests import requests
+from datetime import datetime
 from django.conf import settings
 from django.db import transaction
+from requests import request
+from requests.exceptions import HTTPError, RequestException
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -138,6 +142,11 @@ class ServiceView(ModelViewSet):
         request.user.serviceconsent.delete()
         request.user.is_active = False
         request.user.save()
+
+        try:    # send user info
+            send_data_to_atlas(response)
+        except (HTTPError, RequestException, Exception) as e:
+            pass
         return Response(response)
 
     def _add_consent(self, user, consent_data):
@@ -151,6 +160,31 @@ class ServiceView(ModelViewSet):
             raise ParseError
 
         return consent
+
+
+def send_data_to_atlas(response):
+    url = "{host}:{port}/ubiquity_user/save".format(host=project_settings.ATLAS_HOST, port=project_settings.ATLAS_PORT)
+
+    date = datetime.fromtimestamp(response['consent']['timestamp'])
+
+    data = {
+        'email': response['consent']['email'],
+        'opt_out_timestamp': date.strftime("%Y-%m-%d %H:%M:%S"),
+        'delete': 'False'
+    }
+
+    try:
+        request("POST", url=url, headers=request_header(), json=data)
+    except (HTTPError, RequestException, Exception) as e:
+        raise e
+
+
+def request_header():
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Token {}'.format(project_settings.ATLAS_SERVICE_API_KEY)
+    }
+    return headers
 
 
 class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):

@@ -415,3 +415,7 @@ DATADOG_TRACE = {
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+
+ATLAS_HOST = env_var('ATLAS_HOST', 'http://localhost')
+ATLAS_PORT = env_var('ATLAS_PORT', '8001')
+ATLAS_SERVICE_API_KEY = 'F326FD4790FBE2D74418AF059FD3J'
