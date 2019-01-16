@@ -575,4 +575,3 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         """
         message, status_code = self.handle_join_request(request, *args, **kwargs)
         return Response(message, status=status_code)
-
