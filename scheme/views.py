@@ -292,6 +292,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             needs_saving = True
 
         if user.client_id == settings.BINK_CLIENT_ID:
+            if 'event_name' in request.data:
+                analytics.post_event(
+                    user,
+                    request.data['event_name'],
+                    metadata=request.data['metadata'],
+                    to_intercom=True
+                )
+
             if new_status_code != scheme_account.status:
                 analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
                 scheme_account.status = new_status_code
@@ -567,3 +575,4 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         """
         message, status_code = self.handle_join_request(request, *args, **kwargs)
         return Response(message, status=status_code)
+
