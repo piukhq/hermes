@@ -511,9 +511,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], 1)
         self.assertTrue(mock_notify_rollback.called)
 
+    @patch.object(settings, 'ROLLBACK_TRANSACTIONS_URL')
     @patch('scheme.views.sentry')
     @patch('scheme.views.requests.post')
-    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
+    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry, _):
         UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
                                                                datetime.datetime.now())
 
