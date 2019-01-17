@@ -222,7 +222,7 @@ HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
 HADES_URL = env_var('HADES_URL', 'http://dev.hades.loyaltyangels.local')
 MNEMOSYNE_URL = env_var('MNEMOSYNE_URL', None)
-ROLLBACK_TRANSACTIONS_URL = env_var('ROLLBACK_TRANSACTIONS_URL', 'http://127.0.0.1:8001')
+ROLLBACK_TRANSACTIONS_URL = env_var('ROLLBACK_TRANSACTIONS_URL', None)
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 

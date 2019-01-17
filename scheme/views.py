@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 from io import StringIO
 
 import requests
@@ -307,27 +308,30 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         :type scheme_account: scheme.models.SchemeAccount
         :type join_date: datetime.datetime
         """
-        user_id = scheme_account.get_transaction_matching_user_id()
-        payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
-        data = json.dumps({
-            'date_joined': join_date.date().isoformat(),
-            'scheme_provider': scheme_slug,
-            'payment_card_token': [card['token'] for card in payment_cards],
-            'user_id': user_id,
-            'credentials': scheme_account.credentials(),
-            'loyalty_card_id': scheme_account.third_party_identifier,
-            'scheme_account_id': scheme_account.id,
-        })
-        headers = {
-            'Content-Type': "application/json",
-            'Authorization': "token " + SERVICE_API_KEY,
-        }
-        try:
-            resp = requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data, headers=headers)
-            resp.raise_for_status()
-        except requests.exceptions.RequestException:
-            if HERMES_SENTRY_DSN:
-                sentry.captureException()
+        if ROLLBACK_TRANSACTIONS_URL:
+            user_id = scheme_account.get_transaction_matching_user_id()
+            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
+            data = json.dumps({
+                'date_joined': join_date.date().isoformat(),
+                'scheme_provider': scheme_slug,
+                'payment_card_token': [card['token'] for card in payment_cards],
+                'user_id': user_id,
+                'credentials': scheme_account.credentials(),
+                'loyalty_card_id': scheme_account.third_party_identifier,
+                'scheme_account_id': scheme_account.id,
+            })
+            headers = {
+                'Content-Type': "application/json",
+                'Authorization': "token " + SERVICE_API_KEY,
+            }
+            try:
+                resp = requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
+                                     headers=headers)
+                resp.raise_for_status()
+            except requests.exceptions.RequestException:
+                logging.exception('Failed to send join data to thanatos.')
+                if HERMES_SENTRY_DSN:
+                    sentry.captureException()
 
 
 class Pagination(PageNumberPagination):
