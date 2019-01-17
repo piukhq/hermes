@@ -514,12 +514,9 @@ class TestSchemeAccountViews(APITestCase):
     @patch('scheme.views.sentry')
     @patch('scheme.views.requests.post')
     def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
-        temp = settings.ROLLBACK_TRANSACTIONS_URL
-        settings.ROLLBACK_TRANSACTIONS_URL = 'http://temp.url'
         UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
                                                                datetime.datetime.now())
 
-        settings.ROLLBACK_TRANSACTIONS_URL = temp
         self.assertFalse(mock_sentry.captureException.called)
         self.assertTrue(mock_post.called)
 

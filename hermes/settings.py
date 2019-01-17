@@ -222,7 +222,6 @@ HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
 HADES_URL = env_var('HADES_URL', 'http://dev.hades.loyaltyangels.local')
 MNEMOSYNE_URL = env_var('MNEMOSYNE_URL', None)
-ROLLBACK_TRANSACTIONS_URL = env_var('ROLLBACK_TRANSACTIONS_URL', None)
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 
@@ -416,3 +415,4 @@ DATADOG_TRACE = {
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
