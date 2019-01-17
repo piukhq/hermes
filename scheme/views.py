@@ -573,5 +573,8 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         Register a new loyalty account on the requested scheme,
         Link the newly created loyalty account with the created scheme account.
         """
+        scheme_id = int(kwargs['pk'])
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+            return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
         message, status_code = self.handle_join_request(request, *args, **kwargs)
         return Response(message, status=status_code)
