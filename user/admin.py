@@ -101,6 +101,25 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
     search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
     filter_horizontal = ('schemes', 'issuers')
     list_filter = ('client__organisation__name', 'client__name', 'issuers', 'schemes')
+    fieldsets = (
+        (None, {
+            'fields': ('bundle_id', 'client')
+        }),
+        ('Choose which Schemes are permitted', {
+            'classes': ('wide',),
+            'description': "<h3 style='color:red;'>Note: To activate this feature make at least one choice."
+                           "  All schemes will be permitted until a choice is made</h3>",
+            'fields': ('schemes', ),
+        }),
+        ('For Ubiquity choose which Issuers are permitted', {
+            'classes': ('wide',),
+            'description': "<h3 style='color:red;'>Note: To activate this feature for Ubiquity"
+                           " make at least one choice."
+                           "  All issuers will be permitted until a choice is made</h3>",
+            'fields': ('issuers',),
+        }),
+    )
+
 
 
 @admin.register(Organisation)
