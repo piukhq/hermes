@@ -121,7 +121,6 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
     )
 
 
-
 @admin.register(Organisation)
 class OrganisationAdmin(admin.ModelAdmin):
     list_display = ('name',)
