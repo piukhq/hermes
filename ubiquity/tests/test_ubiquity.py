@@ -6,7 +6,6 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
@@ -551,7 +550,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_composite_membership_card_put(self, mock_date, *_):
+    def test_membership_card_put(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
         payload = {
@@ -581,13 +580,10 @@ class TestResources(APITestCase):
         account_id = resp.data['id']
         self.assertEqual(resp.status_code, 201)
         self.assertIn(expected_links, resp.json()['payment_cards'])
-        payment_link = None
-        try:
-            payment_link = PaymentCardSchemeEntry.objects.get(scheme_account=account_id,
-                                                              payment_card_account=new_pca.id)
-        except (ObjectDoesNotExist, MultipleObjectsReturned):
-            self.assertTrue(False)
-        self.assertIsInstance(payment_link, PaymentCardSchemeEntry)
+
+        payment_link = PaymentCardSchemeEntry.objects.filter(scheme_account=account_id, payment_card_account=new_pca.id)
+        self.assertEqual(1, payment_link.count())
+
         payload_put = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -611,82 +607,8 @@ class TestResources(APITestCase):
         self.assertEqual(account_id, resp_put.data['id'])
         scheme_account = SchemeAccount.objects.get(id=account_id)
         self.assertEqual(account_id, scheme_account.id)
-        reply = json.loads(resp_put.rendered_content)
-        self.assertEqual(reply['card']['barcode'], "1234401022699099")
-        self.assertFalse(PaymentCardSchemeEntry.objects.filter(id=payment_link.id).exists())
-
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
-    @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_composite_membership_card_put_fail(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022657083"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test Composite"
-                    }
-                ]
-            }
-        }
-        expected_links = {
-            'id': new_pca.id,
-            'active_link': True
-        }
-
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
-        account_id = resp.data['id']
-        self.assertEqual(resp.status_code, 201)
-        self.assertIn(expected_links, resp.json()['payment_cards'])
-        payment_link = None
-        try:
-            payment_link = PaymentCardSchemeEntry.objects.get(scheme_account=account_id,
-                                                              payment_card_account=new_pca.id)
-        except (ObjectDoesNotExist, MultipleObjectsReturned):
-            self.assertTrue(False)
-        self.assertIsInstance(payment_link, PaymentCardSchemeEntry)
-        # membership plan in wrong place
-        payload_put = {
-
-            "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022699099"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test Composite"
-                    }
-                ],
-                "membership_plan": self.scheme.id,
-            }
-        }
-        resp_put = self.client.put(reverse('membership-card', args=[account_id]), data=json.dumps(payload_put),
-                                   content_type='application/json', **self.auth_headers)
-        self.assertEqual(resp_put.status_code, 400)
-        scheme_account = SchemeAccount.objects.get(id=account_id)
-        self.assertEqual(account_id, scheme_account.id)
-        reply = json.loads(resp_put.rendered_content)
-        self.assertEqual(reply['detail'], "Malformed request.")
-        self.assertEqual(scheme_account.barcode, "1234401022657083")
-        self.assertTrue(PaymentCardSchemeEntry.objects.filter(id=payment_link.id).exists())
+        self.assertEqual(resp_put.json()['card']['barcode'], "1234401022699099")
+        self.assertTrue(payment_link.exists())
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
