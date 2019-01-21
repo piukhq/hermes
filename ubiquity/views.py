@@ -170,7 +170,6 @@ def send_data_to_atlas(response):
     data = {
         'email': response['consent']['email'],
         'opt_out_timestamp': date.strftime("%Y-%m-%d %H:%M:%S"),
-        'delete': 'False'
     }
 
     try:
