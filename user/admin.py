@@ -117,20 +117,22 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
             choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
                                  " immediately</h3>"
         elif obj:
-            choice_description = "<h3 style='color:red;>Warning if the Bink app uses this id existing users may" \
+            choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this id existing users may" \
                                  " need to re-login before choices take effect</h3>"
         else:
             choice_description = "<h3 style='color:red;'>Note: To activate this feature make at least one choice." \
                                  " All schemes will be permitted until a choice is made</h3><h3>For the Bink app " \
                                  "only the choices made in 'com.bink.wallet' will take effect immediately - for" \
                                  " existing users any other Bink app bundle id would require the user to login</h3>"
+
         if allowed_schemes:
             if bundle_id == 'com.bink.wallet':
                 choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
                                      " immediately</h3>"
             else:
-                choice_description = "<h3 style='color:red;>Warning if the Bink app uses this id existing users may" \
-                                     " need to re-login before choices take effect</h3>"
+                choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing" \
+                                     " users may need to re-login before choices take effect</h3>"
+
             return_fields += (
                                  ('Choose which Schemes are permitted',
                                   {
