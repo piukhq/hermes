@@ -6,6 +6,7 @@ from hermes.traced_requests import requests
 from datetime import datetime
 from django.conf import settings
 from django.db import transaction
+from raven.contrib.django.raven_compat.models import client as sentry
 from requests import request
 from requests.exceptions import HTTPError, RequestException
 from rest_framework import status
@@ -145,7 +146,8 @@ class ServiceView(ModelViewSet):
 
         try:    # send user info
             send_data_to_atlas(response)
-        except (HTTPError, RequestException, Exception) as e:
+        except (HTTPError, RequestException, Exception):
+            sentry.captureexception()
             pass
         return Response(response)
 
