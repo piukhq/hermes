@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 
 import requests
+from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -17,7 +18,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from django.conf import settings
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
