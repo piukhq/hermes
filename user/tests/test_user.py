@@ -434,7 +434,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], new_email)
 
-    def test_edit_unique_email(self):
+    def test_edit_duplicate_email(self):
         user_profile1 = UserProfileFactory()
         user_profile2 = UserProfileFactory()
         data = {
@@ -445,9 +445,9 @@ class TestUserProfileViews(TestCase):
         }
         client = Client()
         response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['email'], ['This field must be unique.'])
+        self.assertNotEqual(content['email'], ['This field must be unique.'])
 
     def test_cannot_edit_uid(self):
         # You cannot edit uid, but if you try you still get a 200.

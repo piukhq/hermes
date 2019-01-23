@@ -12,13 +12,14 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import (ConsentStatus, JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer,
+from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, UserConsent, Scheme)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory,
                                     UserConsentFactory)
+from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.models import Setting
@@ -61,7 +62,7 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_account_consent2 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata2,
                                                          status=ConsentStatus.SUCCESS)
 
-        cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
+        cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='', tier=Scheme.PLL)
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
         barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
                                                            type=BARCODE,
@@ -540,7 +541,8 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-    def test_scheme_account_update_status(self):
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_update_status(self, mock_notify_rollback):
         data = {
             'status': 9,
             'journey': 'join'
@@ -550,6 +552,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['status'], 9)
+        self.assertFalse(mock_notify_rollback.called)
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
@@ -560,6 +563,28 @@ class TestSchemeAccountViews(APITestCase):
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
+
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback):
+        data = {
+            'status': 1,
+            'journey': 'join'
+        }
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data=data,
+                                    **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.scheme_account1.id)
+        self.assertEqual(response.data['status'], 1)
+        self.assertTrue(mock_notify_rollback.called)
+
+    @patch('scheme.views.sentry')
+    @patch('scheme.views.requests.post')
+    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
+        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
+                                                               datetime.datetime.now())
+
+        self.assertFalse(mock_sentry.captureException.called)
+        self.assertTrue(mock_post.called)
 
     def test_scheme_accounts_active(self):
         scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
