@@ -475,6 +475,48 @@ class TestSchemeAccountViews(APITestCase):
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
 
+    def test_list_schemes_accounts_with_suspended_scheme(self):
+        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
+        join_entry = SchemeAccountEntryFactory(scheme_account=join_card)
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + join_entry.user.create_token()}
+
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertTrue(len(response.json()) > 0)
+        scheme_account = response.json()[0]
+        self.assertEqual(scheme_account['status_name'], 'Join')
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
+
+        join_scheme.status = Scheme.SUSPENDED
+        join_scheme.save()
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertEqual(response.json(), [])
+
+        join_scheme.status = Scheme.ACTIVE
+        join_scheme.save()
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertTrue(len(response.json()) > 0)
+        scheme_account = response.json()[0]
+        self.assertEqual(scheme_account['status_name'], 'Join')
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
+
+    def test_list_error_schemes_account_with_suspended_scheme(self):
+        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        error_join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
+        error_join_entry = SchemeAccountEntryFactory(scheme_account=error_join_card)
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + error_join_entry.user.create_token()}
+
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertTrue(len(response.json()) > 0)
+        scheme_account = response.json()[0]
+        self.assertEqual(scheme_account['status_name'], 'Unknown Card number')
+        self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
+
+        join_scheme.status = Scheme.SUSPENDED
+        join_scheme.save()
+        response = self.client.get('/schemes/accounts', **auth_headers)
+        self.assertEqual(response.json(), [])
+
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     def test_wallet_only(self, mock_date, mock_update_attr):
