@@ -12,13 +12,14 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
-from scheme.models import (ConsentStatus, JourneyTypes, SchemeAccount, SchemeAccountCredentialAnswer,
+from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, UserConsent)
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory,
                                     UserConsentFactory)
+from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.models import Setting
@@ -61,7 +62,7 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_account_consent2 = UserConsentFactory(scheme_account=cls.scheme_account, metadata=metadata2,
                                                          status=ConsentStatus.SUCCESS)
 
-        cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='')
+        cls.scheme1 = SchemeFactory(card_number_regex=r'(^[0-9]{16})', card_number_prefix='', tier=Scheme.PLL)
         cls.scheme_account1 = SchemeAccountFactory(scheme=cls.scheme1)
         barcode_question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
                                                            type=BARCODE,
@@ -119,6 +120,29 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(data['order'], 0)
         self.assertEqual(data['scheme'], join_scheme.id)
         self.assertEqual(data['username'], 'test')
+        self.assertTrue(mock_send_to_mnemosyne.called)
+
+    @patch('analytics.api._send_to_mnemosyne')
+    def test_join_account_with_error_join_card(self, mock_send_to_mnemosyne):
+        join_scheme = SchemeFactory()
+        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
+        join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
+        SchemeAccountEntryFactory(scheme_account=join_account, user=self.user)
+
+        response = self.client.post('/schemes/accounts', data={
+            'scheme': join_scheme.id,
+            'order': 0,
+            question: 'test',
+        }, **self.auth_headers)
+
+        self.assertEqual(response.status_code, 201)
+
+        data = response.json()
+        self.assertEqual(data['id'], join_account.id)
+        self.assertEqual(data['order'], 0)
+        self.assertEqual(data['scheme'], join_scheme.id)
+        self.assertEqual(data['username'], 'test')
+        self.assertTrue(mock_send_to_mnemosyne.called)
 
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
@@ -401,7 +425,8 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(response.status_code, 201)
         scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, 900)
+        self.assertEqual(scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
+        self.assertEqual(scheme_account.display_status, SchemeAccount.JOIN)
         credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
         self.assertEqual(len(credentials), 0)
 
@@ -441,7 +466,8 @@ class TestSchemeAccountViews(APITestCase):
             }
         )
 
-    def test_scheme_account_update_status(self):
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_update_status(self, mock_notify_rollback):
         data = {
             'status': 9,
             'journey': 'join'
@@ -451,6 +477,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['status'], 9)
+        self.assertFalse(mock_notify_rollback.called)
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
@@ -462,6 +489,28 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
+
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback):
+        data = {
+            'status': 1,
+            'journey': 'join'
+        }
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data=data,
+                                    **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.scheme_account1.id)
+        self.assertEqual(response.data['status'], 1)
+        self.assertTrue(mock_notify_rollback.called)
+
+    @patch('scheme.views.sentry')
+    @patch('scheme.views.requests.post')
+    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
+        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
+                                                               datetime.datetime.now())
+
+        self.assertFalse(mock_sentry.captureException.called)
+        self.assertTrue(mock_post.called)
 
     def test_scheme_accounts_active(self):
         scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
@@ -1097,6 +1146,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_card_not_registered(self, mock_request):
@@ -1108,6 +1158,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.JOIN)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_card_number_error(self, mock_request):
@@ -1119,6 +1170,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_general_error(self, mock_request):
@@ -1130,6 +1182,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_error(self, mock_request):
@@ -1140,8 +1193,8 @@ class TestSchemeAccountModel(APITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, test_status)\
-
+        self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
@@ -1153,6 +1206,7 @@ class TestSchemeAccountModel(APITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
 
 class TestAccessTokens(APITestCase):
