@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 
 import requests
+from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -17,7 +18,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from hermes.settings import HERMES_SENTRY_DSN, ROLLBACK_TRANSACTIONS_URL, SERVICE_API_KEY
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -94,6 +94,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         if instance.user_set.count() < 1:
             instance.is_deleted = True
             instance.save()
+
+            if request.user.client_id == settings.BINK_CLIENT_ID:
+                analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
+
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
             analytics.update_scheme_account_attribute(instance, request.user)
 
@@ -157,8 +161,13 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
 
         serializer.is_valid(raise_exception=True)
 
+        old_status = scheme_account.status
+
         response_data = self.link_account(serializer, scheme_account, request.user)
         scheme_account.save()
+
+        if request.user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, request.user, old_status)
 
         out_serializer = ResponseLinkSerializer(response_data)
 
@@ -246,17 +255,19 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
         SchemeAccountEntry.objects.create(scheme_account=account, user=user)
 
-        metadata = {
-            'company name': scheme.company,
-            'slug': scheme.slug
-        }
-        analytics.post_event(
-            user,
-            analytics.events.ISSUED_JOIN_CARD_EVENT,
-            metadata,
-            True
-        )
-        analytics.update_scheme_account_attribute(account, user)
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(account, user)
+
+            metadata = {
+                'company name': scheme.company,
+                'slug': scheme.slug
+            }
+            analytics.post_event(
+                user,
+                analytics.events.ISSUED_JOIN_CARD_EVENT,
+                metadata,
+                True
+            )
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -281,6 +292,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
 
+        link_scheme_to_user = SchemeAccountEntry.objects.get(scheme_account=scheme_account.id)
+        user = CustomUser.objects.get(id=link_scheme_to_user.user.id)
+
         needs_saving = False
 
         if journey == 'join':
@@ -293,9 +307,11 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
             needs_saving = True
 
-        if new_status_code != scheme_account.status:
-            scheme_account.status = new_status_code
-            needs_saving = True
+        if user.client_id == settings.BINK_CLIENT_ID:
+            if new_status_code != scheme_account.status:
+                analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                scheme_account.status = new_status_code
+                needs_saving = True
 
         if needs_saving:
             scheme_account.save()
@@ -312,7 +328,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         :type scheme_account: scheme.models.SchemeAccount
         :type join_date: datetime.datetime
         """
-        if ROLLBACK_TRANSACTIONS_URL:
+        if settings.ROLLBACK_TRANSACTIONS_URL:
             user_id = scheme_account.get_transaction_matching_user_id()
             payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
             data = json.dumps({
@@ -326,15 +342,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             })
             headers = {
                 'Content-Type': "application/json",
-                'Authorization': "token " + SERVICE_API_KEY,
+                'Authorization': "token " + settings.SERVICE_API_KEY,
             }
             try:
-                resp = requests.post(ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
+                resp = requests.post(settings.ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
                                      headers=headers)
                 resp.raise_for_status()
             except requests.exceptions.RequestException:
                 logging.exception('Failed to send join data to thanatos.')
-                if HERMES_SENTRY_DSN:
+                if settings.HERMES_SENTRY_DSN:
                     sentry.captureException()
 
 

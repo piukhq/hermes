@@ -4,6 +4,8 @@ import time
 from hermes.traced_requests import requests
 from django.conf import settings
 from raven.contrib.django.raven_compat.models import client as sentry
+from scheme.models import SchemeAccount
+
 
 OLYMPUS_SERVICE_TRACKING_TYPE = 6  # Defined in Mnemosyne project
 SETTING_CUSTOM_ATTRIBUTES = ['marketing-bink', 'marketing-external']
@@ -39,19 +41,44 @@ def reset_user_settings(user):
     update_attributes(user, dict((attr_name, None) for attr_name in SETTING_CUSTOM_ATTRIBUTES))
 
 
-def update_scheme_account_attribute(account, user):
-    update_attribute(user, account.scheme.company, "{},{},{},{}".format(
-        str(account.is_deleted).lower(),
-        account.status_key,
-        _get_today_datetime().strftime("%Y/%m/%d"),
-        account.scheme.slug
-    ))
+def get_status(status):
+    if status is not None:
+        for stat in SchemeAccount.STATUSES:
+            if stat[0] == status:
+                return stat[1]
+    return status
 
 
-def update_attribute(user, key, value):
-    update_attributes(user, {
-        key: value
-    })
+def update_scheme_account_attribute_new_status(account, user, new_status):
+    current_status = get_status(new_status)
+
+    attributes = {
+        account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
+            str(account.is_deleted).lower(),
+            current_status,
+            _get_today_datetime().strftime("%Y/%m/%d"),
+            account.scheme.slug,
+            account.status_key,
+            current_status
+        )}
+
+    update_attributes(user, attributes)
+
+
+def update_scheme_account_attribute(account, user, old_status=None):
+    previous_status = get_status(old_status)
+
+    attributes = {
+        account.scheme.company: "{},{},{},{},prev_{},current_{}".format(
+            str(account.is_deleted).lower(),
+            account.status_key,
+            _get_today_datetime().strftime("%Y/%m/%d"),
+            account.scheme.slug,
+            previous_status,
+            account.status_key
+        )}
+
+    update_attributes(user, attributes)
 
 
 def update_attributes(user, attributes):
