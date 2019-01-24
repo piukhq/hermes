@@ -144,7 +144,7 @@ class ServiceView(ModelViewSet):
         request.user.is_active = False
         request.user.save()
 
-        try:    # send user info
+        try:    # send user info to be persisted in Atlas
             send_data_to_atlas(response)
         except (HTTPError, RequestException, Exception):
             sentry.captureexception()
@@ -168,7 +168,6 @@ def send_data_to_atlas(response):
     url = "{host}:{port}/ubiquity_user/save".format(host=project_settings.ATLAS_HOST, port=project_settings.ATLAS_PORT)
 
     date = datetime.fromtimestamp(response['consent']['timestamp'])
-
     data = {
         'email': response['consent']['email'],
         'opt_out_timestamp': date.strftime("%Y-%m-%d %H:%M:%S"),
