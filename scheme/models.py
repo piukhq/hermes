@@ -45,11 +45,15 @@ def _default_transaction_headers():
 
 
 class Scheme(models.Model):
+    PLL = 1
+    BASIC = 2
+    PARTNER = 3
     TIERS = (
         (1, 'PLL'),
         (2, 'Basic'),
         (3, 'Partner'),
     )
+    TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
         (1, 'QrCode'),
@@ -621,6 +625,15 @@ class SchemeAccount(models.Model):
                 except IndexError:
                     return None
         return None
+
+    def get_transaction_matching_user_id(self):
+        bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
+        if bink_user.exists():
+            user_id = bink_user.first().get('id')
+        else:
+            user_id = self.user_set.order_by('date_joined').values('id').first().get('id')
+
+        return user_id
 
     @property
     def barcode(self):
