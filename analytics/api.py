@@ -19,7 +19,7 @@ class PushError(Exception):
 def post_event(user, event_name, metadata=None, to_intercom=False):
     event = {
         'time': _current_unix_timestamp(),
-        'type': OLYMPUS_SERVICE_TRACKING_TYPE,
+        'type': str(OLYMPUS_SERVICE_TRACKING_TYPE),
         'id': event_name,
         'intercom': to_intercom,
     }
