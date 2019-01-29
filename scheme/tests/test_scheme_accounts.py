@@ -22,7 +22,7 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
 from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.models import Setting
+from user.models import Setting, CustomUser
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
 
 
@@ -532,7 +532,7 @@ class TestSchemeAccountViews(APITestCase):
     def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback):
 
         user_info = {
-            'user_set': '1,2,3'
+            'user_set': '1,2'
         }
 
         data = {
@@ -561,11 +561,15 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback):
+        user_info = {
+            'user_set': '1'
+        }
         data = {
             'status': 1,
-            'journey': 'join'
+            'journey': 'join',
+            'user_info': user_info
         }
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data=data,
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data, format='json',
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account1.id)
