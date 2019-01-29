@@ -510,11 +510,38 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_update_status(self, mock_notify_rollback):
+
+        user_info = {
+            'user_set': '1'
+        }
+
         data = {
             'status': 9,
-            'journey': 'join'
+            'journey': 'join',
+            'user_info': user_info
         }
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id), data=data,
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
+                                    data, format='json',
+                                    **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], self.scheme_account.id)
+        self.assertEqual(response.data['status'], 9)
+        self.assertFalse(mock_notify_rollback.called)
+
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback):
+
+        user_info = {
+            'user_set': '1,2,3'
+        }
+
+        data = {
+            'status': 9,
+            'journey': 'join',
+            'user_info': user_info
+        }
+        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
+                                    data, format='json',
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account.id)

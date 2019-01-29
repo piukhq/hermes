@@ -292,37 +292,35 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
 
-        link_scheme_to_user = SchemeAccountEntry.objects.get(scheme_account=scheme_account.id)
-        user = CustomUser.objects.get(id=link_scheme_to_user.user.id)
+        # In case multiple SchemeAccountEntry objects returned loop through and link user returned from midas
+        user_set_from_midas = request.data['user_info']['user_set']
+        user_ids = [int(id) for id in user_set_from_midas.split(',')]
 
-        needs_saving = False
+        for user_id in user_ids:
+            user = CustomUser.objects.get(id=user_id)
+
+            if user.client_id == settings.BINK_CLIENT_ID:
+                if 'event_name' in request.data:
+                    analytics.post_event(
+                        user,
+                        request.data['event_name'],
+                        metadata=request.data['metadata'],
+                        to_intercom=True
+                    )
+
+                if new_status_code != scheme_account.status:
+                    analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                    scheme_account.status = new_status_code
+                    scheme_account.save()
 
         if journey == 'join':
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
+            scheme_account.save()
 
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
-
-            needs_saving = True
-
-        if user.client_id == settings.BINK_CLIENT_ID:
-            if 'event_name' in request.data:
-                analytics.post_event(
-                    user,
-                    request.data['event_name'],
-                    metadata=request.data['metadata'],
-                    to_intercom=True
-                )
-
-            if new_status_code != scheme_account.status:
-                analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
-                scheme_account.status = new_status_code
-                needs_saving = True
-
-        if needs_saving:
-            scheme_account.save()
 
         return Response({
             'id': scheme_account.id,
