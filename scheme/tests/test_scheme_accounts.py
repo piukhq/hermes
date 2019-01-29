@@ -22,7 +22,7 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
 from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.models import Setting, CustomUser
+from user.models import Setting
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
 
 
