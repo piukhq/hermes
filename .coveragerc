@@ -2,10 +2,14 @@
 omit = *migrations*
        *test*
        *templates*
+       payment_card/admin.py
+       ubiquity/admin.py
+       user/admin.py
        user/exceptions.py
        manage.py
        hermes/wsgi.py
        hermes/runners.py
+       ubiquity/influx_audit.py
 branch = True
 
 [report]
