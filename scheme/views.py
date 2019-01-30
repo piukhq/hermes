@@ -291,43 +291,43 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
-
-        link_scheme_to_user = SchemeAccountEntry.objects.get(scheme_account=scheme_account.id)
-        user = CustomUser.objects.get(id=link_scheme_to_user.user.id)
-
-        needs_saving = False
+        # method that sends data to Mnemosyne
+        self.send_to_intercom(new_status_code, scheme_account)
 
         if journey == 'join':
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
+            scheme_account.save()
 
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
-
-            needs_saving = True
-
-        if user.client_id == settings.BINK_CLIENT_ID:
-            if 'event_name' in request.data:
-                analytics.post_event(
-                    user,
-                    request.data['event_name'],
-                    metadata=request.data['metadata'],
-                    to_intercom=True
-                )
-
-            if new_status_code != scheme_account.status:
-                analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
-                scheme_account.status = new_status_code
-                needs_saving = True
-
-        if needs_saving:
-            scheme_account.save()
 
         return Response({
             'id': scheme_account.id,
             'status': new_status_code
         })
+
+    def send_to_intercom(self, new_status_code, scheme_account):
+        user_set_from_midas = self.request.data['user_info']['user_set']
+        user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+
+        for user_id in user_ids:
+            user = CustomUser.objects.get(id=user_id)
+
+            if user.client_id == settings.BINK_CLIENT_ID:
+                if 'event_name' in self.request.data:
+                    analytics.post_event(
+                        user,
+                        self.request.data['event_name'],
+                        metadata=self.request.data['metadata'],
+                        to_intercom=True
+                    )
+
+                if new_status_code != scheme_account.status:
+                    analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                    scheme_account.status = new_status_code
+                    scheme_account.save()
 
     @staticmethod
     def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
