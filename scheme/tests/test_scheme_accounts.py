@@ -73,6 +73,7 @@ class TestSchemeAccountViews(APITestCase):
                                                                           scheme_account=cls.scheme_account1)
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
         SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
+        SchemeAccountEntryFactory(scheme_account=cls.scheme_account1)
         cls.user = cls.scheme_account_entry.user
 
         cls.scheme.save()
@@ -531,8 +532,12 @@ class TestSchemeAccountViews(APITestCase):
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback):
 
+        entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
+        user_set = [str(entry.user.id) for entry in entries]
+        self.assertTrue(len(user_set) > 1)
+
         user_info = {
-            'user_set': '1,2'
+            'user_set': ','.join(user_set)
         }
 
         data = {
