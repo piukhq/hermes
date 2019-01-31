@@ -3,7 +3,6 @@ from collections import OrderedDict
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
-from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
@@ -185,7 +184,7 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
     uid = serializers.CharField(read_only=True, required=False)
-    email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())], required=False)
+    email = serializers.EmailField(required=False)
     first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)
     last_name = serializers.CharField(source='profile.last_name', required=False, allow_blank=True)
     date_of_birth = serializers.DateField(source='profile.date_of_birth', required=False, allow_null=True)
