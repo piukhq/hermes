@@ -316,6 +316,7 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    PENDING_MANUAL_CHECK = 204
     CARD_NUMBER_ERROR = 436
     LINK_LIMIT_EXCEEDED = 437
     CARD_NOT_REGISTERED = 438
@@ -349,6 +350,7 @@ class SchemeAccount(models.Model):
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
         (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
         (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE'),
+        (PENDING_MANUAL_CHECK, 'Pending manual check.', 'PENDING_MANUAL_CHECK'),
         (CARD_NUMBER_ERROR, 'Invalid card_number', 'CARD_NUMBER_ERROR'),
         (LINK_LIMIT_EXCEEDED, 'You can only Link one card per day.', 'LINK_LIMIT_EXCEEDED'),
         (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
@@ -516,6 +518,10 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
+
+        if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
+            return points
+
         try:
             credentials = self.credentials()
             if not credentials:
@@ -533,8 +539,7 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            for answer in self.schemeaccountcredentialanswer_set.all():
-                answer.delete()
+            self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
@@ -569,8 +574,8 @@ class SchemeAccount(models.Model):
 
         return balance
 
-    def set_pending(self):
-        self.status = SchemeAccount.PENDING
+    def set_pending(self, manual_pending=False):
+        self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save()
 
     def delete_cached_balance(self):

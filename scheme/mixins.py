@@ -15,7 +15,7 @@ from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
-                                UserConsentSerializer)
+                                UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
 
 
@@ -25,6 +25,18 @@ class BaseLinkMixin(object):
     def link_account(serializer, scheme_account, user):
         serializer.is_valid(raise_exception=True)
         return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user)
+
+    @staticmethod
+    def prepare_link_for_manual_check(auth_fields, scheme_account):
+        serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+        serializer.is_valid(raise_exception=True)
+        scheme_account.set_pending(manual_pending=True)
+        data = serializer.validated_data
+
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
 
     @staticmethod
     def _link_account(data, scheme_account, user):
