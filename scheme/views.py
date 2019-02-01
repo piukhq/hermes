@@ -318,6 +318,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
+        scheme_account.status = new_status_code
+        scheme_account.save()
 
         if journey == 'join':
             scheme = scheme_account.scheme
@@ -351,8 +353,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
                 if new_status_code != scheme_account.status:
                     analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
-                    scheme_account.status = new_status_code
-                    scheme_account.save()
 
     @staticmethod
     def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
