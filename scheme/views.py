@@ -308,7 +308,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-
+        logging.exception(f"Post - updateScheme account status {int(request.data['status'])}")
         scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
@@ -318,8 +318,11 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
+        logging.exception(f'Post - updateScheme account to set {new_status_code}')
+
         scheme_account.status = new_status_code
         scheme_account.save()
+        logging.exception(f'Post - updateScheme account set {scheme_account.status}')
 
         if journey == 'join':
             scheme = scheme_account.scheme
