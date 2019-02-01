@@ -22,8 +22,8 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
 from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.models import Setting
-from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory
+from user.models import Setting, ClientApplication
+from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -510,27 +510,55 @@ class TestSchemeAccountViews(APITestCase):
         )
 
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status(self, mock_notify_rollback):
-
-        user_info = {
-            'user_set': '1'
-        }
+    def test_scheme_account_update_status_bink_user(self, mock_notify_rollback):
+        bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        user = UserFactory(client=bink_client_app)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
+        user_set = str(user.id)
 
         data = {
             'status': 9,
             'journey': 'join',
-            'user_info': user_info
+            'user_info': {'user_set': user_set}
         }
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
+        response = self.client.post('/schemes/accounts/{}/status/'.format(scheme_account.id),
+                                    data, format='json', **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], scheme_account.id)
+        self.assertEqual(response.data['status'], 9)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
+        self.assertFalse(mock_notify_rollback.called)
+
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_update_status_ubiquity_user(self, mock_notify_rollback):
+        client_app = ClientApplicationFactory(name='barclays')
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        user = UserFactory(client=client_app)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
+        user_set = str(user.id)
+
+        data = {
+            'status': 9,
+            'journey': 'join',
+            'user_info': {'user_set': user_set}
+        }
+        response = self.client.post('/schemes/accounts/{}/status/'.format(scheme_account.id),
                                     data, format='json',
                                     **self.auth_service_headers)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['id'], self.scheme_account.id)
+        self.assertEqual(response.data['id'], scheme_account.id)
         self.assertEqual(response.data['status'], 9)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
         self.assertFalse(mock_notify_rollback.called)
 
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback):
+        entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
+        user_set = [str(entry.user.id) for entry in entries]
+        self.assertTrue(len(user_set) > 1)
 
         entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
         user_set = [str(entry.user.id) for entry in entries]
