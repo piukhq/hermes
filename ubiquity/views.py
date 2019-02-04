@@ -29,6 +29,8 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
 from ubiquity.tasks import async_link
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
+from rest_framework import serializers
+import analytics
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 
@@ -260,6 +262,31 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             query['scheme__in'] = self.request.allowed_schemes
 
         return SchemeAccount.objects.filter(**query)
+
+    def get_validated_data(self, data, user):
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        # my360 schemes should never come through this endpoint
+        scheme = Scheme.objects.get(id=data['scheme'])
+
+        if scheme.url == settings.MY360_SCHEME_URL:
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            if user.client_id == settings.BINK_CLIENT_ID:
+                analytics.post_event(
+                    user,
+                    analytics.events.MY360_APP_EVENT,
+                    metadata,
+                    True
+                )
+
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
+                ]
+            })
+        return serializer
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
