@@ -226,7 +226,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        if self.request.allowed_schemes and int(self.request.POST['scheme']) not in self.request.allowed_schemes:
+        if self.request.allowed_schemes and int(self.request.data['scheme']) not in self.request.allowed_schemes:
             return Response(
                 "Not Found",
                 status=status.HTTP_404_NOT_FOUND,
