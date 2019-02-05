@@ -305,13 +305,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
 
         original_scheme_account = self.get_object()
-        serializer, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        serializer, auth_fields, enrol_fields, add_fields, journey = self._collect_fields_and_determine_route(request)
         account_pk = original_scheme_account.pk
         try:
             with transaction.atomic():
                 original_scheme_account.delete()
                 account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
-                                                                               enrol_fields, add_fields, account_pk)
+                                                                               add_fields, account_pk)
         except Exception:
             raise ParseError
         if status_code == status.HTTP_201_CREATED:

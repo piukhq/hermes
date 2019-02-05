@@ -651,5 +651,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         scheme_id = int(kwargs['pk'])
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
             return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        message, status_code = self.handle_join_request(request, *args, **kwargs)
+
+        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))
         return Response(message, status=status_code)
