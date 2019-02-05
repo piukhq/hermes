@@ -1,5 +1,4 @@
-from decimal import Decimal
-from decimal import ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP
 
 import arrow
 import jwt
@@ -12,7 +11,7 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import CreateSchemeAccountSerializer
+from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
@@ -561,5 +560,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 #         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
 
-class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
+class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
     verify_account_exists = False
+
+
+class JoinMembershipCardSerializer(JoinSerializer):
+    raise NotImplementedError

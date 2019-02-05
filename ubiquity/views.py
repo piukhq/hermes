@@ -15,7 +15,8 @@ from rest_framework.viewsets import ModelViewSet
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin
+from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin, \
+    SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
@@ -25,7 +26,7 @@ from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, Sch
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
-                                  UbiquityCreateSchemeAccountSerializer)
+                                  LinkMembershipCardSerializer)
 from ubiquity.tasks import async_link
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
@@ -241,13 +242,13 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
 
 
 class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAccountCreationMixin, BaseLinkMixin,
-                         ModelViewSet):
+                         SchemeAccountJoinMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
         'PATCH': MembershipCardSerializer,
         'DELETE': MembershipCardSerializer,
-        'PUT': UbiquityCreateSchemeAccountSerializer
+        'PUT': LinkMembershipCardSerializer
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'enrol_fields')
 
@@ -304,13 +305,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
 
         original_scheme_account = self.get_object()
-        serializer, auth_fields, enrol_fields, add_fields = self._verify_membership_card_creation(request)
+        serializer, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
         account_pk = original_scheme_account.pk
         try:
             with transaction.atomic():
                 original_scheme_account.delete()
-                account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
-                                                                             enrol_fields, add_fields, account_pk)
+                account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
+                                                                               enrol_fields, add_fields, account_pk)
         except Exception:
             raise ParseError
         if status_code == status.HTTP_201_CREATED:
@@ -353,7 +354,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return out_fields
 
-    def _verify_membership_card_creation(self, request):
+    def _collect_fields_and_determine_route(self, request):
         try:
             if request.allowed_schemes and int(request.data['membership_plan']) not in request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
@@ -361,9 +362,16 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
-        add_data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
-        serializer = self.get_validated_data(add_data, request.user)
-        return serializer, auth_fields, enrol_fields, add_fields
+
+        if enrol_fields:
+            journey = 'join'
+            data = {'scheme': request.data['membership_plan'], 'order': 0, **enrol_fields}
+        else:
+            journey = 'link'
+            data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
+
+        serializer = self.get_validated_data(data, request.user, journey)
+        return serializer, auth_fields, enrol_fields, add_fields, journey
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account, user, auth_fields):
@@ -376,37 +384,33 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         for card in scheme_account.payment_card_account_set.all():
             PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
-    def _handle_membership_card_creation(self, user, serializer, auth_fields, enrol_fields, add_fields, use_pk=None):
-        if serializer and serializer.validated_data:
-            scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
-            return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
+    def _handle_membership_card_link_route(self, user, serializer, auth_fields, add_fields, use_pk=None):
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
+        return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-            if auth_fields:
-                if auth_fields.get('password'):
-                    # Fix for Barclays sending escaped unicode sequences for special chars.
-                    auth_fields['password'] = escaped_unicode_pattern.sub(
-                        replace_escaped_unicode,
-                        auth_fields['password']
-                    )
+        if auth_fields:
+            if auth_fields.get('password'):
+                # Fix for Barclays sending escaped unicode sequences for special chars.
+                auth_fields['password'] = escaped_unicode_pattern.sub(
+                    replace_escaped_unicode,
+                    auth_fields['password']
+                )
 
-                if account_created:
-                    if scheme_account.scheme.slug in settings.MANUAL_CHECK_SCHEMES:
-                        self.prepare_link_for_manual_check(auth_fields, scheme_account)
-                        self._manual_check_csv_creation(add_fields)
-                    else:
-                        scheme_account.set_pending()
-                        async_link.delay(auth_fields, scheme_account.id, user.id)
+            if account_created:
+                if scheme_account.scheme.slug in settings.MANUAL_CHECK_SCHEMES:
+                    self.prepare_link_for_manual_check(auth_fields, scheme_account)
+                    self._manual_check_csv_creation(add_fields)
                 else:
-                    auth_fields = auth_fields or {}
-                    self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+                    scheme_account.set_pending()
+                    async_link.delay(auth_fields, scheme_account.id, user.id)
+            else:
+                auth_fields = auth_fields or {}
+                self._handle_existing_scheme_account(scheme_account, user, auth_fields)
 
-            return scheme_account, return_status
+        return scheme_account, return_status
 
-        else:
-            # todo implement enrol
-            if enrol_fields:
-                pass
-            raise NotImplementedError
+    def _handle_membership_card_join_route(self, user, serializer, enrol_fields, add_fields, use_pk=None):
+        raise NotImplementedError
 
     @staticmethod
     def _manual_check_csv_creation(add_fields):
@@ -473,7 +477,10 @@ class ListMembershipCardView(MembershipCardView):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
-        'POST': UbiquityCreateSchemeAccountSerializer,
+        'POST': {
+            'link': LinkMembershipCardSerializer,
+            'join': LinkMembershipCardSerializer
+        }
     }
 
     @censor_and_decorate
@@ -483,9 +490,15 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        serializer, auth_fields, enrol_fields, add_fields = self._verify_membership_card_creation(request)
-        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
-                                                                     enrol_fields, add_fields)
+        serializer, auth_fields, enrol_fields, add_fields, journey = self._collect_fields_and_determine_route(request)
+        account, status_code = None, 500
+        if journey == 'link':
+            account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
+                                                                           add_fields)
+        elif journey == 'join':
+            account, status_code = self._handle_membership_card_join_route(request.user, serializer, enrol_fields,
+                                                                           add_fields)
+
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
 
@@ -575,9 +588,9 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        serializer, auth_fields, enrol_fields, add_fields = self._verify_membership_card_creation(request)
-        account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
-                                                                     enrol_fields, add_fields)
+        serializer, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
+                                                                       enrol_fields, add_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
