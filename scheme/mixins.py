@@ -108,8 +108,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         kwargs['context'] = self.get_serializer_context()
         return serializer_class(*args, **kwargs)
 
-    def get_validated_data(self, data, user, journey):
-        serializer = self.get_serializer(data=data, journey=journey)
+    def get_validated_data(self, data, user):
+        serializer = self.get_serializer(data=data, journey='link')
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])

@@ -354,7 +354,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return out_fields
 
+    # todo keep scheme outside of add or enrol fields to match join behaviour
     def _collect_fields_and_determine_route(self, request):
+        """
+        :param request: MembershipCardView.request
+        """
         try:
             if request.allowed_schemes and int(request.data['membership_plan']) not in request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
@@ -362,16 +366,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
+        scheme_id = request.data['membership_plan']
+        join = False
 
+        # todo improve path choice
         if enrol_fields:
-            journey = 'join'
-            data = {'scheme': request.data['membership_plan'], 'order': 0, **enrol_fields}
-        else:
-            journey = 'link'
-            data = {'scheme': request.data['membership_plan'], 'order': 0, **add_fields}
+            join = True
 
-        serializer = self.get_validated_data(data, request.user, journey)
-        return serializer, auth_fields, enrol_fields, add_fields, journey
+        return scheme_id, auth_fields, enrol_fields, add_fields, join
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account, user, auth_fields):
@@ -384,7 +386,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         for card in scheme_account.payment_card_account_set.all():
             PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
-    def _handle_membership_card_link_route(self, user, serializer, auth_fields, add_fields, use_pk=None):
+    def _handle_membership_card_link_route(self, user, scheme_id, auth_fields, add_fields, use_pk=None):
+        data = {'scheme': scheme_id, 'order': 0, **add_fields}
+        serializer = self.get_validated_data(data, user)
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
@@ -409,8 +413,17 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return scheme_account, return_status
 
-    def _handle_membership_card_join_route(self, user, serializer, enrol_fields, add_fields, use_pk=None):
-        raise NotImplementedError
+    def _handle_membership_card_join_route(self, user, scheme_id, enrol_fields, add_fields):
+        """
+        :type user: user.models.CustomUser
+        :type scheme_id: int
+        :type enrol_fields: dict
+        :type add_fields: dict
+        """
+
+        # todo add fields might be needed for register journey
+        message, status_code, scheme_account = self.handle_join_request(enrol_fields, user, scheme_id)
+        return Response(message, status_code)
 
     @staticmethod
     def _manual_check_csv_creation(add_fields):
@@ -490,13 +503,12 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        serializer, auth_fields, enrol_fields, add_fields, journey = self._collect_fields_and_determine_route(request)
-        account, status_code = None, 500
-        if journey == 'link':
-            account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
+        scheme_id, auth_fields, enrol_fields, add_fields, join = self._collect_fields_and_determine_route(request)
+        if join:
+            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields,
                                                                            add_fields)
-        elif journey == 'join':
-            account, status_code = self._handle_membership_card_join_route(request.user, serializer, enrol_fields,
+        else:
+            account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
                                                                            add_fields)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
@@ -587,6 +599,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
+        # todo adapt this endpoint too
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         serializer, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
         account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
