@@ -354,7 +354,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return out_fields
 
-    # todo keep scheme outside of add or enrol fields to match join behaviour
     def _collect_fields_and_determine_route(self, request):
         """
         :param request: MembershipCardView.request
