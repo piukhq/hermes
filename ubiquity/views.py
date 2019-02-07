@@ -421,6 +421,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         """
 
         # todo add fields might be needed for register journey
+        # todo finish creating join path for ubiquity
         message, status_code, scheme_account = self.handle_join_request(enrol_fields, user, scheme_id)
         return Response(message, status_code)
 
@@ -598,11 +599,14 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        # todo adapt this endpoint too
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        serializer, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
-        account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
-                                                                       enrol_fields, add_fields)
+        scheme_id, auth_fields, enrol_fields, add_fields, join = self._collect_fields_and_determine_route(request)
+        if join:
+            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields,
+                                                                           add_fields)
+        else:
+            account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
+                                                                           add_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
