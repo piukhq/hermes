@@ -422,8 +422,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         # todo add fields might be needed for register journey
         # todo finish creating join path for ubiquity
-        message, status_code, scheme_account = self.handle_join_request(enrol_fields, user, scheme_id)
-        return Response(message, status_code)
+        _, status_code, scheme_account = self.handle_join_request(enrol_fields, user, scheme_id)
+        return scheme_account, status_code
 
     @staticmethod
     def _manual_check_csv_creation(add_fields):
