@@ -7,13 +7,11 @@ from decimal import Decimal
 from enum import IntEnum
 
 import arrow
-from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
-
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -21,8 +19,9 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
-
+from analytics.api import update_scheme_account_attribute_new_status
 from common.models import Image
+from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
@@ -450,6 +449,7 @@ class SchemeAccount(models.Model):
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
+                update_scheme_account_attribute_new_status(self, self.user_set, SchemeAccount.INCOMPLETE)
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
