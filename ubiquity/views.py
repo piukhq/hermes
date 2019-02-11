@@ -151,9 +151,8 @@ class ServiceView(ModelViewSet):
 
         try:    # send user info to be persisted in Atlas
             send_data_to_atlas(response)
-        except (HTTPError, RequestException, Exception):
-            sentry.captureexception()
-            pass
+        except Exception:
+            sentry.captureException()
         return Response(response)
 
     def _add_consent(self, user, consent_data):
@@ -171,23 +170,17 @@ class ServiceView(ModelViewSet):
 
 def send_data_to_atlas(response):
     url = "{host}:{port}/ubiquity_user/save".format(host=project_settings.ATLAS_HOST, port=project_settings.ATLAS_PORT)
-
-    date = datetime.fromtimestamp(response['consent']['timestamp'])
     data = {
         'email': response['consent']['email'],
-        'opt_out_timestamp': date.strftime("%Y-%m-%d %H:%M:%S"),
+        'opt_out_timestamp': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
     }
-
-    try:
-        request("POST", url=url, headers=request_header(), json=data)
-    except (HTTPError, RequestException, Exception) as e:
-        raise e
+    request("POST", url=url, headers=request_header(), json=data)
 
 
 def request_header():
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Token {}'.format(project_settings.ATLAS_SERVICE_API_KEY)
+        'Authorization': 'Token {}'.format(project_settings.SERVICE_API_KEY)
     }
     return headers
 
