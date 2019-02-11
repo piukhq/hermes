@@ -1,6 +1,5 @@
 import re
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 import arrow
@@ -9,7 +8,6 @@ from django.conf import settings
 from django.db import transaction
 from raven.contrib.django.raven_compat.models import client as sentry
 from requests import request
-from requests.exceptions import HTTPError, RequestException
 from rest_framework import serializers
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
