@@ -451,6 +451,7 @@ class SchemeAccount(models.Model):
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
                 bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                # TODO: do we want to update all users associated with the account?
                 for user in bink_users:
                     update_scheme_account_attribute_new_status(self, user, SchemeAccount.INCOMPLETE)
                 self.status = SchemeAccount.INCOMPLETE
@@ -548,6 +549,7 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            # TODO: do we want to update all users associated with the account?
             # Update intercom
             for user in bink_users:
                 analytics.api.update_scheme_account_attribute(self, user, old_status)
