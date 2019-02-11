@@ -366,13 +366,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
         scheme_id = request.data['membership_plan']
-        join = False
-
-        # todo improve path choice
-        if enrol_fields:
-            join = True
-
-        return scheme_id, auth_fields, enrol_fields, add_fields, join
+        return scheme_id, auth_fields, enrol_fields, add_fields
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account, user, auth_fields):
@@ -412,7 +406,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return scheme_account, return_status
 
-    def _handle_membership_card_join_route(self, user, scheme_id, add_fields, auth_fields, enrol_fields):
+    def _handle_membership_card_join_route(self, user, scheme_id, enrol_fields):
         """
         :type user: user.models.CustomUser
         :type scheme_id: int
@@ -421,10 +415,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         """
 
         # todo add fields might be needed for register journey
-        # todo finish creating join path for ubiquity
         join_data = {
-            **add_fields,
-            **auth_fields,
             **enrol_fields,
             'save_user_information': 'false'
         }
@@ -468,6 +459,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         except KeyError:
             raise ParseError()
 
+        if fields['enrol_fields']:
+            return None, None, fields['enrol_fields']
+
         if not fields['add_fields'] and scheme.authorisation_required:
             manual_question = scheme.questions.get(manual_question=True).type
             try:
@@ -476,9 +470,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 raise ParseError()
 
         elif not fields['add_fields']:
-            raise ParseError()
+            raise ParseError('missing fields')
 
-        return fields['add_fields'], fields['authorise_fields'], fields['enrol_fields']
+        return fields['add_fields'], fields['authorise_fields'], None
 
     @staticmethod
     def allowed_answers(scheme):
@@ -509,10 +503,9 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        scheme_id, auth_fields, enrol_fields, add_fields, join = self._collect_fields_and_determine_route(request)
-        if join:
-            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, add_fields,
-                                                                           auth_fields, enrol_fields)
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        if enrol_fields:
+            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
         else:
             account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
                                                                            add_fields)
