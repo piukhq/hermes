@@ -564,5 +564,6 @@ class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
     verify_account_exists = False
 
 
+# todo adapt or remove
 class JoinMembershipCardSerializer(JoinSerializer):
-    raise NotImplementedError
+    pass

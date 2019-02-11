@@ -412,7 +412,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return scheme_account, return_status
 
-    def _handle_membership_card_join_route(self, user, scheme_id, enrol_fields, add_fields):
+    def _handle_membership_card_join_route(self, user, scheme_id, add_fields, auth_fields, enrol_fields):
         """
         :type user: user.models.CustomUser
         :type scheme_id: int
@@ -422,7 +422,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         # todo add fields might be needed for register journey
         # todo finish creating join path for ubiquity
-        _, status_code, scheme_account = self.handle_join_request(enrol_fields, user, scheme_id)
+        join_data = {
+            **add_fields,
+            **auth_fields,
+            **enrol_fields,
+            'save_user_information': 'false'
+        }
+        _, status_code, scheme_account = self.handle_join_request(join_data, user, scheme_id)
         return scheme_account, status_code
 
     @staticmethod
@@ -505,8 +511,8 @@ class ListMembershipCardView(MembershipCardView):
     def create(self, request, *args, **kwargs):
         scheme_id, auth_fields, enrol_fields, add_fields, join = self._collect_fields_and_determine_route(request)
         if join:
-            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields,
-                                                                           add_fields)
+            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, add_fields,
+                                                                           auth_fields, enrol_fields)
         else:
             account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
                                                                            add_fields)
