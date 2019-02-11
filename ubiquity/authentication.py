@@ -76,8 +76,8 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
         except CustomUser.DoesNotExist:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
-        setattr(request, 'allowed_issuers', [issuer.pk for issuer in user.client.organisation.issuers.all()])
-        setattr(request, 'allowed_schemes', [scheme.pk for scheme in user.client.organisation.schemes.all()])
+        setattr(request, 'allowed_issuers', [issuer.pk for issuer in bundle.issuers.all()])
+        setattr(request, 'allowed_schemes', [scheme.pk for scheme in bundle.schemes.all()])
         return user, None
 
 

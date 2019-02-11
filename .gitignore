@@ -8,6 +8,7 @@ aes
 static
 media
 .env
+.env_*
 __pychache__
 .cache
 venv/

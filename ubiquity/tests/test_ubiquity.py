@@ -153,7 +153,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
@@ -216,7 +216,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
@@ -292,8 +292,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 200)
         self.assertEqual(resp_membership.status_code, 200)
 
-        self.user.client.organisation.issuers.add(IssuerFactory())
-        self.user.client.organisation.schemes.add(SchemeFactory())
+        self.bundle.issuers.add(IssuerFactory())
+        self.bundle.schemes.add(SchemeFactory())
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
@@ -307,8 +307,8 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
-        self.user.client.organisation.issuers.add(IssuerFactory())
-        self.user.client.organisation.schemes.add(SchemeFactory())
+        self.bundle.issuers.add(IssuerFactory())
+        self.bundle.schemes.add(SchemeFactory())
 
         payload = {
             "card": {
@@ -447,7 +447,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
 
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
@@ -485,7 +485,7 @@ class TestResources(APITestCase):
         self.assertIn(expected_links, resp.json()['payment_cards'])
 
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
@@ -556,7 +556,7 @@ class TestResources(APITestCase):
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(id=payment_link.id).exists())
 
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
+    @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
@@ -667,7 +667,6 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
-    @patch('analytics.api.update_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)

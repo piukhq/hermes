@@ -15,7 +15,7 @@ from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
-                                UserConsentSerializer)
+                                UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
 
 
@@ -25,6 +25,18 @@ class BaseLinkMixin(object):
     def link_account(serializer, scheme_account, user):
         serializer.is_valid(raise_exception=True)
         return BaseLinkMixin._link_account(serializer.validated_data, scheme_account, user)
+
+    @staticmethod
+    def prepare_link_for_manual_check(auth_fields, scheme_account):
+        serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+        serializer.is_valid(raise_exception=True)
+        scheme_account.set_pending(manual_pending=True)
+        data = serializer.validated_data
+
+        for answer_type, answer in data.items():
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=scheme_account.question(answer_type),
+                scheme_account=scheme_account, defaults={'answer': answer})
 
     @staticmethod
     def _link_account(data, scheme_account, user):
@@ -59,8 +71,6 @@ class BaseLinkMixin(object):
             for user_consent in user_consents:
                 user_consent = UserConsent.objects.get(id=user_consent['id'])
                 user_consent.delete()
-
-        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return response_data
 
@@ -102,12 +112,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             metadata = {
                 'scheme name': scheme.name,
             }
-            analytics.post_event(
-                user,
-                analytics.events.MY360_APP_EVENT,
-                metadata,
-                True
-            )
+            if user.client_id == settings.BINK_CLIENT_ID:
+                analytics.post_event(
+                    user,
+                    analytics.events.MY360_APP_EVENT,
+                    metadata,
+                    True
+                )
 
             raise serializers.ValidationError({
                 "non_field_errors": [
@@ -150,6 +161,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             return data
 
         with transaction.atomic():
+            scheme_account_updated = False
             try:
                 scheme_account = SchemeAccount.objects.get(
                     user_set__id=user.id,
@@ -161,6 +173,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.WALLET_ONLY
                 scheme_account.save()
+                scheme_account_updated = True
+
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount(
                     scheme_id=data['scheme'],
@@ -173,6 +187,14 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
                 account_created = True
+
+            finally:
+                if user.client_id == settings.BINK_CLIENT_ID:
+                    if scheme_account_updated:
+                        analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                    elif account_created:
+                        analytics.update_scheme_account_attribute(scheme_account, user)
+
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=scheme_account.question(answer_type),
@@ -185,8 +207,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 for user_consent in user_consents:
                     user_consent.status = ConsentStatus.SUCCESS
                     user_consent.save()
-
-        analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account, account_created
 
@@ -234,19 +254,22 @@ class SchemeAccountJoinMixin:
 
             return response_dict, status.HTTP_201_CREATED
         except serializers.ValidationError:
-            self.handle_failed_join(scheme_account)
+            self.handle_failed_join(scheme_account, request.user)
             raise
         except Exception:
-            self.handle_failed_join(scheme_account)
+            self.handle_failed_join(scheme_account, request.user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK
 
     @staticmethod
-    def handle_failed_join(scheme_account):
+    def handle_failed_join(scheme_account, user):
         scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
         for answer in scheme_account_answers:
             answer.delete()
 
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
+
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
@@ -254,6 +277,9 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
+
+        update = False
+
         with transaction.atomic():
             try:
                 scheme_account = SchemeAccount.objects.get(
@@ -265,6 +291,7 @@ class SchemeAccountJoinMixin:
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.PENDING
                 scheme_account.save()
+                update = True
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
                     scheme_id=data['scheme'],
@@ -273,7 +300,10 @@ class SchemeAccountJoinMixin:
                 )
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
-        analytics.update_scheme_account_attribute(scheme_account, user)
+        if user.client_id == settings.BINK_CLIENT_ID and update:
+            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+        elif user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, user)
 
         return scheme_account
 

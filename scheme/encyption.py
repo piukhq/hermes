@@ -12,7 +12,7 @@ class AESCipher(object):
         self.key = hashlib.sha256(key).digest()
 
     def encrypt(self, raw):
-        if raw is '':
+        if raw == '':
             raise TypeError('Cannot encrypt nothing')
         raw = self._pad(raw.encode('utf-8'))
         iv = Random.new().read(AES.block_size)
@@ -20,7 +20,7 @@ class AESCipher(object):
         return base64.b64encode(iv + cipher.encrypt(raw))
 
     def decrypt(self, enc):
-        if enc is '':
+        if enc == '':
             raise TypeError('Cannot decrypt nothing')
         enc = base64.b64decode(enc)
         iv = enc[:AES.block_size]

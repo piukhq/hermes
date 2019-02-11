@@ -45,11 +45,15 @@ def _default_transaction_headers():
 
 
 class Scheme(models.Model):
+    PLL = 1
+    BASIC = 2
+    PARTNER = 3
     TIERS = (
         (1, 'PLL'),
         (2, 'Basic'),
         (3, 'Partner'),
     )
+    TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
         (1, 'QrCode'),
@@ -312,6 +316,7 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    PENDING_MANUAL_CHECK = 204
     CARD_NUMBER_ERROR = 436
     LINK_LIMIT_EXCEEDED = 437
     CARD_NOT_REGISTERED = 438
@@ -345,6 +350,7 @@ class SchemeAccount(models.Model):
         (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
         (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
         (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE'),
+        (PENDING_MANUAL_CHECK, 'Pending manual check.', 'PENDING_MANUAL_CHECK'),
         (CARD_NUMBER_ERROR, 'Invalid card_number', 'CARD_NUMBER_ERROR'),
         (LINK_LIMIT_EXCEEDED, 'You can only Link one card per day.', 'LINK_LIMIT_EXCEEDED'),
         (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
@@ -512,6 +518,10 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
+
+        if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
+            return points
+
         try:
             credentials = self.credentials()
             if not credentials:
@@ -529,8 +539,7 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            for answer in self.schemeaccountcredentialanswer_set.all():
-                answer.delete()
+            self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
@@ -565,8 +574,8 @@ class SchemeAccount(models.Model):
 
         return balance
 
-    def set_pending(self):
-        self.status = SchemeAccount.PENDING
+    def set_pending(self, manual_pending=False):
+        self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save()
 
     def delete_cached_balance(self):
@@ -621,6 +630,15 @@ class SchemeAccount(models.Model):
                 except IndexError:
                     return None
         return None
+
+    def get_transaction_matching_user_id(self):
+        bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
+        if bink_user.exists():
+            user_id = bink_user.first().get('id')
+        else:
+            user_id = self.user_set.order_by('date_joined').values('id').first().get('id')
+
+        return user_id
 
     @property
     def barcode(self):
