@@ -1,3 +1,4 @@
+import analytics
 import json
 import re
 import socket
@@ -449,7 +450,9 @@ class SchemeAccount(models.Model):
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
-                update_scheme_account_attribute_new_status(self, self.user_set, SchemeAccount.INCOMPLETE)
+                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                for user in bink_users:
+                    update_scheme_account_attribute_new_status(self, user, SchemeAccount.INCOMPLETE)
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
@@ -519,6 +522,9 @@ class SchemeAccount(models.Model):
     def get_midas_balance(self, journey):
         points = None
 
+        bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+        old_status = self.status
+
         if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
             return points
 
@@ -542,6 +548,9 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            # Update intercom
+            for user in bink_users:
+                analytics.api.update_scheme_account_attribute(self, user, old_status)
         return points
 
     def _get_balance(self, credentials, journey):

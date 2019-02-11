@@ -30,6 +30,12 @@ class BaseLinkMixin(object):
     def prepare_link_for_manual_check(auth_fields, scheme_account):
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
+        user_set = scheme_account.user_Set
+        for user in user_set:
+            if user.client_id == settings.BINK_CLIENT_ID:
+                analytics.api.update_scheme_account_attribute_new_status(scheme_account,
+                                                                         user,
+                                                                         SchemeAccount.PENDING_MANUAL_CHECK)
         scheme_account.set_pending(manual_pending=True)
         data = serializer.validated_data
 
