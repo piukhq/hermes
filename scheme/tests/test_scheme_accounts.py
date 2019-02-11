@@ -84,6 +84,17 @@ class TestSchemeAccountViews(APITestCase):
 
         super().setUpClass()
 
+    @patch.object(SchemeAccount, '_get_balance')
+    def test_analytics_when_balance_returns_configuration_error(self, mock_get_balance):
+
+        def side_effect():
+            config_error = {"code": 536,
+                            "message": "There is an error with the configuration or it was not possible to retrieve.",
+                            "name": "Configuration error"}
+            return config_error
+
+        mock_get_balance.side_effect = side_effect
+
     def test_scheme_account_query(self):
         resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user_set__id={}'.format(self.scheme.slug,
                                                                                                 self.user.id),
