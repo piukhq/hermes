@@ -7,13 +7,11 @@ from decimal import Decimal
 from enum import IntEnum
 
 import arrow
-from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
-
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -21,8 +19,8 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
-
 from common.models import Image
+from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
@@ -166,7 +164,7 @@ class Scheme(models.Model):
     def get_question_type_dict(self):
         return {
             question.label: question.type
-            for question in self.questions.filter(field_type__isnull=False).all()
+            for question in self.questions.all()
         }
 
     def __str__(self):
@@ -727,10 +725,6 @@ class SchemeCredentialQuestion(models.Model):
     LINK_AND_JOIN = (LINK | JOIN)
     MERCHANT_IDENTIFIER = (1 << 3)
 
-    ADD_FIELD = 0
-    AUTH_FIELD = 1
-    ENROL_FIELD = 2
-
     OPTIONS = (
         (NONE, 'None'),
         (LINK, 'Link'),
@@ -746,12 +740,6 @@ class SchemeCredentialQuestion(models.Model):
         (1, 'sensitive'),
         (2, 'choice'),
         (3, 'boolean'),
-    )
-
-    FIELD_TYPE_CHOICES = (
-        (ADD_FIELD, 'add'),
-        (AUTH_FIELD, 'auth'),
-        (ENROL_FIELD, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -770,7 +758,10 @@ class SchemeCredentialQuestion(models.Model):
     # common_name = models.CharField(default='', blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)
 
     @property
     def required(self):

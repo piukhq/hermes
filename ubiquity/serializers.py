@@ -342,9 +342,9 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
-        add_fields = instance.questions.filter(field_type=0).all()
-        authorise_fields = instance.questions.filter(field_type=1).all()
-        enrol_fields = instance.questions.filter(field_type=2).all()
+        add_fields = instance.questions.filter(add_field=True).all()
+        authorise_fields = instance.questions.filter(auth_field=True).all()
+        enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
         if instance.tier == 2:
             card_type = 2

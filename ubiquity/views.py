@@ -305,12 +305,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
 
         original_scheme_account = self.get_object()
-        serializer, auth_fields, enrol_fields, add_fields, journey = self._collect_fields_and_determine_route(request)
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
         account_pk = original_scheme_account.pk
         try:
             with transaction.atomic():
                 original_scheme_account.delete()
-                account, status_code = self._handle_membership_card_link_route(request.user, serializer, auth_fields,
+                account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
                                                                                add_fields, account_pk)
         except Exception:
             raise ParseError
@@ -490,10 +490,7 @@ class ListMembershipCardView(MembershipCardView):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
-        'POST': {
-            'link': LinkMembershipCardSerializer,
-            'join': LinkMembershipCardSerializer
-        }
+        'POST': LinkMembershipCardSerializer
     }
 
     @censor_and_decorate
@@ -599,10 +596,9 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        scheme_id, auth_fields, enrol_fields, add_fields, join = self._collect_fields_and_determine_route(request)
-        if join:
-            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields,
-                                                                           add_fields)
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        if enrol_fields:
+            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
         else:
             account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
                                                                            add_fields)
