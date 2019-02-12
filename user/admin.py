@@ -95,13 +95,97 @@ class ClientApplicationAdmin(admin.ModelAdmin):
     search_fields = ('name', 'organisation__name', 'client_id')
 
 
+@admin.register(ClientApplicationBundle)
+class ClientApplicationBundleAdmin(admin.ModelAdmin):
+    list_display = ('bundle_id', 'client')
+    search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
+    filter_horizontal = ('schemes', 'issuers')
+    list_filter = ('client__organisation__name', 'client__name', 'issuers', 'schemes')
+
+    def get_fieldsets(self, request, obj=None):
+        allowed_schemes = None
+        allowed_issuers = None
+        bundle_id = None
+        return_fields = ((None, {'fields': ('bundle_id', 'client')}),)
+
+        if obj:
+            allowed_schemes = [scheme.pk for scheme in obj.schemes.all()]
+            allowed_issuers = [issuers.pk for issuers in obj.issuers.all()]
+            bundle_id = obj.bundle_id
+
+        if bundle_id == 'com.bink.wallet':
+            choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
+                                 " immediately</h3>"
+        elif obj:
+            choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing users may" \
+                                 " need to re-login before choices take effect</h3>"
+        else:
+            choice_description = "<h3 style='color:red;'>Note: To activate this feature make at least one choice." \
+                                 " All schemes will be permitted until a choice is made</h3><h3>For the Bink app " \
+                                 "only the choices made in 'com.bink.wallet' will take effect immediately - for" \
+                                 " any other bundle any logged in Bink users would need to re-login</h3>"
+
+        if allowed_schemes:
+            if bundle_id == 'com.bink.wallet':
+                choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
+                                     " immediately</h3>"
+            else:
+                choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing" \
+                                     " users may need to re-login before choices take effect</h3>"
+
+            return_fields += (
+                                 ('Choose which Schemes are permitted',
+                                  {
+                                      'classes': ('wide',),
+                                      'description': choice_description,
+                                      'fields': ('schemes',),
+                                  }),
+            )
+
+        else:
+            return_fields += (
+                ('All Schemes are currently permitted - click "show" to remove schemes from this bundle',
+                 {
+                     'classes': ('collapse',),
+                     'description': choice_description,
+                     'fields': ('schemes',),
+                 }),
+            )
+
+        if bundle_id != 'com.bink.wallet':
+            if allowed_issuers:
+                issuers_description = "<h3>Note: This feature only applies to Ubiquity</h3>"
+                return_fields += (
+                    ('All Issuers are currently permitted - click "show" to remove issuers from this bundle',
+                     {
+                         'classes': ('wide',),
+                         'description': issuers_description,
+                         'fields': ('issuers',),
+                     }),
+                )
+
+            else:
+                issuers_description = "<h3 style='color:red;'>Note: To activate this feature for Ubiquity make at" \
+                                      " least one choice.  All issuers will be permitted until a choice is made</h3>"
+                return_fields += (
+                    ('For Ubiquity All Issuers are currently permitted - click "show" to remove '
+                     'issuers from this bundle',
+                     {
+                         'classes': ('collapse',),
+                         'description': issuers_description,
+                         'fields': ('issuers',),
+                     }),
+                )
+
+        return return_fields
+
+
 @admin.register(Organisation)
 class OrganisationAdmin(admin.ModelAdmin):
     list_display = ('name',)
     search_fields = ('name',)
-    filter_horizontal = ('schemes', 'issuers')
 
 
-admin.site.register([ClientApplicationBundle, ClientApplicationKit])
+admin.site.register(ClientApplicationKit)
 admin.site.register(Setting)
 admin.site.register(MarketingCode)

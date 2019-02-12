@@ -284,7 +284,6 @@ class RetrievePaymentCardUserInfo(View):
         body = json.loads(body_unicode)
         payment_card_tokens = body['payment_cards']
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
-        bink_client_app = ClientApplication.objects.get(name='Bink')
         for payment_card_token in payment_card_tokens:
             payment_card_entries = PaymentCardAccountEntry.objects.filter(
                 payment_card_account__token=payment_card_token)
@@ -298,13 +297,7 @@ class RetrievePaymentCardUserInfo(View):
                                                            user_set__id__in=(p.user.id for p in payment_card_entries))
             if scheme_accounts.exists():
                 scheme_account = scheme_accounts.order_by('created').first()
-                user_set = scheme_account.user_set
-                bink_user = user_set.filter(client_id=bink_client_app.client_id).order_by('date_joined').first()
-                if bink_user:
-                    user_id = bink_user.id
-                else:
-                    user = user_set.order_by('date_joined').first()
-                    user_id = user.id
+                user_id = scheme_account.get_transaction_matching_user_id()
 
                 response_data[payment_card_token] = {
                     'loyalty_id': scheme_account.third_party_identifier,
