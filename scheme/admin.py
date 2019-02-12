@@ -201,12 +201,6 @@ class SchemeAccountAdmin(admin.ModelAdmin):
                      for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
         return '</br>'.join(user_list)
 
-    def get_search_results(self, request, queryset, search_term):
-        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
-        if queryset is None:
-            print(queryset)
-        return queryset, use_distinct
-
     def get_list_display(self, request):
         list_display = super().get_list_display(request)
         if request.GET.get('card_number', None) is not None:
