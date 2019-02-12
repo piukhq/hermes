@@ -11,6 +11,8 @@ omit = *migrations*
        hermes/runners.py
        hermes/middleware.py
        ubiquity/influx_audit.py
+       scheme/admin.py
+       common/admin.py
 branch = True
 
 [report]
