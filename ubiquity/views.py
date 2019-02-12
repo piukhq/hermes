@@ -416,6 +416,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         # todo add fields might be needed for register journey
         join_data = {
+            'order': 0,
             **enrol_fields,
             'save_user_information': 'false'
         }
