@@ -84,20 +84,16 @@ class TestSchemeAccountViews(APITestCase):
 
         super().setUpClass()
 
-    @patch('analytics.api.update_scheme_account_attribute')
+    @patch.object(SchemeAccount, 'call_analytics')
     @patch('scheme.models.requests.get')
-    def test_analytics_when_balance_returns_configuration_error(self, mock_requests_get, mock_update_attribute):
+    def test_analytics_when_balance_returns_configuration_error(self, mock_requests_get, mock_call_analytics):
         class BalanceResponse:
             def __init__(self, status_code):
                 self.status_code = status_code
 
-        users = [user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
-
         mock_requests_get.return_value = BalanceResponse(536)
-
         SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
-        for user in users:
-            mock_update_attribute.assert_called_with(self.scheme_account, user, 1)
+        self.assertTrue(mock_call_analytics)
 
     def test_scheme_account_query(self):
         resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user_set__id={}'.format(self.scheme.slug,

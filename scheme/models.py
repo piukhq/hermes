@@ -547,10 +547,13 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
-            bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
-            for user in bink_users:   # Update intercom
-                analytics.api.update_scheme_account_attribute(self, user, old_status)
+            self.call_analytics(self.user_set.all(), old_status)
         return points
+
+    def call_analytics(self, user_set, old_status):
+        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:  # Update intercom
+            analytics.api.update_scheme_account_attribute(self, user, old_status)
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
