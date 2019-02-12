@@ -167,7 +167,7 @@ class ServiceView(ModelViewSet):
 
 
 def send_data_to_atlas(response):
-    url = "{host}:{port}/ubiquity_user/save".format(host=project_settings.ATLAS_HOST, port=project_settings.ATLAS_PORT)
+    url = f"{project_settings.ATLAS_URL}/ubiquity_user/save"
     data = {
         'email': response['consent']['email'],
         'opt_out_timestamp': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
