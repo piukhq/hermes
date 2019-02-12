@@ -4,7 +4,7 @@ import time
 from hermes.traced_requests import requests
 from django.conf import settings
 from raven.contrib.django.raven_compat.models import client as sentry
-from scheme.models import SchemeAccount
+from scheme import models
 
 
 OLYMPUS_SERVICE_TRACKING_TYPE = 6  # Defined in Mnemosyne project
@@ -43,7 +43,7 @@ def reset_user_settings(user):
 
 def get_status(status):
     if status is not None:
-        for stat in SchemeAccount.STATUSES:
+        for stat in models.SchemeAccount.STATUSES:
             if stat[0] == status:
                 return stat[1]
     return status

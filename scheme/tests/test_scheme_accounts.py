@@ -84,16 +84,20 @@ class TestSchemeAccountViews(APITestCase):
 
         super().setUpClass()
 
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_analytics_when_balance_returns_configuration_error(self, mock_get_balance):
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('scheme.models.requests.get')
+    def test_analytics_when_balance_returns_configuration_error(self, mock_requests_get, mock_update_attribute):
+        class BalanceResponse:
+            def __init__(self, status_code):
+                self.status_code = status_code
 
-        def side_effect():
-            config_error = {"code": 536,
-                            "message": "There is an error with the configuration or it was not possible to retrieve.",
-                            "name": "Configuration error"}
-            return config_error
+        users = [user for user in self.scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
 
-        mock_get_balance.side_effect = side_effect
+        mock_requests_get.return_value = BalanceResponse(536)
+
+        response = SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
+        for user in users:
+            mock_update_attribute.assert_called_with(self.scheme_account, user, 1)
 
     def test_scheme_account_query(self):
         resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user_set__id={}'.format(self.scheme.slug,

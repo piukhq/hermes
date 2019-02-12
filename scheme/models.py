@@ -25,6 +25,7 @@ from common.models import Image
 from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
+import analytics
 
 
 class Category(models.Model):
