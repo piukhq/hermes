@@ -522,8 +522,6 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
-
-        bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
         old_status = self.status
 
         if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
@@ -549,6 +547,7 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
             for user in bink_users:   # Update intercom
                 analytics.api.update_scheme_account_attribute(self, user, old_status)
         return points
