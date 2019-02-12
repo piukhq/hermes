@@ -1,4 +1,3 @@
-import analytics
 import json
 import re
 import socket
@@ -550,9 +549,7 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
-            # TODO: do we want to update all users associated with the account?
-            # Update intercom
-            for user in bink_users:
+            for user in bink_users:   # Update intercom
                 analytics.api.update_scheme_account_attribute(self, user, old_status)
         return points
 

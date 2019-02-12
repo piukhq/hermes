@@ -95,7 +95,7 @@ class TestSchemeAccountViews(APITestCase):
 
         mock_requests_get.return_value = BalanceResponse(536)
 
-        response = SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
+        SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
         for user in users:
             mock_update_attribute.assert_called_with(self.scheme_account, user, 1)
 
