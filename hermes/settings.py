@@ -416,8 +416,7 @@ DATADOG_TRACE = {
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
 
-ATLAS_HOST = env_var('ATLAS_HOST')
-ATLAS_PORT = env_var('ATLAS_PORT')
+ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
 MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')
