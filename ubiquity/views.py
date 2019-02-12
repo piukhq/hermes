@@ -354,18 +354,18 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return out_fields
 
-    def _collect_fields_and_determine_route(self, request):
+    def _collect_fields_and_determine_route(self):
         """
-        :param request: MembershipCardView.request
+        :rtype: tuple[int, dict, dict, dict]
         """
         try:
-            if request.allowed_schemes and int(request.data['membership_plan']) not in request.allowed_schemes:
+            if self.request.allowed_schemes and int(self.request.data['membership_plan']) not in self.request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
         except ValueError:
             raise ParseError
 
-        add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(request.data)
-        scheme_id = request.data['membership_plan']
+        add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data)
+        scheme_id = self.request.data['membership_plan']
         return scheme_id, auth_fields, enrol_fields, add_fields
 
     @staticmethod
@@ -380,6 +380,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
     def _handle_membership_card_link_route(self, user, scheme_id, auth_fields, add_fields, use_pk=None):
+        """
+        :type user: user.models.CustomUser
+        :type scheme_id: int
+        :type auth_fields: dict
+        :type add_fields: dict
+        :type use_pk: int
+        :rtype: tuple[SchemeAccount, int]
+        """
         data = {'scheme': scheme_id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user)
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
@@ -411,10 +419,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         :type user: user.models.CustomUser
         :type scheme_id: int
         :type enrol_fields: dict
-        :type add_fields: dict
+        :rtype: tuple[SchemeAccount, int]
         """
 
-        # todo add fields might be needed for register journey
         join_data = {
             'order': 0,
             **enrol_fields,
@@ -501,7 +508,7 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
             account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
         else:
