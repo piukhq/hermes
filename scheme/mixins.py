@@ -418,19 +418,16 @@ class UpdateCredentialsMixin:
         return False
 
     @staticmethod
-    def _get_new_answers(serializer, auth_fields):
+    def _get_new_answers(add_fields, auth_fields):
         """
-        :type serializer: ubiquity.serializers.UbiquityCreateSchemeAccountSerializer
+        :type add_fields: dict
         :type auth_fields: dict
-        :rtype: (dict, int, str)
+        :rtype: tuple(dict, str)
         """
-        data = serializer.validated_data
-        scheme_id = data.pop('scheme')
-        del data['order']
-        new_answers = {**data, **auth_fields}
-        main_answer, *_ = data.values()
+        new_answers = {**add_fields, **auth_fields}
+        main_answer, *_ = add_fields.values()
 
-        return new_answers, scheme_id, main_answer
+        return new_answers, main_answer
 
     @staticmethod
     def _check_required_data_presence(scheme, data):

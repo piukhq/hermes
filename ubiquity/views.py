@@ -14,8 +14,8 @@ from rest_framework.viewsets import ModelViewSet
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin, \
-    SchemeAccountJoinMixin
+from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
+                           SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
@@ -26,10 +26,6 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer, PaymentCardSerializer,
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                   ServiceConsentSerializer, TransactionsSerializer,
-                                  UbiquityCreateSchemeAccountSerializer)
-from ubiquity.tasks import async_link
-                                  PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
-                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
                                   LinkMembershipCardSerializer)
 from ubiquity.tasks import async_link
 from user.models import CustomUser
@@ -317,37 +313,22 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        serializer, auth_fields, enrol_fields = self._collect_membership_card_creation_data(request)
-        new_answers, scheme_id, main_answer = self._get_new_answers(serializer, auth_fields)
-
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
-        # put modifications
-        if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
-            account.status = account.FAILED_UPDATE
-            account.save()
+        if enrol_fields:
+            raise NotImplemented
         else:
-            self.replace_credentials_and_scheme(account, new_answers, scheme_id)
-        # end put modifications
-        original_scheme_account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
-        account_pk = original_scheme_account.pk
-        try:
-            with transaction.atomic():
-                original_scheme_account.delete()
-                account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
-                                                                               add_fields, account_pk)
-        except Exception:
-            raise ParseError
-        if status_code == status.HTTP_201_CREATED:
-            # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
-            status_code = status.HTTP_200_OK
+            new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
+
+            if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+                account.status = account.FAILED_UPDATE
+                account.save()
+            else:
+                self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
-
-
-
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -389,7 +370,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         :rtype: tuple[int, dict, dict, dict]
         """
         try:
-            if self.request.allowed_schemes and int(self.request.data['membership_plan']) not in self.request.allowed_schemes:
+            if self.request.allowed_schemes and int(
+                    self.request.data['membership_plan']) not in self.request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
         except ValueError:
             raise ParseError
