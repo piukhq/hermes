@@ -5,7 +5,6 @@ from pathlib import Path
 import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import transaction
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -17,13 +16,18 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin, \
     SchemeAccountJoinMixin
-from scheme.models import Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
+                                  PaymentCardConsentSerializer, PaymentCardReplaceSerializer, PaymentCardSerializer,
+                                  PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
+                                  ServiceConsentSerializer, TransactionsSerializer,
+                                  UbiquityCreateSchemeAccountSerializer)
+from ubiquity.tasks import async_link
                                   PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
                                   PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
                                   LinkMembershipCardSerializer)
@@ -84,6 +88,23 @@ class PaymentCardCreationMixin:
         PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+
+    @staticmethod
+    def _collect_creation_data(request):
+        """
+        :type request: ModelViewSet.request
+        :rtype: (dict, dict)
+        """
+        try:
+            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
+            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
+                raise ParseError('issuer not allowed for this user.')
+
+            consent = request.data['account']['consents']
+        except (KeyError, ValueError):
+            raise ParseError
+
+        return pcard_data, consent
 
 
 class ServiceView(ModelViewSet):
@@ -192,7 +213,19 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
-        return Response("not implemented yet", status.HTTP_403_FORBIDDEN)
+        account = self.get_object()
+        pcard_data, consent = self._collect_creation_data(request)
+        if pcard_data['fingerprint'] != account.fingerprint:
+            raise ParseError('cannot override fingerprint.')
+
+        pcard_data['token'] = account.token
+        new_card_data = PaymentCardReplaceSerializer(data=pcard_data)
+        new_card_data.is_valid(raise_exception=True)
+        PaymentCardAccount.objects.filter(pk=account.pk).update(**new_card_data.validated_data)
+        # todo should we replace the consent too?
+
+        account.refresh_from_db()
+        return Response(self.get_serializer(account).data, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -221,15 +254,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        try:
-            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
-            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
-                raise ParseError('issuer not allowed for this user.')
-
-            consent = request.data['account']['consents']
-        except (KeyError, ValueError):
-            raise ParseError
-
+        pcard_data, consent = self._collect_creation_data(request)
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
             return Response(self.get_serializer(pcard).data, status=status_code)
@@ -278,16 +303,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             new_answers['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, new_answers['password'])
 
         if manual_question and manual_question.type in new_answers:
-            query = {
-                'scheme_account__scheme': account.scheme,
-                'scheme_account__is_deleted': False,
-                'answer': new_answers[manual_question.type]
-            }
-            exclude = {
-                'scheme_account': account
-            }
-
-            if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
+            if self.card_with_same_data_already_exists(account, account.scheme, new_answers[manual_question.type]):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
@@ -300,10 +316,20 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
-        # The objective of this end point is to replace an membership card with a new one keeping
-        # the same id. The idea is to delete the membership account cascading any deletes and then
-        # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
+        account = self.get_object()
+        serializer, auth_fields, enrol_fields = self._collect_membership_card_creation_data(request)
+        new_answers, scheme_id, main_answer = self._get_new_answers(serializer, auth_fields)
 
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+            raise ParseError('membership plan not allowed for this user.')
+
+        # put modifications
+        if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+            account.status = account.FAILED_UPDATE
+            account.save()
+        else:
+            self.replace_credentials_and_scheme(account, new_answers, scheme_id)
+        # end put modifications
         original_scheme_account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
         account_pk = original_scheme_account.pk
@@ -317,7 +343,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if status_code == status.HTTP_201_CREATED:
             # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
             status_code = status.HTTP_200_OK
-        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
+
+        return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
+
+
+
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):

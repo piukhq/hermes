@@ -8,7 +8,7 @@ from rest_framework import serializers
 
 from hermes.traced_requests import requests
 from payment_card.models import Issuer, PaymentCard
-from payment_card.serializers import (PaymentCardAccountSerializer,
+from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
 from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
@@ -567,3 +567,7 @@ class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
 # todo adapt or remove
 class JoinMembershipCardSerializer(JoinSerializer):
     pass
+
+
+class PaymentCardReplaceSerializer(CreatePaymentCardAccountSerializer):
+    token = serializers.CharField(max_length=255, write_only=True, source='psp_token')
