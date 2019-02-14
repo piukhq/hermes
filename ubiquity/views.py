@@ -5,11 +5,9 @@ from pathlib import Path
 import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import transaction
 from raven.contrib.django.raven_compat.models import client as sentry
 from requests import request
-from rest_framework import serializers
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -165,7 +163,7 @@ class ServiceView(ModelViewSet):
         request.user.is_active = False
         request.user.save()
 
-        try:    # send user info to be persisted in Atlas
+        try:  # send user info to be persisted in Atlas
             send_data_to_atlas(response)
         except Exception:
             sentry.captureException()
@@ -365,7 +363,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        serializer, auth_fields, enrol_fields = self._collect_membership_card_creation_data(request)
+        serializer, auth_fields, enrol_fields, _ = self._collect_membership_card_creation_data(request)
         new_answers, scheme_id, main_answer = self._get_new_answers(serializer, auth_fields)
 
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
@@ -376,23 +374,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             account.save()
         else:
             self.replace_credentials_and_scheme(account, new_answers, scheme_id)
-
-        # new changes
-        original_scheme_account = self.get_object()
-        serializer, auth_fields, enrol_fields, add_fields = self._verify_membership_card_creation(request)
-        account_pk = original_scheme_account.pk
-        try:
-            with transaction.atomic():
-                original_scheme_account.delete()
-                account, status_code = self._handle_membership_card_creation(request.user, serializer, auth_fields,
-                                                                             enrol_fields, add_fields, account_pk)
-        except Exception:
-            raise ParseError
-        if status_code == status.HTTP_201_CREATED:
-            # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
-            status_code = status.HTTP_200_OK
-        # end new part
-
 
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
