@@ -7,13 +7,11 @@ from decimal import Decimal
 from enum import IntEnum
 
 import arrow
-from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
-
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -21,8 +19,9 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
-
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
+from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
@@ -450,6 +449,13 @@ class SchemeAccount(models.Model):
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
+                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                for user in bink_users:
+                    update_scheme_account_attribute_new_status(
+                        self,
+                        user,
+                        dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                    )
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
@@ -518,6 +524,7 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
+        old_status = self.status
 
         if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
             return points
@@ -542,7 +549,13 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            self.call_analytics(self.user_set.all(), old_status)
         return points
+
+    def call_analytics(self, user_set, old_status):
+        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:  # Update intercom
+            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])

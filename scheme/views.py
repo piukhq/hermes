@@ -109,7 +109,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
             instance.save()
 
             if request.user.client_id == settings.BINK_CLIENT_ID:
-                analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
+                analytics.update_scheme_account_attribute(
+                    instance,
+                    request.user,
+                    old_status=dict(instance.STATUSES).get(instance.status_key))
 
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
             analytics.update_scheme_account_attribute(instance, request.user)
@@ -186,7 +189,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         scheme_account.save()
 
         if request.user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, request.user, old_status)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                request.user,
+                dict(scheme_account.STATUSES).get(old_status))
 
         out_serializer = ResponseLinkSerializer(response_data)
 
@@ -352,7 +358,10 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                     )
 
                 if new_status_code != scheme_account.status:
-                    analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                    analytics.update_scheme_account_attribute_new_status(
+                        scheme_account,
+                        user,
+                        dict(scheme_account.STATUSES).get(new_status_code))
 
     @staticmethod
     def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
