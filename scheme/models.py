@@ -19,12 +19,11 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
-from analytics.api import update_scheme_account_attribute_new_status
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
 from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
-import analytics
 
 
 class Category(models.Model):
@@ -453,7 +452,7 @@ class SchemeAccount(models.Model):
                 bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
                 # TODO: do we want to update all users associated with the account?
                 for user in bink_users:
-                    update_scheme_account_attribute_new_status(self, user, SchemeAccount.INCOMPLETE)
+                    update_scheme_account_attribute_new_status(self, user, dict(self.STATUSES).get(SchemeAccount.INCOMPLETE))
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
@@ -553,7 +552,7 @@ class SchemeAccount(models.Model):
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:  # Update intercom
-            analytics.api.update_scheme_account_attribute(self, user, old_status)
+            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])

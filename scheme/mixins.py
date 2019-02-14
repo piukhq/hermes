@@ -33,9 +33,10 @@ class BaseLinkMixin(object):
         # TODO: do we want to update all users associated with the account?
         bink_users = [user for user in scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:
-            analytics.api.update_scheme_account_attribute_new_status(scheme_account,
-                                                                     user,
-                                                                     SchemeAccount.PENDING_MANUAL_CHECK)
+            analytics.api.update_scheme_account_attribute_new_status(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.PENDING_MANUAL_CHECK))
         scheme_account.set_pending(manual_pending=True)
         data = serializer.validated_data
 
@@ -197,7 +198,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             finally:
                 if user.client_id == settings.BINK_CLIENT_ID:
                     if scheme_account_updated:
-                        analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                        analytics.update_scheme_account_attribute(
+                            scheme_account,
+                            user,
+                            dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
                     elif account_created:
                         analytics.update_scheme_account_attribute(scheme_account, user)
 
@@ -275,7 +279,10 @@ class SchemeAccountJoinMixin:
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
@@ -307,7 +314,10 @@ class SchemeAccountJoinMixin:
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
         elif user.client_id == settings.BINK_CLIENT_ID:
             analytics.update_scheme_account_attribute(scheme_account, user)
 
