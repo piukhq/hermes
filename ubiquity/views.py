@@ -170,7 +170,7 @@ def send_data_to_atlas(response):
     url = f"{project_settings.ATLAS_URL}/ubiquity_user/save"
     data = {
         'email': response['consent']['email'],
-        'opt_out_timestamp': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
+        'ubiquity_join_date': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
     }
     request("POST", url=url, headers=request_header(), json=data)
 
