@@ -667,7 +667,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route(request)
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
             account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
         else:

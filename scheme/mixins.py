@@ -4,6 +4,7 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from raven.contrib.django.raven_compat.models import client as sentry
 from requests import RequestException
 from rest_framework import serializers, status
@@ -14,7 +15,7 @@ import analytics
 from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, UserConsent)
+                           UserConsent)
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -435,12 +436,12 @@ class UpdateCredentialsMixin:
         :type scheme: scheme.models.Scheme
         :type data: dict
         """
-
-        query_value = [SchemeCredentialQuestion.ADD_FIELD, ]
         if scheme.authorisation_required:
-            query_value.append(SchemeCredentialQuestion.AUTH_FIELD)
+            query = Q(add_field=True) | Q(auth_field=True)
+        else:
+            query = Q(add_field=True)
 
-        required_questions = scheme.questions.values('type').filter(field_type__in=query_value).all()
+        required_questions = scheme.questions.values('type').filter(query).all()
         for question in required_questions:
             if question['type'] not in data.keys():
                 raise ValidationError('required field {} is missing.'.format(question['type']))
