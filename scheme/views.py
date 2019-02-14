@@ -1,9 +1,14 @@
 import csv
+import json
+import logging
 from io import StringIO
 
+import requests
+from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
@@ -13,6 +18,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -26,7 +32,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountIdsSerializer,
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -55,6 +61,11 @@ class SchemesList(ListAPIView):
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
 
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return Scheme.objects
+
 
 class RetrieveScheme(RetrieveAPIView):
     """
@@ -62,6 +73,11 @@ class RetrieveScheme(RetrieveAPIView):
     """
     queryset = Scheme.objects
     serializer_class = SchemeSerializer
+
+    def get_queryset(self):
+        if self.request.allowed_schemes:
+            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
+        return Scheme.objects
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
@@ -75,7 +91,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        return SchemeAccount.objects.filter(user_set__id=self.request.user.id)
+        queryset = SchemeAccount.objects.filter(user_set__id=self.request.user.id)
+        if self.request.allowed_schemes:
+            return queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        return queryset
 
     def delete(self, request, *args, **kwargs):
         """
@@ -88,6 +107,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         if instance.user_set.count() < 1:
             instance.is_deleted = True
             instance.save()
+
+            if request.user.client_id == settings.BINK_CLIENT_ID:
+                analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
+
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
             analytics.update_scheme_account_attribute(instance, request.user)
 
@@ -126,7 +149,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
+        queryset = SchemeAccount.objects
+        if self.request.allowed_schemes:
+            queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         serializer = SchemeAnswerSerializer(data=request.data)
         response_data = self.link_account(serializer, scheme_account, request.user)
@@ -139,7 +165,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        scheme_account = get_object_or_404(SchemeAccount.objects, id=self.kwargs['pk'],
+        queryset = SchemeAccount.objects
+        if self.request.allowed_schemes:
+            queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         if scheme_account.scheme.status == Scheme.SUSPENDED:
             return Response({
@@ -151,8 +180,13 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
 
         serializer.is_valid(raise_exception=True)
 
+        old_status = scheme_account.status
+
         response_data = self.link_account(serializer, scheme_account, request.user)
         scheme_account.save()
+
+        if request.user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(scheme_account, request.user, old_status)
 
         out_serializer = ResponseLinkSerializer(response_data)
 
@@ -180,13 +214,23 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
-        return SchemeAccount.objects.filter(user_set__id=user_id)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
+        scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
+                                                  scheme__status=Scheme.SUSPENDED)
+        if self.request.allowed_schemes:
+            return scheme_accounts.filter(scheme__id__in=self.request.allowed_schemes)
+        return scheme_accounts
 
     def post(self, request, *args, **kwargs):
         """
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
+        if self.request.allowed_schemes and int(self.request.data['scheme']) not in self.request.allowed_schemes:
+            return Response(
+                "Not Found",
+                status=status.HTTP_404_NOT_FOUND,
+            )
         _, response, _ = self.create_account(request.data, request.user)
         return Response(
             response,
@@ -236,17 +280,19 @@ class CreateJoinSchemeAccount(APIView):
         account.save()
         SchemeAccountEntry.objects.create(scheme_account=account, user=user)
 
-        metadata = {
-            'company name': scheme.company,
-            'slug': scheme.slug
-        }
-        analytics.post_event(
-            user,
-            analytics.events.ISSUED_JOIN_CARD_EVENT,
-            metadata,
-            True
-        )
-        analytics.update_scheme_account_attribute(account, user)
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(account, user)
+
+            metadata = {
+                'company name': scheme.company,
+                'slug': scheme.slug
+            }
+            analytics.post_event(
+                user,
+                analytics.events.ISSUED_JOIN_CARD_EVENT,
+                metadata,
+                True
+            )
 
         # serialize the account for the response.
         serializer = GetSchemeAccountSerializer(instance=account)
@@ -262,31 +308,83 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-
+        scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
-        scheme_account = get_object_or_404(SchemeAccount, id=int(kwargs['pk']))
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+        # method that sends data to Mnemosyne
+        self.send_to_intercom(new_status_code, scheme_account)
 
-        needs_saving = False
+        scheme_account.status = new_status_code
+        scheme_account.save()
 
         if journey == 'join':
-            scheme_account.join_date = timezone.now()
-            needs_saving = True
-
-        if new_status_code != scheme_account.status:
-            scheme_account.status = new_status_code
-            needs_saving = True
-
-        if needs_saving:
+            scheme = scheme_account.scheme
+            join_date = timezone.now()
+            scheme_account.join_date = join_date
             scheme_account.save()
+
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+                self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
 
         return Response({
             'id': scheme_account.id,
             'status': new_status_code
         })
+
+    def send_to_intercom(self, new_status_code, scheme_account):
+        user_set_from_midas = self.request.data['user_info']['user_set']
+        user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+
+        for user_id in user_ids:
+            user = CustomUser.objects.get(id=user_id)
+
+            if user.client_id == settings.BINK_CLIENT_ID:
+                if 'event_name' in self.request.data:
+                    analytics.post_event(
+                        user,
+                        self.request.data['event_name'],
+                        metadata=self.request.data['metadata'],
+                        to_intercom=True
+                    )
+
+                if new_status_code != scheme_account.status:
+                    analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+
+    @staticmethod
+    def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
+        """
+        :type scheme_slug: str
+        :type scheme_account: scheme.models.SchemeAccount
+        :type join_date: datetime.datetime
+        """
+        if settings.ROLLBACK_TRANSACTIONS_URL:
+            user_id = scheme_account.get_transaction_matching_user_id()
+            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
+            data = json.dumps({
+                'date_joined': join_date.date().isoformat(),
+                'scheme_provider': scheme_slug,
+                'payment_card_token': [card['token'] for card in payment_cards],
+                'user_id': user_id,
+                'credentials': scheme_account.credentials(),
+                'loyalty_card_id': scheme_account.third_party_identifier,
+                'scheme_account_id': scheme_account.id,
+            })
+            headers = {
+                'Content-Type': "application/json",
+                'Authorization': "token " + settings.SERVICE_API_KEY,
+            }
+            try:
+                resp = requests.post(settings.ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
+                                     headers=headers)
+                resp.raise_for_status()
+            except requests.exceptions.RequestException:
+                logging.exception('Failed to send join data to thanatos.')
+                if settings.HERMES_SENTRY_DSN:
+                    sentry.captureException()
 
 
 class Pagination(PageNumberPagination):
@@ -331,6 +429,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
+            if self.request.allowed_schemes:
+                queryset = queryset.filter(scheme__id__in=self.request.allowed_schemes)
             queryset = queryset.filter(user_set__id=self.request.user.id)
         return queryset
 
@@ -548,5 +648,8 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         Register a new loyalty account on the requested scheme,
         Link the newly created loyalty account with the created scheme account.
         """
+        scheme_id = int(kwargs['pk'])
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+            return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
         message, status_code = self.handle_join_request(request, *args, **kwargs)
         return Response(message, status=status_code)

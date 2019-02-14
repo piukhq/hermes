@@ -41,6 +41,7 @@ CURRENT_STATUS_CODES = (
     (445, 'Account already exists'),
     (446, 'Update failed. Delete and re-add card.'),
     (537, 'Service connection error'),
+    (204, 'Pending manual check'),
     (406, 'Pre-registered card')
 )
 
@@ -69,7 +70,8 @@ reason_code_translation = {
     445: None,
     537: None,
     446: 'X104',
-    406: 'X101'
+    406: 'X101',
+    204: 'X100'
 }
 
 ubiquity_status_translation = {
@@ -97,5 +99,6 @@ ubiquity_status_translation = {
     445: 'failed',
     446: 'failed',
     537: 'failed',
+    204: 'pending',
     406: 'failed'
 }
