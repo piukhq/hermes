@@ -450,9 +450,12 @@ class SchemeAccount(models.Model):
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
                 bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
-                # TODO: do we want to update all users associated with the account?
                 for user in bink_users:
-                    update_scheme_account_attribute_new_status(self, user, dict(self.STATUSES).get(SchemeAccount.INCOMPLETE))
+                    update_scheme_account_attribute_new_status(
+                        self,
+                        user,
+                        dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                    )
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None

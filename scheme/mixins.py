@@ -31,7 +31,6 @@ class BaseLinkMixin(object):
     def prepare_link_for_manual_check(auth_fields, scheme_account):
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
-        # TODO: do we want to update all users associated with the account?
         bink_users = [user for user in scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:
             analytics.api.update_scheme_account_attribute_new_status(
