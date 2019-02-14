@@ -5,12 +5,16 @@ from pathlib import Path
 import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from rest_framework import status
+from raven.contrib.django.raven_compat.models import client as sentry
+from requests import request
+from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+import analytics
+from hermes import settings as project_settings
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
@@ -159,6 +163,11 @@ class ServiceView(ModelViewSet):
         request.user.serviceconsent.delete()
         request.user.is_active = False
         request.user.save()
+
+        try:  # send user info to be persisted in Atlas
+            send_data_to_atlas(response)
+        except Exception:
+            sentry.captureException()
         return Response(response)
 
     def _add_consent(self, user, consent_data):
@@ -172,6 +181,23 @@ class ServiceView(ModelViewSet):
             raise ParseError
 
         return consent
+
+
+def send_data_to_atlas(response):
+    url = f"{project_settings.ATLAS_URL}/ubiquity_user/save"
+    data = {
+        'email': response['consent']['email'],
+        'opt_out_timestamp': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
+    }
+    request("POST", url=url, headers=request_header(), json=data)
+
+
+def request_header():
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Token {}'.format(project_settings.SERVICE_API_KEY)
+    }
+    return headers
 
 
 class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
@@ -282,6 +308,31 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             query['scheme__in'] = self.request.allowed_schemes
 
         return SchemeAccount.objects.filter(**query)
+
+    def get_validated_data(self, data, user):
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        # my360 schemes should never come through this endpoint
+        scheme = Scheme.objects.get(id=data['scheme'])
+
+        if scheme.url == settings.MY360_SCHEME_URL:
+            metadata = {
+                'scheme name': scheme.name,
+            }
+            if user.client_id == settings.BINK_CLIENT_ID:
+                analytics.post_event(
+                    user,
+                    analytics.events.MY360_APP_EVENT,
+                    metadata,
+                    True
+                )
+
+            raise serializers.ValidationError({
+                "non_field_errors": [
+                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
+                ]
+            })
+        return serializer
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):

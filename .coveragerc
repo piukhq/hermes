@@ -9,7 +9,10 @@ omit = *migrations*
        manage.py
        hermes/wsgi.py
        hermes/runners.py
+       hermes/middleware.py
        ubiquity/influx_audit.py
+       scheme/admin.py
+       common/admin.py
 branch = True
 
 [report]

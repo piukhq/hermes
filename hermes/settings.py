@@ -86,7 +86,7 @@ INSTALLED_APPS = (
     'drf_yasg',
 )
 
-# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in rersponse header
+# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
     'hermes.middleware.timed_request',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -415,6 +415,8 @@ DATADOG_TRACE = {
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+
+ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
 MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')

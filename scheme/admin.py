@@ -11,6 +11,10 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
 from ubiquity.models import SchemeAccountEntry
 
+from common.admin import InputFilter
+from django.db.models import Q
+import re
+
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 
@@ -152,18 +156,61 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class CardNumberFilter(InputFilter):
+    parameter_name = 'card_number'
+    title = 'Card Number Containing:'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        card_number = Q(schemeaccountcredentialanswer__answer__icontains=term,
+                        schemeaccountcredentialanswer__question__type='card_number')
+        return queryset.filter(card_number)
+
+
+class UserEmailFilter(InputFilter):
+    parameter_name = 'user_email'
+    title = 'User Email Containing'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        any_email = Q(schemeaccountentry__user__email__icontains=term)
+        return queryset.filter(any_email)
+
+
+class CredentialEmailFilter(InputFilter):
+    parameter_name = 'credential_email'
+    title = 'Credential Email Containing'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        any_email = Q(schemeaccountcredentialanswer__answer__icontains=term,
+                      schemeaccountcredentialanswer__question__type='email')
+        return queryset.filter(any_email)
+
+
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(admin.ModelAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
-    list_filter = ('is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created',)
-    search_fields = ['scheme__name', 'schemeaccountentry__user__email']
-    list_per_page = 10
+    list_filter = (CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
+    list_per_page = 25
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
             return self.readonly_fields + ('scheme', 'link_date', 'user_email')
         return self.readonly_fields
+
+    def credential_email(self, obj):
+        credential_emails = SchemeAccountCredentialAnswer.objects.filter(scheme_account=obj.id,
+                                                                         question__type__exact='email')
+        user_list = [x.answer for x in credential_emails]
+        return '</br>'.join(user_list)
 
     def user_email(self, obj):
         user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
@@ -171,6 +218,19 @@ class SchemeAccountAdmin(admin.ModelAdmin):
                      for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
         return '</br>'.join(user_list)
 
+    def get_list_display(self, request):
+        list_display = super().get_list_display(request)
+        if request.GET.get('card_number', None) is not None:
+            self.list_per_page = 10
+            list_display = list_display[:4] + ('card_number',) + list_display[-1:]
+        if request.GET.get('credential_email', None) is not None:
+            self.list_per_page = 10
+            list_display = list_display[:2] + ('credential_email',) + list_display[2:]
+        else:
+            self.list_per_page = 25
+        return list_display
+
+    credential_email.allow_tags = True
     user_email.allow_tags = True
 
 
@@ -189,12 +249,38 @@ class SchemeUserAssociation(SchemeAccountEntry):
         verbose_name_plural = "".join([verbose_name, 's'])
 
 
+class AssocCardNumberFilter(InputFilter):
+    parameter_name = 'scheme_account_card_number'
+    title = 'Card Number Containing:'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        card_number = Q(scheme_account__schemeaccountcredentialanswer__answer__icontains=term,
+                        scheme_account__schemeaccountcredentialanswer__question__type='card_number')
+        return queryset.filter(card_number)
+
+
+class AssocUserEmailFilter(InputFilter):
+    parameter_name = 'user_email'
+    title = 'User Email Containing'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        any_email = Q(user__email__icontains=term)
+        return queryset.filter(any_email)
+
+
 @admin.register(SchemeUserAssociation)
 class SchemeUserAssociationAdmin(admin.ModelAdmin):
     list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted',
                     'scheme_created')
     search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
-    list_filter = ('scheme_account__is_deleted', 'scheme_account__status', 'scheme_account__scheme',)
+    list_filter = (AssocCardNumberFilter, AssocUserEmailFilter, 'scheme_account__is_deleted', 'scheme_account__status',
+                   'scheme_account__scheme',)
     raw_id_fields = ('scheme_account', 'user',)
 
     def scheme_account_link(self, obj):
@@ -210,6 +296,9 @@ class SchemeUserAssociationAdmin(admin.ModelAdmin):
         return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
                            obj.user.id, user_name)
 
+    def scheme_account_card_number(self, obj):
+        return obj.scheme_account.card_number
+
     def scheme_status(self, obj):
         return obj.scheme_account.status_name
 
@@ -218,6 +307,15 @@ class SchemeUserAssociationAdmin(admin.ModelAdmin):
 
     def scheme_is_deleted(self, obj):
         return obj.scheme_account.is_deleted
+
+    def get_list_display(self, request):
+        list_display = super().get_list_display(request)
+        if request.GET.get('scheme_account_card_number', None) is not None:
+            self.list_per_page = 15
+            list_display = list_display + ('scheme_account_card_number',)
+        else:
+            self.list_per_page = 100
+        return list_display
 
     scheme_is_deleted.boolean = True
 
