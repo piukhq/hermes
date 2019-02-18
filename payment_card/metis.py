@@ -39,10 +39,6 @@ def enrol_existing_payment_card(account):
 
 
 def delete_payment_card(account):
-    accounts = PaymentCardAccount.objects.exclude(client=account.client.pk)
-
-    # only delete with provider if card is deleted from all apps.
-    if not accounts:
-        requests.delete(settings.METIS_URL + '/payment_service/payment_card', json=_generate_card_json(account),
-                        headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                                 'Content-Type': 'application/json'})
+    requests.delete(settings.METIS_URL + '/payment_service/payment_card', json=_generate_card_json(account),
+                    headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                             'Content-Type': 'application/json'})

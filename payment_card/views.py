@@ -82,7 +82,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             instance.save()
             PaymentCardSchemeEntry.objects.filter(payment_card_account=instance).delete()
 
-        metis.delete_payment_card(instance)
+            metis.delete_payment_card(instance)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -152,25 +152,25 @@ class ListCreatePaymentCardAccount(APIView):
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
-    def _create_payment_card_account(account, user):
-        # check if an account with the same fingerprint already exists
-        old_account = PaymentCardAccount.all_objects.filter(fingerprint=account.fingerprint).order_by('-created').first()
-        if old_account:
-            # get the latest account from the same client if it exists
-            _old_account = PaymentCardAccount.objects.filter(fingerprint=account.fingerprint,
+    def _create_payment_card_account(new_acc, user):
+        # check if an new_acc with the same fingerprint already exists
+        old_acc = PaymentCardAccount.all_objects.filter(fingerprint=new_acc.fingerprint).order_by('-created').first()
+        if old_acc:
+            # get the latest new_acc from the same client if it exists
+            _old_account = PaymentCardAccount.objects.filter(fingerprint=new_acc.fingerprint,
                                                              client=user.client.pk).order_by('-created').first()
             if _old_account:
-                old_account = _old_account
-            return ListCreatePaymentCardAccount.supercede_old_account(account, old_account, user)
+                old_acc = _old_account
+            return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_acc, user)
 
-        account.save()
-        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
-        metis.enrol_new_payment_card(account)
+        new_acc.save()
+        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_acc)
+        metis.enrol_new_payment_card(new_acc)
 
-        return account
+        return new_acc
 
     @staticmethod
-    def supercede_old_card(new_account, old_account, user):
+    def supercede_old_account(new_account, old_account, user):
         # if the clients are the same but the users don't match, reject the card.
         if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
                 client=user.client).exists():

@@ -168,8 +168,6 @@ class PaymentCardAccount(models.Model):
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=[])
 
-    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
-
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
 
