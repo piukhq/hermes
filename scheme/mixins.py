@@ -219,7 +219,8 @@ class SchemeAccountJoinMixin:
         """
         :type data: dict
         :type user: user.models.CustomUser
-        :type scheme_id: int
+        :type scheme_id: int or Type[int]
+        :rtype: tuple[dict, int, scheme.models.SchemeAccount]
         """
 
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
@@ -397,15 +398,15 @@ class UpdateCredentialsMixin:
         return self.update_credentials(scheme_account, data)
 
     @staticmethod
-    def card_with_same_data_already_exists(account, scheme_id, main_answer):
+    def card_with_same_data_already_exists(account, scheme, main_answer):
         """
         :type account: scheme.models.SchemeAccount
-        :type scheme_id: int
+        :type scheme: scheme.models.Scheme
         :type main_answer: string
         :return:
         """
         query = {
-            'scheme_account__scheme': scheme_id,
+            'scheme_account__scheme': scheme,
             'scheme_account__is_deleted': False,
             'answer': main_answer
         }
