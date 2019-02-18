@@ -3,8 +3,6 @@ import arrow
 
 from django.conf import settings
 
-from payment_card.models import PaymentCardAccount
-
 
 def _generate_card_json(account):
     return {
@@ -12,9 +10,7 @@ def _generate_card_json(account):
         'card_token': account.token,
         'partner_slug': account.payment_card.slug,
         'id': account.id,
-        'date': arrow.get(account.created).timestamp,
-        # TODO: Remove fingerprint from here and in the draft metis changes
-        'fingerprint': account.fingerprint
+        'date': arrow.get(account.created).timestamp
     }
 
 

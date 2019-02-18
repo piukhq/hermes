@@ -8,7 +8,6 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from common.models import Image
-from user.models import BINK_APP_ID
 
 
 class Issuer(models.Model):
