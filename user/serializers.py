@@ -3,12 +3,11 @@ from collections import OrderedDict
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
 from rest_framework.serializers import raise_errors_on_nested_writes
-from rest_framework.validators import UniqueValidator
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
-from user.models import (CustomUser, UserDetail, GENDERS, valid_promo_code, Setting, UserSetting,
-                         ClientApplicationBundle)
+from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting, UserDetail, UserSetting,
+                         valid_promo_code)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -43,13 +42,18 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     api_key = serializers.CharField(read_only=True)
+    uid = serializers.CharField(read_only=True)
+    external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
         email = validated_data['email']
         password = validated_data['password']
-
+        external_id = validated_data.get('external_id')
         client_id = validated_data.get('client_id')
-        if client_id:
+
+        if client_id and external_id:
+            user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id)
+        elif client_id:
             user = CustomUser.objects.create_user(email, password, client_id=client_id)
         else:
             user = CustomUser.objects.create_user(email, password)
@@ -71,6 +75,7 @@ class RegisterSerializer(serializers.Serializer):
         ret = OrderedDict()
         ret['email'] = instance.email
         ret['api_key'] = instance.create_token()
+        ret['uid'] = instance.uid
         return ret
 
 
@@ -79,6 +84,18 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
         data = super().validate(data)
         email = CustomUser.objects.normalize_email(data['email'])
         if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
+            raise serializers.ValidationError("That user already exists")
+        return data
+
+    def validate_email(self, email):
+        return email
+
+
+class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+
+    def validate(self, data):
+        data = super().validate(data)
+        if CustomUser.objects.filter(client_id=data['client_id'], external_id=data['external_id']).exists():
             raise serializers.ValidationError("That user already exists")
         return data
 
@@ -158,7 +175,7 @@ class UserSerializer(serializers.ModelSerializer):
             user_detail_serializer = UserProfileSerializer(user_detail_instance,
                                                            data=validated_data['profile'],
                                                            partial=True)
-            user_detail_serializer.is_valid()
+            user_detail_serializer.is_valid(raise_exception=True)
             user_detail_serializer.save()
 
         if email:
@@ -167,7 +184,7 @@ class UserSerializer(serializers.ModelSerializer):
         return instance
 
     uid = serializers.CharField(read_only=True, required=False)
-    email = serializers.EmailField(validators=[UniqueValidator(queryset=CustomUser.objects.all())], required=False)
+    email = serializers.EmailField(required=False)
     first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)
     last_name = serializers.CharField(source='profile.last_name', required=False, allow_blank=True)
     date_of_birth = serializers.DateField(source='profile.date_of_birth', required=False, allow_null=True)
@@ -203,12 +220,13 @@ class SchemeAccountsSerializer(serializers.ModelSerializer):
 
 
 class SchemeAccountSerializer(serializers.Serializer):
+    # TODO(cl): look at removing this, it doesn't seem to be used anywhere
     scheme_slug = serializers.CharField(max_length=50)
     scheme_account_id = serializers.IntegerField()
     user_id = serializers.IntegerField()
     status = serializers.IntegerField()
     status_name = serializers.CharField()
-    action_status = serializers.CharField()
+    display_status = serializers.IntegerField()
     credentials = serializers.CharField(max_length=300)
 
 
@@ -225,6 +243,7 @@ class TwitterRegisterSerializer(serializers.Serializer):
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
+    uid = serializers.CharField(read_only=True)
 
 
 class ResetTokenSerializer(serializers.Serializer):

@@ -1,15 +1,16 @@
-from unittest.mock import patch
 
+import httpretty
+from django.conf import settings
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from django.utils import timezone
-from django.conf import settings
-import httpretty
 
-from payment_card.tests import factories
-from payment_card.models import PaymentCardAccount
+import ubiquity.tests.factories
 from common.models import Image
-from scheme.tests.factories import SchemeAccountFactory
+from payment_card.models import AuthTransaction, PaymentCardAccount
+from payment_card.tests import factories
+from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
+from user.models import ClientApplication, Organisation
 from user.tests.factories import UserFactory
 
 
@@ -44,26 +45,27 @@ class TestPaymentCard(APITestCase):
     def setUpClass(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
-        cls.user = cls.payment_card_account.user
+        cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
+            payment_card_account=cls.payment_card_account
+        )
+        cls.user = cls.payment_card_account_entry.user
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-
         cls.payment_card_image = factories.PaymentCardAccountImageFactory()
-
         super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_account_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card__slug={}&user__id={}'.format(self.payment_card.slug,
-                                                                           self.user.id),
+                               '?payment_card__slug={}&user_set__id={}'.format(self.payment_card.slug,
+                                                                               self.user.id),
                                **self.auth_service_headers)
         self.assertEqual(200, resp.status_code)
         self.assertEqual(resp.json()[0]['id'], self.payment_card_account.id)
 
     def test_payment_card_account_bad_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
-                               '?payment_card=what&user=no',
+                               '?payment_card=what&user_set__id=no',
                                **self.auth_service_headers)
         self.assertEqual(400, resp.status_code)
 
@@ -103,8 +105,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data['status_name'], 'pending')
 
     @httpretty.activate
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_post_payment_card_account(self, mock_update_user_custom_attribute):
+    def test_post_payment_card_account(self):
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
@@ -124,17 +125,6 @@ class TestPaymentCard(APITestCase):
                 'order': 0}
 
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
-        self.assertEqual(
-            mock_update_user_custom_attribute.call_args[0][3],
-            "STS:pending,CRD:{},NAM:Aron Stokes,EXPM:4,EXPY:10,CTY:New Zealand,BIN:088012,END:9820,CTD:{}"
-            ",UPD:{},DEL:{}".format(
-                self.payment_card_account.payment_card.system_name,
-                self.payment_card_account.created.strftime("%Y/%m/%d"),
-                self.payment_card_account.updated.strftime("%Y/%m/%d"),
-                str(self.payment_card_account.is_deleted).lower()
-            )
-        )
 
         # The stub is called indirectly via the View so we can only verify the stub has been called
         self.assertTrue(httpretty.has_request())
@@ -185,8 +175,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
 
     @httpretty.activate
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_post_barclays_payment_card_account(self, mock_update_user_custom_attribute):
+    def test_post_barclays_payment_card_account(self):
         # add barclays personal offer image
         offer_image = factories.PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
 
@@ -215,17 +204,6 @@ class TestPaymentCard(APITestCase):
         self.assertFalse(hero_image.payment_card_accounts.exists())
         response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
 
-        self.assertEqual(
-            mock_update_user_custom_attribute.call_args[0][3],
-            "STS:pending,CRD:{},NAM:Aron Stokes,EXPM:4,EXPY:10,CTY:New Zealand,BIN:543979,END:9820,CTD:{}"
-            ",UPD:{},DEL:{}".format(
-                self.payment_card_account.payment_card.system_name,
-                self.payment_card_account.created.strftime("%Y/%m/%d"),
-                self.payment_card_account.updated.strftime("%Y/%m/%d"),
-                str(self.payment_card_account.is_deleted).lower()
-            )
-        )
-
         self.assertEqual(response.status_code, 201)
         payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
         self.assertEqual(offer_image.payment_card_accounts.first(), payment_card_account)
@@ -237,17 +215,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['pan_start'], "987678")
-
-    # def test_patch_payment_card_account_bad_length(self):
-    #     response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-    #                                  data={'pan_start': '0000000'}, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 400)
-    #     self.assertEqual(response.data, {'pan_start': ['Ensure this field has no more than 6 characters.']})
-
-    #     response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
-    #                                  data={'pan_end': '0000000'}, **self.auth_headers)
-    #     self.assertEqual(response.status_code, 400)
-    #     self.assertEqual(response.data, {'pan_end': ['Ensure this field has no more than 4 characters.']})
 
     def test_patch_payment_card_cannot_change_scheme(self):
         payment_card_2 = factories.PaymentCardFactory(name='sommet', slug='sommet')
@@ -283,8 +250,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
     def test_payment_card_account_token_unique(self):
-        data = {'user': self.user.id,
-                'issuer': self.issuer.id,
+        data = {'issuer': self.issuer.id,
                 'status': 1,
                 'expiry_month': 4,
                 'expiry_year': 10,
@@ -302,8 +268,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.data, {'token': ['This field must be unique.']})
 
     @httpretty.activate
-    @patch('intercom.intercom_api.update_user_custom_attribute')
-    def test_delete_payment_card_accounts(self, mock_update_user_custom_attribute):
+    def test_delete_payment_card_accounts(self):
 
         # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
         httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
@@ -314,8 +279,6 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 204)
         response = self.client.get('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                    **self.auth_headers)
-
-        self.assertEqual(mock_update_user_custom_attribute.call_args[0][3][-4:], "true")
 
         self.assertEqual(response.status_code, 404)
         # The stub is called indirectly via the View so we can only verify the stub has been called
@@ -331,13 +294,89 @@ class TestPaymentCard(APITestCase):
     def test_get_payment_card_scheme_accounts(self):
         token = 'test_token_123'
         user = UserFactory()
-        SchemeAccountFactory(user=user)
-        factories.PaymentCardAccountFactory(user=user, psp_token=token, payment_card=self.payment_card)
+        sae = SchemeAccountEntryFactory(user=user)
+        pca = factories.PaymentCardAccountFactory(psp_token=token, payment_card=self.payment_card)
+        ubiquity.tests.factories.PaymentCardAccountEntryFactory(user=user, payment_card_account=pca)
+        PaymentCardSchemeEntryFactory(payment_card_account=pca, scheme_account=sae.scheme_account)
+
         response = self.client.get('/payment_cards/scheme_accounts/{0}'.format(token), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
-        self.assertEqual(len(response.data[0]), 3)
+        self.assertEqual(len(response.data[0]), 2)
         keys = list(response.data[0].keys())
         self.assertEqual(keys[0], 'scheme_id')
-        self.assertEqual(keys[1], 'user_id')
-        self.assertEqual(keys[2], 'scheme_account_id')
+        self.assertEqual(keys[1], 'scheme_account_id')
+
+
+class TestAuthTransactions(APITestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='234rghjcewerg4gf3ef23v')
+
+        super(TestAuthTransactions, cls).setUpClass()
+
+    def test_create_auth_transaction_endpoint(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
+            "auth_code": "1",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '1',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_create_auth_transaction_endpoint_no_auth_code(self):
+        payload = {
+            "time": "2018-05-24 14:54:10.825035+01:00",
+            "amount": 1260,
+            "mid": "1",
+            "third_party_id": "1",
+            "payment_card_token": "234rghjcewerg4gf3ef23v",
+            "currency_code": "GBP"
+        }
+
+        expected_resp = {
+            'time': '2018-05-24T14:54:10.825035+01:00',
+            'amount': 1260,
+            'mid': '1',
+            'third_party_id': '1',
+            'auth_code': '',
+            'currency_code': 'GBP'
+        }
+        self.assertIsNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+        resp = self.client.post('/payment_cards/auth_transaction', payload, **self.auth_service_headers)
+
+        self.assertEqual(resp.status_code, 201)
+        self.assertDictEqual(resp.data, expected_resp)
+        self.assertIsNotNone(AuthTransaction.objects.filter(payment_card_account=self.payment_card_account.pk).first())
+
+    def test_list_payment_card_client_apps(self):
+        amex = Organisation.objects.create(name='American Express')
+        mc = Organisation.objects.create(name='Master Card')
+
+        ClientApplication.objects.create(name='Amex Auth Transactions', organisation=amex)
+        ClientApplication.objects.create(name='MC Auth Transactions', organisation=mc)
+
+        resp = self.client.get('/payment_cards/client_apps', **self.auth_service_headers)
+
+        self.assertEqual(200, resp.status_code)
+        self.assertTrue(len(resp.data), 2)

@@ -1,14 +1,11 @@
 from django.conf.urls import url
+
 from scheme import views
 
 urlpatterns = [
     url(r'^/accounts/?$',
         views.CreateAccount.as_view(),
         name='create_scheme_account'),
-
-    url(r'^/accounts/my360/?$',
-        views.CreateMy360AccountsAndLink.as_view(),
-        name='create_my360_accounts_and_link'),
 
     url(r'^/accounts/query$',
         views.SchemeAccountQuery.as_view(),
@@ -51,6 +48,10 @@ urlpatterns = [
     url(r'^/accounts/(?P<pk>[0-9]+)/link',
         views.LinkCredentials.as_view(),
         name='create_question'),
+
+    url(r'^/user_consent/(?P<pk>[0-9]+)$',
+        views.UpdateUserConsent.as_view(),
+        name='update_user_consent'),
 
     url(r'^/accounts/summary',
         views.SchemeAccountStatusData.as_view(),

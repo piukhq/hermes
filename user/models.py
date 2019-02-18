@@ -1,28 +1,26 @@
-from string import ascii_letters, digits
-import random
 import base64
-import uuid
 import os
+import random
+import uuid
+from string import ascii_letters, digits
 
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
-from django.utils.translation import ugettext_lazy as _
-from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
-from django.db.models.fields import CharField
-from django.dispatch import receiver
-from django.conf import settings
-from django.db import models
-from hashids import Hashids
 import arrow
 import jwt
+from django.conf import settings
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.core.exceptions import ValidationError
+from django.db import models
+from django.db.models.fields import CharField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.utils.translation import ugettext_lazy as _
+from hashids import Hashids
 
-from user.validators import validate_boolean, validate_number
-from user.managers import CustomUserManager
 from scheme.models import Scheme
-
+from user.managers import CustomUserManager
+from user.validators import validate_boolean, validate_number
 
 hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
-
 
 BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 
@@ -130,10 +128,19 @@ class ClientApplicationBundle(models.Model):
     """
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
+    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
+    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
+
+    class Meta:
+        unique_together = ('client', 'bundle_id',)
 
     @classmethod
     def get_bink_bundles(cls):
         return cls.objects.filter(client_id=BINK_APP_ID)
+
+    @staticmethod
+    def is_authenticated():
+        return True
 
     def __str__(self):
         return '{} ({})'.format(self.bundle_id, self.client)
@@ -152,16 +159,17 @@ class ClientApplicationKit(models.Model):
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(verbose_name='email address', max_length=255, null=True, blank=True)
-    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT)
+    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-    uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
+    uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4, db_index=True)
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
     salt = models.CharField(max_length=8)
+    external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -170,7 +178,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
-        unique_together = ('client', 'email',)
 
     def get_full_name(self):
         return self.email
@@ -232,7 +239,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email or str(self.uid)
 
     def __str__(self):
-        return self.email or str(self.uid)
+        return 'id: {} - {}'.format(self.id, self.email) or str(self.uid)
 
     # Maybe required?
     def get_group_permissions(self, obj=None):
@@ -250,8 +257,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def has_module_perms(self, app_label):
         return True
 
-    def create_token(self):
+    def create_token(self, bundle_id=''):
         payload = {
+            'bundle_id': bundle_id,
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
@@ -296,6 +304,21 @@ class UserDetail(models.Model):
 
     def __str__(self):
         return str(self.user_id)
+
+    def set_field(self, field, value):
+        if hasattr(self, field):
+            return setattr(self, field, value)
+
+        field_mapping = {
+            'address_line_1': ['address_1'],
+            'address_line_2': ['address_2'],
+            'city': ['town_city']
+        }
+        for user_field in field_mapping.keys():
+            if field in field_mapping[user_field]:
+                return setattr(self, user_field, value)
+        else:
+            raise AttributeError('cant set {} field in user profile'.format(field))
 
 
 class Referral(models.Model):
@@ -405,4 +428,4 @@ def validate_setting_value(value, setting):
                                   params={
                                       'value': value,
                                       'value_type': setting.value_type_name,
-            })
+                                  })

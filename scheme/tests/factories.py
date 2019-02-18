@@ -1,17 +1,19 @@
 from datetime import datetime
 
 import factory
+from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
+
 from scheme import models
-from scheme.models import Consent
+from scheme.models import Control
 from faker import Factory
 from scheme.credentials import USER_NAME
-from django.utils import timezone
-
+from scheme.models import Consent, ConsentStatus, JourneyTypes, UserConsent
 from user.tests.factories import UserFactory
 
-
 fake = Factory.create()
+# Change seed value if we start getting duplicate data
+fake.seed(123456)
 
 
 class CategoryFactory(factory.DjangoModelFactory):
@@ -29,6 +31,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
     url = fake.url()
+    transaction_headers = ["header 1", "header 2", "header 3"]
     company = fake.company()
     company_url = fake.url()
     forgotten_password_url = fake.url()
@@ -43,6 +46,15 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_prefix = ''
 
 
+class SchemeBalanceDetailsFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeBalanceDetails
+
+    scheme_id = factory.SubFactory(SchemeFactory)
+    currency = fake.company()
+    suffix = fake.slug()
+
+
 class ConsentFactory(factory.DjangoModelFactory):
     class Meta:
         model = Consent
@@ -53,17 +65,44 @@ class ConsentFactory(factory.DjangoModelFactory):
     is_enabled = True
     required = True
     order = 1
-    journey = Consent.LINK
+    journey = JourneyTypes.LINK.value
+    slug = FuzzyAttribute(fake.slug)
+
+
+KEY_CHOICES = [x[0] for x in Control.KEY_CHOICES]
+
+
+class ControlFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = Control
+
+    key = factory.fuzzy.FuzzyChoice(KEY_CHOICES)
+    label = fake.sentence(nb_words=3)
+    hint_text = fake.sentence(nb_words=10)
+
+    scheme = factory.SubFactory(SchemeFactory)
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccount
 
-    user = factory.SubFactory(UserFactory)
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
+
+
+class UserConsentFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = UserConsent
+
+    user = factory.SubFactory(UserFactory)
+    slug = FuzzyAttribute(fake.slug)
+    scheme = factory.SubFactory(SchemeFactory)
+    scheme_account = factory.SubFactory(SchemeAccountFactory)
+    value = True
+    metadata = ''
+    status = ConsentStatus.PENDING
 
 
 class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
@@ -74,6 +113,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     type = USER_NAME
     label = 'Please enter your username.'
     third_party_identifier = False
+    field_type = 0
 
 
 class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
@@ -142,3 +182,19 @@ class ExchangeFactory(factory.DjangoModelFactory):
     info_url = fake.url()
 
     flag_auto_tip_in = 0
+
+
+class SchemeCredentialQuestionChoiceFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeCredentialQuestionChoice
+
+    scheme = factory.SubFactory(SchemeFactory)
+    scheme_question = factory.SubFactory(SchemeCredentialQuestionFactory)
+
+
+class SchemeCredentialQuestionChoiceValueFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeCredentialQuestionChoiceValue
+
+    choice = factory.SubFactory(SchemeCredentialQuestionChoiceFactory)
+    value = fake.slug()

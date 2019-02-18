@@ -3,10 +3,11 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
 from payment_card import models
+from payment_card.models import PaymentCardAccount
+from user.models import ClientApplication
 
 
 class PaymentCardImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardImage
         fields = '__all__'
@@ -22,10 +23,9 @@ class PaymentCardSerializer(serializers.ModelSerializer):
 
 
 class PaymentCardAccountImageSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccountImage
-        exclude = ('payment_card_accounts',)
+        exclude = ('payment_card_accounts', 'encoding')
 
 
 class PaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -60,11 +60,10 @@ class PaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('token', 'psp_token')
+        exclude = ('psp_token', 'consents', 'user_set', 'scheme_account_set')
 
 
 class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccount
         fields = '__all__'
@@ -95,11 +94,10 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
         extra_kwargs = {'psp_token': {'write_only': True}}
         read_only_fields = ('status', 'is_deleted')
         # TODO(cl): when fixing the above TODO, remove psp_token from here.
-        exclude = ('token', 'psp_token', 'user')
+        exclude = ('psp_token', 'consents')
 
 
 class PaymentCardAccountStatusSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.PaymentCardAccount
         fields = ('status',)
@@ -110,8 +108,8 @@ class PaymentCardSchemeAccountSerializer(serializers.Serializer):
     user_id = serializers.ReadOnlyField()
     scheme_account_id = serializers.ReadOnlyField()
     extra_kwargs = {'token': {'write_only': True}, 'user': {'required': False}}
-    read_only_fields = ('status', 'order', )
-    exclude = ('is_deleted', )
+    read_only_fields = ('status', 'order',)
+    exclude = ('is_deleted',)
 
 
 class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
@@ -124,10 +122,39 @@ class UpdatePaymentCardAccountSerializer(PaymentCardAccountSerializer):
 
 
 class ProviderStatusMappingSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = models.ProviderStatusMapping
         fields = ('provider_status_code', 'bink_status_code')
+
+
+class PaymentCardField(serializers.RelatedField):
+    def to_internal_value(self, data):
+        return models.PaymentCardAccount.objects.get(token=data)
+
+    def to_representation(self, value):
+        return value.pk
+
+
+class AuthTransactionSerializer(serializers.ModelSerializer):
+    payment_card_token = PaymentCardField(source='payment_card_account',
+                                          queryset=PaymentCardAccount.objects.all(), write_only=True)
+
+    class Meta:
+        model = models.AuthTransaction
+        fields = ('time', 'amount', 'mid', 'third_party_id', 'auth_code', 'currency_code', 'payment_card_token')
+        extra_kwargs = {
+            'payment_card_account': {'write_only': True},
+            'payment_card_token': {'write_only': True}
+        }
+        depth = 1
+
+
+class PaymentCardClientSerializer(serializers.ModelSerializer):
+    organisation = serializers.SlugRelatedField(read_only=True, slug_field='name')
+
+    class Meta:
+        model = ClientApplication
+        fields = ('client_id', 'secret', 'organisation')
 
 
 def add_object_type_to_image_response(data, type):
@@ -136,15 +163,20 @@ def add_object_type_to_image_response(data, type):
     return new_data
 
 
-def get_images_for_payment_card_account(payment_card_account):
+def get_images_for_payment_card_account(payment_card_account, serializer_class=PaymentCardAccountImageSerializer,
+                                        add_type=True):
     account_images = models.PaymentCardAccountImage.objects.filter(payment_card_accounts__id=payment_card_account.id)
     payment_card_images = models.PaymentCardImage.objects.filter(payment_card=payment_card_account.payment_card)
 
     images = []
 
     for image in account_images:
-        serializer = PaymentCardAccountImageSerializer(image)
-        images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
+        serializer = serializer_class(image)
+
+        if add_type:
+            images.append(add_object_type_to_image_response(serializer.data, 'payment_card_account_image'))
+        else:
+            images.append(serializer.data)
 
     for image in payment_card_images:
         account_image = account_images.filter(image_type_code=image.image_type_code).first()
@@ -161,9 +193,14 @@ def get_images_for_payment_card_account(payment_card_account):
                 call_to_action=image.call_to_action,
                 order=image.order,
                 created=image.created,
+                encoding=image.encoding
             )
 
-            serializer = PaymentCardAccountImageSerializer(account_image)
-            images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
+            serializer = serializer_class(account_image)
+
+            if add_type:
+                images.append(add_object_type_to_image_response(serializer.data, 'payment_card_image'))
+            else:
+                images.append(serializer.data)
 
     return images

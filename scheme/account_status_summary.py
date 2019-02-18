@@ -15,7 +15,7 @@ def scheme_account_status_data():
 def status_summary_from_db():
     cursor = connection.cursor()
 
-    sql = "SELECT sa.scheme_id, ss.name, sa.status, COUNT (status) " \
+    sql = "SELECT sa.scheme_id, ss.name, sa.status, COUNT (sa.status) " \
           "FROM scheme_schemeaccount AS sa " \
           "JOIN scheme_scheme AS ss ON sa.scheme_id = ss.id " \
           "GROUP BY sa.status, ss.name,sa.scheme_id " \

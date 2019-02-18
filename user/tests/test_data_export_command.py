@@ -4,15 +4,15 @@ from unittest.mock import patch
 from django.core.management import call_command
 from django.test import TestCase
 
-from scheme.tests.factories import SchemeAccountFactory
+from ubiquity.tests.factories import SchemeAccountEntryFactory
 
 
 class DataExportTest(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        for i in range(0, 15):
-            SchemeAccountFactory()
+        for _ in range(0, 15):
+            SchemeAccountEntryFactory()
         super().setUpClass()
 
     @patch('user.management.commands.data_export.write_csv')

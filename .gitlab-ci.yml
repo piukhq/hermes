@@ -8,7 +8,8 @@ tests:
   script:
     - pip3 install -r requirements.txt
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
-    - py.test --cov-report term-missing --cov=.
+    - coverage run --source='.' manage.py test -v 2
+    - coverage report
   services:
     - postgres:9.4.4
 
@@ -48,6 +49,19 @@ build-master:
   only:
     - tags
 
+build-ukbanking:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --pull -t "$CI_REGISTRY/hermes:ukbanking" .
+    - docker push "$CI_REGISTRY/hermes:ukbanking"
+  only:
+    - feature/ukbanking
+
 deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
@@ -55,10 +69,18 @@ deploy-dev:
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=dev deploystatic
-    - kubectl config use-context dev
-    - kubectl delete po $(kubectl get po --no-headers=true -l run=hermes -o custom-columns=:metadata.name)
+    - kubectl delete po -n=dev -l=project=hermes
   only:
     - develop
+
+deploy-ukbanking:
+  stage: deploy
+  image: binkops.azurecr.io/kubedeployer:latest
+  environment: dev
+  script:
+    - kubectl delete po -n=ukbanking -l=project=hermes
+  only:
+    - feature/ukbanking
 
 deploy-staging:
   stage: deploy
@@ -67,9 +89,8 @@ deploy-staging:
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=staging deploystatic
-    - kubectl config use-context staging
-    - 'kubectl patch deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
-    - kubectl set image deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
+    - 'kubectl patch -n=staging deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
+    - kubectl set image -n=staging deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   only:
     - tags
 
@@ -80,9 +101,8 @@ deploy-prod:
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=prod deploystatic
-    - kubectl config use-context prod
-    - 'kubectl patch deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
-    - kubectl set image deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
+    - 'kubectl patch -n=production deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
+    - kubectl set image -n=production deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   when: manual
   only:
     - tags

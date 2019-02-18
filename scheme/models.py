@@ -3,20 +3,26 @@ import re
 import socket
 import sre_constants
 import uuid
-import requests
+from decimal import Decimal
+from enum import IntEnum
 
+import arrow
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField, JSONField
+from django.core.cache import cache
 from django.db import models
-from django.contrib.postgres.fields import ArrayField
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
-from django.utils import timezone
 from django.template.defaultfilters import truncatewords
-from scheme.credentials import CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, BARCODE, CARD_NUMBER
+from django.utils import timezone
+
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
+from common.models import Image
+from hermes.traced_requests import requests
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
 
@@ -30,12 +36,7 @@ class Category(models.Model):
 class ActiveSchemeManager(models.Manager):
 
     def get_queryset(self):
-        schemes = super(ActiveSchemeManager, self).get_queryset().exclude(is_active=False)
-        schemes_without_questions = []
-        for scheme in schemes:
-            if len(scheme.questions.all()) == 0:
-                schemes_without_questions.append(scheme.id)
-        return schemes.exclude(id__in=schemes_without_questions)
+        return super().get_queryset().exclude(status=Scheme.INACTIVE)
 
 
 def _default_transaction_headers():
@@ -43,10 +44,15 @@ def _default_transaction_headers():
 
 
 class Scheme(models.Model):
+    PLL = 1
+    BASIC = 2
+    PARTNER = 3
     TIERS = (
-        (1, 'Bink'),
-        (2, 'Show'),
+        (1, 'PLL'),
+        (2, 'Basic'),
+        (3, 'Partner'),
     )
+    TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
     BARCODE_TYPES = (
         (0, 'CODE128 (B or C)'),
         (1, 'QrCode'),
@@ -65,6 +71,15 @@ class Scheme(models.Model):
         (4, '4 (0+)'),
     )
     MAX_POINTS_VALUE_LENGTH = 11
+
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
 
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
@@ -100,7 +115,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    is_active = models.BooleanField(default=True)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -113,6 +128,19 @@ class Scheme(models.Model):
                                       help_text="Prefix to from card number -> barcode mapping")
     all_objects = models.Manager()
     objects = ActiveSchemeManager()
+
+    # ubiquity fields
+    authorisation_required = models.BooleanField(default=False)
+    digital_only = models.BooleanField(default=False)
+    plan_name = models.CharField(max_length=50, null=True, blank=True)
+    plan_name_card = models.CharField(max_length=50, null=True, blank=True)
+    plan_summary = models.TextField(default='', blank=True, max_length=250)
+    plan_description = models.TextField(default='', blank=True, max_length=500)
+    enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -134,6 +162,12 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
+    def get_question_type_dict(self):
+        return {
+            question.label: question.type
+            for question in self.questions.filter(field_type__isnull=False).all()
+        }
+
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
 
@@ -144,15 +178,34 @@ class ConsentsManager(models.Manager):
         return super(ConsentsManager, self).get_queryset().exclude(is_enabled=False).order_by('journey', 'order')
 
 
-class Consent(models.Model):
+class JourneyTypes(IntEnum):
     JOIN = 0
     LINK = 1
     ADD = 2
+    UPDATE = 3
 
+
+class Control(models.Model):
+    JOIN_KEY = 'join_button'
+    ADD_KEY = 'add_button'
+
+    KEY_CHOICES = (
+        (JOIN_KEY, 'Join Button - Add Card screen'),
+        (ADD_KEY, 'Add Button - Add Card screen')
+    )
+
+    key = models.CharField(max_length=50, choices=KEY_CHOICES)
+    label = models.CharField(max_length=50, blank=True)
+    hint_text = models.CharField(max_length=250, blank=True)
+
+    scheme = models.ForeignKey(Scheme, related_name="controls")
+
+
+class Consent(models.Model):
     journeys = (
-        (JOIN, 'join'),
-        (LINK, 'link'),
-        (ADD, 'add'),
+        (JourneyTypes.JOIN.value, 'join'),
+        (JourneyTypes.LINK.value, 'link'),
+        (JourneyTypes.ADD.value, 'add'),
     )
 
     check_box = models.BooleanField()
@@ -162,6 +215,8 @@ class Consent(models.Model):
     required = models.BooleanField()
     order = models.IntegerField()
     journey = models.IntegerField(choices=journeys)
+    slug = models.SlugField(max_length=50, help_text="Slug must match the opt-in field name in the request"
+                                                     " sent to the merchant e.g marketing_opt_in")
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
@@ -174,6 +229,9 @@ class Consent(models.Model):
 
     def __str__(self):
         return '({}) {}: {}'.format(self.scheme.slug, self.id, self.short_text)
+
+    class Meta:
+        unique_together = ('slug', 'scheme', 'journey')
 
 
 class Exchange(models.Model):
@@ -227,8 +285,8 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True).\
-            exclude(scheme__is_active=False)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
+            exclude(scheme__status=Scheme.INACTIVE)
 
 
 class SchemeAccount(models.Model):
@@ -250,6 +308,20 @@ class SchemeAccount(models.Model):
     PASSWORD_EXPIRED = 533
     JOIN = 900
     NO_SUCH_RECORD = 444
+    CONFIGURATION_ERROR = 536
+    NOT_SENT = 535
+    ACCOUNT_ALREADY_EXISTS = 445
+    SERVICE_CONNECTION_ERROR = 537
+    VALIDATION_ERROR = 401
+    PRE_REGISTERED_CARD = 406
+    FAILED_UPDATE = 446
+    PENDING_MANUAL_CHECK = 204
+    CARD_NUMBER_ERROR = 436
+    LINK_LIMIT_EXCEEDED = 437
+    CARD_NOT_REGISTERED = 438
+    GENERAL_ERROR = 439
+    JOIN_IN_PROGRESS = 441
+    JOIN_ERROR = 538
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -270,13 +342,32 @@ class SchemeAccount(models.Model):
         (PASSWORD_EXPIRED, 'Password expired', 'PASSWORD_EXPIRED'),
         (JOIN, 'Join', 'JOIN'),
         (NO_SUCH_RECORD, 'No user currently found', 'NO_SUCH_RECORD'),
+        (CONFIGURATION_ERROR, 'Error with the configuration or it was not possible to retrieve', 'CONFIGURATION_ERROR'),
+        (NOT_SENT, 'Request was not sent', 'NOT_SENT'),
+        (ACCOUNT_ALREADY_EXISTS, 'Account already exists', 'ACCOUNT_ALREADY_EXISTS'),
+        (SERVICE_CONNECTION_ERROR, 'Service connection error', 'SERVICE_CONNECTION_ERROR'),
+        (VALIDATION_ERROR, 'Failed validation', 'VALIDATION_ERROR'),
+        (PRE_REGISTERED_CARD, 'Pre-registered card', 'PRE_REGISTERED_CARD'),
+        (FAILED_UPDATE, 'Update failed. Delete and re-add card.', 'FAILED_UPDATE'),
+        (PENDING_MANUAL_CHECK, 'Pending manual check.', 'PENDING_MANUAL_CHECK'),
+        (CARD_NUMBER_ERROR, 'Invalid card_number', 'CARD_NUMBER_ERROR'),
+        (LINK_LIMIT_EXCEEDED, 'You can only Link one card per day.', 'LINK_LIMIT_EXCEEDED'),
+        (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
+        (GENERAL_ERROR, 'General Error such as incorrect user details', 'GENERAL_ERROR'),
+        (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
+        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE]
+    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
+    USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
+                            ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
+                            GENERAL_ERROR, JOIN_IN_PROGRESS]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, PENDING, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED]
+                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
+                                      related_name='scheme_account_set')
     scheme = models.ForeignKey('scheme.Scheme')
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
@@ -284,9 +375,12 @@ class SchemeAccount(models.Model):
     updated = models.DateTimeField(auto_now=True)
     is_deleted = models.BooleanField(default=False)
     link_date = models.DateTimeField(null=True, blank=True)
-
+    join_date = models.DateTimeField(null=True, blank=True)
     all_objects = models.Manager()
     objects = ActiveSchemeIgnoreQuestionManager()
+
+    # ubiquity fields
+    balances = JSONField(default=dict(), null=True, blank=True)
 
     @property
     def status_name(self):
@@ -321,39 +415,128 @@ class SchemeAccount(models.Model):
 
         A scan or manual question is an optional if one of the other exists
         """
-        required_credentials = {
-            question.type for question in self.scheme.questions.filter(
-                options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE]
-            )
-        }
+        questions = self.scheme.questions.filter(
+            options__in=[F('options').bitor(SchemeCredentialQuestion.LINK), SchemeCredentialQuestion.NONE])
+
+        required_credentials = {question.type for question in questions}
         manual_question = self.scheme.manual_question
         scan_question = self.scheme.scan_question
 
+        if manual_question:
+            required_credentials.add(manual_question.type)
+        if scan_question:
+            required_credentials.add(scan_question.type)
+
         if scan_question and manual_question and scan_question != manual_question:
             if scan_question.type in credential_types:
-                required_credentials.remove(manual_question.type)
+                required_credentials.discard(manual_question.type)
             if required_credentials and manual_question.type in credential_types:
-                required_credentials.remove(scan_question.type)
+                required_credentials.discard(scan_question.type)
 
         return required_credentials.difference(set(credential_types))
+
+    def get_auth_fields(self):
+        credentials = self._collect_credentials()
+        link_fields = [field.type for field in self.scheme.link_questions]
+        return {
+            k: v
+            for k, v in credentials.items()
+            if k in link_fields
+        }
 
     def credentials(self):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
-            self.status = SchemeAccount.INCOMPLETE
-            self.save()
-            return None
+            # temporary fix for iceland
+            if self.scheme.slug != 'iceland-bonus-card':
+                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                for user in bink_users:
+                    update_scheme_account_attribute_new_status(
+                        self,
+                        user,
+                        dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                    )
+                self.status = SchemeAccount.INCOMPLETE
+                self.save()
+                return None
+
+        saved_consents = self.collect_pending_consents()
+        credentials.update(consents=saved_consents)
+
         serialized_credentials = json.dumps(credentials)
         return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
-    def get_midas_balance(self):
+    def update_or_create_primary_credentials(self, credentials):
+        """
+        Creates or updates scheme account credential answer objects for manual or scan questions. If only one is
+        given and the scheme has a regex conversion for the property, both will be saved.
+        :param credentials: dict of credentials
+        :return: credentials
+        """
+        manual_question = self.scheme.manual_question
+        manual_answer = None
+        if manual_question:
+            manual_answer = credentials.get(manual_question.type)
+
+        scan_question = self.scheme.scan_question
+        scan_answer = None
+        if scan_question:
+            scan_answer = credentials.get(scan_question.type)
+
+        if manual_question and manual_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(manual_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[manual_question.type]})
+
+        if scan_question and scan_answer:
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question=self.question(scan_question.type),
+                scheme_account=self,
+                defaults={'answer': credentials[scan_question.type]})
+
+        regex_credentials = [
+            'card_number',
+            'barcode'
+        ]
+        for question in regex_credentials:
+            value = getattr(self, question)
+            if not credentials.get(question) and value:
+                credentials.update({question: value})
+
+        return credentials
+
+    def collect_pending_consents(self):
+        user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
+        formatted_user_consents = []
+        for user_consent in user_consents:
+            formatted_user_consents.append(
+                {
+                    "id": user_consent['id'],
+                    "slug": user_consent['slug'],
+                    "value": user_consent['value'],
+                    "created_on": arrow.get(user_consent['created_on']).for_json(),
+                    "journey_type": user_consent['metadata']['journey']
+                }
+            )
+
+        return formatted_user_consents
+
+    def get_midas_balance(self, journey):
         points = None
+        old_status = self.status
+
+        if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
+            return points
+
         try:
             credentials = self.credentials()
             if not credentials:
                 return points
-            response = self._get_balance(credentials)
+            response = self._get_balance(credentials, journey)
             self.status = response.status_code
+            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+                self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
@@ -361,21 +544,56 @@ class SchemeAccount(models.Model):
                 points['is_stale'] = False
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
+
+        if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
+            self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            self.call_analytics(self.user_set.all(), old_status)
         return points
 
-    def _get_balance(self, credentials):
+    def call_analytics(self, user_set, old_status):
+        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:  # Update intercom
+            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
+
+    def _get_balance(self, credentials, journey):
+        user_set = ','.join([str(u.id) for u in self.user_set.all()])
         parameters = {
             'scheme_account_id': self.id,
-            'user_id': self.user.id,
             'credentials': credentials,
-            'status': self.status_key,
+            'user_set': user_set,
+            'status': self.status,
+            'journey_type': journey.value,
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
                                 params=parameters, headers=headers)
         return response
+
+    def get_cached_balance(self, user_consents=None):
+        cache_key = 'scheme_{}'.format(self.pk)
+        balance = cache.get(cache_key)
+
+        if not balance:
+            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
+            if balance:
+                balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
+                cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+
+        if balance != self.balances and balance:
+            self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]
+            self.save()
+
+        return balance
+
+    def set_pending(self, manual_pending=False):
+        self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
+        self.save()
+
+    def delete_cached_balance(self):
+        cache_key = 'scheme_{}'.format(self.pk)
+        cache.delete(cache_key)
 
     def question(self, question_type):
         """
@@ -426,6 +644,15 @@ class SchemeAccount(models.Model):
                     return None
         return None
 
+    def get_transaction_matching_user_id(self):
+        bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
+        if bink_user.exists():
+            user_id = bink_user.first().get('id')
+        else:
+            user_id = self.user_set.order_by('date_joined').values('id').first().get('id')
+
+        return user_id
+
     @property
     def barcode(self):
         barcode_answer = self.barcode_answer
@@ -462,17 +689,18 @@ class SchemeAccount(models.Model):
         return self.schemeaccountcredentialanswer_set.filter(question=self.scheme.one_question_link).first()
 
     @property
-    def action_status(self):
-        if self.status in self.USER_ACTION_REQUIRED:
-            return 'USER_ACTION_REQUIRED'
-        elif self.status in self.SYSTEM_ACTION_REQUIRED:
-            return 'SYSTEM_ACTION_REQUIRED'
-        elif self.status == self.ACTIVE:
-            return 'ACTIVE'
-        elif self.status == self.WALLET_ONLY:
-            return 'WALLET_ONLY'
-        elif self.status == self.PENDING:
-            return 'PENDING'
+    def display_status(self):
+        # linked accounts in "system account required" should be displayed as "active".
+        # accounts in "active", "pending", and "join" statuses should be displayed as such.
+        # all other statuses should be displayed as "wallet only"
+        if (self.link_date or self.join_date) and self.status in self.SYSTEM_ACTION_REQUIRED:
+            return self.ACTIVE
+        elif self.status in [self.ACTIVE, self.PENDING, self.JOIN]:
+            return self.status
+        elif self.status in self.JOIN_ACTION_REQUIRED:
+            return self.JOIN
+        else:
+            return self.WALLET_ONLY
 
     @property
     def third_party_identifier(self):
@@ -497,36 +725,8 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
-    @property
-    def images(self):
-        qualifiers = SchemeAccountImage.objects.filter(scheme=self.scheme,
-                                                       scheme_accounts__id=self.id,
-                                                       scheme_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('scheme_image__image_type_code'),
-                                     image_size_code=F('scheme_image__size_code'),
-                                     image=F('scheme_image__image'),
-                                     strap_line=F('scheme_image__strap_line'),
-                                     image_description=F('scheme_image__description'),
-                                     url=F('scheme_image__url'),
-                                     call_to_action=F('scheme_image__call_to_action'),
-                                     order=F('scheme_image__order'))\
-            .values('image_type_code',
-                    'image_size_code',
-                    'image',
-                    'strap_line',
-                    'image_description',
-                    'url',
-                    'call_to_action',
-                    'order',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'created')
-
-        return images
-
     def __str__(self):
-        return "{0} - {1}".format(self.user.email, self.scheme.name)
+        return "{} - id: {}".format(self.scheme.name, self.id)
 
     class Meta:
         ordering = ['order', '-created']
@@ -538,13 +738,33 @@ class SchemeCredentialQuestion(models.Model):
     JOIN = 1 << 1
     OPTIONAL_JOIN = (1 << 2 | JOIN)
     LINK_AND_JOIN = (LINK | JOIN)
+    MERCHANT_IDENTIFIER = (1 << 3)
+
+    ADD_FIELD = 0
+    AUTH_FIELD = 1
+    ENROL_FIELD = 2
 
     OPTIONS = (
-        (0, 'None'),
+        (NONE, 'None'),
         (LINK, 'Link'),
         (JOIN, 'Join'),
         (OPTIONAL_JOIN, 'Join (optional)'),
         (LINK_AND_JOIN, 'Link & Join'),
+        (MERCHANT_IDENTIFIER, 'Merchant Identifier')
+    )
+
+    # ubiquity choices
+    ANSWER_TYPE_CHOICES = (
+        (0, 'text'),
+        (1, 'sensitive'),
+        (2, 'choice'),
+        (3, 'boolean'),
+    )
+
+    FIELD_TYPE_CHOICES = (
+        (ADD_FIELD, 'add'),
+        (AUTH_FIELD, 'auth'),
+        (ENROL_FIELD, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -552,15 +772,30 @@ class SchemeCredentialQuestion(models.Model):
     type = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
     label = models.CharField(max_length=250)
     third_party_identifier = models.BooleanField(default=False)
-
     manual_question = models.BooleanField(default=False)
     scan_question = models.BooleanField(default=False)
     one_question_link = models.BooleanField(default=False)
     options = models.IntegerField(choices=OPTIONS, default=NONE)
 
+    # ubiquity fields
+    validation = models.TextField(default='', blank=True, max_length=250)
+    description = models.CharField(default='', blank=True, max_length=250)
+    # common_name = models.CharField(default='', blank=True, max_length=50)
+    answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
+    choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
+    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
+
     @property
     def required(self):
         return self.options is not self.OPTIONAL_JOIN
+
+    @property
+    def question_choices(self):
+        try:
+            choices = SchemeCredentialQuestionChoice.objects.get(scheme=self.scheme, scheme_question=self.type)
+            return choices.values
+        except SchemeCredentialQuestionChoice.DoesNotExist:
+            return []
 
     class Meta:
         ordering = ['order']
@@ -568,6 +803,53 @@ class SchemeCredentialQuestion(models.Model):
 
     def __str__(self):
         return self.type
+
+
+class SchemeCredentialQuestionChoice(models.Model):
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    scheme_question = models.CharField(max_length=250, choices=CREDENTIAL_TYPES)
+
+    @property
+    def values(self):
+        choice_values = self.choice_values.all()
+        return [str(value) for value in choice_values]
+
+    class Meta:
+        unique_together = ("scheme", "scheme_question")
+
+
+class SchemeCredentialQuestionChoiceValue(models.Model):
+    choice = models.ForeignKey('SchemeCredentialQuestionChoice', related_name='choice_values', on_delete=models.CASCADE)
+    value = models.CharField(max_length=250)
+    order = models.IntegerField(default=0)
+
+    def __str__(self):
+        return self.value
+
+    class Meta:
+        ordering = ['order', 'value']
+
+
+class SchemeDetail(models.Model):
+    TYPE_CHOICES = (
+        (0, 'Tier'),
+    )
+
+    scheme_id = models.ForeignKey('Scheme')
+    type = models.IntegerField(choices=TYPE_CHOICES, default=0)
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+
+
+class SchemeBalanceDetails(models.Model):
+    scheme_id = models.ForeignKey('Scheme')
+    currency = models.CharField(default='', blank=True, max_length=50)
+    prefix = models.CharField(default='', blank=True, max_length=50)
+    suffix = models.CharField(default='', blank=True, max_length=50)
+    description = models.TextField(default='', blank=True, max_length=250)
+
+    class Meta:
+        verbose_name_plural = 'balance details'
 
 
 class SchemeAccountCredentialAnswer(models.Model):
@@ -590,16 +872,36 @@ class SchemeAccountCredentialAnswer(models.Model):
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
-        encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        try:
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        except AttributeError:
+            answer = str(instance.answer)
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+
         instance.answer = encrypted_answer
 
 
+class ConsentStatus(IntEnum):
+    PENDING = 0
+    SUCCESS = 1
+    FAILED = 2
+
+
 class UserConsent(models.Model):
-    created_on = models.DateTimeField(auto_now_add=True)
-    modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey('user.CustomUser', related_name='user_consent')
-    consent = models.ForeignKey(Consent, related_name='user_consent')
+    created_on = models.DateTimeField(default=timezone.now)
+    user = models.ForeignKey('user.CustomUser', null=True, on_delete=models.SET_NULL)
+    scheme = models.ForeignKey(Scheme, null=True, on_delete=models.SET_NULL)
+    scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
+    metadata = JSONField()
+    slug = models.SlugField(max_length=50)
     value = models.BooleanField()
+    status = models.IntegerField(choices=[(status.value, status.name) for status in ConsentStatus],
+                                 default=ConsentStatus.PENDING)
+
+    @property
+    def short_text(self):
+        metadata = dict(self.metadata)
+        return truncatewords(metadata.get('text'), 5)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.user.email, self.consent.id, self.value)
+        return '{} - {}: {}'.format(self.user, self.slug, self.value)

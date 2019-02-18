@@ -12,9 +12,10 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
-import raven
-from environment import env_var, read_env
 import sys
+
+import hermes
+from environment import env_var, read_env
 
 read_env()
 
@@ -59,7 +60,6 @@ CORS_ORIGIN_WHITELIST = (
     "dev.docs.loyaltyangels.local",
 )
 
-
 # Application definition
 
 INSTALLED_APPS = (
@@ -71,8 +71,8 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_admin_env_notice',
     'django.contrib.admin',
+    'ddtrace.contrib.django',
     'rest_framework',
-    'rest_framework_swagger',
     'corsheaders',
     'user',
     'scheme',
@@ -82,9 +82,13 @@ INSTALLED_APPS = (
     'mail_templated',
     'anymail',
     'storages',
+    'ubiquity',
+    'drf_yasg',
 )
 
-MIDDLEWARE_CLASSES = (
+# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
+MIDDLEWARE = (
+    'hermes.middleware.timed_request',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -94,6 +98,8 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'dictfilter.django.middleware.dictfilter_middleware',
+    'hermes.middleware.accept_version',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -142,12 +148,11 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-    )
+    ),
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning'
 }
 
-
 WSGI_APPLICATION = 'hermes.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
@@ -161,9 +166,9 @@ DATABASES = {
         'PASSWORD': env_var("HERMES_DATABASE_PASS"),
         'HOST': env_var("HERMES_DATABASE_HOST", "postgres"),
         'PORT': env_var("HERMES_DATABASE_PORT", "5432"),
+        'CONN_MAX_AGE': None,  # unlimited persistent connections
     }
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
@@ -215,6 +220,8 @@ MIDAS_URL = env_var('MIDAS_URL', 'http://dev.midas.loyaltyangels.local')
 LETHE_URL = env_var('LETHE_URL', 'http://dev.lethe.loyaltyangels.local')
 HECATE_URL = env_var('HECATE_URL', 'http://dev.hecate.loyaltyangels.local')
 METIS_URL = env_var('METIS_URL', 'http://dev.metis.loyaltyangels.local')
+HADES_URL = env_var('HADES_URL', 'http://dev.hades.loyaltyangels.local')
+MNEMOSYNE_URL = env_var('MNEMOSYNE_URL', None)
 MY360_SCHEME_URL = 'https://mygravity.co/my360/'
 MY360_SCHEME_API_URL = 'https://rewards.api.mygravity.co/v3/reward_scheme/{}/schemes'
 
@@ -282,13 +289,11 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
-HERMES_SENTRY_DNS = env_var('HERMES_SENTRY_DNS', None)
-if not any([TESTING, LOCAL]) and HERMES_SENTRY_DNS:
+HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
+if not any([TESTING, LOCAL]) and HERMES_SENTRY_DSN:
     RAVEN_CONFIG = {
-        'dsn': HERMES_SENTRY_DNS,
-        # If you are using git, you can also automatically configure the
-        # release based on the git info.
-        'release': raven.fetch_git_sha(BASE_DIR),
+        'dsn': HERMES_SENTRY_DSN,
+        'release': hermes.__version__,
     }
 
 ANYMAIL = {
@@ -317,7 +322,6 @@ SWAGGER_BASE_PATH = env_var('SWAGGER_BASE_PATH')
 if SWAGGER_BASE_PATH:
     SWAGGER_SETTINGS['base_path'] = SWAGGER_BASE_PATH
 
-
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
     # If you want to use this for fast tests in your test class inherit from:
@@ -325,13 +329,6 @@ if env_var('HERMES_NO_DB_TEST', False):
     TEST_RUNNER = 'hermes.runners.DBLessTestRunner'
 
 FILE_UPLOAD_PERMISSIONS = 0o755
-
-# INTERCOM_TOKEN default value is for testing
-INTERCOM_TOKEN = env_var('INTERCOM_TOKEN', 'dG9rOmE4MGYzNDRjX2U5YzhfNGQ1N184MTA0X2E4YTgwNDQ2ZGY1YzoxOjA=')
-INTERCOM_HOST = 'https://api.intercom.io'
-INTERCOM_USERS_PATH = 'users'
-INTERCOM_EVENTS_PATH = 'events'
-
 
 # Barclays BINs, to be removed when Barclays is supported.
 BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '452757', '425710', '492829', '464859',
@@ -362,3 +359,73 @@ BARCLAYS_BINS = ['543979', '492828', '492827', '492826', '485859', '465823', '45
 
 ENVIRONMENT_NAME = env_var('ENVIRONMENT_NAME', None)
 ENVIRONMENT_COLOR = env_var('ENVIRONMENT_COLOR', None)
+
+# how many seconds leeway is allowed to account for clock skew in JWT validation
+CLOCK_SKEW_LEEWAY = env_var('CLOCK_SKEW_LEEWAY', 180)
+
+REDIS_HOST = env_var('REDIS_HOST', 'localhost')
+REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
+REDIS_PORT = env_var('REDIS_PORT', 6379)
+REDIS_DB = env_var('REDIS_DB', 1)
+
+cache_options = {
+    'redis': {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
+            password=REDIS_PASSWORD,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient"
+        },
+        "KEY_PREFIX": "hermes"
+    },
+    'test': {
+        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    }
+}
+CACHES = {
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+}
+
+BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
+
+TOKEN_SECRET = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
+
+USE_INFLUXDB = env_var('USE_INFLUXDB', False)
+INFLUX_DB_NAME = env_var('INFLUX_DB_NAME', 'active_card_audit')
+INFLUX_DB_CONFIG = {
+    'host': env_var('INFLUX_HOST', 'localhost'),
+    'port': int(env_var('INFLUX_PORT', 8086)),
+    'username': env_var('INFLUX_USER', ''),
+    'password': env_var('INFLUX_PASSWORD', ''),
+}
+
+CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
+CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
+
+DATADOG_TRACE = {
+    'DEFAULT_SERVICE': 'hermes',
+    'TAGS': {'env': env_var('DATADOG_APM_ENV')},
+    'AGENT_HOSTNAME': env_var('DATADOG_APM_HOST', 'datadog-agent-trace.datadog'),
+    'ENABLED': env_var('DATADOG_APM_ENABLED', False)
+}
+
+# client_id of ClientApplication used by Barclays in django admin
+ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+
+ATLAS_URL = env_var('ATLAS_URL')
+ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
+
+MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')
+MANUAL_CHECK_LOCAL_CSV_PATH = env_var('MANUAL_CHECK_LOCAL_CSV_PATH', '/tmp/output/hn/test.csv')
+
+MANUAL_CHECK_USE_AZURE = env_var('MANUAL_CHECK_USE_AZURE', False)
+if MANUAL_CHECK_USE_AZURE:
+    MANUAL_CHECK_AZURE_CSV_FILENAME = env_var('MANUAL_CHECK_AZURE_CSV_FILENAME', 'harvey_nichols_white_list.csv')
+    MANUAL_CHECK_AZURE_ACCOUNT_NAME = env_var('MANUAL_CHECK_AZURE_ACCOUNT_NAME')
+    MANUAL_CHECK_AZURE_ACCOUNT_KEY = env_var('MANUAL_CHECK_AZURE_ACCOUNT_KEY')
+    MANUAL_CHECK_AZURE_CONTAINER = env_var('MANUAL_CHECK_AZURE_CONTAINER')
+    MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')

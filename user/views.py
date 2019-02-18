@@ -1,4 +1,5 @@
-import requests
+import analytics
+from hermes.traced_requests import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
@@ -21,7 +22,6 @@ from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
 from hermes.settings import LETHE_URL, MEDIA_URL
-from intercom import intercom_api
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -227,13 +227,16 @@ class Login(GenericAPIView):
         credentials = self.get_credentials(serializer.data)
         user = authenticate(**credentials)
 
+        bundle_id = request.POST.get('bundle_id', '')
+
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
         if not user.is_active:
             return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
-        out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+        out_serializer = ResponseAuthSerializer({'email': user.email,
+                                                 'api_key': user.create_token(bundle_id), 'uid': user.uid})
         return Response(out_serializer.data)
 
     @classmethod
@@ -374,7 +377,7 @@ def twitter_login(access_token, access_token_secret):
 def social_response(social_id, email, service):
     status, user = social_login(social_id, email, service)
 
-    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token()})
+    out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
     return Response(out_serializer.data, status=status)
 
 
@@ -472,16 +475,13 @@ class UserSettings(APIView):
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
-                if slug_key in intercom_api.SETTING_CUSTOM_ATTRIBUTES:
-                    try:
-                        intercom_api.update_user_custom_attribute(
-                            settings.INTERCOM_TOKEN,
-                            request.user.uid,
-                            slug_key,
-                            user_setting.to_boolean()
-                        )
-                    except intercom_api.IntercomException:
-                        pass
+                if slug_key in analytics.SETTING_CUSTOM_ATTRIBUTES:
+
+                    attributes = {
+                        slug_key: user_setting.to_boolean()
+                    }
+                    if request.user.client_id == settings.BINK_CLIENT_ID:
+                        analytics.update_attributes(request.user, attributes)
 
         if validation_errors:
             return Response({
@@ -497,10 +497,8 @@ class UserSettings(APIView):
         Responds with a 204 - No Content.
         """
         UserSetting.objects.filter(user=request.user).delete()
-        try:
-            intercom_api.reset_user_settings(settings.INTERCOM_TOKEN, request.user.uid)
-        except intercom_api.IntercomException:
-            pass
+        if request.user.client_id == settings.BINK_CLIENT_ID:
+            analytics.reset_user_settings(request.user)
 
         return Response(status=HTTP_204_NO_CONTENT)
 

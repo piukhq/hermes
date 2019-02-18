@@ -1,15 +1,16 @@
-from datetime import datetime
 import uuid
-import factory
+from datetime import datetime
 
+import factory
+from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
 from faker import Factory
-from django.utils import timezone
 
-from user.tests.factories import UserFactory
 from payment_card import models
 
 fake = Factory.create()
+# Change seed value if we start getting duplicate data
+fake.seed(12345)
 
 
 class IssuerFactory(factory.DjangoModelFactory):
@@ -35,7 +36,6 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccount
 
-    user = factory.SubFactory(UserFactory)
     payment_card = factory.SubFactory(PaymentCardFactory)
     name_on_card = fake.name()
     start_month = fake.month()

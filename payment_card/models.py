@@ -1,9 +1,11 @@
+import base64
+import uuid
+
 from bulk_update.helper import bulk_update
+from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q
 from django.utils import timezone
-import base64
-import uuid
 
 from common.models import Image
 from user.models import BINK_APP_ID
@@ -45,7 +47,7 @@ class PaymentCard(models.Model):
     SYSTEMS = (
         (VISA, 'Visa'),
         (MASTERCARD, 'Master Card'),
-        (AMEX, 'American Express‎'),
+        (AMEX, 'American Express'),
     )
 
     DEBIT = 'debit'
@@ -86,7 +88,7 @@ class PaymentCard(models.Model):
 
         @classmethod
         def dispatch(cls, method, psp_token):
-            return {cls.COPY:   cls.copy,
+            return {cls.COPY: cls.copy,
                     cls.LEN_24: cls.len24,
                     cls.LEN_25: cls.len25}[method](psp_token)
 
@@ -141,7 +143,10 @@ class PaymentCardAccount(models.Model):
         (UNKNOWN, 'unknown')
     )
 
-    user = models.ForeignKey('user.CustomUser')
+    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.PaymentCardAccountEntry',
+                                      related_name='payment_card_account_set')
+    scheme_account_set = models.ManyToManyField('scheme.SchemeAccount', through='ubiquity.PaymentCardSchemeEntry',
+                                                related_name='payment_card_account_set')
     payment_card = models.ForeignKey(PaymentCard)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
@@ -158,9 +163,10 @@ class PaymentCardAccount(models.Model):
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    issuer = models.ForeignKey(Issuer)
+    issuer = models.ForeignKey(Issuer, null=True, blank=True)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
+    consents = JSONField(default=[])
 
     client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID)
 
@@ -168,8 +174,7 @@ class PaymentCardAccount(models.Model):
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return '({}) {} - {}'.format(
-            self.user.email,
+        return '{} - {}'.format(
             self.payment_card.name,
             self.name_on_card
         )
@@ -196,18 +201,18 @@ class PaymentCardAccount(models.Model):
                                      url=F('payment_card_image__url'),
                                      call_to_action=F('payment_card_image__call_to_action'),
                                      order=F('payment_card_image__order')).values(
-                                         'image_type_code',
-                                         'image_size_code',
-                                         'image',
-                                         'strap_line',
-                                         'image_description',
-                                         'url',
-                                         'call_to_action',
-                                         'order',
-                                         'status',
-                                         'start_date',
-                                         'end_date',
-                                         'created')
+            'image_type_code',
+            'image_size_code',
+            'image',
+            'strap_line',
+            'image_description',
+            'url',
+            'call_to_action',
+            'order',
+            'status',
+            'start_date',
+            'end_date',
+            'created')
 
         return images
 
@@ -216,3 +221,16 @@ class ProviderStatusMapping(models.Model):
     provider = models.ForeignKey('payment_card.PaymentCard')
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
+
+
+class AuthTransaction(models.Model):
+    payment_card_account = models.ForeignKey('PaymentCardAccount', on_delete=models.SET_NULL, null=True)
+    time = models.DateTimeField()
+    amount = models.IntegerField()
+    mid = models.CharField(max_length=100)
+    third_party_id = models.CharField(max_length=100)
+    auth_code = models.CharField(max_length=100, blank=True, default='')
+    currency_code = models.CharField(max_length=3, default='GBP')
+
+    def __str__(self):
+        return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)
