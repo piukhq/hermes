@@ -297,7 +297,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         'DELETE': MembershipCardSerializer,
         'PUT': LinkMembershipCardSerializer
     }
-    create_update_fields = ('add_fields', 'authorise_fields', 'enrol_fields')
+    create_update_fields = ('add_fields', 'authorise_fields', 'register_fields', 'enrol_fields')
 
     def get_queryset(self):
         query = {
@@ -342,24 +342,36 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
-        new_answers = self._collect_updated_answers(request.data, account.scheme)
+        update_fields, register_fields = self._collect_updated_answers(request.data, account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
-        if new_answers.get('password'):
-            # Fix for Barclays sending escaped unicode sequences for special chars.
-            new_answers['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, new_answers['password'])
+        if register_fields:
+            updated_account = self._handle_register_route(account, update_fields)
+        else:
+            updated_account = self._handle_update_fields(account, update_fields, manual_question)
 
-        if manual_question and manual_question.type in new_answers:
-            if self.card_with_same_data_already_exists(account, account.scheme, new_answers[manual_question.type]):
+        return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
+
+    def _handle_update_fields(self, account, update_fields, manual_question):
+        if update_fields.get('password'):
+            # Fix for Barclays sending escaped unicode sequences for special chars.
+            update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode,
+                                                                    update_fields['password'])
+
+        if manual_question and manual_question.type in update_fields:
+            if self.card_with_same_data_already_exists(account, account.scheme,
+                                                       update_fields[manual_question.type]):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
 
-        self.update_credentials(account, new_answers)
+        self.update_credentials(account, update_fields)
         account.delete_cached_balance()
         account.set_pending()
+        return account
 
-        return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
+    def _handle_register_route(self, account, register_fields):
+        raise NotImplemented
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
@@ -404,17 +416,18 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         out_fields = {}
         try:
             for field_name in self.create_update_fields:
-                out_fields.update(
-                    self._collect_field_content(field_name, data['account'], label_to_type)
-                )
+                out_fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
 
         except KeyError:
             raise ParseError
 
-        if not out_fields:
+        if not out_fields or out_fields['enrol_fields']:
             raise ParseError()
 
-        return out_fields
+        if out_fields['register_fields']:
+            return None, out_fields['register_fields']
+
+        return {**out_fields['add_fields'], **out_fields['authorise_fields']}, None
 
     def _collect_fields_and_determine_route(self):
         """
@@ -442,7 +455,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         for card in scheme_account.payment_card_account_set.all():
             PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
-    def _handle_membership_card_link_route(self, user, scheme_id, auth_fields, add_fields, use_pk=None):
+    def _handle_create_link_route(self, user, scheme_id, auth_fields, add_fields, use_pk=None):
         """
         :type user: user.models.CustomUser
         :type scheme_id: int
@@ -477,7 +490,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return scheme_account, return_status
 
-    def _handle_membership_card_join_route(self, user, scheme_id, enrol_fields):
+    def _handle_create_join_route(self, user, scheme_id, enrol_fields):
         """
         :type user: user.models.CustomUser
         :type scheme_id: int
@@ -573,10 +586,10 @@ class ListMembershipCardView(MembershipCardView):
     def create(self, request, *args, **kwargs):
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
+            account, status_code = self._handle_create_join_route(request.user, scheme_id, enrol_fields)
         else:
-            account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
-                                                                           add_fields)
+            account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
+                                                                  add_fields)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
@@ -669,10 +682,10 @@ class CompositeMembershipCardView(ListMembershipCardView):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_membership_card_join_route(request.user, scheme_id, enrol_fields)
+            account, status_code = self._handle_create_join_route(request.user, scheme_id, enrol_fields)
         else:
-            account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
-                                                                           add_fields)
+            account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
+                                                                  add_fields)
         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
