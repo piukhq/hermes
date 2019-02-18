@@ -342,25 +342,29 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
-        update_fields, register_fields = self._collect_updated_answers(request.data, account.scheme)
+        update_fields, register_fields = self._collect_updated_answers(account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if register_fields:
-            updated_account = self._handle_register_route(account, update_fields)
+            updated_account = self._handle_register_route(request.user, account, register_fields, manual_question)
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question)
 
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account, update_fields, manual_question):
+        """
+        :type account: scheme.models.SchemeAccount
+        :type update_fields: dict
+        :type manual_question: scheme.models.SchemeCredentialQuestion
+        :rtype: scheme.models.SchemeAccount
+        """
         if update_fields.get('password'):
             # Fix for Barclays sending escaped unicode sequences for special chars.
-            update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode,
-                                                                    update_fields['password'])
+            update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
         if manual_question and manual_question.type in update_fields:
-            if self.card_with_same_data_already_exists(account, account.scheme,
-                                                       update_fields[manual_question.type]):
+            if self.card_with_same_data_already_exists(account, account.scheme, update_fields[manual_question.type]):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return Response(self.get_serializer(account).data, status=status.HTTP_200_OK)
@@ -370,8 +374,22 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account.set_pending()
         return account
 
-    def _handle_register_route(self, account, register_fields):
-        raise NotImplemented
+    def _handle_register_route(self, user, account, register_fields, manual_question):
+        """
+        :type user: user.models.CustomUser
+        :type account: scheme.models.SchemeAccount
+        :type register_fields: dict
+        :type manual_question: scheme.models.SchemeCredentialQuestion
+        :rtype: scheme.models.SchemeAccount
+        """
+        register_data = {
+            manual_question.type: account.card_number,
+            'order': 0,
+            'save_user_information': 'false',
+            **register_fields
+        }
+        _, _, scheme_account = self.handle_join_request(register_data, user, account.scheme_id)
+        return scheme_account
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
@@ -411,7 +429,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             for item in data.get(field, [])
         }
 
-    def _collect_updated_answers(self, data, scheme):
+    def _collect_updated_answers(self, scheme):
+        """
+        :type scheme: scheme.models.Scheme
+        :rtype: tuple[dict or None, dict or None]
+        """
+        data = self.request.data
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
         try:
@@ -422,7 +445,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError
 
         if not out_fields or out_fields['enrol_fields']:
-            raise ParseError()
+            raise ParseError
 
         if out_fields['register_fields']:
             return None, out_fields['register_fields']
