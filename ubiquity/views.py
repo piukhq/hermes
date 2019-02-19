@@ -385,7 +385,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         register_data = {
             manual_question.type: account.card_number,
             'order': 0,
-            'save_user_information': 'false',
+            'save_user_information': False,
             **register_fields
         }
         _, _, scheme_account = self.handle_join_request(register_data, user, account.scheme_id)

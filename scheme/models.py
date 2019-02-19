@@ -537,7 +537,13 @@ class SchemeAccount(models.Model):
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            self.schemeaccountcredentialanswer_set.all().delete()
+            queryset = self.schemeaccountcredentialanswer_set
+            card_number = self.card_number
+            if card_number:
+                queryset = queryset.exclude(answer=card_number)
+
+            queryset.all().delete()
+
         if self.status != SchemeAccount.PENDING:
             self.save()
         return points
