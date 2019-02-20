@@ -8,7 +8,6 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
@@ -16,6 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
+import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -393,7 +393,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             except requests.exceptions.RequestException:
                 logging.exception('Failed to send join data to thanatos.')
                 if settings.HERMES_SENTRY_DSN:
-                    sentry.captureException()
+                    sentry_sdk.capture_exception()
 
 
 class Pagination(PageNumberPagination):

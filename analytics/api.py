@@ -3,7 +3,7 @@ import json
 import time
 from hermes.traced_requests import requests
 from django.conf import settings
-from raven.contrib.django.raven_compat.models import client as sentry
+import sentry_sdk
 
 
 OLYMPUS_SERVICE_TRACKING_TYPE = 6  # Defined in Mnemosyne project
@@ -32,7 +32,7 @@ def post_event(user, event_name, metadata=None, to_intercom=False):
             event=event
         )
     except PushError:
-        sentry.captureException()
+        sentry_sdk.capture_exception()
         pass
 
 
@@ -74,7 +74,7 @@ def update_attributes(user, attributes):
     try:
         _send_to_mnemosyne(user, attributes=attributes)
     except PushError:
-        sentry.captureException()
+        sentry_sdk.capture_exception()
         pass
 
 

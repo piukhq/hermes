@@ -83,8 +83,6 @@
   - String Value, URL to access Lethe
 - `METIS_URL`
   - String Value, URL to access Metis
-- `SWAGGER_BASE_PATH`
-  - String Value, path to expose swagger documentation on
 - `FACEBOOK_CLIENT_SECRET`
   - String Value, Facebook Client Secret
 - `ENVIRONMENT_NAME`
