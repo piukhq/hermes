@@ -4,11 +4,11 @@ import uuid
 
 from django.conf import settings
 from django.db import transaction
-from raven.contrib.django.raven_compat.models import client as sentry
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
+import sentry_sdk
 
 import analytics
 from hermes.traced_requests import requests
@@ -286,7 +286,7 @@ class SchemeAccountJoinMixin:
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
-        sentry.captureException()
+        sentry_sdk.capture_exception()
 
     @staticmethod
     def create_join_account(data, user, scheme_id):

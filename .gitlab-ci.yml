@@ -6,12 +6,12 @@ stages:
 tests:
   stage: tests
   script:
-    - pip3 install -r requirements.txt
+    - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - coverage run --source='.' manage.py test -v 2
     - coverage report
   services:
-    - postgres:9.4.4
+    - postgres:9.6
 
 complexity:
   stage: tests
@@ -49,19 +49,6 @@ build-master:
   only:
     - tags
 
-build-ukbanking:
-  stage: build
-  image: docker:latest
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:ukbanking" .
-    - docker push "$CI_REGISTRY/hermes:ukbanking"
-  only:
-    - feature/ukbanking
-
 deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
@@ -72,15 +59,6 @@ deploy-dev:
     - kubectl delete po -n=dev -l=project=hermes
   only:
     - develop
-
-deploy-ukbanking:
-  stage: deploy
-  image: binkops.azurecr.io/kubedeployer:latest
-  environment: dev
-  script:
-    - kubectl delete po -n=ukbanking -l=project=hermes
-  only:
-    - feature/ukbanking
 
 deploy-staging:
   stage: deploy
