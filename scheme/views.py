@@ -8,7 +8,6 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import serializers, status
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
@@ -16,6 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
+import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -109,7 +109,10 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
             instance.save()
 
             if request.user.client_id == settings.BINK_CLIENT_ID:
-                analytics.update_scheme_account_attribute(instance, request.user, old_status=instance.status_key)
+                analytics.update_scheme_account_attribute(
+                    instance,
+                    request.user,
+                    old_status=dict(instance.STATUSES).get(instance.status_key))
 
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
             analytics.update_scheme_account_attribute(instance, request.user)
@@ -186,7 +189,10 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         scheme_account.save()
 
         if request.user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, request.user, old_status)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                request.user,
+                dict(scheme_account.STATUSES).get(old_status))
 
         out_serializer = ResponseLinkSerializer(response_data)
 
@@ -352,7 +358,10 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                     )
 
                 if new_status_code != scheme_account.status:
-                    analytics.update_scheme_account_attribute_new_status(scheme_account, user, new_status_code)
+                    analytics.update_scheme_account_attribute_new_status(
+                        scheme_account,
+                        user,
+                        dict(scheme_account.STATUSES).get(new_status_code))
 
     @staticmethod
     def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
@@ -384,7 +393,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             except requests.exceptions.RequestException:
                 logging.exception('Failed to send join data to thanatos.')
                 if settings.HERMES_SENTRY_DSN:
-                    sentry.captureException()
+                    sentry_sdk.capture_exception()
 
 
 class Pagination(PageNumberPagination):
