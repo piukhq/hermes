@@ -390,22 +390,21 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @staticmethod
     def _collect_field_content(field, data, label_to_type):
-        return {
-            label_to_type[item['column']]: item['value']
-            for item in data.get(field, [])
-        }
+        try:
+            return {
+                label_to_type[item['column']]: item['value']
+                for item in data['account'].get(field, [])
+            }
+        except (TypeError, KeyError):
+            raise ParseError
 
     def _collect_updated_answers(self, data, scheme):
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
-        try:
-            for field_name in self.create_update_fields:
-                out_fields.update(
-                    self._collect_field_content(field_name, data['account'], label_to_type)
-                )
-
-        except KeyError:
-            raise ParseError
+        for field_name in self.create_update_fields:
+            out_fields.update(
+                self._collect_field_content(field_name, data, label_to_type)
+            )
 
         if not out_fields:
             raise ParseError()
