@@ -502,7 +502,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             fields = {}
 
             for field_name in self.create_update_fields:
-                fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
+                fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
 
         except KeyError:
             raise ParseError()
