@@ -275,7 +275,7 @@ class SchemeAccountJoinMixin:
         if card_number:
             queryset = queryset.exclude(answer=card_number)
 
-        queryset.delete()
+        queryset.all().delete()
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         if user.client_id == settings.BINK_CLIENT_ID:
