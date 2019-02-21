@@ -1,4 +1,5 @@
 #!/bin/bash
 set -ue -o pipefail
-pip install -r requirements.txt
+pip install pipenv
+pipenv install --system --deploy --ignore-pipfile
 python manage.py collectstatic --noinput

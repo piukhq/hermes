@@ -10,6 +10,7 @@ from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
+import sentry_sdk
 
 import analytics
 from hermes.traced_requests import requests
@@ -32,6 +33,12 @@ class BaseLinkMixin(object):
     def prepare_link_for_manual_check(auth_fields, scheme_account):
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
+        bink_users = [user for user in scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:
+            analytics.api.update_scheme_account_attribute_new_status(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.PENDING_MANUAL_CHECK))
         scheme_account.set_pending(manual_pending=True)
         data = serializer.validated_data
 
@@ -193,7 +200,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             finally:
                 if user.client_id == settings.BINK_CLIENT_ID:
                     if scheme_account_updated:
-                        analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                        analytics.update_scheme_account_attribute(
+                            scheme_account,
+                            user,
+                            dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
                     elif account_created:
                         analytics.update_scheme_account_attribute(scheme_account, user)
 
@@ -279,11 +289,14 @@ class SchemeAccountJoinMixin:
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
-        sentry.captureException()
+        sentry_sdk.capture_exception()
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
@@ -311,7 +324,10 @@ class SchemeAccountJoinMixin:
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
         elif user.client_id == settings.BINK_CLIENT_ID:
             analytics.update_scheme_account_attribute(scheme_account, user)
 

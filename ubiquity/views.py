@@ -5,13 +5,13 @@ from pathlib import Path
 import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from raven.contrib.django.raven_compat.models import client as sentry
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+import sentry_sdk
 
 import analytics
 from hermes import settings as project_settings
@@ -167,7 +167,7 @@ class ServiceView(ModelViewSet):
         try:  # send user info to be persisted in Atlas
             send_data_to_atlas(response)
         except Exception:
-            sentry.captureException()
+            sentry_sdk.capture_exception()
         return Response(response)
 
     def _add_consent(self, user, consent_data):
@@ -187,7 +187,7 @@ def send_data_to_atlas(response):
     url = f"{project_settings.ATLAS_URL}/ubiquity_user/save"
     data = {
         'email': response['consent']['email'],
-        'opt_out_timestamp': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
+        'ubiquity_join_date': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
     }
     request("POST", url=url, headers=request_header(), json=data)
 
