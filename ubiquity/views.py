@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 import arrow
+import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from requests import request
@@ -11,7 +12,6 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-import sentry_sdk
 
 import analytics
 from hermes import settings as project_settings
@@ -29,11 +29,7 @@ from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, Sch
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer, PaymentCardSerializer,
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                  ServiceConsentSerializer, TransactionsSerializer,
-                                  UbiquityCreateSchemeAccountSerializer)
-                                  PaymentCardConsentSerializer, PaymentCardSerializer, PaymentCardTranslationSerializer,
-                                  PaymentCardUpdateSerializer, ServiceConsentSerializer, TransactionsSerializer,
-                                  LinkMembershipCardSerializer)
+                                  ServiceConsentSerializer, TransactionsSerializer, LinkMembershipCardSerializer)
 from ubiquity.tasks import async_link
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
@@ -366,33 +362,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
-        # The objective of this end point is to replace an membership card with a new one keeping
-        # the same id. The idea is to delete the membership account cascading any deletes and then
-        # recreate it forcing the same id.  Note: Forcing an id on create is permitted in Django
-
-        original_scheme_account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
-        account_pk = original_scheme_account.pk
-        try:
-            with transaction.atomic():
-                original_scheme_account.delete()
-                account, status_code = self._handle_membership_card_link_route(request.user, scheme_id, auth_fields,
-                                                                               add_fields, account_pk)
-        except Exception:
-            raise ParseError
-        if status_code == status.HTTP_201_CREATED:
-            # Remap status here in case we might want something else eg status.HTTP_205_RESET_CONTENT
-            status_code = status.HTTP_200_OK
-        return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
-
-
         # new replace
         account = self.get_object()
-        serializer, auth_fields, enrol_fields, _ = self._collect_membership_card_creation_data(request)
-        new_answers, scheme_id, main_answer = self._get_new_answers(serializer, auth_fields)
-
+        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
+
+        new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
         if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
             account.status = account.FAILED_UPDATE
@@ -402,7 +378,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
         # end
-
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):

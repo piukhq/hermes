@@ -2,19 +2,20 @@ import json
 import socket
 import uuid
 
+import sentry_sdk
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
-import sentry_sdk
 
 import analytics
 from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, UserConsent)
+                           UserConsent)
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -411,15 +412,15 @@ class UpdateCredentialsMixin:
         return self.update_credentials(scheme_account, data)
 
     @staticmethod
-    def card_with_same_data_already_exists(account, scheme_id, main_answer):
+    def card_with_same_data_already_exists(account, scheme, main_answer):
         """
         :type account: scheme.models.SchemeAccount
-        :type scheme_id: int
+        :type scheme: scheme.models.Scheme
         :type main_answer: string
         :return:
         """
         query = {
-            'scheme_account__scheme': scheme_id,
+            'scheme_account__scheme': scheme,
             'scheme_account__is_deleted': False,
             'answer': main_answer
         }
@@ -433,19 +434,16 @@ class UpdateCredentialsMixin:
         return False
 
     @staticmethod
-    def _get_new_answers(serializer, auth_fields):
+    def _get_new_answers(add_fields, auth_fields):
         """
-        :type serializer: ubiquity.serializers.UbiquityCreateSchemeAccountSerializer
+        :type add_fields: dict
         :type auth_fields: dict
-        :rtype: (dict, int, str)
+        :rtype: tuple(dict, str)
         """
-        data = serializer.validated_data
-        scheme_id = data.pop('scheme')
-        del data['order']
-        new_answers = {**data, **auth_fields}
-        main_answer, *_ = data.values()
+        new_answers = {**add_fields, **auth_fields}
+        main_answer, *_ = add_fields.values()
 
-        return new_answers, scheme_id, main_answer
+        return new_answers, main_answer
 
     @staticmethod
     def _check_required_data_presence(scheme, data):
@@ -453,12 +451,12 @@ class UpdateCredentialsMixin:
         :type scheme: scheme.models.Scheme
         :type data: dict
         """
-
-        query_value = [SchemeCredentialQuestion.ADD_FIELD, ]
         if scheme.authorisation_required:
-            query_value.append(SchemeCredentialQuestion.AUTH_FIELD)
+            query = Q(add_field=True) | Q(auth_field=True)
+        else:
+            query = Q(add_field=True)
 
-        required_questions = scheme.questions.values('type').filter(field_type__in=query_value).all()
+        required_questions = scheme.questions.values('type').filter(query).all()
         for question in required_questions:
             if question['type'] not in data.keys():
                 raise ValidationError('required field {} is missing.'.format(question['type']))
