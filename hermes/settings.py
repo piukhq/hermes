@@ -14,6 +14,9 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
 import hermes
 from environment import env_var, read_env
 
@@ -63,7 +66,6 @@ CORS_ORIGIN_WHITELIST = (
 # Application definition
 
 INSTALLED_APPS = (
-    'raven.contrib.django.raven_compat',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -83,10 +85,9 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
-    'drf_yasg',
 )
 
-# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in rersponse header
+# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
     'hermes.middleware.timed_request',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -231,70 +232,18 @@ TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyA
 TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': True,
-    'root': {
-        'level': 'WARNING',
-        'handlers': ['sentry'],
-    },
-    'formatters': {
-        'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s '
-                      '%(process)d %(thread)d %(message)s'
-        },
-    },
-    'handlers': {
-        'sentry': {
-            'level': 'ERROR',
-            'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
-        },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose'
-        },
-        'gelf': {
-            'class': 'graypy.GELFHandler',
-            'host': env_var('GRAYLOG_HOST'),
-            'port': 12201,
-        },
-    },
-    'loggers': {
-        'django.db.backends': {
-            'level': 'ERROR',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        'raven': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        'sentry.errors': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-            'propagate': False,
-        },
-        'graylog': {
-            # mail_admins will only accept ERROR and higher
-            'handlers': ['gelf'],
-            'level': 'DEBUG',
-        },
-    },
-}
-
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
 HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
-if not any([TESTING, LOCAL]) and HERMES_SENTRY_DSN:
-    RAVEN_CONFIG = {
-        'dsn': HERMES_SENTRY_DSN,
-        'release': hermes.__version__,
-    }
+if HERMES_SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=HERMES_SENTRY_DSN,
+        release=hermes.__version__,
+        integrations=[DjangoIntegration(transaction_style="function_name")],
+    )
 
 ANYMAIL = {
     'MAILGUN_API_KEY': 'key-63iepgmkm8qdzs0fxm05jy0oq3c1yd42',
@@ -302,25 +251,6 @@ ANYMAIL = {
 }
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Bink HQ <noreply@uk.bink.com>'
-
-SWAGGER_SETTINGS = {
-    'api_version': '1',
-    'info': {
-        'contact': 'Paul Batty',
-        'description': 'Loyalty Angels REST API for registering users and loyalty rewards schemes. '
-                       '<br>'
-                       'All calls to the the API endpoints require an authorization token obtained '
-                       'by registering through the Registration endpoint. '
-                       '<br>'
-                       'An Authorization token in the form "Token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXV..." is '
-                       'required in the header. ',
-        'title': 'Loyalty Angels registrations service - Hermes',
-    },
-}
-
-SWAGGER_BASE_PATH = env_var('SWAGGER_BASE_PATH')
-if SWAGGER_BASE_PATH:
-    SWAGGER_SETTINGS['base_path'] = SWAGGER_BASE_PATH
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
@@ -415,6 +345,8 @@ DATADOG_TRACE = {
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+
+ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
 MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')

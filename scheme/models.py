@@ -19,6 +19,7 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
 from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
@@ -448,6 +449,13 @@ class SchemeAccount(models.Model):
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
+                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                for user in bink_users:
+                    update_scheme_account_attribute_new_status(
+                        self,
+                        user,
+                        dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                    )
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
@@ -516,6 +524,7 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
+        old_status = self.status
 
         if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
             return points
@@ -540,7 +549,13 @@ class SchemeAccount(models.Model):
             self.schemeaccountcredentialanswer_set.all().delete()
         if self.status != SchemeAccount.PENDING:
             self.save()
+            self.call_analytics(self.user_set.all(), old_status)
         return points
+
+    def call_analytics(self, user_set, old_status):
+        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:  # Update intercom
+            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
@@ -850,7 +865,12 @@ class SchemeAccountCredentialAnswer(models.Model):
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
-        encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        try:
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        except AttributeError:
+            answer = str(instance.answer)
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+
         instance.answer = encrypted_answer
 
 

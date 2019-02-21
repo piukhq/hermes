@@ -84,6 +84,17 @@ class TestSchemeAccountViews(APITestCase):
 
         super().setUpClass()
 
+    @patch.object(SchemeAccount, 'call_analytics')
+    @patch('scheme.models.requests.get')
+    def test_analytics_when_balance_returns_configuration_error(self, mock_requests_get, mock_call_analytics):
+        class BalanceResponse:
+            def __init__(self, status_code):
+                self.status_code = status_code
+
+        mock_requests_get.return_value = BalanceResponse(536)
+        SchemeAccount.get_midas_balance(self.scheme_account, JourneyTypes.JOIN)
+        self.assertTrue(mock_call_analytics)
+
     def test_scheme_account_query(self):
         resp = self.client.get('/schemes/accounts/query?scheme__slug={}&user_set__id={}'.format(self.scheme.slug,
                                                                                                 self.user.id),
@@ -609,13 +620,13 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], 1)
         self.assertTrue(mock_notify_rollback.called)
 
-    @patch('scheme.views.sentry')
+    @patch('scheme.views.sentry_sdk')
     @patch('scheme.views.requests.post')
     def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
         UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
                                                                datetime.datetime.now())
 
-        self.assertFalse(mock_sentry.captureException.called)
+        self.assertFalse(mock_sentry.capture_exception.called)
         self.assertTrue(mock_post.called)
 
     def test_scheme_accounts_active(self):
