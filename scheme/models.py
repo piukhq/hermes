@@ -545,10 +545,10 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        self._received_balance_checks()
+        self._received_balance_checks(old_status)
         return points
 
-    def _received_balance_checks(self):
+    def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
             queryset = self.schemeaccountcredentialanswer_set
             card_number = self.card_number
@@ -560,7 +560,6 @@ class SchemeAccount(models.Model):
         if self.status != SchemeAccount.PENDING:
             self.save()
             self.call_analytics(self.user_set.all(), old_status)
-        return points
 
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]

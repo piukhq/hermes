@@ -2,15 +2,14 @@ import json
 import socket
 import uuid
 
+import sentry_sdk
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
-from raven.contrib.django.raven_compat.models import client as sentry
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
-import sentry_sdk
 
 import analytics
 from hermes.traced_requests import requests
