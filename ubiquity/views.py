@@ -399,7 +399,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
-            raise NotImplemented
+            raise NotImplementedError
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 

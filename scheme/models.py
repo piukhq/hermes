@@ -536,6 +536,10 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
+        self._received_balance_checks()
+        return points
+
+    def _received_balance_checks(self):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
             queryset = self.schemeaccountcredentialanswer_set
             card_number = self.card_number
@@ -546,7 +550,6 @@ class SchemeAccount(models.Model):
 
         if self.status != SchemeAccount.PENDING:
             self.save()
-        return points
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
