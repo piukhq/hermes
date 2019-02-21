@@ -344,6 +344,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         tiers = instance.schemedetail_set.filter(type=0).all()
         add_fields = instance.questions.filter(add_field=True).all()
         authorise_fields = instance.questions.filter(auth_field=True).all()
+        register_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
         if instance.tier == 2:
@@ -406,6 +407,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'terms_url': instance.join_url,
                 'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
+                'register_fields': SchemeQuestionSerializer(register_fields, many=True).data,
                 'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data
