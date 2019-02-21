@@ -359,7 +359,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         :rtype: tuple[int, dict, dict, dict]
         """
         try:
-            if self.request.allowed_schemes and int(self.request.data['membership_plan']) not in self.request.allowed_schemes:
+            if self.request.allowed_schemes and int(
+                    self.request.data['membership_plan']) not in self.request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
         except ValueError:
             raise ParseError
