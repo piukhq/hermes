@@ -441,7 +441,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
         for field_name in self.create_update_fields:
-            out_fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
+            out_fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
 
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError
