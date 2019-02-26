@@ -1,15 +1,18 @@
+import re
+
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
+
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
 from ubiquity.models import SchemeAccountEntry
+
 from common.admin import InputFilter
 from django.db.models import Q
-import re
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
@@ -49,6 +52,19 @@ class CredentialQuestionFormset(BaseInlineFormSet):
 class CredentialQuestionInline(admin.StackedInline):
     model = SchemeCredentialQuestion
     formset = CredentialQuestionFormset
+    fields = (
+        'scheme',
+        'order',
+        'type',
+        'label',
+        ('third_party_identifier', 'manual_question', 'scan_question', 'one_question_link'),
+        'options',
+        'validation',
+        'description',
+        'answer_type',
+        'choice',
+        ('add_field', 'auth_field', 'register_field', 'enrol_field'),
+    )
     extra = 0
 
 
@@ -225,6 +241,7 @@ class SchemeUserAssociation(SchemeAccountEntry):
     scheme accounts ie it used to associate a scheme with a user.
 
     """
+
     class Meta:
         proxy = True
         verbose_name = "Scheme Account to User Association"

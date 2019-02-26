@@ -43,7 +43,7 @@ class TestResources(APITestCase):
                                                              label=LAST_NAME,
                                                              third_party_identifier=True,
                                                              options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+                                                             auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
@@ -699,14 +699,14 @@ class TestMembershipCardCredentials(APITestCase):
         self.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
-                                        field_type=0)
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, field_type=1)
+                                        add_field=True)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
                                                              type=LAST_NAME,
                                                              label=LAST_NAME,
                                                              third_party_identifier=True,
                                                              options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+                                                             auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
