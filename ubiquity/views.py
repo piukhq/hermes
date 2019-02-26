@@ -3,6 +3,7 @@ import uuid
 from pathlib import Path
 
 import arrow
+import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from requests import request
@@ -11,7 +12,6 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-import sentry_sdk
 
 import analytics
 from hermes import settings as project_settings
@@ -424,10 +424,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @staticmethod
     def _collect_field_content(field, data, label_to_type):
-        return {
-            label_to_type[item['column']]: item['value']
-            for item in data.get(field, [])
-        }
+        try:
+            return {
+                label_to_type[item['column']]: item['value']
+                for item in data['account'].get(field, [])
+            }
+        except (TypeError, KeyError):
+            raise ParseError
 
     def _collect_updated_answers(self, scheme):
         """
@@ -437,12 +440,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         data = self.request.data
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
-        try:
-            for field_name in self.create_update_fields:
-                out_fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
-
-        except KeyError:
-            raise ParseError
+        for field_name in self.create_update_fields:
+            out_fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
 
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError
@@ -561,7 +560,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             fields = {}
 
             for field_name in self.create_update_fields:
-                fields[field_name] = self._collect_field_content(field_name, data['account'], label_to_type)
+                fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
 
         except KeyError:
             raise ParseError()
