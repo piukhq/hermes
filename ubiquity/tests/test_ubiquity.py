@@ -726,6 +726,21 @@ class TestResources(APITestCase):
             resp.json().get('detail')
         )
 
+    def test_membership_plan_serializer_method(self):
+        serializer = MembershipPlanSerializer()
+        test_dict = [
+            {'column': 1},
+            {'column': 2},
+            {'column': 3}
+        ]
+        expected = [
+            {'column': 1, 'alternatives': [2, 3]},
+            {'column': 2, 'alternatives': [1, 3]},
+            {'column': 3, 'alternatives': [1, 2]}
+        ]
+        serializer._add_alternatives_key(test_dict)
+        self.assertEqual(expected, test_dict)
+
     @patch('ubiquity.views.async_all_balance.delay')
     def test_get_service(self, mock_async_all_balance):
         ServiceConsentFactory(user=self.user)
