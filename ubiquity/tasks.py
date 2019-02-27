@@ -25,7 +25,11 @@ def async_balance(instance_id):
 
 
 @shared_task
-def async_all_balance(user_id):
-    scheme_account_entries = SchemeAccountEntry.objects.filter(user=user_id)
-    for entry in scheme_account_entries:
+def async_all_balance(user_id, allowed_schemes=None):
+    query = {'user': user_id}
+    if allowed_schemes:
+        query['scheme_account__scheme__in'] = allowed_schemes
+
+    entries = SchemeAccountEntry.objects.filter(**query)
+    for entry in entries:
         async_balance.delay(entry.scheme_account_id)

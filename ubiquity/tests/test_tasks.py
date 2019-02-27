@@ -35,3 +35,13 @@ class TestTasks(TestCase):
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertTrue(self.entry.scheme_account.id in async_balance_call_args)
         self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
+
+    @patch('ubiquity.tasks.async_balance.delay')
+    def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
+        user_id = self.user.id
+        async_all_balance(user_id, allowed_schemes=[self.entry2.scheme_account.scheme.id])
+
+        self.assertTrue(mock_async_balance.called)
+        async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
+        self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
+        self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
