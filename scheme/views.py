@@ -9,6 +9,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
@@ -659,6 +660,7 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         """
         scheme_id = int(kwargs['pk'])
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
-            return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        message, status_code = self.handle_join_request(request, *args, **kwargs)
+            raise NotFound('Scheme does not exist.')
+
+        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))
         return Response(message, status=status_code)
