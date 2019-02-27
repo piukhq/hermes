@@ -228,7 +228,8 @@ class SchemeAccountJoinMixin:
         """
         :type data: dict
         :type user: user.models.CustomUser
-        :type scheme_id: int
+        :type scheme_id: int or Type[int]
+        :rtype: tuple[dict, int, scheme.models.SchemeAccount]
         """
 
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
@@ -278,10 +279,12 @@ class SchemeAccountJoinMixin:
 
     @staticmethod
     def handle_failed_join(scheme_account, user):
-        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        for answer in scheme_account_answers:
-            answer.delete()
+        queryset = scheme_account.schemeaccountcredentialanswer_set
+        card_number = scheme_account.card_number
+        if card_number:
+            queryset = queryset.exclude(answer=card_number)
 
+        queryset.all().delete()
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         if user.client_id == settings.BINK_CLIENT_ID:

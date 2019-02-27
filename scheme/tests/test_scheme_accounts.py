@@ -440,7 +440,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
         self.assertEqual(scheme_account.display_status, SchemeAccount.JOIN)
         credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
-        self.assertEqual(len(credentials), 0)
+        self.assertEqual(len(credentials), 1)
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)

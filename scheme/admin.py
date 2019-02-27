@@ -2,17 +2,16 @@ import re
 
 from django.contrib import admin
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 
+from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
 from ubiquity.models import SchemeAccountEntry
-
-from common.admin import InputFilter
-from django.db.models import Q
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 

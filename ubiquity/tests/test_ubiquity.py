@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
+from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
@@ -38,16 +39,16 @@ class TestResources(APITestCase):
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
 
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
-                                                             type=LAST_NAME,
-                                                             label=LAST_NAME,
-                                                             third_party_identifier=True,
-                                                             options=SchemeCredentialQuestion.LINK,
-                                                             auth_field=True)
+        self.secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                                  type=LAST_NAME,
+                                                                  label=LAST_NAME,
+                                                                  third_party_identifier=True,
+                                                                  options=SchemeCredentialQuestion.LINK,
+                                                                  auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=self.secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
@@ -543,15 +544,11 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertIn(expected_links, resp.json()['payment_cards'])
 
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
+    @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_membership_card_put(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_membership_card_put_and_composite_post(self, *_):
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
         payload = {
             "membership_plan": self.scheme.id,
@@ -609,6 +606,47 @@ class TestResources(APITestCase):
         self.assertEqual(account_id, scheme_account.id)
         self.assertEqual(resp_put.json()['card']['barcode'], "1234401022699099")
         self.assertTrue(payment_link.exists())
+
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch.object(SchemeAccountJoinMixin, 'handle_join_request')
+    def test_membership_card_patch(self, handle_join, *_):
+        sa = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
+        expected_value = {'last_name': 'changed name'}
+        payload_update = {
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "changed name"
+                    }
+                ]
+            }
+        }
+        resp_update = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_update),
+                                        content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_update.status_code, 200)
+        sa.refresh_from_db()
+        self.assertEqual(sa._collect_credentials()['last_name'], expected_value['last_name'])
+
+        handle_join.return_value = None, None, sa
+        payload_register = {
+            "account": {
+                "register_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "changed name"
+                    }
+                ]
+            }
+        }
+        resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
+                                          content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_register.status_code, 200)
+        self.assertTrue(handle_join.called)
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
