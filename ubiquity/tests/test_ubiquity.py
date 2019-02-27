@@ -19,7 +19,7 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardSerializer)
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
@@ -687,6 +687,15 @@ class TestResources(APITestCase):
             'This card already exists, but the provided credentials do not match.',
             resp.json().get('detail')
         )
+
+    @patch('ubiquity.views.async_all_balance.delay')
+    def test_get_service(self, mock_async_all_balance):
+        ServiceConsentFactory(user=self.user)
+        resp = self.client.get(reverse('service'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_async_all_balance.called)
+        self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
 
 
 class TestMembershipCardCredentials(APITestCase):

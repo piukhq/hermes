@@ -30,7 +30,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                   ServiceConsentSerializer, TransactionsSerializer,
                                   UbiquityCreateSchemeAccountSerializer)
-from ubiquity.tasks import async_link
+from ubiquity.tasks import async_link, async_all_balance
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -115,6 +115,7 @@ class ServiceView(ModelViewSet):
         if not request.user.is_active:
             raise NotFound
 
+        async_all_balance.delay(request.user.id)
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
     @censor_and_decorate
