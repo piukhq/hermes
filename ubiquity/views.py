@@ -116,7 +116,7 @@ class ServiceView(ModelViewSet):
         if not request.user.is_active:
             raise NotFound
 
-        allowed_schemes = self.request.allowed_schemes
+        allowed_schemes = [scheme.pk for scheme in request.bundle.schemes.all()]
         async_all_balance.delay(request.user.id, allowed_schemes=allowed_schemes)
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
