@@ -339,6 +339,19 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
+    @staticmethod
+    def _add_alternatives_key(formatted_fields):
+        options = {field["column"] for field in formatted_fields}
+        for field in formatted_fields:
+            field["alternatives"] = list(options - {field["column"]})
+
+    def _format_add_fields(self, fields):
+        formatted_fields = SchemeQuestionSerializer(fields, many=True).data
+        if len(formatted_fields) > 1:
+            self._add_alternatives_key(formatted_fields)
+
+        return formatted_fields
+
     def to_representation(self, instance):
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
@@ -347,6 +360,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         register_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
+
         if instance.tier == 2:
             card_type = 2
         elif instance.has_points or instance.has_transactions:
@@ -405,7 +419,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
                 'terms': instance.join_t_and_c,
                 'terms_url': instance.join_url,
-                'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
+                'add_fields': self._format_add_fields(add_fields),
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
                 'register_fields': SchemeQuestionSerializer(register_fields, many=True).data,
                 'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
