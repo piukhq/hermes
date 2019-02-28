@@ -116,7 +116,29 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
                     old_status=dict(instance.STATUSES).get(instance.status_key))
 
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
-            analytics.update_scheme_account_attribute(instance, request.user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ServiceDeleteAccount(APIView):
+    """
+    Marks scheme account as deleted and remove all related scheme account entries.
+    Responds with a 204 - No content.
+    """
+    authentication_classes = (ServiceAuthentication,)
+
+    def delete(self, request, *args, **kwargs):
+        scheme_account = get_object_or_404(SchemeAccount, id=kwargs['pk'])
+        users = list(scheme_account.user_set.all())
+
+        SchemeAccountEntry.objects.filter(scheme_account=scheme_account).delete()
+        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).delete()
+        scheme_account.is_deleted = True
+        scheme_account.save()
+        for user in users:
+            if user.client_id == settings.BINK_CLIENT_ID:
+                old_status = dict(scheme_account.STATUSES).get(scheme_account.status_key)
+                analytics.update_scheme_account_attribute(scheme_account, user, old_status=old_status)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

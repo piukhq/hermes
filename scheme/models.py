@@ -315,6 +315,7 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    SCHEME_REQUESTED_DELETE = 447
     PENDING_MANUAL_CHECK = 204
     CARD_NUMBER_ERROR = 436
     LINK_LIMIT_EXCEEDED = 437
@@ -355,13 +356,14 @@ class SchemeAccount(models.Model):
         (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
         (GENERAL_ERROR, 'General Error such as incorrect user details', 'GENERAL_ERROR'),
         (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
-        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
+        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR'),
+        (SCHEME_REQUESTED_DELETE, 'The scheme has requested this account should be deleted', 'SCHEME_REQUESTED_DELETE'),
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
                             ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
-                            GENERAL_ERROR, JOIN_IN_PROGRESS]
+                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]

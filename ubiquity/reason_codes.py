@@ -40,6 +40,7 @@ CURRENT_STATUS_CODES = (
     (401, 'Failed validation'),
     (445, 'Account already exists'),
     (446, 'Update failed. Delete and re-add card.'),
+    (447, 'Scheme requested account deletion'),
     (537, 'Service connection error'),
     (204, 'Pending manual check'),
     (406, 'Pre-registered card')
@@ -70,6 +71,7 @@ reason_code_translation = {
     445: None,
     537: None,
     446: 'X104',
+    447: 'X304',
     406: 'X101',
     204: 'X100'
 }
@@ -98,6 +100,7 @@ ubiquity_status_translation = {
     401: 'failed',
     445: 'failed',
     446: 'failed',
+    447: 'failed',
     537: 'failed',
     204: 'pending',
     406: 'failed'
