@@ -2,9 +2,10 @@ import json
 import socket
 import uuid
 
+import sentry_sdk
 from django.conf import settings
 from django.db import transaction
-from raven.contrib.django.raven_compat.models import client as sentry
+from django.db.models import Q
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
@@ -13,7 +14,8 @@ from rest_framework.generics import get_object_or_404
 import analytics
 from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
-from scheme.models import ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer, UserConsent
+from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
+                           UserConsent)
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -30,6 +32,12 @@ class BaseLinkMixin(object):
     def prepare_link_for_manual_check(auth_fields, scheme_account):
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
+        bink_users = [user for user in scheme_account.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:
+            analytics.api.update_scheme_account_attribute_new_status(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.PENDING_MANUAL_CHECK))
         scheme_account.set_pending(manual_pending=True)
         data = serializer.validated_data
 
@@ -191,7 +199,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             finally:
                 if user.client_id == settings.BINK_CLIENT_ID:
                     if scheme_account_updated:
-                        analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+                        analytics.update_scheme_account_attribute(
+                            scheme_account,
+                            user,
+                            dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
                     elif account_created:
                         analytics.update_scheme_account_attribute(scheme_account, user)
 
@@ -213,28 +224,34 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def handle_join_request(self, request, *args, **kwargs):
-        scheme_id = int(kwargs['pk'])
+    def handle_join_request(self, data, user, scheme_id):
+        """
+        :type data: dict
+        :type user: user.models.CustomUser
+        :type scheme_id: int or Type[int]
+        :rtype: tuple[dict, int, scheme.models.SchemeAccount]
+        """
+
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
         if join_scheme.status == Scheme.SUSPENDED:
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
-        serializer = JoinSerializer(data=request.data, context={
+        serializer = JoinSerializer(data=data, context={
             'scheme': join_scheme,
-            'user': request.user
+            'user': user
         })
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
 
-        scheme_account = self.create_join_account(data, request.user, scheme_id)
+        scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
             if 'consents' in serializer.validated_data:
                 consent_data = serializer.validated_data.pop('consents')
 
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, request.user)
+                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
                 UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
 
                 for user_consent in user_consents:
@@ -245,35 +262,40 @@ class SchemeAccountJoinMixin:
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
-                self.save_user_profile(data['credentials'], request.user)
+                self.save_user_profile(data['credentials'], user)
 
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, request.user.id)
+            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
-            return response_dict, status.HTTP_201_CREATED
+            return response_dict, status.HTTP_201_CREATED, scheme_account
         except serializers.ValidationError:
-            self.handle_failed_join(scheme_account, request.user)
+            self.handle_failed_join(scheme_account, user)
             raise
         except Exception:
-            self.handle_failed_join(scheme_account, request.user)
-            return {'message': 'Unknown error with join'}, status.HTTP_200_OK
+            self.handle_failed_join(scheme_account, user)
+            return {'message': 'Unknown error with join'}, status.HTTP_200_OK, scheme_account
 
     @staticmethod
     def handle_failed_join(scheme_account, user):
-        scheme_account_answers = scheme_account.schemeaccountcredentialanswer_set.all()
-        for answer in scheme_account_answers:
-            answer.delete()
+        queryset = scheme_account.schemeaccountcredentialanswer_set
+        card_number = scheme_account.card_number
+        if card_number:
+            queryset = queryset.exclude(answer=card_number)
 
+        queryset.all().delete()
         scheme_account.userconsent_set.filter(status=ConsentStatus.PENDING).delete()
 
         if user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
-        sentry.captureException()
+        sentry_sdk.capture_exception()
 
     @staticmethod
     def create_join_account(data, user, scheme_id):
@@ -301,7 +323,10 @@ class SchemeAccountJoinMixin:
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
 
         if user.client_id == settings.BINK_CLIENT_ID and update:
-            analytics.update_scheme_account_attribute(scheme_account, user, SchemeAccount.JOIN)
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
         elif user.client_id == settings.BINK_CLIENT_ID:
             analytics.update_scheme_account_attribute(scheme_account, user)
 
@@ -349,13 +374,19 @@ class SchemeAccountJoinMixin:
 
 
 class UpdateCredentialsMixin:
+
     @staticmethod
     def update_credentials(scheme_account, data):
+        """
+        :type scheme_account: scheme.models.SchemeAccount
+        :type data: dict
+        :rtype: dict
+        """
         serializer = UpdateCredentialSerializer(data=data, context={'scheme_account': scheme_account})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if 'consents' in data:
-            data.pop('consents')
+            del data['consents']
 
         updated_credentials = []
 
@@ -366,3 +397,69 @@ class UpdateCredentialsMixin:
             updated_credentials.append(credential_type)
 
         return {'updated': updated_credentials}
+
+    def replace_credentials_and_scheme(self, scheme_account, data, scheme_id):
+        """
+        :type scheme_account: scheme.models.SchemeAccount
+        :type data: dict
+        :type scheme_id: int
+        """
+        scheme = get_object_or_404(Scheme, id=scheme_id)
+        self._check_required_data_presence(scheme, data)
+
+        if scheme_account.scheme != scheme:
+            scheme_account.scheme = scheme
+            scheme_account.save()
+
+        scheme_account.schemeaccountcredentialanswer_set.all().delete()
+        return self.update_credentials(scheme_account, data)
+
+    @staticmethod
+    def card_with_same_data_already_exists(account, scheme, main_answer):
+        """
+        :type account: scheme.models.SchemeAccount
+        :type scheme: scheme.models.Scheme
+        :type main_answer: string
+        :return:
+        """
+        query = {
+            'scheme_account__scheme': scheme,
+            'scheme_account__is_deleted': False,
+            'answer': main_answer
+        }
+        exclude = {
+            'scheme_account': account
+        }
+
+        if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
+            return True
+
+        return False
+
+    @staticmethod
+    def _get_new_answers(add_fields, auth_fields):
+        """
+        :type add_fields: dict
+        :type auth_fields: dict
+        :rtype: tuple(dict, str)
+        """
+        new_answers = {**add_fields, **auth_fields}
+        main_answer, *_ = add_fields.values()
+
+        return new_answers, main_answer
+
+    @staticmethod
+    def _check_required_data_presence(scheme, data):
+        """
+        :type scheme: scheme.models.Scheme
+        :type data: dict
+        """
+        if scheme.authorisation_required:
+            query = Q(add_field=True) | Q(auth_field=True)
+        else:
+            query = Q(add_field=True)
+
+        required_questions = scheme.questions.values('type').filter(query).all()
+        for question in required_questions:
+            if question['type'] not in data.keys():
+                raise ValidationError('required field {} is missing.'.format(question['type']))

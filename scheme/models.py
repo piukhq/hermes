@@ -7,13 +7,11 @@ from decimal import Decimal
 from enum import IntEnum
 
 import arrow
-from hermes.traced_requests import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
-
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.signals import pre_save
@@ -21,8 +19,9 @@ from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 
-
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
+from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 
@@ -166,7 +165,7 @@ class Scheme(models.Model):
     def get_question_type_dict(self):
         return {
             question.label: question.type
-            for question in self.questions.filter(field_type__isnull=False).all()
+            for question in self.questions.all()
         }
 
     def __str__(self):
@@ -452,6 +451,13 @@ class SchemeAccount(models.Model):
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
             if self.scheme.slug != 'iceland-bonus-card':
+                bink_users = [user for user in self.user_set.all() if user.client_id == settings.BINK_CLIENT_ID]
+                for user in bink_users:
+                    update_scheme_account_attribute_new_status(
+                        self,
+                        user,
+                        dict(self.STATUSES).get(SchemeAccount.INCOMPLETE)
+                    )
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
@@ -520,6 +526,7 @@ class SchemeAccount(models.Model):
 
     def get_midas_balance(self, journey):
         points = None
+        old_status = self.status
 
         if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
             return points
@@ -540,11 +547,26 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
+        self._received_balance_checks(old_status)
+        return points
+
+    def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            self.schemeaccountcredentialanswer_set.all().delete()
+            queryset = self.schemeaccountcredentialanswer_set
+            card_number = self.card_number
+            if card_number:
+                queryset = queryset.exclude(answer=card_number)
+
+            queryset.all().delete()
+
         if self.status != SchemeAccount.PENDING:
             self.save()
-        return points
+            self.call_analytics(self.user_set.all(), old_status)
+
+    def call_analytics(self, user_set, old_status):
+        bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
+        for user in bink_users:  # Update intercom
+            update_scheme_account_attribute(self, user, dict(self.STATUSES).get(old_status))
 
     def _get_balance(self, credentials, journey):
         user_set = ','.join([str(u.id) for u in self.user_set.all()])
@@ -729,10 +751,6 @@ class SchemeCredentialQuestion(models.Model):
     LINK_AND_JOIN = (LINK | JOIN)
     MERCHANT_IDENTIFIER = (1 << 3)
 
-    ADD_FIELD = 0
-    AUTH_FIELD = 1
-    ENROL_FIELD = 2
-
     OPTIONS = (
         (NONE, 'None'),
         (LINK, 'Link'),
@@ -748,12 +766,6 @@ class SchemeCredentialQuestion(models.Model):
         (1, 'sensitive'),
         (2, 'choice'),
         (3, 'boolean'),
-    )
-
-    FIELD_TYPE_CHOICES = (
-        (ADD_FIELD, 'add'),
-        (AUTH_FIELD, 'auth'),
-        (ENROL_FIELD, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -772,7 +784,10 @@ class SchemeCredentialQuestion(models.Model):
     # common_name = models.CharField(default='', blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)
 
     @property
     def required(self):
@@ -861,7 +876,12 @@ class SchemeAccountCredentialAnswer(models.Model):
 @receiver(pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
-        encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        try:
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+        except AttributeError:
+            answer = str(instance.answer)
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+
         instance.answer = encrypted_answer
 
 

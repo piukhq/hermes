@@ -6,13 +6,13 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
-from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
+from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
@@ -39,16 +39,16 @@ class TestResources(APITestCase):
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
 
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
-                                                             type=LAST_NAME,
-                                                             label=LAST_NAME,
-                                                             third_party_identifier=True,
-                                                             options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+        self.secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                                  type=LAST_NAME,
+                                                                  label=LAST_NAME,
+                                                                  third_party_identifier=True,
+                                                                  options=SchemeCredentialQuestion.LINK,
+                                                                  auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=self.secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
@@ -149,6 +149,66 @@ class TestResources(APITestCase):
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_replace(self, *_):
+        pca = PaymentCardAccountFactory(token='original-token')
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
+        correct_payload = {
+            "card": {
+                "last_four_digits": "5234",
+                "currency_code": "GBP",
+                "first_six_digits": "523456",
+                "name_on_card": "test user 2",
+                "token": "token-to-ignore",
+                "fingerprint": str(pca.fingerprint),
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(correct_payload),
+                               content_type='application/json', **self.auth_headers)
+        pca.refresh_from_db()
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(pca.token, 'original-token')
+        self.assertEqual(pca.pan_end, correct_payload['card']['last_four_digits'])
+
+        wrong_payload = {
+            "card": {
+                "last_four_digits": "5234",
+                "currency_code": "GBP",
+                "first_six_digits": "523456",
+                "name_on_card": "test user 2",
+                "token": "token-to-ignore",
+                "fingerprint": "this-is-not-{}".format(pca.fingerprint),
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(wrong_payload),
+                               content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -484,15 +544,11 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertIn(expected_links, resp.json()['payment_cards'])
 
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
+    @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_composite_membership_card_put(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_membership_card_put_and_composite_post(self, *_):
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
         payload = {
             "membership_plan": self.scheme.id,
@@ -521,13 +577,10 @@ class TestResources(APITestCase):
         account_id = resp.data['id']
         self.assertEqual(resp.status_code, 201)
         self.assertIn(expected_links, resp.json()['payment_cards'])
-        payment_link = None
-        try:
-            payment_link = PaymentCardSchemeEntry.objects.get(scheme_account=account_id,
-                                                              payment_card_account=new_pca.id)
-        except (ObjectDoesNotExist, MultipleObjectsReturned):
-            self.assertTrue(False)
-        self.assertIsInstance(payment_link, PaymentCardSchemeEntry)
+
+        payment_link = PaymentCardSchemeEntry.objects.filter(scheme_account=account_id, payment_card_account=new_pca.id)
+        self.assertEqual(1, payment_link.count())
+
         payload_put = {
             "membership_plan": self.scheme.id,
             "account": {
@@ -551,82 +604,49 @@ class TestResources(APITestCase):
         self.assertEqual(account_id, resp_put.data['id'])
         scheme_account = SchemeAccount.objects.get(id=account_id)
         self.assertEqual(account_id, scheme_account.id)
-        reply = json.loads(resp_put.rendered_content)
-        self.assertEqual(reply['card']['barcode'], "1234401022699099")
-        self.assertFalse(PaymentCardSchemeEntry.objects.filter(id=payment_link.id).exists())
+        self.assertEqual(resp_put.json()['card']['barcode'], "1234401022699099")
+        self.assertTrue(payment_link.exists())
 
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
-    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_composite_membership_card_put_fail(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        payload = {
-            "membership_plan": self.scheme.id,
+    @patch.object(SchemeAccountJoinMixin, 'handle_join_request')
+    def test_membership_card_patch(self, handle_join, *_):
+        sa = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
+        expected_value = {'last_name': 'changed name'}
+        payload_update = {
             "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022657083"
-                    }
-                ],
                 "authorise_fields": [
                     {
                         "column": "last_name",
-                        "value": "Test Composite"
+                        "value": "changed name"
                     }
                 ]
             }
         }
-        expected_links = {
-            'id': new_pca.id,
-            'active_link': True
-        }
+        resp_update = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_update),
+                                        content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_update.status_code, 200)
+        sa.refresh_from_db()
+        self.assertEqual(sa._collect_credentials()['last_name'], expected_value['last_name'])
 
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
-        account_id = resp.data['id']
-        self.assertEqual(resp.status_code, 201)
-        self.assertIn(expected_links, resp.json()['payment_cards'])
-        payment_link = None
-        try:
-            payment_link = PaymentCardSchemeEntry.objects.get(scheme_account=account_id,
-                                                              payment_card_account=new_pca.id)
-        except (ObjectDoesNotExist, MultipleObjectsReturned):
-            self.assertTrue(False)
-        self.assertIsInstance(payment_link, PaymentCardSchemeEntry)
-        # membership plan in wrong place
-        payload_put = {
-
+        handle_join.return_value = None, None, sa
+        payload_register = {
             "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022699099"
-                    }
-                ],
-                "authorise_fields": [
+                "register_fields": [
                     {
                         "column": "last_name",
-                        "value": "Test Composite"
+                        "value": "changed name"
                     }
-                ],
-                "membership_plan": self.scheme.id,
+                ]
             }
         }
-        resp_put = self.client.put(reverse('membership-card', args=[account_id]), data=json.dumps(payload_put),
-                                   content_type='application/json', **self.auth_headers)
-        self.assertEqual(resp_put.status_code, 400)
-        scheme_account = SchemeAccount.objects.get(id=account_id)
-        self.assertEqual(account_id, scheme_account.id)
-        reply = json.loads(resp_put.rendered_content)
-        self.assertEqual(reply['detail'], "Malformed request.")
-        self.assertEqual(scheme_account.barcode, "1234401022657083")
-        self.assertTrue(PaymentCardSchemeEntry.objects.filter(id=payment_link.id).exists())
+        resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
+                                          content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_register.status_code, 200)
+        self.assertTrue(handle_join.called)
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
@@ -706,6 +726,21 @@ class TestResources(APITestCase):
             resp.json().get('detail')
         )
 
+    def test_membership_plan_serializer_method(self):
+        serializer = MembershipPlanSerializer()
+        test_dict = [
+            {'column': 1},
+            {'column': 2},
+            {'column': 3}
+        ]
+        expected = [
+            {'column': 1, 'alternatives': [2, 3]},
+            {'column': 2, 'alternatives': [1, 3]},
+            {'column': 3, 'alternatives': [1, 2]}
+        ]
+        serializer._add_alternatives_key(test_dict)
+        self.assertEqual(expected, test_dict)
+
 
 class TestMembershipCardCredentials(APITestCase):
     def setUp(self):
@@ -717,14 +752,14 @@ class TestMembershipCardCredentials(APITestCase):
         self.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
-                                        field_type=0)
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, field_type=1)
+                                        add_field=True)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
                                                              type=LAST_NAME,
                                                              label=LAST_NAME,
                                                              third_party_identifier=True,
                                                              options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+                                                             auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
