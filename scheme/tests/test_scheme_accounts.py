@@ -171,10 +171,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['display_status'], SchemeAccount.ACTIVE)
 
-    @patch('scheme.views.RetrieveDeleteAccount.service_delete')
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
-    def test_delete_schemes_account(self, mock_date, mock_update_attr, mock_service_delete):
+    def test_delete_schemes_account(self, mock_date, mock_update_attr):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 
@@ -196,7 +195,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 404)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
-        self.assertFalse(mock_service_delete.called)
 
     @patch('scheme.views.analytics.update_scheme_account_attribute')
     def test_service_delete_schemes_account(self, mock_update_attribute):
