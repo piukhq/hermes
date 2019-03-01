@@ -11,7 +11,7 @@ from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, MembershipPlanDocument
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
@@ -67,6 +67,11 @@ class CredentialQuestionInline(admin.StackedInline):
     extra = 0
 
 
+class MembershipPlanDocumentInline(admin.StackedInline):
+    model = MembershipPlanDocument
+    extra = 0
+
+
 class SchemeBalanceDetailsInline(admin.StackedInline):
     model = SchemeBalanceDetails
     extra = 0
@@ -111,7 +116,8 @@ class SchemeDetailsInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
+    inlines = (SchemeDetailsInline, MembershipPlanDocumentInline, SchemeBalanceDetailsInline, CredentialQuestionInline,
+               ControlInline)
     exclude = []
     list_display = ('name', 'id', 'category', 'is_active', 'company',)
     list_filter = ('status',)
