@@ -5,6 +5,7 @@ REASON_CODES = (
     ('X102', 'Add data rejected by merchant'),
     ('X103', 'No authorisation provided'),
     ('X104', 'Update failed. Delete and re-add card.'),
+    ('X105', 'Account not registered'),
     ('X200', 'Enrolment in progress'),
     ('X201', 'Enrolment data rejected by merchant'),
     ('X202', 'Account already exists'),
@@ -72,7 +73,7 @@ reason_code_translation = {
     537: None,
     446: 'X104',
     447: 'X304',
-    406: 'X101',
+    406: 'X105',
     204: 'X100'
 }
 
@@ -103,5 +104,5 @@ ubiquity_status_translation = {
     447: 'failed',
     537: 'failed',
     204: 'pending',
-    406: 'failed'
+    406: 'unauthorised'
 }
