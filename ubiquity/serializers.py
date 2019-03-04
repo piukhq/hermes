@@ -425,8 +425,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'category': instance.category.name,
                 'forgotten_password_url': instance.forgotten_password_url,
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
-                'terms': instance.join_t_and_c,
-                'terms_url': instance.join_url,
                 'add_fields': self._format_add_fields(add_fields),
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
                 'register_fields': SchemeQuestionSerializer(register_fields, many=True).data,
