@@ -419,6 +419,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
                 'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
+                'barcode_redeem_instructions': instance.barcode_redeem_instructions,
+                'plan_register_info': instance.plan_register_info,
                 'company_name': company_name,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
