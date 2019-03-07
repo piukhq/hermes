@@ -12,7 +12,7 @@ from payment_card.serializers import (CreatePaymentCardAccountSerializer, Paymen
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
 from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
-from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
+from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 from user.models import CustomUser
@@ -323,6 +323,12 @@ class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
         exclude = ('scheme_id', 'id')
 
 
+class MembershipPlanDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MembershipPlanDocument
+        exclude = ('id', 'scheme')
+
+
 class MembershipPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
@@ -360,6 +366,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         register_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
+        documents = instance.documents.all()
 
         if instance.tier == 2:
             card_type = 2
@@ -411,14 +418,13 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'plan_url': instance.url,
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
+                'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
                 'company_name': company_name,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
                 'category': instance.category.name,
                 'forgotten_password_url': instance.forgotten_password_url,
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
-                'terms': instance.join_t_and_c,
-                'terms_url': instance.join_url,
                 'add_fields': self._format_add_fields(add_fields),
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
                 'register_fields': SchemeQuestionSerializer(register_fields, many=True).data,
