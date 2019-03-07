@@ -186,6 +186,8 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         old_status = scheme_account.status
 
         response_data = self.link_account(serializer, scheme_account, request.user)
+        if scheme_account.status == SchemeAccount.ACTIVE:
+            scheme_account.link_date = timezone.now()
         scheme_account.save()
 
         if request.user.client_id == settings.BINK_CLIENT_ID:
