@@ -31,6 +31,10 @@ urlpatterns = [
         views.RetrieveDeleteAccount.as_view(),
         name='retrieve_account'),
 
+    url(r'^/accounts/(?P<pk>[0-9]+)/service/?$',
+        views.ServiceDeleteAccount.as_view(),
+        name='service_delete_account'),
+
     url(r'^/accounts/donor_schemes/(?P<scheme_id>[0-9]+)/(?P<user_id>[0-9]+)/?$',
         views.DonorSchemes.as_view()),
 

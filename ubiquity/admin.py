@@ -1,12 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from ubiquity.models import PaymentCardSchemeEntry
+
 from payment_card.admin import titled_filter
+from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument
 
 
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
-
     list_display = ('payment_card_account', 'scheme_account', 'active_link', 'payment_card_account_link',
                     'scheme_account_link', 'card_status', 'card_is_deleted', 'card_created')
     search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
@@ -21,7 +21,7 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
                    ('payment_card_account__status', titled_filter('payment card status')),
                    ('scheme_account__status', titled_filter('membership card status')),
                    )
-    raw_id_fields = ('payment_card_account', 'scheme_account', )
+    raw_id_fields = ('payment_card_account', 'scheme_account',)
 
     def payment_card_account_link(self, obj):
         return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'
@@ -43,3 +43,11 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         return obj.payment_card_account.is_deleted
 
     card_is_deleted.boolean = True
+
+
+@admin.register(MembershipPlanDocument)
+class MembershipPlanDocumentAdmin(admin.ModelAdmin):
+    list_display = ('name', 'scheme', 'url', 'display', 'checkbox')
+    search_fields = ('name', 'scheme', 'url', 'display')
+    list_filter = ('scheme',)
+    raw_id_fields = ('scheme',)

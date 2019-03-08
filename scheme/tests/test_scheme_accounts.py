@@ -17,11 +17,10 @@ from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, S
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
-                                    SchemeImageFactory,
-                                    UserConsentFactory)
+                                    SchemeImageFactory, UserConsentFactory)
 from scheme.views import UpdateSchemeAccountStatus
-from ubiquity.models import SchemeAccountEntry
-from ubiquity.tests.factories import SchemeAccountEntryFactory
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
+from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication
 from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory
 
@@ -81,6 +80,9 @@ class TestSchemeAccountViews(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.scheme_account_image = SchemeAccountImageFactory()
+
+        bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bink_user = UserFactory(client=bink_client_app)
 
         super().setUpClass()
 
@@ -192,6 +194,29 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
         response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+
+    @patch('scheme.views.analytics.update_scheme_account_attribute')
+    def test_service_delete_schemes_account(self, mock_update_attribute):
+        scheme_account = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
+        PaymentCardSchemeEntryFactory(scheme_account=scheme_account)
+
+        response = self.client.delete('/schemes/accounts/{0}/service'.format(scheme_account.id),
+                                      **self.auth_service_headers)
+        deleted_scheme_account = SchemeAccount.all_objects.get(id=scheme_account.id)
+
+        self.assertTrue(mock_update_attribute.called)
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue(deleted_scheme_account.is_deleted)
+        self.assertFalse(SchemeAccountEntry.objects.filter(scheme_account=scheme_account))
+        self.assertFalse(PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account))
+
+    @patch('scheme.views.analytics.update_scheme_account_attribute')
+    def test_service_delete_schemes_account_404(self, mock_update_attribute):
+        response = self.client.delete('/schemes/accounts/{0}/service'.format(123456), **self.auth_service_headers)
+        self.assertFalse(mock_update_attribute.called)
         self.assertEqual(response.status_code, 404)
 
     @patch('analytics.api._get_today_datetime')
@@ -446,7 +471,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
         self.assertEqual(scheme_account.display_status, SchemeAccount.JOIN)
         credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
-        self.assertEqual(len(credentials), 0)
+        self.assertEqual(len(credentials), 1)
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
@@ -528,11 +553,9 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_update_status_bink_user(self, mock_notify_rollback):
-        bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
-        user = UserFactory(client=bink_client_app)
-        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
-        user_set = str(user.id)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
+        user_set = str(self.bink_user.id)
 
         data = {
             'status': 9,
