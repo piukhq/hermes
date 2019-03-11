@@ -137,6 +137,8 @@ class Scheme(models.Model):
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+    barcode_redeem_instructions = models.TextField(default='', blank=True)
+    plan_register_info = models.TextField(default='', blank=True)
 
     @property
     def is_active(self):

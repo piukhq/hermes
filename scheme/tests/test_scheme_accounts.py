@@ -246,10 +246,13 @@ class TestSchemeAccountViews(APITestCase):
             PASSWORD: "sdfsdf",
         }
 
+        self.assertIsNone(link_scheme_account.link_date)
         response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
                                     data=data, **auth_headers, format='json')
 
         self.assertEqual(response.status_code, 201)
+        link_scheme_account.refresh_from_db()
+        self.assertTrue(link_scheme_account.link_date)
         self.assertEqual(response.data['balance']['points'], '100.00')
         self.assertEqual(response.data['status_name'], "Active")
         self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
@@ -430,10 +433,13 @@ class TestSchemeAccountViews(APITestCase):
             ]
         }
 
+        self.assertIsNone(error_scheme_account.link_date)
         response = self.client.post('/schemes/accounts/{0}/link'.format(error_scheme_account.id),
                                     data=data, **auth_headers, format='json')
 
         self.assertEqual(response.status_code, 201)
+        error_scheme_account.refresh_from_db()
+        self.assertIsNone(error_scheme_account.link_date)
         set_values = UserConsent.objects.filter(scheme_account=error_scheme_account).values()
         self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
         successful_consent = set_values[0]

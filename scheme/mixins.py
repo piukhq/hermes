@@ -6,6 +6,7 @@ import sentry_sdk
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
@@ -71,6 +72,9 @@ class BaseLinkMixin(object):
         response_data.update(dict(data))
 
         if scheme_account.status == SchemeAccount.ACTIVE:
+            scheme_account.link_date = timezone.now()
+            scheme_account.save()
+
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
