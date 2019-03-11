@@ -525,7 +525,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        if instance.status != instance.FAILED_UPDATE:
+        if instance.status not in [instance.FAILED_UPDATE, instance.PENDING]:
             # instance.get_cached_balance()
             async_balance.delay(instance.id)
 
