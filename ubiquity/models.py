@@ -56,6 +56,6 @@ class MembershipPlanDocument(models.Model):
     scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE, related_name='documents')
     name = models.CharField(max_length=150)
     description = models.CharField(max_length=500, blank=True)
-    url = models.FileField(upload_to='documents', verbose_name='document')
+    url = models.URLField(verbose_name='document')
     display = ArrayField(models.CharField(max_length=150))
     checkbox = models.BooleanField(verbose_name='needs checkbox')
