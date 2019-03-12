@@ -52,9 +52,9 @@ class TestResources(APITestCase):
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
-        issuer = IssuerFactory(name='Barclays')
+        self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
-        self.payment_card_account = PaymentCardAccountFactory(issuer=issuer, payment_card=self.payment_card)
+        self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
 
@@ -749,6 +749,70 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(mock_async_all_balance.called)
         self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
+
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_auto_link(self, *_):
+        external_id = 'test auto link'
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                external_id).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+        payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
+        PaymentCardAccountEntryFactory(user=user, payment_card_account=payment_card_account)
+        query = {'payment_card_account_id': payment_card_account.id}
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "123456789"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test Successful Link"
+                        }
+                    ]
+                }
+        }
+        success_resp = self.client.post(f'{reverse("membership-cards")}?autoLink=True', data=json.dumps(payload),
+                                        content_type='application/json', **auth_headers)
+
+        self.assertEqual(success_resp.status_code, 201)
+        query['scheme_account_id'] = success_resp.json()['id']
+        self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "987654321"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test Excluded Link"
+                        }
+                    ]
+                }
+        }
+        fail_resp = self.client.post(f'{reverse("membership-cards")}?autoLink=True', data=json.dumps(payload),
+                                     content_type='application/json', **auth_headers)
+
+        self.assertEqual(fail_resp.status_code, 201)
+        query['scheme_account_id'] = fail_resp.json()['id']
+        self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
 
 class TestMembershipCardCredentials(APITestCase):

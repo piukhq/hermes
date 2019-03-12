@@ -42,6 +42,43 @@ def replace_escaped_unicode(match):
     return match.group(1).encode().decode('unicode-escape')
 
 
+class AutoLinkOnCreationMixin:
+
+    @staticmethod
+    def auto_link_to_payment_cards(user: CustomUser, account: SchemeAccount) -> None:
+        query = {
+            'user': user
+        }
+        payment_card_ids = {
+            pcard['payment_card_account_id']
+            for pcard in PaymentCardAccountEntry.objects.values('payment_card_account_id').filter(**query)
+        }
+
+        if not payment_card_ids:
+            return
+
+        query = {
+            'scheme_account__scheme_id': account.scheme_id,
+            'payment_card_account_id__in': payment_card_ids
+        }
+        excluded = {
+            pcard['payment_card_account_id']
+            for pcard in PaymentCardSchemeEntry.objects.values('payment_card_account_id').filter(**query)
+        }
+        payment_card_to_link = payment_card_ids.difference(excluded)
+        scheme_account_id = account.id
+
+        PaymentCardSchemeEntry.objects.bulk_create([
+            PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=pcard_id)
+            for pcard_id in payment_card_to_link
+        ])
+
+    @staticmethod
+    def auto_link_to_membership_cards(user: CustomUser, account: PaymentCardAccount) -> None:
+        # not in spec for now but preparing for later
+        ...
+
+
 class PaymentCardCreationMixin:
     @staticmethod
     def _create_payment_card_consent(consent_data, pcard):
@@ -202,7 +239,7 @@ def request_header():
     return headers
 
 
-class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
+class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, AutoLinkOnCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -249,6 +286,10 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
         # todo should we replace the consent too?
 
         account.refresh_from_db()
+
+        if request.query_params.get('autoLink') == 'True':
+            self.auto_link_to_membership_cards(request.user, account)
+
         return Response(self.get_serializer(account).data, status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -257,7 +298,8 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Mode
         return Response({}, status=status.HTTP_200_OK)
 
 
-class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, ModelViewSet):
+class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin, AutoLinkOnCreationMixin,
+                          ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
 
@@ -287,11 +329,14 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         if status_code == status.HTTP_201_CREATED:
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
+        if request.query_params.get('autoLink') == 'True':
+            self.auto_link_to_membership_cards(request.user, pcard)
+
         return Response(self.get_serializer(pcard).data, status=status_code)
 
 
 class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAccountCreationMixin, BaseLinkMixin,
-                         SchemeAccountJoinMixin, ModelViewSet):
+                         SchemeAccountJoinMixin, AutoLinkOnCreationMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     override_serializer_classes = {
         'GET': MembershipCardSerializer,
@@ -410,6 +455,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 account.save()
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
+
+        if request.query_params.get('autoLink') == 'True':
+            self.auto_link_to_payment_cards(request.user, account)
 
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
@@ -614,6 +662,9 @@ class ListMembershipCardView(MembershipCardView):
         else:
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
+
+        if request.query_params.get('autoLink') == 'True':
+            self.auto_link_to_payment_cards(request.user, account)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 
