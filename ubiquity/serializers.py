@@ -1,3 +1,4 @@
+import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 
 import arrow
@@ -335,7 +336,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         exclude = ('name',)
 
     @staticmethod
-    def _get_ubiquity_images(instance):
+    def _get_ubiquity_images(instance: Scheme) -> t.List[dict]:
         # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
         filtered_images = {
             image.image_type_code: image
@@ -346,24 +347,24 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
     @staticmethod
-    def _add_alternatives_key(formatted_fields):
+    def _add_alternatives_key(formatted_fields: dict) -> t.NoReturn:
         options = {field["column"] for field in formatted_fields}
         for field in formatted_fields:
             field["alternatives"] = list(options - {field["column"]})
 
-    def _format_add_fields(self, fields):
+    def _format_add_fields(self, fields: SchemeCredentialQuestion) -> dict:
         formatted_fields = SchemeQuestionSerializer(fields, many=True).data
         if len(formatted_fields) > 1:
             self._add_alternatives_key(formatted_fields)
 
         return formatted_fields
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: Scheme) -> dict:
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
         add_fields = instance.questions.filter(add_field=True).all()
         authorise_fields = instance.questions.filter(auth_field=True).all()
-        register_fields = instance.questions.filter(register_field=True).all()
+        registration_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
         documents = instance.documents.all()
@@ -391,6 +392,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'transactions_available': instance.has_transactions,
                 'digital_only': instance.digital_only,
                 'has_points': instance.has_points,
+                'card_type': card_type,
+                'linking_support': instance.linking_support,
                 'apps': [
                     {
                         'app_id': instance.ios_scheme,
@@ -402,8 +405,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                         'app_store_url': instance.play_store_url,
                         'app_type': 1
                     }
-                ],
-                'card_type': card_type
+                ]
             },
             'card': {
                 'barcode_type': instance.barcode_type,
@@ -429,7 +431,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
                 'add_fields': self._format_add_fields(add_fields),
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
-                'register_fields': SchemeQuestionSerializer(register_fields, many=True).data,
+                'registration_fields': SchemeQuestionSerializer(registration_fields, many=True).data,
                 'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data

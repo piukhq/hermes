@@ -139,6 +139,9 @@ class Scheme(models.Model):
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
     barcode_redeem_instructions = models.TextField(default='', blank=True)
     plan_register_info = models.TextField(default='', blank=True)
+    linking_support = ArrayField(models.CharField(max_length=50), default=[], blank=True,
+                                 help_text='journeys supported by the scheme in the ubiquity endpoints, '
+                                           'ie: ADD, REGISTRATION, ENROL')
 
     @property
     def is_active(self):
