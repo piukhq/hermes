@@ -294,6 +294,17 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
+        payment_card_account = self.get_object()
+        p_card_users = {
+            user['id'] for user in
+            payment_card_account.user_set.values('id').exclude(id=request.user.id)
+        }
+
+        query = {
+            'scheme_account__user_set__id__in': p_card_users
+        }
+
+        PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).exclude(**query).delete()
         super().delete(request, *args, **kwargs)
         return Response({}, status=status.HTTP_200_OK)
 
@@ -464,6 +475,16 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
+        scheme_account = self.get_object()
+        m_card_users = [
+            user['id'] for user in
+            scheme_account.user_set.values('id').exclude(id=request.user.id)
+        ]
+
+        query = {
+            'payment_card_account__user_set__id__in': m_card_users
+        }
+        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query).delete()
         super().delete(request, *args, **kwargs)
         return Response({}, status=status.HTTP_200_OK)
 
