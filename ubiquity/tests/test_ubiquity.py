@@ -345,6 +345,74 @@ class TestResources(APITestCase):
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
 
+    def test_membership_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
+
+        external_id = 'test2@user.com'
+        user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        SchemeAccountEntryFactory(user=user_2, scheme_account=self.scheme_account)
+        PaymentCardAccountEntryFactory(user=user_2,
+                                       payment_card_account=self.payment_card_account)
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 1)
+
+    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self):
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 0)
+
+    def test_payment_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
+        external_id = 'test2@user.com'
+        user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        SchemeAccountEntryFactory(user=user_2, scheme_account=self.scheme_account)
+        PaymentCardAccountEntryFactory(user=user_2,
+                                       payment_card_account=self.payment_card_account)
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('payment-card', args=[self.payment_card_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 1)
+
+    @patch('requests.delete')
+    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_request_delete):
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('payment-card', args=[self.payment_card_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertTrue(mock_request_delete.called)
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 0)
+
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_card_rule_filtering(self, *_):
