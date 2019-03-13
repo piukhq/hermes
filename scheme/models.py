@@ -328,6 +328,7 @@ class SchemeAccount(models.Model):
     GENERAL_ERROR = 439
     JOIN_IN_PROGRESS = 441
     JOIN_ERROR = 538
+    JOIN_ASYNC_IN_PROGRESS = 442
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -363,9 +364,10 @@ class SchemeAccount(models.Model):
         (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
         (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR'),
         (SCHEME_REQUESTED_DELETE, 'The scheme has requested this account should be deleted', 'SCHEME_REQUESTED_DELETE'),
+        (JOIN_ASYNC_IN_PROGRESS, 'Asynchronous join in progress', 'JOIN_ASYNC_IN_PROGRESS')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
+    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD, JOIN_ASYNC_IN_PROGRESS]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
                             ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
                             GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE]
@@ -603,8 +605,12 @@ class SchemeAccount(models.Model):
 
         return balance
 
-    def set_pending(self, manual_pending=False):
+    def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
+        self.save()
+
+    def set_async_join_status(self) -> None:
+        self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
         self.save()
 
     def delete_cached_balance(self):
