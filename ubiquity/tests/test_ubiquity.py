@@ -638,7 +638,7 @@ class TestResources(APITestCase):
         handle_join.return_value = None, None, sa
         payload_register = {
             "account": {
-                "register_fields": [
+                "registration_fields": [
                     {
                         "column": "last_name",
                         "value": "changed name"

@@ -344,7 +344,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         'DELETE': MembershipCardSerializer,
         'PUT': LinkMembershipCardSerializer
     }
-    create_update_fields = ('add_fields', 'authorise_fields', 'register_fields', 'enrol_fields')
+    create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_queryset(self):
         query = {
@@ -389,11 +389,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
-        update_fields, register_fields = self._collect_updated_answers(account.scheme)
+        update_fields, registration_fields = self._collect_updated_answers(account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
-        if register_fields:
-            updated_account = self._handle_register_route(request.user, account, register_fields, manual_question)
+        if registration_fields:
+            updated_account = self._handle_registration_route(request.user, account, registration_fields,
+                                                              manual_question)
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question)
 
@@ -421,21 +422,21 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account.set_pending()
         return account
 
-    def _handle_register_route(self, user, account, register_fields, manual_question):
+    def _handle_registration_route(self, user, account, registration_fields, manual_question):
         """
         :type user: user.models.CustomUser
         :type account: scheme.models.SchemeAccount
-        :type register_fields: dict
+        :type registration_fields: dict
         :type manual_question: scheme.models.SchemeCredentialQuestion
         :rtype: scheme.models.SchemeAccount
         """
-        register_data = {
+        registration_data = {
             manual_question.type: account.card_number,
             'order': 0,
             'save_user_information': False,
-            **register_fields
+            **registration_fields
         }
-        _, _, scheme_account = self.handle_join_request(register_data, user, account.scheme_id)
+        _, _, scheme_account = self.handle_join_request(registration_data, user, account.scheme_id)
         return scheme_account
 
     @censor_and_decorate
@@ -496,8 +497,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError
 
-        if out_fields['register_fields']:
-            return None, out_fields['register_fields']
+        if out_fields['registration_fields']:
+            return None, out_fields['registration_fields']
 
         return {**out_fields['add_fields'], **out_fields['authorise_fields']}, None
 
