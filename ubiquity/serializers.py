@@ -18,6 +18,9 @@ from ubiquity.reason_codes import reason_code_translation, ubiquity_status_trans
 from ubiquity.tasks import async_balance
 from user.models import CustomUser
 
+if t.TYPE_CHECKING:
+    from scheme.models import SchemeAccount
+
 
 class MembershipTransactionsMixin:
 
@@ -347,7 +350,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
     @staticmethod
-    def _add_alternatives_key(formatted_fields: dict) -> t.NoReturn:
+    def _add_alternatives_key(formatted_fields: dict) -> None:
         options = {field["column"] for field in formatted_fields}
         for field in formatted_fields:
             field["alternatives"] = list(options - {field["column"]})
@@ -528,14 +531,16 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             self.context['request'].user.id, instance.id
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
             'payment_card_account__is_deleted': False
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        if instance.status not in [instance.FAILED_UPDATE, instance.PENDING]:
+        exclude_balance_statuses = instance.JOIN_ACTION_REQUIRED + [instance.FAILED_UPDATE, instance.PENDING]
+
+        if instance.status not in exclude_balance_statuses:
             # instance.get_cached_balance()
             async_balance.delay(instance.id)
 

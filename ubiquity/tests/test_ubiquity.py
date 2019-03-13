@@ -12,7 +12,6 @@ from rest_framework.test import APITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
-from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
@@ -680,9 +679,9 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_registration', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccountJoinMixin, 'handle_join_request')
-    def test_membership_card_patch(self, handle_join, *_):
+    def test_membership_card_patch(self, *_):
         sa = SchemeAccountFactory(scheme=self.scheme)
         SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
         SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
@@ -703,7 +702,6 @@ class TestResources(APITestCase):
         sa.refresh_from_db()
         self.assertEqual(sa._collect_credentials()['last_name'], expected_value['last_name'])
 
-        handle_join.return_value = None, None, sa
         payload_register = {
             "account": {
                 "registration_fields": [
@@ -717,7 +715,6 @@ class TestResources(APITestCase):
         resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
                                           content_type='application/json', **self.auth_headers)
         self.assertEqual(resp_register.status_code, 200)
-        self.assertTrue(handle_join.called)
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
