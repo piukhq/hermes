@@ -517,8 +517,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 raise ParseError('This card already exists, but the provided credentials do not match.')
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
-        for card in scheme_account.payment_card_account_set.all():
-            PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=card)
 
     def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict,
                                   use_pk: int = None) -> t.Tuple[SchemeAccount, int]:
