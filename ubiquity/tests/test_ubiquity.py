@@ -21,6 +21,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.views import MembershipTransactionView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -881,6 +882,22 @@ class TestResources(APITestCase):
         self.assertEqual(fail_resp.status_code, 201)
         query['scheme_account_id'] = fail_resp.json()['id']
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
+
+    def test_membership_card_transactions_user_filters(self):
+        sae_correct = SchemeAccountEntryFactory(user=self.user)
+        sae_wrong = SchemeAccountEntryFactory()
+        data = [
+            {'scheme_account_id': sae_correct.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_correct.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id}
+        ]
+        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user.id, data)
+        self.assertEqual(len(filtered_data), 2)
+        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_correct.scheme_account_id))
+        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_wrong.scheme_account_id))
 
 
 class TestMembershipCardCredentials(APITestCase):
