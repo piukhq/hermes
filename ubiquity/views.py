@@ -845,18 +845,48 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        response = self.get_serializer(resp.json()).data if resp.status_code == 200 and resp.json() else {}
-        return Response(response)
+        if resp.status_code == 200 and resp.json():
+            data = resp.json()
+            if isinstance(data, list):
+                data = data[0]
+
+            if self._account_belongs_to_user(request.user.id, data.get('scheme_account_id')):
+                return Response(self.get_serializer(data, many=False).data)
+
+        return Response({})
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        response = self.get_serializer(resp.json(), many=True).data if resp.status_code == 200 and resp.json() else []
-        return Response(response)
+        if resp.status_code == 200 and resp.json():
+            data = self._filter_transactions_for_current_user(request.user.id, resp.json())
+            if data:
+                return Response(self.get_serializer(data, many=True).data)
+
+        return Response([])
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
+        if not self._account_belongs_to_user(request.user.id, kwargs['mcard_id']):
+            return Response([])
+
         response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
         return Response(response)
+
+    @staticmethod
+    def _account_belongs_to_user(user_id: int, mcard_id: int) -> bool:
+        return SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account_id=mcard_id).exists()
+
+    @staticmethod
+    def _filter_transactions_for_current_user(user_id: int, data: t.List[dict]) -> t.List[dict]:
+        current_user_accounts = {
+            account['scheme_account_id']
+            for account in SchemeAccountEntry.objects.values('scheme_account_id').filter(user_id=user_id).all()
+        }
+        return [
+            tx
+            for tx in data
+            if tx.get('scheme_account_id') in current_user_accounts
+        ]
