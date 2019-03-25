@@ -20,7 +20,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeBundleAssociation
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -356,10 +356,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             'user_set__id': self.request.user.id,
             'is_deleted': False
         }
-        if self.request.allowed_schemes:
-            query['scheme__in'] = self.request.allowed_schemes
 
-        return SchemeAccount.objects.filter(**query)
+        return self.request.channels_permit.scheme_query(SchemeAccount.objects.filter(**query),
+                                                         excludes=[SchemeBundleAssociation.INACTIVE])
+
 
     def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
@@ -431,6 +431,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
+
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 

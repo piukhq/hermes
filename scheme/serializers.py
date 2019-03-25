@@ -70,11 +70,16 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
-    is_active = serializers.BooleanField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+
+    def get_is_active(self, obj):
+        # We cheat here because SchemeSerializer is intended to be used on active schemes where
+        # status in SchemeBundleAssociation is not INACTIVE ie ACTIVE or SUSPENDED
+        return True
 
     @staticmethod
     def get_link_questions(obj):

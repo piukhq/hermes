@@ -128,8 +128,9 @@ class ClientApplicationBundle(models.Model):
     """
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
-    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
-    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
+    issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
+    scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
+                                    related_name='related_bundle')
 
     class Meta:
         unique_together = ('client', 'bundle_id',)

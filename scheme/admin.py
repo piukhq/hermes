@@ -1,16 +1,15 @@
 import re
-
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
-
 from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
+                           SchemeBundleAssociation)
 from ubiquity.models import SchemeAccountEntry
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -113,8 +112,8 @@ class SchemeDetailsInline(admin.StackedInline):
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
     exclude = []
-    list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('status',)
+    list_display = ('name', 'id', 'category', 'company',)
+
     form = SchemeForm
     search_fields = ['name']
 
@@ -392,3 +391,89 @@ class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Category)
+
+
+@admin.register(SchemeBundleAssociation)
+class SchemeBundleAssociationAdmin(admin.ModelAdmin):
+    list_display = ('bundle', 'scheme', 'status')
+    search_fields = ('bundle_id', 'scheme__name')
+    raw_id_fields = ("scheme",)
+    # list_filter = ('client__organisation__name', 'client__name', 'issuers')
+    """
+    def get_fieldsets(self, request, obj=None):
+        allowed_schemes = None
+        allowed_issuers = None
+        bundle_id = None
+        return_fields = ((None, {'fields': ('bundle_id', 'client')}),)
+
+        if obj:
+            allowed_schemes = [scheme.pk for scheme in obj.schemes.all()]
+            allowed_issuers = [issuers.pk for issuers in obj.issuers.all()]
+            bundle_id = obj.bundle_id
+
+        if bundle_id == 'com.bink.wallet':
+            choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
+                                 " immediately</h3>"
+        elif obj:
+            choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing users may" \
+                                 " need to re-login before choices take effect</h3>"
+        else:
+            choice_description = "<h3 style='color:red;'>Note: To activate this feature make at least one choice." \
+                                 " All schemes will be permitted until a choice is made</h3><h3>For the Bink app " \
+                                 "only the choices made in 'com.bink.wallet' will take effect immediately - for" \
+                                 " any other bundle any logged in Bink users would need to re-login</h3>"
+
+        if allowed_schemes:
+            if bundle_id == 'com.bink.wallet':
+                choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
+                                     " immediately</h3>"
+            else:
+                choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing" \
+                                     " users may need to re-login before choices take effect</h3>"
+
+            return_fields += (
+                                 ('Choose which Schemes are permitted',
+                                  {
+                                      'classes': ('wide',),
+                                      'description': choice_description,
+                                      'fields': ('schemes',),
+                                  }),
+            )
+
+        else:
+            return_fields += (
+                ('All Schemes are currently permitted - click "show" to remove schemes from this bundle',
+                 {
+                     'classes': ('collapse',),
+                     'description': choice_description,
+                     'fields': ('schemes',),
+                 }),
+            )
+
+        if bundle_id != 'com.bink.wallet':
+            if allowed_issuers:
+                issuers_description = "<h3>Note: This feature only applies to Ubiquity</h3>"
+                return_fields += (
+                    ('All Issuers are currently permitted - click "show" to remove issuers from this bundle',
+                     {
+                         'classes': ('wide',),
+                         'description': issuers_description,
+                         'fields': ('issuers',),
+                     }),
+                )
+
+            else:
+                issuers_description = "<h3 style='color:red;'>Note: To activate this feature for Ubiquity make at" \
+                                      " least one choice.  All issuers will be permitted until a choice is made</h3>"
+                return_fields += (
+                    ('For Ubiquity All Issuers are currently permitted - click "show" to remove '
+                     'issuers from this bundle',
+                     {
+                         'classes': ('collapse',),
+                         'description': issuers_description,
+                         'fields': ('issuers',),
+                     }),
+                )
+
+        return return_fields
+"""
