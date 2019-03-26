@@ -1,9 +1,7 @@
-import typing as t
-
 from celery import shared_task
 
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, SchemeBundleAssociation
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import SchemeAccountEntry
 from user.models import CustomUser
@@ -24,13 +22,14 @@ def async_balance(instance_id: int) -> None:
 
 
 @shared_task
-def async_all_balance(user_id: int, allowed_schemes: t.Sequence[int] = None) -> None:
+def async_all_balance(user_id: int, channels_permit) -> None:
     query = {'user': user_id}
-    if allowed_schemes:
-        query['scheme_account__scheme__in'] = allowed_schemes
 
-    entries = SchemeAccountEntry.objects.filter(**query)
-    for entry in entries:
+    queryset = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query),
+                                                   'scheme_account__scheme__',
+                                                   excludes=[SchemeBundleAssociation.INACTIVE]
+                                                   )
+    for entry in queryset:
         async_balance.delay(entry.scheme_account_id)
 
 

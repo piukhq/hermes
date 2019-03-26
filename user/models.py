@@ -110,7 +110,6 @@ class ClientApplication(models.Model):
     secret = models.CharField(max_length=128, unique=False, default=_get_random_string, db_index=True)
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT)
     name = models.CharField(max_length=100, unique=True)
-
     bink_app = None
 
     def __str__(self):

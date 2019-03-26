@@ -92,7 +92,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
     def get_queryset(self):
         queryset = SchemeAccount.objects.filter(user_set__id=self.request.user.id)
-        return self.request.channels_permit.scheme_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_account_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
 
     def delete(self, request, *args, **kwargs):
         """
@@ -188,11 +188,9 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        queryset = SchemeAccount.objects
         queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects,
                                                                      excludes=[SchemeBundleAssociation.INACTIVE])
-        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
-                                           user_set__id=self.request.user.id)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=self.request.user.id)
         if scheme_account.scheme.status == Scheme.SUSPENDED:
             return Response({
                 'error': 'This scheme is temporarily unavailable.'
@@ -459,7 +457,8 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
-            queryset = self.request.channels_permit.scheme_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
+            queryset = self.request.channels_permit\
+                .scheme_account_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
             queryset = queryset.filter(user_set__id=self.request.user.id)
         return queryset
 

@@ -163,9 +163,7 @@ class ServiceView(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         if not request.user.is_active:
             raise NotFound
-
-        allowed_schemes = [scheme.pk for scheme in request.bundle.schemes.all()]
-        async_all_balance.delay(request.user.id, allowed_schemes=allowed_schemes)
+        async_all_balance.delay(request.user.id, self.request.channels.permit)
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
     @censor_and_decorate
@@ -357,9 +355,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             'is_deleted': False
         }
 
-        return self.request.channels_permit.scheme_query(SchemeAccount.objects.filter(**query),
-                                                         excludes=[SchemeBundleAssociation.INACTIVE])
-
+        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query),
+                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
 
     def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
@@ -432,7 +429,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
-        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+        scheme_status = self.request.channels_permit.scheme_status(scheme_id)
+        if scheme_status != SchemeBundleAssociation.ACTIVE and\
+                scheme_status != SchemeBundleAssociation.SUSPENDED:
+
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
@@ -499,8 +499,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     def _collect_fields_and_determine_route(self) -> t.Tuple[int, dict, dict, dict]:
         try:
-            if self.request.allowed_schemes and int(
-                    self.request.data['membership_plan']) not in self.request.allowed_schemes:
+            scheme_status = self.request.channels_permit.scheme_status(int(self.request.data['membership_plan']))
+            if scheme_status != SchemeBundleAssociation.ACTIVE and \
+                    scheme_status != SchemeBundleAssociation.SUSPENDED:
                 raise ParseError('membership plan not allowed for this user.')
         except ValueError:
             raise ParseError
@@ -733,10 +734,9 @@ class CompositeMembershipCardView(ListMembershipCardView):
             'is_deleted': False,
             'payment_card_account_set__id': self.kwargs['pcard_id']
         }
-        if self.request.allowed_schemes:
-            query['scheme__in'] = self.request.allowed_schemes
 
-        return SchemeAccount.objects.filter(**query)
+        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query),
+                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
@@ -766,10 +766,9 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreation
             'scheme_account_set__id': self.kwargs['mcard_id'],
             'is_deleted': False
         }
-        if self.request.allowed_schemes:
-            query['scheme__in'] = self.request.allowed_schemes
 
-        return PaymentCardAccount.objects.filter(**query)
+        return self.request.channels_permit.scheme_account_query(PaymentCardAccount.objects.filter(**query),
+                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
@@ -800,9 +799,8 @@ class MembershipPlanView(ModelViewSet):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        if self.request.allowed_schemes:
-            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
-        return Scheme.objects
+        return self.request.channels_permit.scheme_query(Scheme.objects, excludes=[SchemeBundleAssociation.INACTIVE])
+
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -814,9 +812,8 @@ class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        if self.request.allowed_schemes:
-            return Scheme.objects.filter(id__in=self.request.allowed_schemes)
-        return Scheme.objects
+        return self.request.channels_permit.scheme_query(Scheme.objects, excludes=[SchemeBundleAssociation.INACTIVE])
+
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

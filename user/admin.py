@@ -113,17 +113,16 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
     ]
 
     def get_fieldsets(self, request, obj=None):
-        allowed_schemes = None
         allowed_issuers = None
         bundle_id = None
         return_fields = ((None, {'fields': ('bundle_id', 'client')}),)
+        choice_description = "Schemes"
 
         if obj:
-            allowed_schemes = [scheme.pk for scheme in obj.scheme.all()]
             allowed_issuers = [issuer.pk for issuer in obj.issuer.all()]
             bundle_id = obj.bundle_id
 
-        if allowed_schemes:
+        if bundle_id:
             if bundle_id == 'com.bink.wallet':
                 choice_description = "Available Schemes for the Bink app."
             elif obj:
@@ -131,7 +130,7 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
                                      " login to use this scheme)"
         else:
                 choice_description = "No Schemes are Accessible with this bundle" \
-                                     " (Please any required schemes below)"
+                                     " (Please add required schemes below)"
 
         SchemeInline.verbose_name_plural = choice_description
         if bundle_id != 'com.bink.wallet':
