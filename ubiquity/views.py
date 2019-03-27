@@ -31,7 +31,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                   ServiceConsentSerializer, TransactionsSerializer,
                                   LinkMembershipCardSerializer)
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration
+from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -402,6 +402,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
 
+        async_balance.delay(updated_account.id)
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
@@ -448,6 +449,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if request.query_params.get('autoLink') == 'True':
             self.auto_link_to_payment_cards(request.user, account)
 
+        async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate

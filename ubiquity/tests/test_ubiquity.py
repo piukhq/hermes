@@ -253,6 +253,7 @@ class TestResources(APITestCase):
         self.assertFalse(mock_async_balance.delay.called)
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_update(self, *_):
         payload = json.dumps({
@@ -618,6 +619,7 @@ class TestResources(APITestCase):
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_and_composite_post(self, *_):
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
@@ -680,6 +682,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch('ubiquity.views.async_registration', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_patch(self, *_):
@@ -928,6 +931,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_update_new_and_existing_credentials(self, *_):
