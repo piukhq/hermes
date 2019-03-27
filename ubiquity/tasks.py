@@ -2,6 +2,7 @@ import typing as t
 
 from celery import shared_task
 
+from rest_framework import serializers
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -13,8 +14,13 @@ from user.models import CustomUser
 def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
-    serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-    BaseLinkMixin.link_account(serializer, scheme_account, user)
+    try:
+        serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+        BaseLinkMixin.link_account(serializer, scheme_account, user)
+    except serializers.ValidationError as e:
+        scheme_account.status = scheme_account.INVALID_CREDENTIALS
+        scheme_account.save()
+        raise e
 
 
 @shared_task

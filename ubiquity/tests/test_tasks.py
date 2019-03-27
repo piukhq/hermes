@@ -1,7 +1,12 @@
-from django.test import TestCase
 from unittest.mock import patch
 
-from ubiquity.tasks import async_balance, async_all_balance
+from django.test import TestCase
+from rest_framework import serializers
+
+from scheme.credentials import EMAIL, PASSWORD, POSTCODE
+from scheme.models import SchemeCredentialQuestion
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
+from ubiquity.tasks import async_balance, async_all_balance, async_link
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 
@@ -13,6 +18,15 @@ class TestTasks(TestCase):
         self.user = UserFactory(external_id=external_id, email=external_id)
         self.entry = SchemeAccountEntryFactory(user=self.user)
         self.entry2 = SchemeAccountEntryFactory(user=self.user)
+
+        self.link_entry = SchemeAccountEntryFactory(user=self.user)
+        self.link_scheme = self.link_entry.scheme_account.scheme
+        self.manual_question = SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=EMAIL,
+                                                               manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=PASSWORD,
+                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=POSTCODE,
+                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
 
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')
@@ -45,3 +59,20 @@ class TestTasks(TestCase):
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
         self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
+
+    @patch('scheme.models.SchemeAccount.call_analytics')
+    @patch('requests.get')
+    def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
+        scheme_account = self.link_entry.scheme_account
+        user_id = self.link_entry.user_id
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
+
+        auth_fields = {'password': 'test123'}
+        self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
+        with self.assertRaises(serializers.ValidationError):
+            async_link(auth_fields, scheme_account.id, user_id)
+
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
+        self.assertFalse(mock_midas_balance.called)
+        self.assertFalse(mock_analytics.called)
