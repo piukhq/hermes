@@ -1,11 +1,12 @@
 from celery import shared_task
-
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import SchemeAccountEntry
 from user.models import CustomUser
-
+import typing as t
+if t.TYPE_CHECKING:
+    from hermes.channels import Permit
 
 @shared_task
 def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
@@ -33,18 +34,18 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 
 @shared_task
-def async_join(user_id: int, scheme_id: int, enrol_fields: dict) -> None:
+def async_join(user_id: int, permit: Permit, scheme_id: int, enrol_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     join_data = {
         'order': 0,
         **enrol_fields,
         'save_user_information': 'false'
     }
-    SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id)
+    SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, permit)
 
 
 @shared_task
-def async_registration(user_id: int, scheme_account_id: int, registration_fields: dict) -> None:
+def async_registration(user_id: int, permit: Permit, scheme_account_id: int, registration_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     account = SchemeAccount.objects.get(id=scheme_account_id)
 
@@ -57,4 +58,4 @@ def async_registration(user_id: int, scheme_account_id: int, registration_fields
         **registration_fields,
         'save_user_information': False,
     }
-    SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id)
+    SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id, permit)

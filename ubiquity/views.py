@@ -34,6 +34,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
+from hermes.channels import Permit
 
 if t.TYPE_CHECKING:
     from django.http import HttpResponse
@@ -401,7 +402,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if registration_fields:
-            updated_account = self._handle_registration_route(request.user, account, registration_fields)
+            updated_account = self._handle_registration_route(request.user, request.channnels_permit,
+                                                              account, registration_fields)
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
 
@@ -424,10 +426,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return account
 
     @staticmethod
-    def _handle_registration_route(user: CustomUser, account: SchemeAccount,
+    def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
                                    registration_fields: dict) -> SchemeAccount:
         account.set_async_join_status()
-        async_registration.delay(user.id, account.id, registration_fields)
+
+        async_registration.delay(user.id, permit, account.id, registration_fields)
         return account
 
     @censor_and_decorate
@@ -435,7 +438,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
-        if not self.request.channels_permit.is_scheme_available(scheme_id):
+        if not request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
@@ -551,7 +554,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, scheme_id: int, enrol_fields: dict) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit,
+                                  scheme_id: int, enrol_fields: dict) -> t.Tuple[SchemeAccount, int]:
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
@@ -567,7 +571,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(user.id, scheme_id, enrol_fields)
+        async_join.delay(user.id, channels_permit, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
@@ -650,7 +654,8 @@ class ListMembershipCardView(MembershipCardView):
     def create(self, request, *args, **kwargs):
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_create_join_route(request.user, scheme_id, enrol_fields)
+            account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
+                                                                  scheme_id, enrol_fields)
         else:
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
@@ -748,7 +753,8 @@ class CompositeMembershipCardView(ListMembershipCardView):
         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_create_join_route(request.user, scheme_id, enrol_fields)
+            account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
+                                                                  scheme_id, enrol_fields)
         else:
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
