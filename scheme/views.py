@@ -25,7 +25,7 @@ from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
 from scheme.models import (ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage,
-                           UserConsent, SchemeBundleAssociation)
+                           UserConsent)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer,
@@ -64,8 +64,7 @@ class SchemesList(ListAPIView):
     serializer_class = SchemeSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(super().get_queryset(),
-                                                         excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_query(super().get_queryset())
 
 
 class RetrieveScheme(RetrieveAPIView):
@@ -76,8 +75,7 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(super().get_queryset(),
-                                                         excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_query(super().get_queryset())
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
@@ -92,7 +90,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
     def get_queryset(self):
         queryset = SchemeAccount.objects.filter(user_set__id=self.request.user.id)
-        return self.request.channels_permit.scheme_account_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_account_query(queryset)
 
     def delete(self, request, *args, **kwargs):
         """
@@ -172,9 +170,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects,
-                                                                     excludes=[SchemeBundleAssociation.INACTIVE])
-
+        queryset =  self.request.channels_permit.scheme_account_query(SchemeAccount.objects)
         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         serializer = SchemeAnswerSerializer(data=request.data)
@@ -188,10 +184,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects,
-                                                                     excludes=[SchemeBundleAssociation.INACTIVE])
+        permit = self.request.channels_permit
+        queryset = permit.scheme_account_query(SchemeAccount.objects)
         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=self.request.user.id)
-        if scheme_account.scheme.status == Scheme.SUSPENDED:
+
+        if permit.is_scheme_supended(scheme_account.scheme_id):
             return Response({
                 'error': 'This scheme is temporarily unavailable.'
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -230,6 +227,13 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         'OPTIONS': ListSchemeAccountSerializer,
     }
 
+    def get_serializer_context(self):
+        context = super(self).get_serializer_context()
+        context.update({
+            "channels_permit": self.request.channels_permit
+        })
+        return context
+
     def get(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
@@ -240,9 +244,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         user_id = self.request.user.id
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
         scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
-
-        scheme_accounts = self.request.channels_permit.scheme_account_query(scheme_accounts,
-                                                                            includes=[SchemeBundleAssociation.ACTIVE])
+        scheme_accounts = self.request.channels_permit.scheme_account_query(scheme_accounts)
         return scheme_accounts
 
     def post(self, request, *args, **kwargs):
@@ -250,8 +252,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         Create a new scheme account within the users wallet.<br>
         This does not log into the loyalty scheme end site.
         """
-        scheme_status = self.request.channels_permit.scheme_status(int(self.request.data['scheme']))
-        if scheme_status != SchemeBundleAssociation.ACTIVE:
+        if not request.channels_permit.is_scheme_available(int(self.request.data['scheme'])):
             return Response(
                 "Not Found",
                 status=status.HTTP_404_NOT_FOUND,
@@ -457,8 +458,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
-            queryset = self.request.channels_permit\
-                .scheme_account_query(queryset, excludes=[SchemeBundleAssociation.INACTIVE])
+            queryset = self.request.channels_permit.scheme_account_query(queryset)
             queryset = queryset.filter(user_set__id=self.request.user.id)
         return queryset
 
@@ -670,6 +670,15 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         'POST': JoinSerializer,
     }
 
+    def get_serializer_context(self):
+        context = super(self).get_serializer_context()
+        context.update({
+            "channels_permit": self.request.channels_permit
+            # extra data
+        })
+        return context
+
+
     def post(self, request, *args, **kwargs):
         """
         Create a new scheme account,
@@ -677,8 +686,7 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         Link the newly created loyalty account with the created scheme account.
         """
         scheme_id = int(kwargs['pk'])
-        scheme_status = self.request.channels_permit.scheme_status(scheme_id)
-        if scheme_status != SchemeBundleAssociation.ACTIVE:
+        if not self.request.channels_permit.is_scheme_available(scheme_id):
             raise NotFound('Scheme does not exist.')
 
         message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))

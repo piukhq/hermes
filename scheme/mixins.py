@@ -122,7 +122,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
 
-        if scheme.status == Scheme.SUSPENDED:
+        permit = self.context.get("channels_permit")
+
+        if permit and permit.is_scheme_suspended(scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         if scheme.url == settings.MY360_SCHEME_URL:
@@ -236,7 +238,8 @@ class SchemeAccountJoinMixin:
 
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
-        if join_scheme.status == Scheme.SUSPENDED:
+        permit = self.context.get("channels_permit")
+        if permit and permit.is_scheme_suspended(scheme_id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         serializer = JoinSerializer(data=data, context={

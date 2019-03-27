@@ -20,7 +20,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, SchemeBundleAssociation
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -349,14 +349,20 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
+    def get_serializer_context(self):
+        context = super(self).get_serializer_context()
+        context.update({
+            "channels_permit": self.request.channels_permit
+        })
+        return context
+
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
             'is_deleted': False
         }
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query),
-                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
 
     def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
@@ -429,10 +435,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
-        scheme_status = self.request.channels_permit.scheme_status(scheme_id)
-        if scheme_status != SchemeBundleAssociation.ACTIVE and\
-                scheme_status != SchemeBundleAssociation.SUSPENDED:
-
+        if not self.request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
@@ -499,9 +502,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     def _collect_fields_and_determine_route(self) -> t.Tuple[int, dict, dict, dict]:
         try:
-            scheme_status = self.request.channels_permit.scheme_status(int(self.request.data['membership_plan']))
-            if scheme_status != SchemeBundleAssociation.ACTIVE and \
-                    scheme_status != SchemeBundleAssociation.SUSPENDED:
+            if not self.request.channels_permit.is_scheme_available(int(self.request.data['membership_plan'])):
                 raise ParseError('membership plan not allowed for this user.')
         except ValueError:
             raise ParseError
@@ -735,8 +736,7 @@ class CompositeMembershipCardView(ListMembershipCardView):
             'payment_card_account_set__id': self.kwargs['pcard_id']
         }
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query),
-                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
@@ -767,8 +767,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreation
             'is_deleted': False
         }
 
-        return self.request.channels_permit.scheme_account_query(PaymentCardAccount.objects.filter(**query),
-                                                                 excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_account_query(PaymentCardAccount.objects.filter(**query))
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
@@ -799,7 +798,7 @@ class MembershipPlanView(ModelViewSet):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(Scheme.objects, excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
 
     @censor_and_decorate
@@ -812,7 +811,7 @@ class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(Scheme.objects, excludes=[SchemeBundleAssociation.INACTIVE])
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
 
     @censor_and_decorate
