@@ -1,3 +1,4 @@
+import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 
 import arrow
@@ -11,11 +12,14 @@ from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import CreateSchemeAccountSerializer
-from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
+from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
+from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 from user.models import CustomUser
+
+if t.TYPE_CHECKING:
+    from scheme.models import SchemeAccount
 
 
 class MembershipTransactionsMixin:
@@ -323,13 +327,19 @@ class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
         exclude = ('scheme_id', 'id')
 
 
+class MembershipPlanDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MembershipPlanDocument
+        exclude = ('id', 'scheme')
+
+
 class MembershipPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
         exclude = ('name',)
 
     @staticmethod
-    def _get_ubiquity_images(instance):
+    def _get_ubiquity_images(instance: Scheme) -> t.List[dict]:
         # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
         filtered_images = {
             image.image_type_code: image
@@ -339,13 +349,29 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def to_representation(self, instance):
+    @staticmethod
+    def _add_alternatives_key(formatted_fields: dict) -> None:
+        options = {field["column"] for field in formatted_fields}
+        for field in formatted_fields:
+            field["alternatives"] = list(options - {field["column"]})
+
+    def _format_add_fields(self, fields: SchemeCredentialQuestion) -> dict:
+        formatted_fields = SchemeQuestionSerializer(fields, many=True).data
+        if len(formatted_fields) > 1:
+            self._add_alternatives_key(formatted_fields)
+
+        return formatted_fields
+
+    def to_representation(self, instance: Scheme) -> dict:
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
-        add_fields = instance.questions.filter(field_type=0).all()
-        authorise_fields = instance.questions.filter(field_type=1).all()
-        enrol_fields = instance.questions.filter(field_type=2).all()
+        add_fields = instance.questions.filter(add_field=True).all()
+        authorise_fields = instance.questions.filter(auth_field=True).all()
+        registration_fields = instance.questions.filter(register_field=True).all()
+        enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
+        documents = instance.documents.all()
+
         if instance.tier == 2:
             card_type = 2
         elif instance.has_points or instance.has_transactions:
@@ -369,6 +395,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'transactions_available': instance.has_transactions,
                 'digital_only': instance.digital_only,
                 'has_points': instance.has_points,
+                'card_type': card_type,
+                'linking_support': instance.linking_support,
                 'apps': [
                     {
                         'app_id': instance.ios_scheme,
@@ -380,8 +408,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                         'app_store_url': instance.play_store_url,
                         'app_type': 1
                     }
-                ],
-                'card_type': card_type
+                ]
             },
             'card': {
                 'barcode_type': instance.barcode_type,
@@ -396,16 +423,18 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'plan_url': instance.url,
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
+                'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
+                'barcode_redeem_instructions': instance.barcode_redeem_instructions,
+                'plan_register_info': instance.plan_register_info,
                 'company_name': company_name,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
                 'category': instance.category.name,
                 'forgotten_password_url': instance.forgotten_password_url,
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
-                'terms': instance.join_t_and_c,
-                'terms_url': instance.join_url,
-                'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
+                'add_fields': self._format_add_fields(add_fields),
                 'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
+                'registration_fields': SchemeQuestionSerializer(registration_fields, many=True).data,
                 'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data
@@ -502,14 +531,16 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             self.context['request'].user.id, instance.id
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
-    def to_representation(self, instance):
+    def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
             'payment_card_account__is_deleted': False
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        if instance.status != instance.FAILED_UPDATE:
+        exclude_balance_statuses = instance.JOIN_ACTION_REQUIRED + [instance.FAILED_UPDATE, instance.PENDING]
+
+        if instance.status not in exclude_balance_statuses:
             # instance.get_cached_balance()
             async_balance.delay(instance.id)
 
@@ -560,8 +591,13 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 #         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
 
-class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
+class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
     verify_account_exists = False
+
+
+# todo adapt or remove
+class JoinMembershipCardSerializer(JoinSerializer):
+    pass
 
 
 class PaymentCardReplaceSerializer(CreatePaymentCardAccountSerializer):

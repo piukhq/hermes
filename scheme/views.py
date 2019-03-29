@@ -9,6 +9,7 @@ from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
@@ -115,7 +116,29 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
                     old_status=dict(instance.STATUSES).get(instance.status_key))
 
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
-            analytics.update_scheme_account_attribute(instance, request.user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ServiceDeleteAccount(APIView):
+    """
+    Marks scheme account as deleted and remove all related scheme account entries.
+    Responds with a 204 - No content.
+    """
+    authentication_classes = (ServiceAuthentication,)
+
+    def delete(self, request, *args, **kwargs):
+        scheme_account = get_object_or_404(SchemeAccount, id=kwargs['pk'])
+        users = list(scheme_account.user_set.all())
+
+        SchemeAccountEntry.objects.filter(scheme_account=scheme_account).delete()
+        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).delete()
+        scheme_account.is_deleted = True
+        scheme_account.save()
+        for user in users:
+            if user.client_id == settings.BINK_CLIENT_ID:
+                old_status = dict(scheme_account.STATUSES).get(scheme_account.status_key)
+                analytics.update_scheme_account_attribute(scheme_account, user, old_status=old_status)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -659,6 +682,7 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         """
         scheme_id = int(kwargs['pk'])
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
-            return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        message, status_code = self.handle_join_request(request, *args, **kwargs)
+            raise NotFound('Scheme does not exist.')
+
+        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))
         return Response(message, status=status_code)

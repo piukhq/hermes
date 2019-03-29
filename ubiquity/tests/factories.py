@@ -1,8 +1,10 @@
+from datetime import datetime
+
 import factory
 
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
 from user.tests.factories import UserFactory
 
 
@@ -28,3 +30,11 @@ class SchemeAccountEntryFactory(factory.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
+
+
+class ServiceConsentFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = ServiceConsent
+
+    user = factory.SubFactory(UserFactory)
+    timestamp = datetime(2019, 1, 1, 12, 00)

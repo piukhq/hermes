@@ -19,8 +19,9 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardSerializer)
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.views import MembershipTransactionView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -38,22 +39,22 @@ class TestResources(APITestCase):
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
 
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
-                                                             type=LAST_NAME,
-                                                             label=LAST_NAME,
-                                                             third_party_identifier=True,
-                                                             options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+        self.secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+                                                                  type=LAST_NAME,
+                                                                  label=LAST_NAME,
+                                                                  third_party_identifier=True,
+                                                                  options=SchemeCredentialQuestion.LINK,
+                                                                  auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=self.secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
-        issuer = IssuerFactory(name='Barclays')
+        self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
-        self.payment_card_account = PaymentCardAccountFactory(issuer=issuer, payment_card=self.payment_card)
+        self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
 
@@ -218,7 +219,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_membership_card_creation(self, mock_date, *_):
+    def test_membership_card_creation(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
             "membership_plan": self.scheme.id,
@@ -247,8 +248,12 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
+        self.assertTrue(mock_hades.called)
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_update(self, *_):
         payload = json.dumps({
@@ -340,6 +345,74 @@ class TestResources(APITestCase):
                 self.assertEqual(link['active_link'], False)
             elif link['id'] == scheme_account_2.id:
                 self.assertEqual(link['active_link'], True)
+
+    def test_membership_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
+
+        external_id = 'test2@user.com'
+        user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        SchemeAccountEntryFactory(user=user_2, scheme_account=self.scheme_account)
+        PaymentCardAccountEntryFactory(user=user_2,
+                                       payment_card_account=self.payment_card_account)
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 1)
+
+    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self):
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 0)
+
+    def test_payment_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
+        external_id = 'test2@user.com'
+        user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        SchemeAccountEntryFactory(user=user_2, scheme_account=self.scheme_account)
+        PaymentCardAccountEntryFactory(user=user_2,
+                                       payment_card_account=self.payment_card_account)
+
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('payment-card', args=[self.payment_card_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 1)
+
+    @patch('requests.delete')
+    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_request_delete):
+        entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
+                                                      scheme_account=self.scheme_account)
+
+        resp = self.client.delete(reverse('payment-card', args=[self.payment_card_account.id]),
+                                  data="{}",
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertTrue(mock_request_delete.called)
+        self.assertEqual(resp.status_code, 200)
+
+        link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
+        self.assertEqual(len(link), 0)
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -543,15 +616,12 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertIn(expected_links, resp.json()['payment_cards'])
 
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
+    @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_membership_card_put(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_membership_card_put_and_composite_post(self, *_):
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
         payload = {
             "membership_plan": self.scheme.id,
@@ -609,6 +679,46 @@ class TestResources(APITestCase):
         self.assertEqual(account_id, scheme_account.id)
         self.assertEqual(resp_put.json()['card']['barcode'], "1234401022699099")
         self.assertTrue(payment_link.exists())
+
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch('ubiquity.views.async_registration', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_patch(self, *_):
+        sa = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
+        expected_value = {'last_name': 'changed name'}
+        payload_update = {
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "changed name"
+                    }
+                ]
+            }
+        }
+        resp_update = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_update),
+                                        content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_update.status_code, 200)
+        sa.refresh_from_db()
+        self.assertEqual(sa._collect_credentials()['last_name'], expected_value['last_name'])
+
+        payload_register = {
+            "account": {
+                "registration_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "changed name"
+                    }
+                ]
+            }
+        }
+        resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
+                                          content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp_register.status_code, 200)
 
     def test_membership_plans(self):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
@@ -688,6 +798,110 @@ class TestResources(APITestCase):
             resp.json().get('detail')
         )
 
+    def test_membership_plan_serializer_method(self):
+        serializer = MembershipPlanSerializer()
+        test_dict = [
+            {'column': 1},
+            {'column': 2},
+            {'column': 3}
+        ]
+        expected = [
+            {'column': 1, 'alternatives': [2, 3]},
+            {'column': 2, 'alternatives': [1, 3]},
+            {'column': 3, 'alternatives': [1, 2]}
+        ]
+        serializer._add_alternatives_key(test_dict)
+        self.assertEqual(expected, test_dict)
+
+    @patch('ubiquity.views.async_all_balance.delay')
+    def test_get_service(self, mock_async_all_balance):
+        ServiceConsentFactory(user=self.user)
+        resp = self.client.get(reverse('service'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(mock_async_all_balance.called)
+        self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
+
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_auto_link(self, *_):
+        external_id = 'test auto link'
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                external_id).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+        payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
+        PaymentCardAccountEntryFactory(user=user, payment_card_account=payment_card_account)
+        query = {'payment_card_account_id': payment_card_account.id}
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "123456789"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test Successful Link"
+                        }
+                    ]
+                }
+        }
+        success_resp = self.client.post(f'{reverse("membership-cards")}?autoLink=True', data=json.dumps(payload),
+                                        content_type='application/json', **auth_headers)
+
+        self.assertEqual(success_resp.status_code, 201)
+        query['scheme_account_id'] = success_resp.json()['id']
+        self.assertTrue(PaymentCardSchemeEntry.objects.filter(**query).exists())
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "987654321"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test Excluded Link"
+                        }
+                    ]
+                }
+        }
+        fail_resp = self.client.post(f'{reverse("membership-cards")}?autoLink=True', data=json.dumps(payload),
+                                     content_type='application/json', **auth_headers)
+
+        self.assertEqual(fail_resp.status_code, 201)
+        query['scheme_account_id'] = fail_resp.json()['id']
+        self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
+
+    def test_membership_card_transactions_user_filters(self):
+        sae_correct = SchemeAccountEntryFactory(user=self.user)
+        sae_wrong = SchemeAccountEntryFactory()
+        data = [
+            {'scheme_account_id': sae_correct.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id},
+            {'scheme_account_id': sae_correct.scheme_account_id},
+            {'scheme_account_id': sae_wrong.scheme_account_id}
+        ]
+        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user.id, data)
+        self.assertEqual(len(filtered_data), 2)
+        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_correct.scheme_account_id))
+        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_wrong.scheme_account_id))
+
 
 class TestMembershipCardCredentials(APITestCase):
     def setUp(self):
@@ -699,14 +913,14 @@ class TestMembershipCardCredentials(APITestCase):
         self.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
-                                        field_type=0)
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, field_type=1)
+                                        add_field=True)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
                                                              type=LAST_NAME,
                                                              label=LAST_NAME,
                                                              third_party_identifier=True,
                                                              options=SchemeCredentialQuestion.LINK,
-                                                             field_type=1)
+                                                             auth_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
@@ -717,6 +931,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_update_new_and_existing_credentials(self, *_):
