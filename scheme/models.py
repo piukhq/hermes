@@ -49,7 +49,7 @@ class SchemeBundleAssociation(models.Model):
     bundle = models.ForeignKey('user.ClientApplicationBundle', on_delete=models.CASCADE)
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
 
-    
+
 class Scheme(models.Model):
     PLL = 1
     BASIC = 2
@@ -282,8 +282,8 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
-            exclude(schemebundleassociation__status=SchemeBundleAssociation.INACTIVE)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset()\
+            .exclude(is_deleted=True, scheme__schemebundleassociation__status=SchemeBundleAssociation.INACTIVE)
 
 
 class SchemeAccount(models.Model):

@@ -69,6 +69,9 @@ class Permit:
     def scheme_account_query(self, query, allow=None):
         return self.related_model_query(query, 'scheme__', allow)
 
+    def scheme_payment_account_query(self, query, allow=None):
+        return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
+
     def related_model_query(self, query, relation='', allow=None):
         includes = []
         excludes = []
@@ -105,6 +108,15 @@ class Permit:
     def is_scheme_available(self, scheme_id):
         status = self.scheme_status(scheme_id)
         return status is not None and status != SchemeBundleAssociation.INACTIVE
+
+    def scheme_status_name(self, scheme_id):
+        label = 'in_active'
+        status = self.scheme_status(scheme_id)
+        if status == SchemeBundleAssociation.ACTIVE:
+            label = 'active'
+        elif status == SchemeBundleAssociation.SUSPENDED:
+            label = 'suspended'
+        return label
 
     def scheme_status(self, scheme_id):
         # Scheme status will only be looked up when required and only once per request per scheme

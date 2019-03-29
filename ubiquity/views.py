@@ -164,7 +164,7 @@ class ServiceView(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         if not request.user.is_active:
             raise NotFound
-        async_all_balance.delay(request.user.id, self.request.channels.permit)
+        async_all_balance.delay(request.user.id, self.request.channels_permit)
         return Response(self.get_serializer(request.user.serviceconsent).data)
 
     @censor_and_decorate
@@ -351,7 +351,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_serializer_context(self):
-        context = super(self).get_serializer_context()
+        context = super().get_serializer_context()
         context.update({
             "channels_permit": self.request.channels_permit
         })
@@ -402,7 +402,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if registration_fields:
-            updated_account = self._handle_registration_route(request.user, request.channnels_permit,
+            updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
@@ -773,7 +773,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreation
             'is_deleted': False
         }
 
-        return self.request.channels_permit.scheme_account_query(PaymentCardAccount.objects.filter(**query))
+        return self.request.channels_permit.scheme_payment_account_query(PaymentCardAccount.objects.filter(**query))
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
@@ -806,7 +806,6 @@ class MembershipPlanView(ModelViewSet):
     def get_queryset(self):
         return self.request.channels_permit.scheme_query(Scheme.objects)
 
-
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
@@ -818,7 +817,6 @@ class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
 
     def get_queryset(self):
         return self.request.channels_permit.scheme_query(Scheme.objects)
-
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

@@ -129,8 +129,7 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
                 choice_description = "Available schemes. (Warning if used by Bink app existing users will need to" \
                                      " login to use this scheme)"
         else:
-                choice_description = "No Schemes are Accessible with this bundle" \
-                                     " (Please add required schemes below)"
+            choice_description = "No Schemes are Accessible with this bundle (Please add required schemes below)"
 
         SchemeInline.verbose_name_plural = choice_description
         if bundle_id != 'com.bink.wallet':

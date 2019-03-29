@@ -18,7 +18,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             organisation_id = token_data['organisation_id']
             channels_permit = Permit(bundle_id, organisation_name=organisation_id)
 
-            if token_data['property_id'] and token_data['iat']:
+            if not(token_data.get('property_id') and token_data.get('iat')):
                 raise KeyError    # We can't implement a timeout as token refresh not in spec.
 
             external_id = jwt.decode(token, channels_permit.bundle.client.secret,

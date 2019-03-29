@@ -170,7 +170,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        queryset =  self.request.channels_permit.scheme_account_query(SchemeAccount.objects)
+        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects)
         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         serializer = SchemeAnswerSerializer(data=request.data)
@@ -228,7 +228,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
     }
 
     def get_serializer_context(self):
-        context = super(self).get_serializer_context()
+        context = super().get_serializer_context()
         context.update({
             "channels_permit": self.request.channels_permit
         })
@@ -677,7 +677,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             # extra data
         })
         return context
-
 
     def post(self, request, *args, **kwargs):
         """

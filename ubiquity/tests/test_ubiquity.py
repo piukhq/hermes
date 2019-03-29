@@ -6,15 +6,17 @@ from unittest.mock import patch
 import arrow
 import httpretty
 from django.conf import settings
+from hermes.channels import Permit
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
 from scheme.models import SchemeAccount, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory)
+                                    SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
@@ -24,6 +26,10 @@ from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipTransactionView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
+
+
+class RequestMock:
+        channels_permit = None
 
 
 class TestResources(APITestCase):
@@ -52,12 +58,15 @@ class TestResources(APITestCase):
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
+        # Need to add an active association since it was assumed no setting was enabled
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
+
         self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
         self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
-
         token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
                                 external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
@@ -423,8 +432,9 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 200)
         self.assertEqual(resp_membership.status_code, 200)
 
-        self.bundle.issuers.add(IssuerFactory())
-        self.bundle.schemes.add(SchemeFactory())
+        self.bundle.issuer.add(IssuerFactory())
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=SchemeFactory(), bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
@@ -438,8 +448,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
-        self.bundle.issuers.add(IssuerFactory())
-        self.bundle.schemes.add(SchemeFactory())
+        self.bundle.issuer.add(IssuerFactory())
 
         payload = {
             "card": {
@@ -725,10 +734,16 @@ class TestResources(APITestCase):
     def test_membership_plan(self):
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme).data), resp.json())
+
+        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
+        context = {'request': RequestMock}
+        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme, context=context).data), resp.json())
 
     def test_composite_membership_plan(self):
-        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme).data)
+        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
+        context = {'request': RequestMock}
+        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme, context=context).data)
+
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
