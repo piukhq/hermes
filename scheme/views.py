@@ -51,7 +51,7 @@ class SchemeAccountQuery(APIView):
                 'exception_args': e.args
             }
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
-        serializer = QuerySchemeAccountSerializer(instance=queryset, many=True)
+        serializer = QuerySchemeAccountSerializer(instance=queryset, many=True, context={'request': request})
         return Response(serializer.data)
 
 
@@ -321,7 +321,7 @@ class CreateJoinSchemeAccount(APIView):
             )
 
         # serialize the account for the response.
-        serializer = GetSchemeAccountSerializer(instance=account)
+        serializer = GetSchemeAccountSerializer(instance=account, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

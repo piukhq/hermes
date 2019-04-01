@@ -175,15 +175,15 @@ class ServiceView(ModelViewSet):
             raise ParseError
 
         new_user_data = {
-            'client_id': request.bundle.client.pk,
-            'bundle_id': request.bundle.bundle_id,
+            'client_id': request.channels_permit.client.pk,
+            'bundle_id': request.channels_permit.bundle_id,
             'email': consent_data['email'],
             'external_id': request.prop_id,
             'password': str(uuid.uuid4()).lower().replace('-', 'A&')
         }
 
         try:
-            user = CustomUser.objects.get(client=request.bundle.client, external_id=request.prop_id)
+            user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
         except CustomUser.DoesNotExist:
             status_code = 201
             new_user = UbiquityRegisterSerializer(data=new_user_data)
@@ -350,13 +350,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context.update({
-            "channels_permit": self.request.channels_permit
-        })
-        return context
-
     def get_queryset(self):
         query = {
             'user_set__id': self.request.user.id,
@@ -472,11 +465,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         super().delete(request, *args, **kwargs)
         return Response({}, status=status.HTTP_200_OK)
 
-    @staticmethod
     @censor_and_decorate
-    def membership_plan(request, mcard_id):
+    def membership_plan(self, request, mcard_id):
         mcard = get_object_or_404(SchemeAccount, id=mcard_id)
-        return Response(MembershipPlanSerializer(mcard.scheme).data)
+        context = self.get_serializer_context()
+        return Response(MembershipPlanSerializer(mcard.scheme, context=context).data)
 
     @staticmethod
     def _collect_field_content(field, data, label_to_type):

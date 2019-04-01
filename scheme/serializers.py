@@ -94,11 +94,14 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
     transaction_headers = TransactionHeaderSerializer()
-    is_active = serializers.BooleanField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+
+    def get_is_active(self, obj):
+        return self.context['request'].channels_permit.is_scheme_available(obj.id)
 
 
 class UserConsentSerializer(serializers.Serializer):

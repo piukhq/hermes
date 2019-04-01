@@ -9,7 +9,7 @@ class Permit:
     SUSPENDED = 2
     ACTIVE = 3
 
-    def __init__(self, bundle_id, client=None, organisation_name=None):
+    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False):
         """This class is instantiated during authentication and should be passed via request object to allow query
         filtering and channel status testing
         Each group of users belongs to a client application which belongs to one organisation.
@@ -28,7 +28,13 @@ class Permit:
         self.looked_up_bundle = None
         self.client = client
         self.bundle_id = bundle_id
-        if not client and not organisation_name:
+
+        # This forces an active permit regardless of scheme for inter-service calls.  However trying to get a bundle
+        # object will return None.  Generally outside of authentication, getting bundle from Permit is not required as
+        # it is best use one of the high level checks
+        self.service_allow_all = service_allow_all
+
+        if not client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')
         elif organisation_name and not client:
             # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
@@ -36,6 +42,7 @@ class Permit:
             try:
                 self.looked_up_bundle = ClientApplicationBundle\
                     .objects.get(bundle_id=bundle_id, client__organisation__name=organisation_name)
+                self.client = self.looked_up_bundle.client
             except ObjectDoesNotExist:
                 raise KeyError
             except MultipleObjectsReturned:
@@ -46,8 +53,20 @@ class Permit:
                                                       f" bundle ids for client '{self.client}'")
             self.client = self.looked_up_bundle.client
 
+    @staticmethod
+    def is_authenticated():
+        """
+        This allows the Permit to act like Bundle object in always allowing authentication i.e. the class is mainly
+        with authorisation and filtering of queries to allow authorised items
+
+        :return: True
+        """
+        return True
+
     @property
     def bundle(self):
+        if self.service_allow_all:
+            return None
         # Bundle will only be looked up when required and only once per request
         if not self.looked_up_bundle:
             try:
@@ -73,6 +92,8 @@ class Permit:
         return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
 
     def related_model_query(self, query, relation='', allow=None):
+        if self.service_allow_all:
+            return query
         includes = []
         excludes = []
         bundle_root = f'{relation}schemebundleassociation__'
@@ -119,6 +140,8 @@ class Permit:
         return label
 
     def scheme_status(self, scheme_id):
+        if self.service_allow_all:
+            return SchemeBundleAssociation.ACTIVE
         # Scheme status will only be looked up when required and only once per request per scheme
         if scheme_id in self.found_schemes_status:
             return self.found_schemes_status[scheme_id]

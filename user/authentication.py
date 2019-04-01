@@ -118,6 +118,7 @@ class ServiceAuthentication(JwtAuthentication):
         return ServiceUser(), None
 
     def authenticate(self, request):
+        setattr(request, 'channels_permit', Permit(service_allow_all=True))
         return self.authenticate_credentials(self.get_token(request))
 
 
