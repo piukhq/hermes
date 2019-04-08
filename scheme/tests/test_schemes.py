@@ -59,20 +59,17 @@ class TestSchemeViews(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.user = UserFactory()
+        cls.bundle, created = ClientApplicationBundle.objects.get_or_create(
+            bundle_id='com.bink.wallet',
+            client=cls.user.client)
+        cls.scheme = SchemeFactory()
+        SchemeBundleAssociation.objects.create(bundle=cls.bundle, scheme=cls.scheme)
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         super().setUpClass()
 
     def test_scheme_list(self):
         SchemeCredentialQuestionFactory(manual_question=True)
-        scheme = SchemeFactory()
-        bundle, created = ClientApplicationBundle.objects.get_or_create(
-            bundle_id='com.bink.wallet',
-            client=self.user.client)
-
-        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
-
         response = self.client.get('/schemes/', **self.auth_headers)
-
         self.assertEqual(response.status_code, 200,)
         self.assertEqual(type(response.data), ReturnList)
         self.assertIn('has_points', response.data[0])
@@ -82,8 +79,6 @@ class TestSchemeViews(APITestCase):
         self.assertIn('consents', response.data[0])
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
-        if created:
-            bundle.delete()
 
     def test_scheme_consents(self):
         scheme2 = SchemeFactory()
@@ -99,35 +94,35 @@ class TestSchemeViews(APITestCase):
             manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme2, type=BARCODE, manual_question=True)
         ConsentFactory.create(scheme=scheme2)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme2)
 
-        scheme = SchemeFactory()
-        SchemeImageFactory(scheme=scheme)
+        SchemeImageFactory(scheme=self.scheme)
         SchemeCredentialQuestionFactory.create(
-            scheme=scheme,
+            scheme=self.scheme,
             type=EMAIL,
             options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory.create(
-            scheme=scheme,
+            scheme=self.scheme,
             type=CARD_NUMBER,
             options=SchemeCredentialQuestion.JOIN,
             manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
 
         link_message = "Link Message"
         join_message = "Join Message"
         test_string = "Test disabled default String"
         tm1 = ConsentFactory.create(
-            scheme=scheme, journey=JourneyTypes.LINK.value, order=2,
+            scheme=self.scheme, journey=JourneyTypes.LINK.value, order=2,
             check_box=True, text=link_message, required=False
         )
 
         tm2 = ConsentFactory.create(
-            scheme=scheme, journey=JourneyTypes.JOIN.value, order=3, is_enabled=False,
+            scheme=self.scheme, journey=JourneyTypes.JOIN.value, order=3, is_enabled=False,
             check_box=True, text=test_string
         )
-        ConsentFactory.create(scheme=scheme, journey=JourneyTypes.LINK.value, text=link_message)
-        ConsentFactory.create(scheme=scheme, journey=JourneyTypes.JOIN.value, text=join_message)
-        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.LINK.value, text=link_message)
+        ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value, text=join_message)
+        response = self.client.get('/schemes/{0}'.format(self.scheme.id), **self.auth_headers)
         self.assertIn('consents', response.data, "no consents section in /schemes/# ")
 
         found = False
@@ -145,25 +140,19 @@ class TestSchemeViews(APITestCase):
         self.assertTrue(found, "Test consent not found in /scheme/#")
 
     def test_scheme_transaction_headers(self):
-        scheme = SchemeFactory()
-        SchemeImageFactory(scheme=scheme)
+        SchemeImageFactory(scheme=self.scheme)
         SchemeCredentialQuestionFactory.create(
-            scheme=scheme,
+            scheme=self.scheme,
             type=EMAIL,
             options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory.create(
-            scheme=scheme,
+            scheme=self.scheme,
             type=CARD_NUMBER,
             options=SchemeCredentialQuestion.JOIN,
             manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, manual_question=True)
 
-        bundle, created = ClientApplicationBundle.objects.get_or_create(
-            bundle_id='com.bink.wallet',
-            client=self.user.client)
-        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=self.entry2.scheme_account.scheme)
-
-        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        response = self.client.get('/schemes/{0}'.format(self.scheme.id), **self.auth_headers)
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data["transaction_headers"])
 
@@ -193,22 +182,21 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
 
     def test_scheme_item_with_question_choices(self):
-        scheme = SchemeFactory()
-        manual_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=scheme, manual_question=True,
+        manual_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=self.scheme, manual_question=True,
                                                           options=SchemeCredentialQuestion.NONE)
-        link_question = SchemeCredentialQuestionFactory(type=TITLE, scheme=scheme,
+        link_question = SchemeCredentialQuestionFactory(type=TITLE, scheme=self.scheme,
                                                         options=SchemeCredentialQuestion.LINK)
-        join_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
+        join_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=self.scheme,
                                                         options=SchemeCredentialQuestion.JOIN)
 
-        choice_1 = SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=link_question)
-        SchemeCredentialQuestionChoiceFactory(scheme=scheme, scheme_question=join_question)
+        choice_1 = SchemeCredentialQuestionChoiceFactory(scheme=self.scheme, scheme_question=link_question)
+        SchemeCredentialQuestionChoiceFactory(scheme=self.scheme, scheme_question=join_question)
 
         SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='Mr')
         SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='MRS')
         SchemeCredentialQuestionChoiceValueFactory(choice=choice_1, value='miss')
 
-        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        response = self.client.get('/schemes/{0}'.format(self.scheme.id), **self.auth_headers)
         data = response.json()
 
         self.assertEqual(data['link_questions'][0]['id'], link_question.id)
