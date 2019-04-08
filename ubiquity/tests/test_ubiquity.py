@@ -920,10 +920,12 @@ class TestMembershipCardCredentials(APITestCase):
     def setUp(self):
         organisation = OrganisationFactory(name='set up authentication for credentials')
         client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
-        bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
+        self.bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
         external_id = 'credentials@user.com'
         self.user = UserFactory(external_id=external_id, client=client, email=external_id)
         self.scheme = SchemeFactory()
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
                                         add_field=True)
@@ -940,7 +942,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
+        token = GenerateJWToken(client.organisation.name, client.secret, self.bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.serializers.async_balance', autospec=True)

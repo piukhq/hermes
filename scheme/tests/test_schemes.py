@@ -18,7 +18,6 @@ from scheme.models import JourneyTypes
 from user.models import ClientApplicationBundle,  ClientApplication
 
 
-
 class TestSchemeImages(APITestCase):
 
     @classmethod
