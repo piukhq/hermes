@@ -6,35 +6,39 @@ from django.test import TestCase
 from django.conf import settings
 from django.utils import timezone
 
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory, \
-    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory, ControlFactory
+from scheme.tests.factories import (SchemeCredentialQuestionFactory,
+                                    SchemeImageFactory, SchemeFactory, ConsentFactory,
+                                    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory,
+                                    ControlFactory, SchemeBundleAssociationFactory)
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeCredentialQuestion, Control, SchemeBundleAssociation
-from user.tests.factories import (UserFactory, OrganisationFactory, ClientApplicationFactory,
-                                  ClientApplicationBundleFactory)
+from user.tests.factories import (UserFactory)
 from common.models import Image
 from scheme.models import JourneyTypes
-from user.models import ClientApplicationBundle
+from user.models import ClientApplicationBundle,  ClientApplication
+
 
 
 class TestSchemeImages(APITestCase):
 
     @classmethod
     def setUpClass(cls):
-        organisation = OrganisationFactory(name='barclays_org')
-        cls.client_app = ClientApplicationFactory(organisation=organisation, name='barclays_client')
-        cls.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=cls.client_app)
-
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = SchemeImageFactory(status=Image.DRAFT,
                                        start_date=timezone.now() - timezone.timedelta(hours=1),
                                        end_date=timezone.now() + timezone.timedelta(hours=1))
 
+        cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
+
         scheme_credential_question = SchemeCredentialQuestionFactory(
             scheme=cls.image.scheme,
             options=SchemeCredentialQuestion.LINK)
         cls.scheme = scheme_credential_question.scheme
+
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
 
         super().setUpClass()
 

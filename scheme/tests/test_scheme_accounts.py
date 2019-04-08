@@ -1393,6 +1393,10 @@ class TestAccessTokens(APITestCase):
         question = SchemeCredentialQuestionFactory(type=CARD_NUMBER,
                                                    scheme=cls.scheme_account.scheme,
                                                    options=SchemeCredentialQuestion.LINK)
+
+        cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
+
         cls.scheme = cls.scheme_account.scheme
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
 
@@ -1414,6 +1418,12 @@ class TestAccessTokens(APITestCase):
         cls.scheme_account_answer2 = SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account2,
                                                                    question=cls.scheme2.manual_question)
         cls.user2 = cls.scheme_account_entry2.user
+
+        cls.scheme_bundle_association_1 = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                         status=SchemeBundleAssociation.ACTIVE)
+
+        cls.scheme_bundle_association_2 = SchemeBundleAssociationFactory(scheme=cls.scheme2, bundle=cls.bundle,
+                                                                         status=SchemeBundleAssociation.ACTIVE)
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
@@ -1665,6 +1675,9 @@ class TestSchemeAccountCredentials(APITestCase):
     @classmethod
     def setUpClass(cls):
         cls.scheme = SchemeFactory()
+        cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
+
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=USER_NAME, manual_question=True)
         secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                              type=CARD_NUMBER,
@@ -1693,9 +1706,13 @@ class TestSchemeAccountCredentials(APITestCase):
         cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account2)
         cls.scheme_account_entry_no_answers = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_no_answers)
 
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
+
         cls.user = cls.scheme_account_entry.user
         cls.user2 = cls.scheme_account_entry2.user
         cls.user3 = cls.scheme_account_entry_no_answers.user
+
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user2.create_token()}
         cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user3.create_token()}
