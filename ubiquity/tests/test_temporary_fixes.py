@@ -6,17 +6,19 @@ from rest_framework.test import APITestCase
 
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import USER_NAME, CARD_NUMBER, PASSWORD
-from scheme.models import SchemeCredentialQuestion
-from scheme.tests.factories import (SchemeCredentialAnswerFactory, SchemeAccountFactory,
+from scheme.models import SchemeCredentialQuestion, SchemeBundleAssociation
+from scheme.tests.factories import (SchemeCredentialAnswerFactory, SchemeAccountFactory, SchemeBundleAssociationFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
-from user.tests.factories import (UserFactory)
+from user.tests.factories import UserFactory
+from user.models import ClientApplication, ClientApplicationBundle
 
 
 class TestTemporaryFixesBink(APITestCase):
 
     @classmethod
     def setUpClass(cls):
+
         cls.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                         type=USER_NAME,
@@ -45,6 +47,10 @@ class TestTemporaryFixesBink(APITestCase):
         PaymentCardAccountEntryFactory(user=cls.user, payment_card_account=cls.payment_card_account)
 
         cls.scheme.save()
+        cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
