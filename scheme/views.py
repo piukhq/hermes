@@ -184,11 +184,11 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseLinkSerializer
         """
-        permit = self.request.channels_permit
+        permit = request.channels_permit
         queryset = permit.scheme_account_query(SchemeAccount.objects)
-        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=self.request.user.id)
+        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=request.user.id)
 
-        if permit.is_scheme_supended(scheme_account.scheme_id):
+        if permit.is_scheme_suspended(scheme_account.scheme_id):
             return Response({
                 'error': 'This scheme is temporarily unavailable.'
             }, status=status.HTTP_400_BAD_REQUEST)
@@ -227,13 +227,6 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         'OPTIONS': ListSchemeAccountSerializer,
     }
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context.update({
-            "channels_permit": self.request.channels_permit
-        })
-        return context
-
     def get(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
@@ -242,9 +235,12 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
 
     def get_queryset(self):
         user_id = self.request.user.id
+        channels_permit = self.request.channels_permit
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
-        scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
-        scheme_accounts = self.request.channels_permit.scheme_account_query(scheme_accounts)
+        scheme_accounts = channels_permit.scheme_account_query(scheme_accounts)
+        scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
+                                                  **channels_permit.scheme_suspened('scheme__'))
+
         return scheme_accounts
 
     def post(self, request, *args, **kwargs):
@@ -257,6 +253,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
                 "Not Found",
                 status=status.HTTP_404_NOT_FOUND,
             )
+
         _, response, _ = self.create_account(request.data, request.user)
         return Response(
             response,
@@ -670,14 +667,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         'POST': JoinSerializer,
     }
 
-    def get_serializer_context(self):
-        context = super(self).get_serializer_context()
-        context.update({
-            "channels_permit": self.request.channels_permit
-            # extra data
-        })
-        return context
-
     def post(self, request, *args, **kwargs):
         """
         Create a new scheme account,
@@ -688,5 +677,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         if not self.request.channels_permit.is_scheme_available(scheme_id):
             raise NotFound('Scheme does not exist.')
 
-        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))
+        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']),
+                                                           request.channels_permit)
         return Response(message, status=status_code)

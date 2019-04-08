@@ -282,8 +282,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset()\
-            .exclude(is_deleted=True, scheme__schemebundleassociation__status=SchemeBundleAssociation.INACTIVE)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):

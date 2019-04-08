@@ -70,6 +70,7 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
+    status = serializers.SerializerMethodField()
     is_active = serializers.SerializerMethodField()
 
     class Meta:
@@ -77,9 +78,13 @@ class SchemeSerializer(serializers.ModelSerializer):
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
     def get_is_active(self, obj):
-        # We cheat here because SchemeSerializer is intended to be used on active schemes where
-        # status in SchemeBundleAssociation is not INACTIVE ie ACTIVE or SUSPENDED
+        if self.context and self.context.get('request'):
+            return self.context['request'].channels_permit.is_scheme_available(obj.id)
+        # If no context return true as default case is that the SchemeBundleAssociation Status is not INACTIVE
         return True
+
+    def get_status(self, obj):
+        return self.context['request'].channels_permit.scheme_status(obj.id)
 
     @staticmethod
     def get_link_questions(obj):
@@ -101,7 +106,7 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
 
     def get_is_active(self, obj):
-        return self.context['request'].channels_permit.is_scheme_available(obj.id)
+        return self.context['request'].channels_permit.is_scheme_active(obj.id)
 
 
 class UserConsentSerializer(serializers.Serializer):

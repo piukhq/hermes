@@ -82,6 +82,9 @@ class Permit:
                                                       f" bundle ids for client '{self.client}'")
         return self.looked_up_bundle
 
+    def scheme_suspened(self, relation=''):
+        return {f'{relation}schemebundleassociation__status': SchemeBundleAssociation.SUSPENDED}
+
     def scheme_query(self, query, allow=None):
         return self.related_model_query(query, '', allow)
 
@@ -117,7 +120,7 @@ class Permit:
         filters = {}
         for ex in excludes:
             filters[status_key] = ex
-        query.exclude(**filters)
+        query = query.exclude(**filters)
         return query
 
     def is_scheme_suspended(self, scheme_id):

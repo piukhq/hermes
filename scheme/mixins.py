@@ -121,8 +121,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
-
-        permit = self.context.get("channels_permit")
+        permit = self.request.channels_permit
 
         if permit and permit.is_scheme_suspended(scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')

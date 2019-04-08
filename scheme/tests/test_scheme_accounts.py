@@ -13,16 +13,17 @@ from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CRED
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           SchemeCredentialQuestion, UserConsent)
+                           SchemeCredentialQuestion, UserConsent, SchemeBundleAssociation, )
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
-                                    SchemeImageFactory, UserConsentFactory)
+                                    SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory)
 from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
-from user.models import Setting, ClientApplication
-from user.tests.factories import SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory
+from user.models import Setting, ClientApplication, ClientApplicationBundle
+from user.tests.factories import (SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory,
+                                  ClientApplicationBundleFactory)
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -76,14 +77,23 @@ class TestSchemeAccountViews(APITestCase):
         cls.user = cls.scheme_account_entry.user
 
         cls.scheme.save()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         cls.scheme_account_image = SchemeAccountImageFactory()
 
-        bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
-        cls.bink_user = UserFactory(client=bink_client_app)
+        cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
+        cls.bink_user = UserFactory(client=cls.bink_client_app)
 
+        cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
+        # Need to add an active association since it was assumed no setting was enabled
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
+
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
+
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
         super().setUpClass()
 
     @patch.object(SchemeAccount, 'call_analytics')
@@ -120,6 +130,7 @@ class TestSchemeAccountViews(APITestCase):
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
         SchemeAccountEntryFactory(scheme_account=join_account, user=self.user)
+        SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         response = self.client.post('/schemes/accounts', data={
             'scheme': join_scheme.id,
@@ -142,6 +153,7 @@ class TestSchemeAccountViews(APITestCase):
         question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
         join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
         SchemeAccountEntryFactory(scheme_account=join_account, user=self.user)
+        SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         response = self.client.post('/schemes/accounts', data={
             'scheme': join_scheme.id,
@@ -239,7 +251,7 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-
+        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "London",
@@ -277,7 +289,7 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-
+        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account_entry.user.create_token()}
         data = {
             BARCODE: "1234567",
@@ -312,7 +324,7 @@ class TestSchemeAccountViews(APITestCase):
             'balance': Decimal('20'),
             'is_stale': False
         }
-
+        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account_entry.user.create_token()}
         data = {
             CARD_NUMBER: "London",
@@ -423,8 +435,16 @@ class TestSchemeAccountViews(APITestCase):
                                                                  status=ConsentStatus.SUCCESS)
         SchemeAccountEntryFactory(scheme_account=error_scheme_account, user=success_scheme_account_user_consent.user)
         UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata, status=ConsentStatus.PENDING)
+
+        bundle_id = 'test_link_fake'
+
+        bundle = ClientApplicationBundleFactory(bundle_id=bundle_id, client=self.bink_client_app)
+        SchemeBundleAssociationFactory(scheme=error_scheme_account.scheme, bundle=bundle,
+                                       status=SchemeBundleAssociation.ACTIVE)
         test_reply = True
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + success_scheme_account_user_consent.user.create_token()}
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' +
+                                              success_scheme_account_user_consent.user.create_token(
+                                                  bundle_id=bundle_id)}
         data = {
             CARD_NUMBER: "London",
             PASSWORD: "sdfsdf",
@@ -485,9 +505,12 @@ class TestSchemeAccountViews(APITestCase):
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
 
     def test_list_schemes_accounts_with_suspended_scheme(self):
-        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        join_scheme = SchemeFactory()
         join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
         join_entry = SchemeAccountEntryFactory(scheme_account=join_card)
+
+        bundle_assoc = SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle,
+                                                      status=SchemeBundleAssociation.ACTIVE)
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + join_entry.user.create_token()}
 
         response = self.client.get('/schemes/accounts', **auth_headers)
@@ -496,13 +519,13 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account['status_name'], 'Join')
         self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
-        join_scheme.status = Scheme.SUSPENDED
-        join_scheme.save()
+        bundle_assoc.status = SchemeBundleAssociation.SUSPENDED
+        bundle_assoc.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertEqual(response.json(), [])
 
-        join_scheme.status = Scheme.ACTIVE
-        join_scheme.save()
+        bundle_assoc.status = SchemeBundleAssociation.ACTIVE
+        bundle_assoc.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertTrue(len(response.json()) > 0)
         scheme_account = response.json()[0]
@@ -510,9 +533,12 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
     def test_list_error_schemes_account_with_suspended_scheme(self):
-        join_scheme = SchemeFactory(status=Scheme.ACTIVE)
+        join_scheme = SchemeFactory()
         error_join_card = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
         error_join_entry = SchemeAccountEntryFactory(scheme_account=error_join_card)
+        scheme_bundle_association = SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle,
+                                                                   status=SchemeBundleAssociation.ACTIVE)
+
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + error_join_entry.user.create_token()}
 
         response = self.client.get('/schemes/accounts', **auth_headers)
@@ -521,8 +547,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account['status_name'], 'Unknown Card number')
         self.assertEqual(scheme_account['scheme']['slug'], join_scheme.slug)
 
-        join_scheme.status = Scheme.SUSPENDED
-        join_scheme.save()
+        scheme_bundle_association.status = SchemeBundleAssociation.SUSPENDED
+        scheme_bundle_association.save()
         response = self.client.get('/schemes/accounts', **auth_headers)
         self.assertEqual(response.json(), [])
 
@@ -533,7 +559,7 @@ class TestSchemeAccountViews(APITestCase):
 
         scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, manual_question=True)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         response = self.client.post('/schemes/accounts', data={'scheme': scheme.id, CARD_NUMBER: '1234', 'order': 0},
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 201)
@@ -857,7 +883,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'save_user_information': False,
             'order': 2,
@@ -874,7 +900,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK_AND_JOIN)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'order': 2,
             'username': 'testbink',
@@ -892,7 +918,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'order': 2,
             'save_user_information': False,
@@ -913,7 +939,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         sa = SchemeAccountFactory(scheme_id=scheme.id)
         SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'save_user_information': False,
             'order': 2,
@@ -921,6 +947,7 @@ class TestSchemeAccountViews(APITestCase):
             'password': 'password'
 
         }
+
         resp = self.client.post('/schemes/{}/join'.format(scheme.id), **self.auth_headers, data=data)
         self.assertEqual(resp.status_code, 400)
         json = resp.json()
@@ -931,7 +958,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'save_user_information': False,
             'order': 2,
@@ -955,6 +982,7 @@ class TestSchemeAccountViews(APITestCase):
                                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         test_reply = 1
         consent1 = ConsentFactory.create(
@@ -1005,7 +1033,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=USER_NAME, options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.OPTIONAL_JOIN)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'save_user_information': False,
             'order': 2,
@@ -1031,6 +1059,7 @@ class TestSchemeAccountViews(APITestCase):
         SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_1, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=ADDRESS_2, options=SchemeCredentialQuestion.JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=TOWN_CITY, options=SchemeCredentialQuestion.JOIN)
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
 
         phone_number = '01234567890'
         title = 'mr'
@@ -1077,7 +1106,7 @@ class TestSchemeAccountViews(APITestCase):
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=scheme, type=PASSWORD, options=SchemeCredentialQuestion.JOIN)
         consent = ConsentFactory(scheme=scheme)
-
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
         data = {
             'save_user_information': False,
             'order': 2,

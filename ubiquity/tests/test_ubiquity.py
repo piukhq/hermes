@@ -433,8 +433,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp_membership.status_code, 200)
 
         self.bundle.issuer.add(IssuerFactory())
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=SchemeFactory(), bundle=self.bundle,
-                                                                        status=SchemeBundleAssociation.ACTIVE)
+        self.scheme_bundle_association.status=SchemeBundleAssociation.INACTIVE
+        self.scheme_bundle_association.save()
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
@@ -449,7 +449,8 @@ class TestResources(APITestCase):
     @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
         self.bundle.issuer.add(IssuerFactory())
-
+        self.scheme_bundle_association.status = SchemeBundleAssociation.INACTIVE
+        self.scheme_bundle_association.save()
         payload = {
             "card": {
                 "last_four_digits": 5234,

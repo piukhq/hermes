@@ -9,8 +9,9 @@ from django.utils import timezone
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory, ConsentFactory, \
     SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory, ControlFactory
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
-from scheme.models import SchemeCredentialQuestion, Control
-from user.tests.factories import UserFactory
+from scheme.models import SchemeCredentialQuestion, Control, SchemeBundleAssociation
+from user.tests.factories import (UserFactory, OrganisationFactory, ClientApplicationFactory,
+                                  ClientApplicationBundleFactory)
 from common.models import Image
 from scheme.models import JourneyTypes
 from user.models import ClientApplicationBundle
@@ -20,6 +21,10 @@ class TestSchemeImages(APITestCase):
 
     @classmethod
     def setUpClass(cls):
+        organisation = OrganisationFactory(name='barclays_org')
+        cls.client_app = ClientApplicationFactory(organisation=organisation, name='barclays_client')
+        cls.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=cls.client_app)
+
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = SchemeImageFactory(status=Image.DRAFT,
@@ -30,6 +35,7 @@ class TestSchemeImages(APITestCase):
             scheme=cls.image.scheme,
             options=SchemeCredentialQuestion.LINK)
         cls.scheme = scheme_credential_question.scheme
+
         super().setUpClass()
 
     def test_no_draft_images_in_schemes_list(self):
@@ -59,7 +65,8 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        bundle.schemes.add(scheme.id)
+
+        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
 
         response = self.client.get('/schemes/', **self.auth_headers)
 
@@ -148,6 +155,11 @@ class TestSchemeViews(APITestCase):
             manual_question=True)
         SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
 
+        bundle, created = ClientApplicationBundle.objects.get_or_create(
+            bundle_id='com.bink.wallet',
+            client=self.user.client)
+        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=self.entry2.scheme_account.scheme)
+
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data["transaction_headers"])
@@ -162,8 +174,12 @@ class TestSchemeViews(APITestCase):
                                                                type=CARD_NUMBER,
                                                                options=SchemeCredentialQuestion.JOIN,
                                                                manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
 
+        SchemeCredentialQuestionFactory(scheme=scheme, type=BARCODE, manual_question=True)
+        bundle, created = ClientApplicationBundle.objects.get_or_create(
+            bundle_id='com.bink.wallet',
+            client=self.user.client)
+        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)

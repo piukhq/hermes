@@ -4,12 +4,18 @@ from unittest.mock import patch
 from ubiquity.tasks import async_balance, async_all_balance
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
+from hermes.channels import Permit
+from scheme.models import SchemeBundleAssociation
+from user.tests.factories import ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory
 
 
 class TestTasks(TestCase):
 
     def setUp(self):
         external_id = 'tasks@testbink.com'
+        self.org = OrganisationFactory(name='Barclays')
+        self.client = ClientApplicationFactory(organisation=self.org, name="Barclays-client")
+        self.bundle = ClientApplicationBundleFactory(client=self.client)
         self.user = UserFactory(external_id=external_id, email=external_id)
         self.entry = SchemeAccountEntryFactory(user=self.user)
         self.entry2 = SchemeAccountEntryFactory(user=self.user)
@@ -29,7 +35,11 @@ class TestTasks(TestCase):
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance(self, mock_async_balance):
         user_id = self.user.id
-        async_all_balance(user_id)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry.scheme_account.scheme)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+
+        async_all_balance(user_id, channels_permit=channels_permit)
 
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
@@ -39,8 +49,9 @@ class TestTasks(TestCase):
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
         user_id = self.user.id
-        async_all_balance(user_id, allowed_schemes=[self.entry2.scheme_account.scheme.id])
-
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+        async_all_balance(user_id, channels_permit=channels_permit)
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
