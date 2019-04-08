@@ -29,7 +29,7 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
 
 
 class RequestMock:
-        channels_permit = None
+    channels_permit = None
 
 
 class TestResources(APITestCase):
@@ -433,7 +433,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp_membership.status_code, 200)
 
         self.bundle.issuer.add(IssuerFactory())
-        self.scheme_bundle_association.status=SchemeBundleAssociation.INACTIVE
+        self.scheme_bundle_association.status = SchemeBundleAssociation.INACTIVE
         self.scheme_bundle_association.save()
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
