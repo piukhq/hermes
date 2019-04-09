@@ -133,13 +133,13 @@ class Permit:
         status = self.scheme_status(scheme_id)
         return status is not None and status != SchemeBundleAssociation.INACTIVE
 
-    def scheme_status_name(self, scheme_id):
-        label = 'in_active'
+    def scheme_status_name(self, scheme_id, active='active', suspended='suspended', in_active='in_active'):
+        label = in_active
         status = self.scheme_status(scheme_id)
         if status == SchemeBundleAssociation.ACTIVE:
-            label = 'active'
+            label = active
         elif status == SchemeBundleAssociation.SUSPENDED:
-            label = 'suspended'
+            label = suspended
         return label
 
     def scheme_status(self, scheme_id):

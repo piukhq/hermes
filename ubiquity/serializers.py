@@ -369,7 +369,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         authorise_fields = instance.questions.filter(auth_field=True).all()
         registration_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
-        status = self.context['request'].channels_permit.scheme_status_name(instance.id)
+        # Calculated status for completeness however, in_active is not listed so will always be active
+        status = self.context['request'].channels_permit.scheme_status_name(instance.id, suspended='active')
         documents = instance.documents.all()
 
         if instance.tier == 2:
