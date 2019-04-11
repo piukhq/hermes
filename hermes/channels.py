@@ -9,7 +9,7 @@ class Permit:
     SUSPENDED = 2
     ACTIVE = 3
 
-    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False):
+    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False, ubiquity=False):
         """This class is instantiated during authentication and should be passed via request object to allow query
         filtering and channel status testing
         Each group of users belongs to a client application which belongs to one organisation.
@@ -28,6 +28,7 @@ class Permit:
         self.looked_up_bundle = None
         self.client = client
         self.bundle_id = bundle_id
+        self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
 
         # This forces an active permit regardless of scheme for inter-service calls.  However trying to get a bundle
         # object will return None.  Generally outside of authentication, getting bundle from Permit is not required as
@@ -105,9 +106,15 @@ class Permit:
         if allow == self.AVAILABLE or allow is None:
             # By default permit query filter selects only defined schemes which are not inactive
             # thus inactive is the same as not defined
-            excludes = [SchemeBundleAssociation.INACTIVE]
+            if self.ubiquity:
+                includes = [SchemeBundleAssociation.ACTIVE]
+            else:
+                excludes = [SchemeBundleAssociation.INACTIVE]
         elif allow == self.SUSPENDED:
-            includes = [SchemeBundleAssociation.SUSPENDED]
+            if self.ubiquity:
+                includes = [SchemeBundleAssociation.ACTIVE]
+            else:
+                excludes = [SchemeBundleAssociation.INACTIVE]
         elif allow == self.ACTIVE:
             includes = [SchemeBundleAssociation.ACTIVE]
 
@@ -159,4 +166,6 @@ class Permit:
             status = None
 
         self.found_schemes_status[scheme_id] = status
+        if self.ubiquity and status == SchemeBundleAssociation.SUSPENDED:
+            status = SchemeBundleAssociation.INACTIVE
         return status

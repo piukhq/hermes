@@ -443,6 +443,30 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_card_rule_filtering_suspended(self, *_):
+        """
+        This test may need revision when ubiquity suspended feature is implemented
+        """
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 200)
+        self.assertEqual(resp_membership.status_code, 200)
+
+        self.bundle.issuer.add(IssuerFactory())
+        self.scheme_bundle_association.status = SchemeBundleAssociation.SUSPENDED
+        self.scheme_bundle_association.save()
+
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 404)
+        self.assertEqual(resp_membership.status_code, 404)
+
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     @patch('ubiquity.views.async_link', autospec=True)

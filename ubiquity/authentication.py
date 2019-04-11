@@ -16,7 +16,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             token_data = jwt.decode(token, verify=False, algorithms=['HS512'])
             bundle_id = token_data['bundle_id']
             organisation_id = token_data['organisation_id']
-            channels_permit = Permit(bundle_id, organisation_name=organisation_id)
+            channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
 
             if not(token_data.get('property_id') and token_data.get('iat')):
                 raise KeyError    # We can't implement a timeout as token refresh not in spec.
