@@ -115,7 +115,7 @@ ubiquity_status_translation = {
     445: 'failed',
     537: 'failed',
     401: 'failed',
-    406: 'unauthorised',
+    406: 'failed',
     446: 'failed',
     447: 'failed',
     204: 'pending',
