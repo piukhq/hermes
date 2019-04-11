@@ -566,7 +566,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(user.id, scheme_id, enrol_fields)
+        async_join.delay(scheme_account.id, user.id, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod

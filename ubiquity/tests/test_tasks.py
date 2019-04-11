@@ -2,11 +2,13 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
-from scheme.credentials import EMAIL, PASSWORD, POSTCODE
-from scheme.models import SchemeCredentialQuestion
+from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
+from scheme.mixins import SchemeAccountJoinMixin
+from scheme.models import SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
-from ubiquity.tasks import async_balance, async_all_balance, async_link
+from ubiquity.tasks import async_balance, async_all_balance, async_link, async_join, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 
@@ -76,3 +78,43 @@ class TestTasks(TestCase):
         self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
         self.assertFalse(mock_midas_balance.called)
         self.assertFalse(mock_analytics.called)
+
+    @patch.object(SchemeAccountJoinMixin, 'create_join_account')
+    def test_async_join_validation_failure(self, mock_create_join_account):
+        # This is just to break out of the function if the initial validation check hasn't failed
+        mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
+
+        scheme_account_id = self.link_entry.scheme_account.id
+        user_id = self.link_entry.user_id
+        scheme_id = self.link_scheme.id
+
+        async_join(scheme_account_id, user_id, scheme_id, {})
+
+        self.link_entry.scheme_account.refresh_from_db()
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
+
+    @patch.object(SchemeAccountJoinMixin, 'create_join_account')
+    def test_async_register_validation_failure(self, mock_create_join_account):
+        # This is just to break out of the function if the initial validation check hasn't failed
+        mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
+
+        card_number = SchemeCredentialQuestionFactory(
+            scheme=self.link_scheme,
+            type=CARD_NUMBER,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            manual_question=True
+        )
+
+        SchemeCredentialAnswerFactory(
+            scheme_account=self.link_entry.scheme_account,
+            question=card_number,
+            answer='1234567'
+        )
+
+        scheme_account_id = self.link_entry.scheme_account.id
+        user_id = self.link_entry.user_id
+
+        async_registration(user_id, scheme_account_id, {})
+
+        self.link_entry.scheme_account.refresh_from_db()
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
