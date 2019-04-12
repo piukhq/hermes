@@ -535,7 +535,7 @@ class SchemeAccount(models.Model):
         points = None
         old_status = self.status
 
-        if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
+        if self.status in [SchemeAccount.PENDING_MANUAL_CHECK, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
             return points
 
         try:
