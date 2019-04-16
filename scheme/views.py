@@ -365,8 +365,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     def send_to_intercom(self, new_status_code, scheme_account):
-        user_set_from_midas = self.request.data['user_info']['user_set']
-        user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+        try:
+            # use the more accurate user_set if provided
+            user_set_from_midas = self.request.data['user_info']['user_set']
+            user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+        except KeyError:
+            user_ids = [user.id for user in scheme_account.user_set.all()]
 
         for user_id in user_ids:
             user = CustomUser.objects.get(id=user_id)
