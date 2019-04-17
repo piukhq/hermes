@@ -518,7 +518,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         for k, v in existing_answers.items():
             provided_value = auth_fields.get(k)
 
-            if k in DATE_TYPE_CREDENTIALS:
+            if provided_value and k in DATE_TYPE_CREDENTIALS:
                 provided_value = arrow.get(provided_value).date()
                 v = arrow.get(v).date()
 
