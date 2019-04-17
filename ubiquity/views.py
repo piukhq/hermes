@@ -18,6 +18,7 @@ import analytics
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from scheme.credentials import DATE_TYPE_CREDENTIALS
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
@@ -515,7 +516,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                                         auth_fields: dict) -> None:
         existing_answers = scheme_account.get_auth_fields()
         for k, v in existing_answers.items():
-            if auth_fields.get(k) != v:
+            provided_value = auth_fields.get(k)
+
+            if k in DATE_TYPE_CREDENTIALS:
+                provided_value = arrow.get(provided_value).date()
+                v = arrow.get(v).date()
+
+            if provided_value != v:
                 raise ParseError('This card already exists, but the provided credentials do not match.')
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
