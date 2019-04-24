@@ -33,7 +33,10 @@ def async_balance(instance_id: int) -> None:
 
 @shared_task
 def async_all_balance(user_id: int, allowed_schemes: t.Sequence[int] = None) -> None:
-    query = {'user': user_id}
+    query = {
+        'user': user_id,
+        'scheme_account__is_deleted': False
+    }
     if allowed_schemes:
         query['scheme_account__scheme__in'] = allowed_schemes
 
