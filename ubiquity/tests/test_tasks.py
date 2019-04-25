@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeCredentialQuestion, SchemeAccount
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
+from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
 from ubiquity.tasks import async_balance, async_all_balance, async_link, async_join, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
@@ -47,10 +47,14 @@ class TestTasks(TestCase):
         user_id = self.user.id
         async_all_balance(user_id)
 
+        scheme_account = SchemeAccountFactory(is_deleted=True)
+        deleted_entry = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account)
+
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertTrue(self.entry.scheme_account.id in async_balance_call_args)
         self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
+        self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
 
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
