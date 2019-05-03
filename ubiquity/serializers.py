@@ -531,6 +531,21 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             self.context['request'].user.id, instance.id
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
+    @staticmethod
+    def get_translated_status(instance: 'SchemeAccount') -> dict:
+        status = instance.status
+        if status in instance.SYSTEM_ACTION_REQUIRED:
+            status = instance.ACTIVE
+            if not instance.balances:
+                status = instance.PENDING
+
+        return {
+            'state': ubiquity_status_translation[status],
+            'reason_codes': [
+                reason_code_translation[status],
+            ]
+        }
+
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
@@ -554,12 +569,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
             'membership_transactions': self._get_transactions(instance),
-            'status': {
-                'state': ubiquity_status_translation[instance.status],
-                'reason_codes': [
-                    reason_code_translation[instance.status],
-                ]
-            },
+            'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,

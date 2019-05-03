@@ -589,12 +589,19 @@ class SchemeAccount(models.Model):
                                 params=parameters, headers=headers)
         return response
 
+    def get_journey_type(self):
+        if self.balances:
+            return JourneyTypes.UPDATE
+        else:
+            return JourneyTypes.LINK
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
+            journey = self.get_journey_type()
+            balance = self.get_midas_balance(journey=journey)
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
