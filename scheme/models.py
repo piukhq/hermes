@@ -927,3 +927,15 @@ class UserConsent(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user, self.slug, self.value)
+
+
+class ThirdPartyConsentLink(models.Model):
+    consent_label = models.CharField(max_length=50)
+    client_app = models.ForeignKey('user.ClientApplication', related_name='client_app')
+    scheme = models.ForeignKey('scheme.Scheme', related_name='scheme')
+    consent = models.ForeignKey(Consent, related_name='consent')
+
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)

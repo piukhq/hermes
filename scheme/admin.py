@@ -10,7 +10,8 @@ from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
-                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail)
+                           SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
+                           ThirdPartyConsentLink)
 from ubiquity.models import SchemeAccountEntry
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
@@ -389,6 +390,21 @@ class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
     raw_id_fields = ('scheme',)
     form = ModelForm
     search_fields = ['scheme']
+
+
+@admin.register(ThirdPartyConsentLink)
+class ThirdPartyConsentLinkAdmin(admin.ModelAdmin):
+    form = ModelForm
+    fields = (
+        'consent_label',
+        'client_app',
+        'scheme',
+        'consent',
+        ('add_field', 'auth_field', 'register_field', 'enrol_field'),
+    )
+    list_display = ('consent_label', 'client_app', 'scheme', 'consent')
+    list_filter = ('client_app', 'scheme', 'consent')
+    search_fields = ['scheme__name', 'consent__slug', 'client_app__name']
 
 
 admin.site.register(Category)
