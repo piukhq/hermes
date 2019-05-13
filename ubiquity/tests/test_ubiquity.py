@@ -13,7 +13,7 @@ from rest_framework.test import APITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
-from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
+from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory)
 from ubiquity.censor_empty_fields import remove_empty
@@ -210,6 +210,51 @@ class TestResources(APITestCase):
                                content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_active(self, *_):
+        test_membership_card = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'authorised')
+        self.assertEqual(data['status']['reason_codes'], ['X300'])
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_user_error(self, *_):
+        user_error = SchemeAccount.INVALID_CREDENTIALS
+        test_membership_card = SchemeAccountFactory(status=user_error, balances={})
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'failed')
+        self.assertEqual(data['status']['reason_codes'], ['X303'])
+
+        test_membership_card.balances = [{'points': 1.1}]
+        test_membership_card.save()
+        test_membership_card.refresh_from_db()
+
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'failed')
+        self.assertEqual(data['status']['reason_codes'], ['X303'])
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_system_error(self, *_):
+        user_error = SchemeAccount.END_SITE_DOWN
+        test_membership_card = SchemeAccountFactory(status=user_error, balances={})
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'pending')
+        self.assertEqual(data['status']['reason_codes'], ['X100'])
+
+        test_membership_card.balances = [{'points': 1.1}]
+        test_membership_card.save()
+        test_membership_card.refresh_from_db()
+
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'authorised')
+        self.assertEqual(data['status']['reason_codes'], ['X300'])
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -822,6 +867,30 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], 100)
         self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
+        test_scheme_account = SchemeAccountFactory()
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        self.assertFalse(test_scheme_account.balances)
+        test_scheme_account.get_cached_balance()
+        self.assertTrue(mock_get_midas_balance.called)
+        self.assertEqual(mock_get_midas_balance.call_args[1]['journey'], JourneyTypes.LINK)
+        self.assertTrue(test_scheme_account.balances)
+
+        test_scheme_account.get_cached_balance()
+        self.assertEqual(mock_get_midas_balance.call_args[1]['journey'], JourneyTypes.UPDATE)
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
