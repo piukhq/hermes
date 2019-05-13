@@ -94,6 +94,7 @@ api-tests-dev:
   image: olympus.azurecr.io/banking-api-automation:latest
   environment: dev
   script:
+    - cd /tests
     - mvn verify
   only:
     - develop
