@@ -85,7 +85,7 @@ class CustomUserConsent(CustomUser):
     class Meta:
         proxy = True
         verbose_name = 'Custom user service consent'
-        verbose_name_plural = "".join([verbose_name, 's'])
+        verbose_name_plural = f"{verbose_name}s"
 
 
 class HasServiceConsentFilter(SimpleListFilter):
