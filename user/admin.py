@@ -1,7 +1,8 @@
 from django import forms
 from django.contrib import admin
-from django.contrib.admin import StackedInline
+from django.contrib.admin import StackedInline, SimpleListFilter
 from django.contrib.auth.admin import UserAdmin
+from django.utils.translation import ugettext_lazy as _
 
 from ubiquity.models import ServiceConsent
 from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
@@ -76,6 +77,71 @@ class CustomUserDetail(UserAdmin):
     list_filter = ('is_staff',)
     filter_horizontal = ()
     search_fields = ('email', 'uid', 'external_id', 'profile__first_name', 'profile__last_name',)
+    exclude = ('salt',)
+
+
+class CustomUserConsent(CustomUser):
+
+    class Meta:
+        proxy = True
+        verbose_name = 'Custom user service consent'
+        verbose_name_plural = f"{verbose_name}s"
+
+
+class HasServiceConsentFilter(SimpleListFilter):
+    title = 'Has service consent'
+    parameter_name = 'has_service_consent'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('True', _('True')),
+            ('False', _('False')),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'True':
+            return queryset.filter(serviceconsent__isnull=False)
+        if self.value() == 'False':
+            return queryset.filter(serviceconsent__isnull=True)
+
+
+@admin.register(CustomUserConsent)
+class CustomUserServiceConsentAdmin(admin.ModelAdmin):
+    list_per_page = 15
+
+    def first_name(self, obj):
+        return obj.profile.first_name
+
+    def last_name(self, obj):
+        return obj.profile.last_name
+
+    def gender(self, obj):
+        return obj.profile.gender
+
+    def date_of_birth(self, obj):
+        return obj.profile.date_of_birth
+
+    def service_consent_timestamp(self, obj):
+        try:
+            return obj.serviceconsent.timestamp
+        except obj.DoesNotExist:
+            return None
+
+    first_name.admin_order_field = 'profile__first_name'
+    last_name.admin_order_field = 'profile__last_name'
+    service_consent_timestamp.admin_order_field = 'serviceconsent__timestamp'
+
+    form = CustomUserModelForm
+    inlines = (ServiceConsentInline, UserDetailInline)
+    ordering = ()
+    fieldsets = ()
+    add_fieldsets = ()
+    list_display = ('email', 'uid', 'external_id', 'last_name', 'client', 'service_consent_timestamp',
+                    'is_active', 'is_staff',)
+    list_filter = ('is_active', 'is_staff', 'client', HasServiceConsentFilter,)
+    filter_horizontal = ()
+    search_fields = ('email', 'uid', 'external_id', 'profile__first_name', 'profile__last_name',
+                     'serviceconsent__timestamp',)
     exclude = ('salt',)
 
 

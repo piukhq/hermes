@@ -589,12 +589,19 @@ class SchemeAccount(models.Model):
                                 params=parameters, headers=headers)
         return response
 
+    def get_journey_type(self):
+        if self.balances:
+            return JourneyTypes.UPDATE
+        else:
+            return JourneyTypes.LINK
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
+            journey = self.get_journey_type()
+            balance = self.get_midas_balance(journey=journey)
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
@@ -920,3 +927,15 @@ class UserConsent(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user, self.slug, self.value)
+
+
+class ThirdPartyConsentLink(models.Model):
+    consent_label = models.CharField(max_length=50)
+    client_app = models.ForeignKey('user.ClientApplication', related_name='client_app')
+    scheme = models.ForeignKey('scheme.Scheme', related_name='scheme')
+    consent = models.ForeignKey(Consent, related_name='consent')
+
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)
