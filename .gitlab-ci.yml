@@ -2,6 +2,7 @@ stages:
   - tests
   - build
   - deploy
+  - regression
 
 tests:
   stage: tests
@@ -87,3 +88,14 @@ deploy-prod:
   when: manual
   only:
     - tags
+
+api-tests-dev:
+  stage: regression
+  image: olympus.azurecr.io/banking-api-automation:latest
+  environment: dev
+  script:
+    - cd /tests
+    - mvn verify
+  only:
+    - develop
+
