@@ -348,7 +348,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.send_to_intercom(new_status_code, scheme_account)
 
         scheme_account.status = new_status_code
-        scheme_account.save()
+        scheme_account.save(update_fields=['status'])
 
         if journey == 'join':
             scheme = scheme_account.scheme
