@@ -40,7 +40,8 @@ def async_all_balance(user_id: int, allowed_schemes: t.Sequence[int] = None) -> 
     if allowed_schemes:
         query['scheme_account__scheme__in'] = allowed_schemes
 
-    entries = SchemeAccountEntry.objects.filter(**query)
+    exclude_query = {'scheme_account__status__in': SchemeAccount.EXCLUDE_BALANCE_STATUSES}
+    entries = SchemeAccountEntry.objects.filter(**query).exclude(**exclude_query)
     for entry in entries:
         async_balance.delay(entry.scheme_account_id)
 

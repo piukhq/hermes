@@ -373,7 +373,8 @@ class SchemeAccount(models.Model):
                             GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
+    EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [FAILED_UPDATE, PENDING]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -535,7 +536,7 @@ class SchemeAccount(models.Model):
         points = None
         old_status = self.status
 
-        if self.status in [SchemeAccount.PENDING_MANUAL_CHECK, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+        if self.status in self.EXCLUDE_BALANCE_STATUSES:
             return points
 
         try:

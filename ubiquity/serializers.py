@@ -592,7 +592,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        exclude_balance_statuses = instance.JOIN_ACTION_REQUIRED + [instance.FAILED_UPDATE, instance.PENDING]
+        exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
 
         if instance.status not in exclude_balance_statuses:
             # instance.get_cached_balance()

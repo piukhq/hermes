@@ -57,6 +57,29 @@ class TestTasks(TestCase):
         self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
 
     @patch('ubiquity.tasks.async_balance.delay')
+    def test_async_all_balance_filtering(self, mock_async_balance):
+        entry_active = SchemeAccountEntryFactory()
+        user = entry_active.user
+        entry_pending = SchemeAccountEntryFactory(user=user)
+        entry_invalid_credentials = SchemeAccountEntryFactory(user=user)
+        entry_end_site_down = SchemeAccountEntryFactory(user=user)
+
+        entry_pending.scheme_account.status = SchemeAccount.PENDING
+        entry_pending.scheme_account.save()
+        entry_invalid_credentials.scheme_account.status = SchemeAccount.INVALID_CREDENTIALS
+        entry_invalid_credentials.scheme_account.save()
+        entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
+        entry_end_site_down.scheme_account.save()
+
+        async_all_balance(user.id)
+
+        refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
+        self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
+        self.assertIn(entry_end_site_down.scheme_account.id, refreshed_scheme_accounts)
+        self.assertNotIn(entry_invalid_credentials.scheme_account.id, refreshed_scheme_accounts)
+        self.assertNotIn(entry_pending.scheme_account.id, refreshed_scheme_accounts)
+
+    @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
         user_id = self.user.id
         async_all_balance(user_id, allowed_schemes=[self.entry2.scheme_account.scheme.id])

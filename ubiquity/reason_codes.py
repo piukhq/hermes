@@ -71,7 +71,7 @@ reason_code_translation = {
     404: 'X101',
     10: 'X103',
     533: 'X304',
-    900: 'X200',
+    900: None,
     444: 'X101',
     536: None,
     535: None,
