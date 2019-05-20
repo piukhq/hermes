@@ -78,7 +78,7 @@ class BaseLinkMixin(object):
 
         if scheme_account.status == SchemeAccount.ACTIVE:
             scheme_account.link_date = timezone.now()
-            scheme_account.save()
+            scheme_account.save(update_fields=['link_date'])
 
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
