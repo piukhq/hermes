@@ -48,16 +48,16 @@ def async_all_balance(user_id: int, allowed_schemes: t.Sequence[int] = None) -> 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, scheme_id: int, enrol_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     join_data = {
         'order': 0,
         **enrol_fields,
-        'save_user_information': 'false'
+        'save_user_information': 'false',
+        'scheme_account': scheme_account
     }
     try:
         SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id)
     except ValidationError:
-        scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
 
