@@ -233,7 +233,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 class SchemeAccountJoinMixin:
 
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int) -> t.Tuple[dict, int, SchemeAccount]:
-
+        scheme_account = data.get('scheme_account')
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
         if join_scheme.status == Scheme.SUSPENDED:
@@ -246,8 +246,8 @@ class SchemeAccountJoinMixin:
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
-
-        scheme_account = self.create_join_account(data, user, scheme_id)
+        if not scheme_account:
+            scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
             if 'consents' in serializer.validated_data:
