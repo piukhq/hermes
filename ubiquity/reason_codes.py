@@ -108,7 +108,7 @@ ubiquity_status_translation = {
     404: 'unauthorised',
     10: 'pending',
     533: 'unauthorised',
-    900: 'suggested',
+    900: 'failed',
     444: 'failed',
     536: 'failed',
     535: 'failed',
@@ -123,7 +123,7 @@ ubiquity_status_translation = {
     437: 'failed',
     438: 'unauthorised',
     439: 'failed',
-    441: 'suggested',
+    441: 'failed',
     538: 'failed',
     442: 'pending'
 }
