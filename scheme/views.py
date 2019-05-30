@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 
 import requests
+import sentry_sdk
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -16,7 +17,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
-import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -34,6 +34,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -337,6 +338,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+        update_status = True
         scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
@@ -347,17 +349,22 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
 
-        scheme_account.status = new_status_code
-        scheme_account.save(update_fields=['status'])
-
         if journey == 'join':
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save()
 
+            if new_status_code == SchemeAccount.ACTIVE:
+                update_status = False
+                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
+
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
+
+        if update_status:
+            scheme_account.status = new_status_code
+            scheme_account.save(update_fields=['status'])
 
         return Response({
             'id': scheme_account.id,

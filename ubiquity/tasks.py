@@ -1,7 +1,6 @@
 import typing as t
 
 from celery import shared_task
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -85,3 +84,11 @@ def async_registration(user_id: int, scheme_account_id: int, registration_fields
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
+
+
+@shared_task
+def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int) -> None:
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+    scheme_account.status = scheme_account.PENDING
+    scheme_account.save(update_fields=['status'])
+    scheme_account.get_cached_balance()
