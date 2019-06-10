@@ -536,7 +536,12 @@ class SchemeAccount(models.Model):
         points = None
         old_status = self.status
 
-        if self.status in [SchemeAccount.PENDING_MANUAL_CHECK, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+        no_balance_statuses = [
+            SchemeAccount.PENDING_MANUAL_CHECK,
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.JOIN
+        ]
+        if self.status in no_balance_statuses:
             return points
 
         try:
