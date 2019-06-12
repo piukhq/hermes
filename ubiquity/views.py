@@ -43,9 +43,9 @@ if t.TYPE_CHECKING:
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 
 
-def is_auto_link():
-    return request.query_params.get('autoLink').lowercase() == 'true' or \
-           request.query_params.get('autolink').lowercase() == 'true'
+def is_auto_link(req):
+    return req.query_params.get('autoLink', '').lower() == 'true' or \
+           req.query_params.get('autolink', '').lower() == 'true'
 
 
 def replace_escaped_unicode(match):
@@ -288,7 +288,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
 
         account.refresh_from_db()
 
-        if is_auto_link():
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, account)
 
         return Response(self.get_serializer(account).data, status.HTTP_200_OK)
@@ -341,7 +341,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         if status_code == status.HTTP_201_CREATED:
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
-        if is_auto_link():
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, pcard)
 
         return Response(self.get_serializer(pcard).data, status=status_code)
@@ -470,7 +470,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
-        if is_auto_link():
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
         async_balance.delay(account.id)
@@ -722,7 +722,7 @@ class ListMembershipCardView(MembershipCardView):
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
 
-        if is_auto_link():
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
