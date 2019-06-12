@@ -367,13 +367,14 @@ class SchemeAccount(models.Model):
         (JOIN_ASYNC_IN_PROGRESS, 'Asynchronous join in progress', 'JOIN_ASYNC_IN_PROGRESS')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
-    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD, JOIN_ASYNC_IN_PROGRESS]
+    JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
                             ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
-                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE]
+                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
+    EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -535,7 +536,12 @@ class SchemeAccount(models.Model):
         points = None
         old_status = self.status
 
-        if self.status in [SchemeAccount.PENDING_MANUAL_CHECK, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+        no_balance_statuses = [
+            SchemeAccount.PENDING_MANUAL_CHECK,
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.JOIN
+        ]
+        if self.status in no_balance_statuses:
             return points
 
         try:

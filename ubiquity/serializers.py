@@ -414,14 +414,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         else:
             card_type = 0
 
-        # todo remove this horrible patch as soon as Barclays uses the right field in their app.
-        company_name = instance.company
-        plan_name_card = instance.plan_name_card
-        if 'harvey-nichols' in instance.slug:
-            company_name = 'Rewards'
-            plan_name_card = 'by Harvey Nichols'
-        # ------------------------- end of horrible patch ------------------------------------ #
-
         return {
             'id': instance.id,
             'status': status,
@@ -454,14 +446,14 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             'images': self._get_ubiquity_images(instance),
             'account': {
                 'plan_name': instance.name,
-                'plan_name_card': plan_name_card,
+                'plan_name_card': instance.plan_name_card,
                 'plan_url': instance.url,
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
                 'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
                 'barcode_redeem_instructions': instance.barcode_redeem_instructions,
                 'plan_register_info': instance.plan_register_info,
-                'company_name': company_name,
+                'company_name': instance.company,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
                 'category': instance.category.name,
@@ -592,7 +584,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        exclude_balance_statuses = instance.JOIN_ACTION_REQUIRED + [instance.FAILED_UPDATE, instance.PENDING]
+        exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
 
         if instance.status not in exclude_balance_statuses:
             # instance.get_cached_balance()
