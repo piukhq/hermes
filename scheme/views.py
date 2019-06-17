@@ -350,13 +350,13 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account.status = new_status_code
         scheme_account.save(update_fields=['status'])
 
-        if journey == 'join':
+        if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save()
 
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
 
         return Response({
