@@ -113,9 +113,8 @@ class TestTasks(TestCase):
 
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
-        scheme_id = self.link_scheme.id
 
-        async_join(scheme_account_id, user_id, scheme_id, {})
+        async_join(user_id, scheme_account_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)

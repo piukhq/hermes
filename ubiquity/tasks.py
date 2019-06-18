@@ -1,7 +1,6 @@
 import typing as t
 
 from celery import shared_task
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -47,7 +46,7 @@ def async_all_balance(user_id: int, allowed_schemes: t.Sequence[int] = None) -> 
 
 
 @shared_task
-def async_join(scheme_account_id: int, user_id: int, scheme_id: int, enrol_fields: dict) -> None:
+def async_join(user_id: int, scheme_account_id: int, enrol_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     join_data = {
@@ -57,7 +56,7 @@ def async_join(scheme_account_id: int, user_id: int, scheme_id: int, enrol_field
         'scheme_account': scheme_account
     }
     try:
-        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id)
+        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_account.scheme_id)
     except ValidationError:
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
@@ -66,22 +65,20 @@ def async_join(scheme_account_id: int, user_id: int, scheme_id: int, enrol_field
 @shared_task
 def async_registration(user_id: int, scheme_account_id: int, registration_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
-    account = SchemeAccount.objects.get(id=scheme_account_id)
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    manual_answer = account.card_number_answer
-    main_credential = manual_answer if manual_answer else account.barcode_answer
+    manual_answer = scheme_account.card_number_answer
+    main_credential = manual_answer if manual_answer else scheme_account.barcode_answer
 
     registration_data = {
         main_credential.question.type: main_credential.answer,
         'order': 0,
         **registration_fields,
-        'save_user_information': False,
+        'save_user_information': 'false',
+        'scheme_account': scheme_account
     }
-
     try:
-        SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id)
+        SchemeAccountJoinMixin().handle_join_request(registration_data, user, scheme_account.scheme_id)
     except ValidationError:
-        scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
