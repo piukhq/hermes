@@ -143,4 +143,4 @@ class TestTasks(TestCase):
         async_registration(user_id, scheme_account_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
