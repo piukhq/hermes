@@ -80,5 +80,5 @@ def async_registration(user_id: int, scheme_account_id: int, registration_fields
     try:
         SchemeAccountJoinMixin().handle_join_request(registration_data, user, scheme_account.scheme_id)
     except ValidationError:
-        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
         scheme_account.save()
