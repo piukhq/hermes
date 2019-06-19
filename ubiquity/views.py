@@ -431,7 +431,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return account
 
     @staticmethod
-    def save_new_consents(scheme_account, user,  all_fields):
+    def save_new_consents(scheme_account, user, all_fields):
         consents = []
         for field in all_fields:
             if field is not None and 'consents' in field:
@@ -591,7 +591,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(scheme_account.id, user.id, scheme_id, enrol_fields)
+        async_join.delay(user.id, scheme_account.id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
