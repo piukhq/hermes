@@ -408,6 +408,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+        if 'consents' in update_fields:
+            del update_fields['consents']
+
         if update_fields.get('password'):
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
@@ -507,7 +510,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
         for field_name in self.create_update_fields:
-            out_fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
+            out_fields[field_name] = self._extract_consent_data(scheme, field_name, data)
+            out_fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError

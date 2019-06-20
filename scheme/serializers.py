@@ -557,6 +557,7 @@ class JoinSerializer(SchemeAnswerSerializer):
 
 class DeleteCredentialSerializer(serializers.Serializer):
     all = serializers.NullBooleanField(default=False)
+    keep_card_number = serializers.NullBooleanField(default=False)
     property_list = serializers.ListField(default=[])
     type_list = serializers.ListField(default=[])
 
