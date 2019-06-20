@@ -408,6 +408,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+        if 'consents' in update_fields:
+            del update_fields['consents']
+
         if update_fields.get('password'):
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
