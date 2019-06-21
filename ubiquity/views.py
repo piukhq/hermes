@@ -408,6 +408,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+        if 'consents' in update_fields:
+            del update_fields['consents']
+
         if update_fields.get('password'):
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
@@ -431,7 +434,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return account
 
     @staticmethod
-    def save_new_consents(scheme_account, user,  all_fields):
+    def save_new_consents(scheme_account, user, all_fields):
         consents = []
         for field in all_fields:
             if field is not None and 'consents' in field:
@@ -507,7 +510,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
         for field_name in self.create_update_fields:
-            out_fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
+            out_fields[field_name] = self._extract_consent_data(scheme, field_name, data)
+            out_fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError
@@ -591,7 +595,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(scheme_account.id, user.id, scheme_id, enrol_fields)
+        async_join.delay(user.id, scheme_account.id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
