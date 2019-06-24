@@ -541,7 +541,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             provided_value = auth_fields.get(k)
 
             if provided_value and k in DATE_TYPE_CREDENTIALS:
-                provided_value = arrow.get(provided_value).date()
+                try:
+                    provided_value = arrow.get(provided_value, 'DD/MM/YYYY').date()
+                except ParseError:
+                    provided_value = arrow.get(provided_value).date()
+
                 v = arrow.get(v).date()
 
             if provided_value != v:
