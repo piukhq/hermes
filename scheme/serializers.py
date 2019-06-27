@@ -56,8 +56,7 @@ class TransactionHeaderSerializer(serializers.Serializer):
     be represented by a simple list of headers.
     """
 
-    @staticmethod
-    def to_representation(obj):
+    def to_representation(self, obj):
         return [{"name": i} for i in obj]
 
 
@@ -419,9 +418,9 @@ class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLi
     pass
 
 
-def add_object_type_to_image_response(data, type):
+def add_object_type_to_image_response(data, obj_type):
     new_data = copy(data)
-    new_data['object_type'] = type
+    new_data['object_type'] = obj_type
     return new_data
 
 
