@@ -53,9 +53,9 @@ def async_join(scheme_account_id: int, user_id: int, permit: object, scheme_id: 
         'save_user_information': 'false',
         'scheme_account': scheme_account
     }
-    SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, permit)
+
     try:
-        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id)
+        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, permit)
     except ValidationError:
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()

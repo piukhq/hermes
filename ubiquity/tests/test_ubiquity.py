@@ -863,10 +863,15 @@ class TestResources(APITestCase):
     def test_membership_plan(self):
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme).data), resp.json())
+
+        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
+        context = {'request': RequestMock}
+        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme, context=context).data), resp.json())
 
     def test_composite_membership_plan(self):
-        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme).data)
+        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
+        context = {'request': RequestMock}
+        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme, context=context).data)
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
