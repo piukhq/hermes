@@ -1,11 +1,12 @@
 import datetime
 import json
 from decimal import Decimal
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import arrow
 import httpretty
 from django.conf import settings
+from django.test import RequestFactory
 from hermes.channels import Permit
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
@@ -14,16 +15,17 @@ from scheme.models import SchemeBundleAssociation
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import (BARCODE, LAST_NAME, PASSWORD)
-from scheme.models import SchemeAccount, SchemeCredentialQuestion
+from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
+                                    SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
+                                    SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
                                   PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from ubiquity.views import MembershipTransactionView
+from ubiquity.views import MembershipTransactionView, MembershipCardView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -219,6 +221,51 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_active(self, *_):
+        test_membership_card = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'authorised')
+        self.assertEqual(data['status']['reason_codes'], ['X300'])
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_user_error(self, *_):
+        user_error = SchemeAccount.INVALID_CREDENTIALS
+        test_membership_card = SchemeAccountFactory(status=user_error, balances={})
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'failed')
+        self.assertEqual(data['status']['reason_codes'], ['X303'])
+
+        test_membership_card.balances = [{'points': 1.1}]
+        test_membership_card.save()
+        test_membership_card.refresh_from_db()
+
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'failed')
+        self.assertEqual(data['status']['reason_codes'], ['X303'])
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_status_mapping_system_error(self, *_):
+        user_error = SchemeAccount.END_SITE_DOWN
+        test_membership_card = SchemeAccountFactory(status=user_error, balances={})
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'pending')
+        self.assertEqual(data['status']['reason_codes'], ['X100'])
+
+        test_membership_card.balances = [{'points': 1.1}]
+        test_membership_card.save()
+        test_membership_card.refresh_from_db()
+
+        data = MembershipCardSerializer(test_membership_card).data
+        self.assertEqual(data['status']['state'], 'authorised')
+        self.assertEqual(data['status']['reason_codes'], ['X300'])
+
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -260,6 +307,62 @@ class TestResources(APITestCase):
         self.assertTrue(mock_hades.called)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
+
+    def test_membership_card_creation_consents(self):
+        factory = RequestFactory()
+        consent_label = "Test Consent"
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "enrol_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        },
+                        {
+                            "column": consent_label,
+                            "value": "true"
+                        }
+                    ]
+                }
+        }
+        request = factory.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                               **self.auth_headers)
+
+        user = MagicMock()
+        user.client = self.client_app
+        request.user = user
+        view = MembershipCardView()
+        view.request = request
+
+        consent = ConsentFactory.create(scheme=self.scheme)
+
+        ThirdPartyConsentLink.objects.create(consent_label=consent_label,
+                                             client_app=self.client_app,
+                                             scheme=self.scheme,
+                                             consent=consent,
+                                             add_field=False,
+                                             auth_field=False,
+                                             register_field=True,
+                                             enrol_field=True)
+
+        consents = view._extract_consent_data(scheme=self.scheme, field='enrol_fields', data=payload)
+
+        self.assertEqual(
+            payload['account']['enrol_fields'],
+            [{
+                "column": "last_name",
+                "value": "Test"
+            }]
+        )
+        self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -714,6 +817,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch('ubiquity.views.async_registration', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_patch(self, *_):
@@ -759,16 +863,10 @@ class TestResources(APITestCase):
     def test_membership_plan(self):
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-
-        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
-        context = {'request': RequestMock}
-        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme, context=context).data), resp.json())
+        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme).data), resp.json())
 
     def test_composite_membership_plan(self):
-        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
-        context = {'request': RequestMock}
-        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme, context=context).data)
-
+        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme).data)
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
@@ -792,6 +890,30 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()['balances'][0]['value'], 100)
         self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
+        test_scheme_account = SchemeAccountFactory()
+        mock_get_midas_balance.return_value = {
+            'value': Decimal('10'),
+            'points': Decimal('100'),
+            'points_label': '100',
+            'value_label': "$10",
+            'reward_tier': 0,
+            'balance': Decimal('20'),
+            'is_stale': False
+        }
+
+        self.assertFalse(test_scheme_account.balances)
+        test_scheme_account.get_cached_balance()
+        self.assertTrue(mock_get_midas_balance.called)
+        self.assertEqual(mock_get_midas_balance.call_args[1]['journey'], JourneyTypes.LINK)
+        self.assertTrue(test_scheme_account.balances)
+
+        test_scheme_account.get_cached_balance()
+        self.assertEqual(mock_get_midas_balance.call_args[1]['journey'], JourneyTypes.UPDATE)
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -970,6 +1092,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_update_new_and_existing_credentials(self, *_):

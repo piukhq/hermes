@@ -78,7 +78,7 @@ class BaseLinkMixin(object):
 
         if scheme_account.status == SchemeAccount.ACTIVE:
             scheme_account.link_date = timezone.now()
-            scheme_account.save()
+            scheme_account.save(update_fields=['link_date'])
 
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
@@ -236,6 +236,7 @@ class SchemeAccountJoinMixin:
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: object)\
             -> t.Tuple[dict, int, SchemeAccount]:
 
+        scheme_account = data.get('scheme_account')
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
         if permit and permit.is_scheme_suspended(scheme_id):
@@ -249,7 +250,8 @@ class SchemeAccountJoinMixin:
         data = serializer.validated_data
         data['scheme'] = scheme_id
 
-        scheme_account = self.create_join_account(data, user, scheme_id)
+        if not scheme_account:
+            scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
             if 'consents' in serializer.validated_data:

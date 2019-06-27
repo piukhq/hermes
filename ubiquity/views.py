@@ -18,9 +18,11 @@ import analytics
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from scheme.credentials import DATE_TYPE_CREDENTIALS
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, ConsentStatus
+from scheme.serializers import UserConsentSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -31,7 +33,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                   ServiceConsentSerializer, TransactionsSerializer,
                                   LinkMembershipCardSerializer)
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration
+from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 from hermes.channels import Permit
@@ -400,6 +402,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         else:
             updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
 
+        async_balance.delay(updated_account.id)
         return Response(self.get_serializer(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
@@ -426,13 +429,29 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         async_registration.delay(user.id, permit, account.id, registration_fields)
         return account
 
+    @staticmethod
+    def save_new_consents(scheme_account, user,  all_fields):
+        consents = []
+        for field in all_fields:
+            if field is not None and 'consents' in field:
+                consents = field.pop('consents')
+                if consents:
+                    consents.append(consents)
+
+        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consents, user)
+        for user_consent in user_consents:
+            user_consent.status = ConsentStatus.SUCCESS
+            user_consent.save()
+
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
-        if not request.channels_permit.is_scheme_available(scheme_id):
+        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
+
+        self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
 
         if enrol_fields:
             raise NotImplementedError
@@ -448,6 +467,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if request.query_params.get('autoLink') == 'True':
             self.auto_link_to_payment_cards(request.user, account)
 
+        async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -512,7 +532,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                                         auth_fields: dict) -> None:
         existing_answers = scheme_account.get_auth_fields()
         for k, v in existing_answers.items():
-            if auth_fields.get(k) != v:
+            provided_value = auth_fields.get(k)
+
+            if provided_value and k in DATE_TYPE_CREDENTIALS:
+                provided_value = arrow.get(provided_value).date()
+                v = arrow.get(v).date()
+
+            if provided_value != v:
                 raise ParseError('This card already exists, but the provided credentials do not match.')
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
@@ -564,7 +590,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(user.id, channels_permit, scheme_id, enrol_fields)
+        async_join.delay(scheme_account.id,user.id, channels_permit, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
@@ -599,7 +625,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             fields = {}
 
             for field_name in self.create_update_fields:
-                fields[field_name] = self._collect_field_content(field_name, data, label_to_type)
+                fields[field_name] = self._extract_consent_data(scheme, field_name, data)
+                fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
         except KeyError:
             raise ParseError()
@@ -618,6 +645,43 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('missing fields')
 
         return fields['add_fields'], fields['authorise_fields'], None
+
+    def _extract_consent_data(self, scheme: Scheme, field: str, data: dict) -> dict:
+        if not data['account'].get(field):
+            return {}
+
+        client_app = self.request.user.client
+        data_provided = data['account'][field]
+
+        consent_links = ThirdPartyConsentLink.objects.filter(scheme=scheme, client_app=client_app)
+        provided_consent_keys = self.match_consents(consent_links, data_provided)
+
+        if not provided_consent_keys:
+            return {'consents': []}
+
+        provided_consent_data = {
+            item['column']: item for item in data_provided if item['column'] in provided_consent_keys
+        }
+
+        consents = [
+            {
+                'id': link.consent_id,
+                'value': provided_consent_data[link.consent_label]['value']
+            }
+            for link in consent_links if provided_consent_data.get(link.consent_label)
+        ]
+
+        # remove consents information from provided credentials data
+        data['account'][field] = [item for item in data_provided if item['column'] not in provided_consent_keys]
+
+        return {'consents': consents}
+
+    @staticmethod
+    def match_consents(consent_links, data_provided):
+        consent_labels = {link.consent_label for link in consent_links}
+        data_keys = {data['column'] for data in data_provided}
+
+        return data_keys.intersection(consent_labels)
 
     @staticmethod
     def allowed_answers(scheme: Scheme) -> t.List[str]:

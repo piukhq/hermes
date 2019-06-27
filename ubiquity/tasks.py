@@ -1,4 +1,8 @@
 from celery import shared_task
+
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -10,8 +14,13 @@ from user.models import CustomUser
 def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
-    serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
-    BaseLinkMixin.link_account(serializer, scheme_account, user)
+    try:
+        serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
+        BaseLinkMixin.link_account(serializer, scheme_account, user)
+    except serializers.ValidationError as e:
+        scheme_account.status = scheme_account.INVALID_CREDENTIALS
+        scheme_account.save()
+        raise e
 
 
 @shared_task
@@ -24,22 +33,32 @@ def async_balance(instance_id: int) -> None:
 def async_all_balance(user_id: int, channels_permit) -> None:
     query = {'user': user_id}
 
-    queryset = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query),
-                                                   'scheme_account__scheme__'
-                                                   )
-    for entry in queryset:
+    exclude_query = {'scheme_account__status__in': SchemeAccount.EXCLUDE_BALANCE_STATUSES}
+    entries = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query)
+                                                  .exclude(**exclude_query),
+                                                  'scheme_account__scheme__'
+                                                  )
+
+    for entry in entries:
         async_balance.delay(entry.scheme_account_id)
 
 
 @shared_task
-def async_join(user_id: int, permit: object, scheme_id: int, enrol_fields: dict) -> None:
+def async_join(scheme_account_id: int, user_id: int, permit: object, scheme_id: int, enrol_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     join_data = {
         'order': 0,
         **enrol_fields,
-        'save_user_information': 'false'
+        'save_user_information': 'false',
+        'scheme_account': scheme_account
     }
     SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, permit)
+    try:
+        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id)
+    except ValidationError:
+        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.save()
 
 
 @shared_task
@@ -56,4 +75,11 @@ def async_registration(user_id: int, permit: object, scheme_account_id: int, reg
         **registration_fields,
         'save_user_information': False,
     }
-    SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id, permit)
+
+    try:
+        SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id, permit)
+    except ValidationError:
+        scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+
+        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.save()
