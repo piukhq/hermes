@@ -24,6 +24,7 @@ from ubiquity.models import SchemeAccountEntry
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
+    from hermes.channels import Permit
     from rest_framework.serializers import Serializer
 
 
@@ -233,7 +234,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: object)\
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit')\
             -> t.Tuple[dict, int, SchemeAccount]:
 
         scheme_account = data.get('scheme_account')

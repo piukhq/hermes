@@ -7,7 +7,6 @@ import arrow
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory
-from hermes.channels import Permit
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 from scheme.models import SchemeBundleAssociation
