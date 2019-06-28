@@ -11,6 +11,9 @@ from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import SchemeAccountEntry
 from user.models import CustomUser
 
+if t.TYPE_CHECKING:
+    from hermes.channels import Permit
+
 
 @shared_task
 def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
@@ -33,9 +36,9 @@ def async_balance(instance_id: int) -> None:
 
 @shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:
-    query = {'user': user_id,
-             'scheme_account__is_deleted': False
-
+    query = {
+        'user': user_id,
+        'scheme_account__is_deleted': False
     }
     exclude_query = {'scheme_account__status__in': SchemeAccount.EXCLUDE_BALANCE_STATUSES}
     entries = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query),
