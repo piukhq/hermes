@@ -34,10 +34,10 @@ def async_all_balance(user_id: int, channels_permit) -> None:
     query = {'user': user_id}
 
     exclude_query = {'scheme_account__status__in': SchemeAccount.EXCLUDE_BALANCE_STATUSES}
-    entries = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query)
-                                                  .exclude(**exclude_query),
+    entries = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query),
                                                   'scheme_account__scheme__'
                                                   )
+    entries = entries.exclude(**exclude_query)
 
     for entry in entries:
         async_balance.delay(entry.scheme_account_id)

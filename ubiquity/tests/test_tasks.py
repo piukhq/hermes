@@ -68,11 +68,19 @@ class TestTasks(TestCase):
 
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_filtering(self, mock_async_balance):
-        entry_active = SchemeAccountEntryFactory()
+        scheme_account_1 = SchemeAccountFactory()
+        scheme_account_2 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+        scheme_account_3 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+        scheme_account_4 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+
+        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1)
         user = entry_active.user
-        entry_pending = SchemeAccountEntryFactory(user=user)
-        entry_invalid_credentials = SchemeAccountEntryFactory(user=user)
-        entry_end_site_down = SchemeAccountEntryFactory(user=user)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+
+        entry_pending = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_2)
+        entry_invalid_credentials = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_3)
+        entry_end_site_down = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_4)
 
         entry_pending.scheme_account.status = SchemeAccount.PENDING
         entry_pending.scheme_account.save()
@@ -81,7 +89,7 @@ class TestTasks(TestCase):
         entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
         entry_end_site_down.scheme_account.save()
 
-        async_all_balance(user.id)
+        async_all_balance(user.id, channels_permit=channels_permit)
 
         refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
         self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
@@ -121,12 +129,12 @@ class TestTasks(TestCase):
     def test_async_join_validation_failure(self, mock_create_join_account):
         # This is just to break out of the function if the initial validation check hasn't failed
         mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-
+        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
         scheme_id = self.link_scheme.id
 
-        async_join(scheme_account_id, user_id, scheme_id, {})
+        async_join(scheme_account_id, user_id, permit, scheme_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
@@ -135,7 +143,7 @@ class TestTasks(TestCase):
     def test_async_register_validation_failure(self, mock_create_join_account):
         # This is just to break out of the function if the initial validation check hasn't failed
         mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-
+        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
         card_number = SchemeCredentialQuestionFactory(
             scheme=self.link_scheme,
             type=CARD_NUMBER,
@@ -152,7 +160,7 @@ class TestTasks(TestCase):
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
 
-        async_registration(user_id, scheme_account_id, {})
+        async_registration(user_id, permit, scheme_account_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)

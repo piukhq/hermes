@@ -755,6 +755,7 @@ class TestResources(APITestCase):
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_and_composite_post(self, *_):
         new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
@@ -861,17 +862,22 @@ class TestResources(APITestCase):
         self.assertTrue(isinstance(resp.json(), list))
 
     def test_membership_plan(self):
+        mock_request_context = MagicMock()
+        mock_request_context.user = self.user
+
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-
-        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
-        context = {'request': RequestMock}
-        self.assertEqual(remove_empty(MembershipPlanSerializer(self.scheme, context=context).data), resp.json())
+        self.assertEqual(
+            remove_empty(MembershipPlanSerializer(self.scheme, context={'request': mock_request_context}).data),
+            resp.json()
+        )
 
     def test_composite_membership_plan(self):
-        RequestMock.channels_permit = Permit(self.bundle.bundle_id, client=self.client)
-        context = {'request': RequestMock}
-        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme, context=context).data)
+        mock_request_context = MagicMock()
+        mock_request_context.user = self.user
+
+        expected_result = remove_empty(MembershipPlanSerializer(self.scheme_account.scheme,
+                                                                context={'request': mock_request_context}).data)
         resp = self.client.get(reverse('membership-card-plan', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())

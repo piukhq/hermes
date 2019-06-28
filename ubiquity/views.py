@@ -448,7 +448,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
 
-        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+        if not request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')
 
         self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
