@@ -1,3 +1,5 @@
+import typing as t
+
 from celery import shared_task
 
 from rest_framework import serializers
@@ -31,8 +33,10 @@ def async_balance(instance_id: int) -> None:
 
 @shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:
-    query = {'user': user_id}
+    query = {'user': user_id,
+             'scheme_account__is_deleted': False
 
+    }
     exclude_query = {'scheme_account__status__in': SchemeAccount.EXCLUDE_BALANCE_STATUSES}
     entries = channels_permit.related_model_query(SchemeAccountEntry.objects.filter(**query),
                                                   'scheme_account__scheme__'
@@ -62,24 +66,23 @@ def async_join(scheme_account_id: int, user_id: int, permit: object, scheme_id: 
 
 
 @shared_task
-def async_registration(user_id: int, permit: object, scheme_account_id: int, registration_fields: dict) -> None:
+def async_registration(user_id: int, permit: 'Permit', scheme_account_id: int, registration_fields: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
-    account = SchemeAccount.objects.get(id=scheme_account_id)
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    manual_answer = account.card_number_answer
-    main_credential = manual_answer if manual_answer else account.barcode_answer
+    manual_answer = scheme_account.card_number_answer
+    main_credential = manual_answer if manual_answer else scheme_account.barcode_answer
 
     registration_data = {
         main_credential.question.type: main_credential.answer,
         'order': 0,
         **registration_fields,
-        'save_user_information': False,
+        'save_user_information': 'false',
+        'scheme_account': scheme_account
     }
-
     try:
-        SchemeAccountJoinMixin().handle_join_request(registration_data, user, account.scheme_id, permit)
+        SchemeAccountJoinMixin().handle_join_request(registration_data, user,
+                                                     scheme_account.scheme_id, permit)
     except ValidationError:
-        scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-
-        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
         scheme_account.save()

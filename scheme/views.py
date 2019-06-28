@@ -479,7 +479,10 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
           - name: all
             required: false
             description: boolean, True will delete all scheme credential answers
-           - name: property_list
+          - name: keep_card_number
+            required: false
+            description: boolean, if All is not passed, True will delete all credentials apart from card_number
+          - name: property_list
             required: false
             description: list, e.g. ['link_questions'] takes properties from the scheme
           - name: type_list
@@ -504,11 +507,19 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         return Response({'deleted': str(response_list)}, status=status.HTTP_200_OK)
 
     def collect_credentials_to_delete(self, scheme_account, request_data):
-        credential_list = scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = scheme_account.schemeaccountcredentialanswer_set
         answers_to_delete = set()
 
         if request_data.get('all'):
-            answers_to_delete.update(credential_list)
+            answers_to_delete.update(credential_list.all())
+            return answers_to_delete
+
+        elif request_data.get('keep_card_number'):
+            card_number = scheme_account.card_number
+            if card_number:
+                credential_list = credential_list.exclude(answer=card_number)
+
+            answers_to_delete.update(credential_list.all())
             return answers_to_delete
 
         for credential_property in request_data.get('property_list'):
@@ -518,7 +529,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             except AttributeError:
                 return self.invalid_data_response(credential_property)
 
-        scheme_account_types = [answer.question.type for answer in credential_list]
+        scheme_account_types = [answer.question.type for answer in credential_list.all()]
         question_list = []
         for answer_type in request_data.get('type_list'):
             if answer_type in scheme_account_types:
