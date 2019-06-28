@@ -234,6 +234,30 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
+    def join_consent(self, data, serializer, scheme_account, join_scheme, scheme_id, user):
+        if 'consents' in serializer.validated_data:
+            consent_data = serializer.validated_data.pop('consents')
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+            for user_consent in user_consents:
+                user_consent.save()
+
+            user_consents = scheme_account.collect_pending_consents()
+            data['credentials'].update(consents=user_consents)
+
+        data['id'] = scheme_account.id
+        if data['save_user_information']:
+            self.save_user_profile(data['credentials'], user)
+
+        self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
+
+        keys_to_remove = ['save_user_information', 'credentials']
+        response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
+
+        return response_dict, status.HTTP_201_CREATED, scheme_account
+
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit')\
             -> t.Tuple[dict, int, SchemeAccount]:
 
@@ -255,28 +279,7 @@ class SchemeAccountJoinMixin:
             scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
-            if 'consents' in serializer.validated_data:
-                consent_data = serializer.validated_data.pop('consents')
-
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
-
-                for user_consent in user_consents:
-                    user_consent.save()
-
-                user_consents = scheme_account.collect_pending_consents()
-                data['credentials'].update(consents=user_consents)
-
-            data['id'] = scheme_account.id
-            if data['save_user_information']:
-                self.save_user_profile(data['credentials'], user)
-
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
-
-            keys_to_remove = ['save_user_information', 'credentials']
-            response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
-
-            return response_dict, status.HTTP_201_CREATED, scheme_account
+            self.join_consent(data, serializer, scheme_account, join_scheme, scheme_id, user)
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account, user)
             raise
