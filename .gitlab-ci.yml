@@ -96,6 +96,14 @@ api-tests-dev:
   script:
     - cd /tests
     - mvn verify
+    - cd target/cucumber-html-reports/
+    - tar czvf /tmp/html_report.tgz .
   only:
     - develop
+  artifacts:
+    paths:
+      - /tmp/html_report.tgz
+    when: on_failure
+    expire_in: 1 week
+    
 
