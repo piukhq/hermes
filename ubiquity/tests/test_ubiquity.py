@@ -366,7 +366,7 @@ class TestResources(APITestCase):
     """
     Was removed as logging up server tests - now added back:
     """
-    @patch('ubiquity.tasks.async_balance', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_update(self, *_):
         payload = json.dumps({
