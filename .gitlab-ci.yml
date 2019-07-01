@@ -96,11 +96,12 @@ api-tests-dev:
   script:
     - cd /tests
     - mvn verify
+    - cp -R /tests/target/cucumber-html-reports $CI_PROJECT_DIR/
   only:
     - develop
   artifacts:
     paths:
-      - /tests/target/cucumber-html-reports/
+      - cucumber-html-reports/
     when: on_failure
     expire_in: 1 week
     
