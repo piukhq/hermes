@@ -192,6 +192,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     regular_restaurant = serializers.CharField(max_length=250, required=False)
     merchant_identifier = serializers.CharField(max_length=250, required=False)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
+    payment_card_id = serializers.IntegerField(required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
@@ -544,6 +545,8 @@ class JoinSerializer(SchemeAnswerSerializer):
             if question_type in request_join_question_types:
                 data['credentials'][question_type] = str(data[question_type])
 
+                if question_type == 'payment_card_id':
+                    data['credentials'][question_type] = data[question_type]
             else:
                 if question.required:
                     self.raise_missing_field_error(question_type)
