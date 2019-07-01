@@ -279,7 +279,7 @@ class SchemeAccountJoinMixin:
             scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
-            self.join_consent(data, serializer, scheme_account, join_scheme, scheme_id, user)
+            return self.join_consent(data, serializer, scheme_account, join_scheme, scheme_id, user)
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account, user)
             raise
