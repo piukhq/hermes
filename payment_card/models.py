@@ -1,5 +1,6 @@
 import base64
 import uuid
+from enum import IntEnum
 
 from bulk_update.helper import bulk_update
 from django.contrib.postgres.fields import JSONField
@@ -8,6 +9,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from common.models import Image
+from scheme.models import SchemeAccount
 
 
 class Issuer(models.Model):
@@ -231,3 +233,33 @@ class AuthTransaction(models.Model):
 
     def __str__(self):
         return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)
+
+
+class PaymentStatus(IntEnum):
+    AUTH_PENDING = 0
+    AUTH_FAILED = 1
+    AUTHORISED = 2
+    SUCCESS = 3
+    VOID_REQUIRED = 4
+    VOID_SUCCESSFUL = 5
+
+
+def _generate_tx_ref() -> str:
+    prefix = 'BNK-'
+    identifier = uuid.uuid4()
+
+    return '{}{}'.format(prefix, identifier)
+
+
+class PaymentAudit(models.Model):
+    user_id = models.CharField(max_length=255)
+    scheme_account = models.ForeignKey(SchemeAccount, on_delete=models.CASCADE)
+    transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
+    transaction_id = models.CharField(max_length=255, null=True)
+    status = models.IntegerField(
+        choices=[(status.value, status.name) for status in PaymentStatus],
+        default=PaymentStatus.AUTH_PENDING
+    )
+    void_attempts = models.IntegerField(default=0)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
