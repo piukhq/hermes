@@ -3,13 +3,13 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.exceptions import APIException
 
+from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
-from payment_card.tasks import RetryTaskStore
 from scheme.models import SchemeAccount
 
 
 class PaymentError(APIException):
-    status_code = 503
+    status_code = 500
     default_detail = 'Error in Payment processing.'
     default_code = 'payment_error'
 
@@ -85,6 +85,11 @@ class Payment:
     def void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
         print('Called void')
+
+        import time
+        if int(time.time()) % 2 == 0:
+            raise PaymentError
+
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")
 
@@ -98,13 +103,12 @@ class Payment:
         #     if not self.void_resp['response']['success']:
         #         raise PaymentError('Unsuccessful void response')
         # except requests.RequestException as e:
-        #     # TODO: retry for service errors. Should this be async?
         #     raise PaymentError("Error voiding payment with payment service provider") from e
         # except KeyError as e:
         #     raise PaymentError("Unexpected response received when calling void") from e
 
     @staticmethod
-    def _get_payment_audit(scheme_acc: SchemeAccount):
+    def get_payment_audit(scheme_acc: SchemeAccount):
         statuses_to_update = [PaymentStatus.AUTHORISED, PaymentStatus.VOID_REQUIRED]
         payment_audit_objects = PaymentAudit.objects.filter(scheme_account=scheme_acc,
                                                             status__in=statuses_to_update)
@@ -140,25 +144,24 @@ class Payment:
             raise
 
     @staticmethod
-    # TODO: pass in and add filter audit obj by user_id
     def process_payment_void(scheme_acc: SchemeAccount) -> None:
         """
         Attempt to void a transaction linked to a scheme account if transaction is in
         AUTHORISED or VOID_REQUIRED status.
         """
-        payment_audit = Payment._get_payment_audit(scheme_acc)
+        payment_audit = Payment.get_payment_audit(scheme_acc)
         if not payment_audit:
             return
 
         try:
-            Payment._attempt_void(payment_audit)
+            Payment.attempt_void(payment_audit)
         except PaymentError:
+            transaction_data = {'scheme_acc_id': scheme_acc.id}
             task_store = RetryTaskStore()
-            task_store.set_task('payment_card.payment', 'retry_payment_void', {})
-            # TODO: retry failed void. async? queue?
+            task_store.set_task('payment_card.tasks', 'payment_void_task', transaction_data)
 
     @staticmethod
-    def _attempt_void(payment_audit: PaymentAudit) -> None:
+    def attempt_void(payment_audit: PaymentAudit) -> None:
         payment_audit.status = PaymentStatus.VOID_REQUIRED
         payment_audit.save()
         try:
@@ -176,7 +179,7 @@ class Payment:
         """
         Set the PaymentAudit status to Payment.SUCCESS if it isn't already.
         """
-        payment_audit = Payment._get_payment_audit(scheme_acc)
+        payment_audit = Payment.get_payment_audit(scheme_acc)
         if not payment_audit:
             return
 

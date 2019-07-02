@@ -317,7 +317,23 @@ cache_options = {
     }
 }
 CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis'],
+    "retry_tasks": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
+            password=REDIS_PASSWORD,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 100
+        },
+        "KEY_PREFIX": "hermes-retry-task-",
+        "TIMEOUT": None
+    }
 }
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
@@ -335,6 +351,8 @@ INFLUX_DB_CONFIG = {
 
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
+# Time in seconds for the interval between retry tasks called by celery beats
+RETRY_PERIOD = env_var('RETRY_PERIOD', '10')
 
 DATADOG_TRACE = {
     'DEFAULT_SERVICE': 'hermes',
