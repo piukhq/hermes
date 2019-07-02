@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 import sentry_sdk
 
 import analytics
+from payment_card.payment import Payment
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -344,6 +345,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+
+        if new_status_code is SchemeAccount.ACTIVE:
+            Payment.process_payment_success(scheme_account)
+        # elif new_status_code in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.PENDING]:
+        #     # TODO: check if there are any statuses where the payment obj should not be updated e.g pending states
+        #     pass
+        else:
+            Payment.process_payment_void(scheme_account)
+
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
 
