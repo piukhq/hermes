@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
+from payment_card.payment import Payment, PaymentError
 from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
@@ -250,6 +251,10 @@ class SchemeAccountJoinMixin:
             scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
+            payment_card_id = data['credentials'].get('payment_card_id')
+            if payment_card_id:
+                Payment.process_payment_auth(user.id, scheme_account, payment_card_id, payment_amount=100)
+
             if 'consents' in serializer.validated_data:
                 consent_data = serializer.validated_data.pop('consents')
 
@@ -272,7 +277,7 @@ class SchemeAccountJoinMixin:
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
             return response_dict, status.HTTP_201_CREATED, scheme_account
-        except serializers.ValidationError:
+        except (serializers.ValidationError, PaymentError):
             self.handle_failed_join(scheme_account, user)
             raise
         except Exception:
@@ -294,6 +299,8 @@ class SchemeAccountJoinMixin:
                 scheme_account,
                 user,
                 dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
+
+        Payment.process_payment_void(scheme_account)
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()
