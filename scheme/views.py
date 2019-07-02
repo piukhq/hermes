@@ -8,14 +8,15 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from raven.contrib.django.raven_compat.models import client as sentry
 from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import (GenericAPIView, ListAPIView, ListCreateAPIView, RetrieveAPIView, UpdateAPIView,
                                      get_object_or_404)
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
+import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -115,7 +116,29 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
                     old_status=dict(instance.STATUSES).get(instance.status_key))
 
             PaymentCardSchemeEntry.objects.filter(scheme_account=instance).delete()
-            analytics.update_scheme_account_attribute(instance, request.user)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ServiceDeleteAccount(APIView):
+    """
+    Marks scheme account as deleted and remove all related scheme account entries.
+    Responds with a 204 - No content.
+    """
+    authentication_classes = (ServiceAuthentication,)
+
+    def delete(self, request, *args, **kwargs):
+        scheme_account = get_object_or_404(SchemeAccount, id=kwargs['pk'])
+        users = list(scheme_account.user_set.all())
+
+        SchemeAccountEntry.objects.filter(scheme_account=scheme_account).delete()
+        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).delete()
+        scheme_account.is_deleted = True
+        scheme_account.save()
+        for user in users:
+            if user.client_id == settings.BINK_CLIENT_ID:
+                old_status = dict(scheme_account.STATUSES).get(scheme_account.status_key)
+                analytics.update_scheme_account_attribute(scheme_account, user, old_status=old_status)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -325,7 +348,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.send_to_intercom(new_status_code, scheme_account)
 
         scheme_account.status = new_status_code
-        scheme_account.save()
+        scheme_account.save(update_fields=['status'])
 
         if journey == 'join':
             scheme = scheme_account.scheme
@@ -342,8 +365,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     def send_to_intercom(self, new_status_code, scheme_account):
-        user_set_from_midas = self.request.data['user_info']['user_set']
-        user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+        try:
+            # use the more accurate user_set if provided
+            user_set_from_midas = self.request.data['user_info']['user_set']
+            user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+        except KeyError:
+            user_ids = [user.id for user in scheme_account.user_set.all()]
 
         for user_id in user_ids:
             user = CustomUser.objects.get(id=user_id)
@@ -393,7 +420,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             except requests.exceptions.RequestException:
                 logging.exception('Failed to send join data to thanatos.')
                 if settings.HERMES_SENTRY_DSN:
-                    sentry.captureException()
+                    sentry_sdk.capture_exception()
 
 
 class Pagination(PageNumberPagination):
@@ -459,7 +486,10 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
           - name: all
             required: false
             description: boolean, True will delete all scheme credential answers
-           - name: property_list
+          - name: keep_card_number
+            required: false
+            description: boolean, if All is not passed, True will delete all credentials apart from card_number
+          - name: property_list
             required: false
             description: list, e.g. ['link_questions'] takes properties from the scheme
           - name: type_list
@@ -484,11 +514,19 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         return Response({'deleted': str(response_list)}, status=status.HTTP_200_OK)
 
     def collect_credentials_to_delete(self, scheme_account, request_data):
-        credential_list = scheme_account.schemeaccountcredentialanswer_set.all()
+        credential_list = scheme_account.schemeaccountcredentialanswer_set
         answers_to_delete = set()
 
         if request_data.get('all'):
-            answers_to_delete.update(credential_list)
+            answers_to_delete.update(credential_list.all())
+            return answers_to_delete
+
+        elif request_data.get('keep_card_number'):
+            card_number = scheme_account.card_number
+            if card_number:
+                credential_list = credential_list.exclude(answer=card_number)
+
+            answers_to_delete.update(credential_list.all())
             return answers_to_delete
 
         for credential_property in request_data.get('property_list'):
@@ -498,7 +536,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
             except AttributeError:
                 return self.invalid_data_response(credential_property)
 
-        scheme_account_types = [answer.question.type for answer in credential_list]
+        scheme_account_types = [answer.question.type for answer in credential_list.all()]
         question_list = []
         for answer_type in request_data.get('type_list'):
             if answer_type in scheme_account_types:
@@ -659,6 +697,7 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         """
         scheme_id = int(kwargs['pk'])
         if request.allowed_schemes and scheme_id not in request.allowed_schemes:
-            return Response({'message': 'Scheme does not exist.'}, status=status.HTTP_404_NOT_FOUND)
-        message, status_code = self.handle_join_request(request, *args, **kwargs)
+            raise NotFound('Scheme does not exist.')
+
+        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']))
         return Response(message, status=status_code)

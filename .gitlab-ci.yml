@@ -2,16 +2,17 @@ stages:
   - tests
   - build
   - deploy
+  - regression
 
 tests:
   stage: tests
   script:
-    - pip3 install -r requirements.txt
+    - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - coverage run --source='.' manage.py test -v 2
     - coverage report
   services:
-    - postgres:9.4.4
+    - postgres:9.6
 
 complexity:
   stage: tests
@@ -49,19 +50,6 @@ build-master:
   only:
     - tags
 
-build-ukbanking:
-  stage: build
-  image: docker:latest
-  services:
-    - docker:dind
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:ukbanking" .
-    - docker push "$CI_REGISTRY/hermes:ukbanking"
-  only:
-    - feature/ukbanking
-
 deploy-dev:
   stage: deploy
   image: binkops.azurecr.io/kubedeployer:latest
@@ -69,18 +57,10 @@ deploy-dev:
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=dev deploystatic
-    - kubectl delete po -n=dev -l=project=hermes
+    - kubectl delete po -n=dev -l project=hermes
+    - kubectl delete po -n=dev -l project=hermes-celery
   only:
     - develop
-
-deploy-ukbanking:
-  stage: deploy
-  image: binkops.azurecr.io/kubedeployer:latest
-  environment: dev
-  script:
-    - kubectl delete po -n=ukbanking -l=project=hermes
-  only:
-    - feature/ukbanking
 
 deploy-staging:
   stage: deploy
@@ -91,6 +71,7 @@ deploy-staging:
     - ENVIRONMENT=staging deploystatic
     - 'kubectl patch -n=staging deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
     - kubectl set image -n=staging deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
+    - kubectl set image -n=staging statefulset/hermes-celery hermes-celery=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   only:
     - tags
 
@@ -103,6 +84,25 @@ deploy-prod:
     - ENVIRONMENT=prod deploystatic
     - 'kubectl patch -n=production deployment/hermes --patch "{\"spec\": {\"template\": {\"spec\": {\"initContainers\": [{\"name\": \"migrate\",\"image\": \"olympus.azurecr.io/hermes:$CI_COMMIT_TAG\"}]}}}}"'
     - kubectl set image -n=production deployment/hermes hermes=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
+    - kubectl set image -n=production statefulset/hermes-celery hermes-celery=olympus.azurecr.io/hermes:$CI_COMMIT_TAG
   when: manual
   only:
     - tags
+
+api-tests-dev:
+  stage: regression
+  image: olympus.azurecr.io/banking-api-automation:latest
+  environment: dev
+  script:
+    - cd /tests
+    - mvn verify
+    - cp -R /tests/target/cucumber-html-reports $CI_PROJECT_DIR/
+  only:
+    - develop
+  artifacts:
+    paths:
+      - cucumber-html-reports/
+    when: on_failure
+    expire_in: 1 week
+    
+

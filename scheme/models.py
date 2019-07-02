@@ -137,6 +137,11 @@ class Scheme(models.Model):
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
     enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+    barcode_redeem_instructions = models.TextField(default='', blank=True)
+    plan_register_info = models.TextField(default='', blank=True)
+    linking_support = ArrayField(models.CharField(max_length=50), default=[], blank=True,
+                                 help_text='journeys supported by the scheme in the ubiquity endpoints, '
+                                           'ie: ADD, REGISTRATION, ENROL')
 
     @property
     def is_active(self):
@@ -165,7 +170,7 @@ class Scheme(models.Model):
     def get_question_type_dict(self):
         return {
             question.label: question.type
-            for question in self.questions.filter(field_type__isnull=False).all()
+            for question in self.questions.all()
         }
 
     def __str__(self):
@@ -315,6 +320,7 @@ class SchemeAccount(models.Model):
     VALIDATION_ERROR = 401
     PRE_REGISTERED_CARD = 406
     FAILED_UPDATE = 446
+    SCHEME_REQUESTED_DELETE = 447
     PENDING_MANUAL_CHECK = 204
     CARD_NUMBER_ERROR = 436
     LINK_LIMIT_EXCEEDED = 437
@@ -322,6 +328,7 @@ class SchemeAccount(models.Model):
     GENERAL_ERROR = 439
     JOIN_IN_PROGRESS = 441
     JOIN_ERROR = 538
+    JOIN_ASYNC_IN_PROGRESS = 442
 
     EXTENDED_STATUSES = (
         (PENDING, 'Pending', 'PENDING'),
@@ -355,16 +362,19 @@ class SchemeAccount(models.Model):
         (CARD_NOT_REGISTERED, 'Unknown Card number', 'CARD_NOT_REGISTERED'),
         (GENERAL_ERROR, 'General Error such as incorrect user details', 'GENERAL_ERROR'),
         (JOIN_IN_PROGRESS, 'Join in progress', 'JOIN_IN_PROGRESS'),
-        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR')
+        (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR'),
+        (SCHEME_REQUESTED_DELETE, 'The scheme has requested this account should be deleted', 'SCHEME_REQUESTED_DELETE'),
+        (JOIN_ASYNC_IN_PROGRESS, 'Asynchronous join in progress', 'JOIN_ASYNC_IN_PROGRESS')
     )
     STATUSES = tuple(extended_status[:2] for extended_status in EXTENDED_STATUSES)
     JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
                             ACCOUNT_ALREADY_EXISTS, PRE_REGISTERED_CARD, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
-                            GENERAL_ERROR, JOIN_IN_PROGRESS]
+                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
                               IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
-                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR]
+                              CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
+    EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -526,7 +536,12 @@ class SchemeAccount(models.Model):
         points = None
         old_status = self.status
 
-        if self.status == SchemeAccount.PENDING_MANUAL_CHECK:
+        no_balance_statuses = [
+            SchemeAccount.PENDING_MANUAL_CHECK,
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.JOIN
+        ]
+        if self.status in no_balance_statuses:
             return points
 
         try:
@@ -545,12 +560,21 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
+        self._received_balance_checks(old_status)
+        return points
+
+    def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
-            self.schemeaccountcredentialanswer_set.all().delete()
+            queryset = self.schemeaccountcredentialanswer_set
+            card_number = self.card_number
+            if card_number:
+                queryset = queryset.exclude(answer=card_number)
+
+            queryset.all().delete()
+
         if self.status != SchemeAccount.PENDING:
             self.save()
             self.call_analytics(self.user_set.all(), old_status)
-        return points
 
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
@@ -571,12 +595,19 @@ class SchemeAccount(models.Model):
                                 params=parameters, headers=headers)
         return response
 
+    def get_journey_type(self):
+        if self.balances:
+            return JourneyTypes.UPDATE
+        else:
+            return JourneyTypes.LINK
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
 
         if not balance:
-            balance = self.get_midas_balance(journey=JourneyTypes.UPDATE)
+            journey = self.get_journey_type()
+            balance = self.get_midas_balance(journey=journey)
             if balance:
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
@@ -587,8 +618,12 @@ class SchemeAccount(models.Model):
 
         return balance
 
-    def set_pending(self, manual_pending=False):
+    def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
+        self.save()
+
+    def set_async_join_status(self) -> None:
+        self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
         self.save()
 
     def delete_cached_balance(self):
@@ -740,10 +775,6 @@ class SchemeCredentialQuestion(models.Model):
     LINK_AND_JOIN = (LINK | JOIN)
     MERCHANT_IDENTIFIER = (1 << 3)
 
-    ADD_FIELD = 0
-    AUTH_FIELD = 1
-    ENROL_FIELD = 2
-
     OPTIONS = (
         (NONE, 'None'),
         (LINK, 'Link'),
@@ -759,12 +790,6 @@ class SchemeCredentialQuestion(models.Model):
         (1, 'sensitive'),
         (2, 'choice'),
         (3, 'boolean'),
-    )
-
-    FIELD_TYPE_CHOICES = (
-        (ADD_FIELD, 'add'),
-        (AUTH_FIELD, 'auth'),
-        (ENROL_FIELD, 'enrol'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
@@ -783,7 +808,10 @@ class SchemeCredentialQuestion(models.Model):
     # common_name = models.CharField(default='', blank=True, max_length=50)
     answer_type = models.IntegerField(default=0, choices=ANSWER_TYPE_CHOICES)
     choice = ArrayField(models.CharField(max_length=50), null=True, blank=True)
-    field_type = models.IntegerField(choices=FIELD_TYPE_CHOICES, null=True, blank=True)
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)
 
     @property
     def required(self):
@@ -905,3 +933,15 @@ class UserConsent(models.Model):
 
     def __str__(self):
         return '{} - {}: {}'.format(self.user, self.slug, self.value)
+
+
+class ThirdPartyConsentLink(models.Model):
+    consent_label = models.CharField(max_length=50)
+    client_app = models.ForeignKey('user.ClientApplication', related_name='client_app')
+    scheme = models.ForeignKey('scheme.Scheme', related_name='scheme')
+    consent = models.ForeignKey(Consent, related_name='consent')
+
+    add_field = models.BooleanField(default=False)
+    auth_field = models.BooleanField(default=False)
+    register_field = models.BooleanField(default=False)
+    enrol_field = models.BooleanField(default=False)

@@ -510,8 +510,9 @@ class JoinSerializer(SchemeAnswerSerializer):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
+        exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [SchemeAccount.JOIN_ASYNC_IN_PROGRESS]
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme) \
-            .exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
+            .exclude(status__in=exclude_status_list)
 
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
@@ -556,6 +557,7 @@ class JoinSerializer(SchemeAnswerSerializer):
 
 class DeleteCredentialSerializer(serializers.Serializer):
     all = serializers.NullBooleanField(default=False)
+    keep_card_number = serializers.NullBooleanField(default=False)
     property_list = serializers.ListField(default=[])
     type_list = serializers.ListField(default=[])
 

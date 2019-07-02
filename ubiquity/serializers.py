@@ -1,3 +1,4 @@
+import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 
 import arrow
@@ -10,12 +11,15 @@ from hermes.traced_requests import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
-from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail
-from scheme.serializers import CreateSchemeAccountSerializer
-from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent
+from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink
+from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
+from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 from user.models import CustomUser
+
+if t.TYPE_CHECKING:
+    from scheme.models import SchemeAccount
 
 
 class MembershipTransactionsMixin:
@@ -323,13 +327,33 @@ class SchemeBalanceDetailSerializer(serializers.ModelSerializer):
         exclude = ('scheme_id', 'id')
 
 
+class MembershipPlanDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MembershipPlanDocument
+        exclude = ('id', 'scheme')
+
+
+class UbiquityConsentSerializer(serializers.Serializer):
+    column = serializers.CharField(source='consent_label')
+    description = serializers.CharField(source='consent.text')
+
+    class Meta:
+        model = ThirdPartyConsentLink
+        fields = ('consent_label', 'consent',)
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        data['type'] = SchemeCredentialQuestion.ANSWER_TYPE_CHOICES[3][0]    # boolean
+        return data
+
+
 class MembershipPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
         exclude = ('name',)
 
     @staticmethod
-    def _get_ubiquity_images(instance):
+    def _get_ubiquity_images(instance: Scheme) -> t.List[dict]:
         # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
         filtered_images = {
             image.image_type_code: image
@@ -339,27 +363,56 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def to_representation(self, instance):
+    @staticmethod
+    def _add_alternatives_key(formatted_fields: dict) -> None:
+        options = {field["column"] for field in formatted_fields}
+        for field in formatted_fields:
+            field["alternatives"] = list(options - {field["column"]})
+
+    def _format_add_fields(self, fields: SchemeCredentialQuestion) -> list:
+        formatted_fields = SchemeQuestionSerializer(fields, many=True).data
+        if len(formatted_fields) > 1:
+            self._add_alternatives_key(formatted_fields)
+
+        return formatted_fields
+
+    def _get_scheme_consents(self, scheme):
+        try:
+            client = self.context['request'].user.client
+        except KeyError as e:
+            raise RuntimeError('Missing request object in context for retrieving client app information') from e
+
+        all_consents = ThirdPartyConsentLink.objects.filter(
+            client_app=client,
+            scheme=scheme
+        ).all()
+
+        consents = {
+            'add': [consent for consent in all_consents if consent.add_field is True],
+            'authorise': [consent for consent in all_consents if consent.auth_field is True],
+            'register': [consent for consent in all_consents if consent.register_field is True],
+            'enrol': [consent for consent in all_consents if consent.enrol_field is True]
+        }
+
+        return consents
+
+    def to_representation(self, instance: Scheme) -> dict:
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
-        add_fields = instance.questions.filter(field_type=0).all()
-        authorise_fields = instance.questions.filter(field_type=1).all()
-        enrol_fields = instance.questions.filter(field_type=2).all()
+        add_fields = instance.questions.filter(add_field=True).all()
+        authorise_fields = instance.questions.filter(auth_field=True).all()
+        registration_fields = instance.questions.filter(register_field=True).all()
+        enrol_fields = instance.questions.filter(enrol_field=True).all()
         status = 'active' if instance.is_active else 'suspended'
+        documents = instance.documents.all()
+        consents = self._get_scheme_consents(scheme=instance)
+
         if instance.tier == 2:
             card_type = 2
         elif instance.has_points or instance.has_transactions:
             card_type = 1
         else:
             card_type = 0
-
-        # todo remove this horrible patch as soon as Barclays uses the right field in their app.
-        company_name = instance.company
-        plan_name_card = instance.plan_name_card
-        if 'harvey-nichols' in instance.slug:
-            company_name = 'Rewards'
-            plan_name_card = 'by Harvey Nichols'
-        # ------------------------- end of horrible patch ------------------------------------ #
 
         return {
             'id': instance.id,
@@ -369,6 +422,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'transactions_available': instance.has_transactions,
                 'digital_only': instance.digital_only,
                 'has_points': instance.has_points,
+                'card_type': card_type,
+                'linking_support': instance.linking_support,
                 'apps': [
                     {
                         'app_id': instance.ios_scheme,
@@ -380,8 +435,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                         'app_store_url': instance.play_store_url,
                         'app_type': 1
                     }
-                ],
-                'card_type': card_type
+                ]
             },
             'card': {
                 'barcode_type': instance.barcode_type,
@@ -392,21 +446,27 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             'images': self._get_ubiquity_images(instance),
             'account': {
                 'plan_name': instance.name,
-                'plan_name_card': plan_name_card,
+                'plan_name_card': instance.plan_name_card,
                 'plan_url': instance.url,
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
-                'company_name': company_name,
+                'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
+                'barcode_redeem_instructions': instance.barcode_redeem_instructions,
+                'plan_register_info': instance.plan_register_info,
+                'company_name': instance.company,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
                 'category': instance.category.name,
                 'forgotten_password_url': instance.forgotten_password_url,
                 'tiers': SchemeDetailSerializer(tiers, many=True).data,
-                'terms': instance.join_t_and_c,
-                'terms_url': instance.join_url,
-                'add_fields': SchemeQuestionSerializer(add_fields, many=True).data,
-                'authorise_fields': SchemeQuestionSerializer(authorise_fields, many=True).data,
-                'enrol_fields': SchemeQuestionSerializer(enrol_fields, many=True).data,
+                'add_fields': (self._format_add_fields(add_fields) +
+                               UbiquityConsentSerializer(consents['add'], many=True).data),
+                'authorise_fields': (SchemeQuestionSerializer(authorise_fields, many=True).data +
+                                     UbiquityConsentSerializer(consents['authorise'], many=True).data),
+                'registration_fields': (SchemeQuestionSerializer(registration_fields, many=True).data +
+                                        UbiquityConsentSerializer(consents['register'], many=True).data),
+                'enrol_fields': (SchemeQuestionSerializer(enrol_fields, many=True).data +
+                                 UbiquityConsentSerializer(consents['enrol'], many=True).data),
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data
         }
@@ -502,14 +562,31 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             self.context['request'].user.id, instance.id
         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
-    def to_representation(self, instance):
+    @staticmethod
+    def get_translated_status(instance: 'SchemeAccount') -> dict:
+        status = instance.status
+        if status in instance.SYSTEM_ACTION_REQUIRED:
+            status = instance.ACTIVE
+            if not instance.balances:
+                status = instance.PENDING
+
+        return {
+            'state': ubiquity_status_translation[status],
+            'reason_codes': [
+                reason_code_translation[status],
+            ]
+        }
+
+    def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
             'payment_card_account__is_deleted': False
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         images = instance.scheme.images.all()
-        if instance.status != instance.FAILED_UPDATE:
+        exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
+
+        if instance.status not in exclude_balance_statuses:
             # instance.get_cached_balance()
             async_balance.delay(instance.id)
 
@@ -523,12 +600,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
             'membership_transactions': self._get_transactions(instance),
-            'status': {
-                'state': ubiquity_status_translation[instance.status],
-                'reason_codes': [
-                    reason_code_translation[instance.status],
-                ]
-            },
+            'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
@@ -560,8 +632,13 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 #         ) if self.context.get('request') and instance.scheme.has_transactions else []
 
 
-class UbiquityCreateSchemeAccountSerializer(CreateSchemeAccountSerializer):
+class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
     verify_account_exists = False
+
+
+# todo adapt or remove
+class JoinMembershipCardSerializer(JoinSerializer):
+    pass
 
 
 class PaymentCardReplaceSerializer(CreatePaymentCardAccountSerializer):
