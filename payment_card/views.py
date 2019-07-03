@@ -154,14 +154,13 @@ class ListCreatePaymentCardAccount(APIView):
     @staticmethod
     def _create_payment_card_account(new_acc, user):
         # check if an new_acc with the same fingerprint already exists
-        old_acc = PaymentCardAccount.all_objects.filter(fingerprint=new_acc.fingerprint).order_by('-created').first()
-        if old_acc:
+        old_accounts = PaymentCardAccount.all_objects.filter(fingerprint=new_acc.fingerprint).order_by('-created')
+        if old_accounts.exists():
             # get the latest new_acc from the same client if it exists
-            _old_account = PaymentCardAccount.objects.filter(fingerprint=new_acc.fingerprint,
-                                                             client=user.client.pk).order_by('-created').first()
-            if _old_account:
-                old_acc = _old_account
-            return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_acc, user)
+            same_client_old_accounts = old_accounts.filter(user_set__client=user.client.pk)
+            old_account = same_client_old_accounts.first() or old_accounts.first()
+
+            return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_account, user)
 
         new_acc.save()
         PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_acc)
@@ -176,8 +175,6 @@ class ListCreatePaymentCardAccount(APIView):
                 client=user.client).exists():
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
-
-        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
 
         # copy the tokens from the previous account
         new_account.token = old_account.token
@@ -197,6 +194,7 @@ class ListCreatePaymentCardAccount(APIView):
                 old_account.is_deleted = True
                 old_account.save()
 
+        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
         return new_account
 
     @staticmethod
