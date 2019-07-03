@@ -239,7 +239,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
         scheme_accounts = channels_permit.scheme_account_query(scheme_accounts)
         scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
-                                                  **channels_permit.scheme_suspened('scheme__'))
+                                                  **channels_permit.scheme_suspended('scheme__'))
 
         return scheme_accounts
 
