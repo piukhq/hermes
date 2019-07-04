@@ -1,8 +1,22 @@
-import stomp
-import json
+from kombu import Connection, Exchange, Queue
+
+media_exchange = Exchange('media', 'direct', durable=True)
+video_queue = Queue('video', exchange=media_exchange, routing_key='video')
 
 
-class ArtemisStomp:
+
+# connections
+with Connection('amqp://guest:guest@localhost//') as conn:
+
+    # produce
+    producer = conn.Producer(serializer='json')
+    producer.publish({'name': '/tmp/lolcat1.avi', 'size': 1301013},
+                      exchange=media_exchange, routing_key='video',
+                      declare=[video_queue])
+
+
+
+class MessagingService:
 
     def __init__(self, user, password, queue, host, port):
         self.user = user
@@ -10,8 +24,7 @@ class ArtemisStomp:
         self.queue = queue
         self.host = host
         self.port = port
-        self.conn = None
-        self.connect()
+        self.conn = Connection(f"ampq://{password}:{user}@{host}:{port}/")
 
     def connect(self):
         self.conn = stomp.Connection12([(self.host, self.port)])
