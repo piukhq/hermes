@@ -21,6 +21,7 @@ import hermes
 from environment import env_var, read_env
 from daedalus_messaging.broker import MessagingService
 
+
 read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -86,6 +87,7 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
+    'daedalus_messaging',
 )
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header

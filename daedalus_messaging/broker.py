@@ -30,23 +30,27 @@ class MessagingService:
     def _pub(self, kwargs):
         self.producer.publish(**kwargs)
 
-    def send(self, notice: dict):
-        kwargs = {
-            'body': notice,
-            'headers': {
+    def send(self, notice: dict, headers=None):
+        x_headers = {
                 'X-version': '1.0',
-                'X-content-type': 'application/json'
-            }
         }
 
-        print(f'Hermes to Daedalus-update: {kwargs}')
+        for k, v in headers.items():
+            x_headers[k] = v
+
+        message = {
+            'body': notice,
+            'headers': x_headers
+        }
+
+        print(f'Hermes to Daedalus-update: {message}')
         try:
-            self._pub(kwargs)
+            self._pub(message)
         except Exception as e:
             print(f'Exception on connecting to Message Broker - time out? {e} retry send')
             self.close()
             self.connect()
-            self._pub(kwargs)
+            self._pub(message)
 
     def cleanup(self):
         self.close()

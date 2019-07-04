@@ -18,6 +18,9 @@ def watch_for_admin_updates(sender, **kwargs):
                 action_type = "admin_delete"
             model_rep = instance.object_repr
             print(model_saved, object_id)
-            TO_DAEDALUS.send({"type": action_type, "model": model_saved,
-                              "id": object_id, "rep": model_rep, "sender": sender})
-
+            TO_DAEDALUS.send({"type": action_type,
+                              "model": model_saved,
+                              "id": object_id,
+                              "rep": model_rep},
+                             headers={'X-content-type': 'application/json'}
+                             )
