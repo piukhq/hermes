@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class MyAppConfig(AppConfig):
+class MessageAppConfig(AppConfig):
 
     name = 'daedalus_messaging'
     verbose_name = 'daedalus messaging'
