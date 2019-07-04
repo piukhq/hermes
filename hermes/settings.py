@@ -352,7 +352,11 @@ INFLUX_DB_CONFIG = {
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
 # Time in seconds for the interval between retry tasks called by celery beats
-RETRY_PERIOD = env_var('RETRY_PERIOD', '10')
+RETRY_PERIOD = env_var('RETRY_PERIOD', '60')
+# Time in seconds for interval of checking if payments have not been updated and require voiding
+PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
+# Time in seconds of how long is required before a payment is deemed to be expired
+PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
 
 DATADOG_TRACE = {
     'DEFAULT_SERVICE': 'hermes',

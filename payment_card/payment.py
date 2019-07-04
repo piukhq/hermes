@@ -109,7 +109,7 @@ class Payment:
 
     @staticmethod
     def get_payment_audit(scheme_acc: SchemeAccount):
-        statuses_to_update = [PaymentStatus.AUTHORISED, PaymentStatus.VOID_REQUIRED]
+        statuses_to_update = (PaymentStatus.VOID_REQUIRED, PaymentStatus.AUTHORISED)
         payment_audit_objects = PaymentAudit.objects.filter(scheme_account=scheme_acc,
                                                             status__in=statuses_to_update)
         if payment_audit_objects.count() > 1:
@@ -158,7 +158,7 @@ class Payment:
         except PaymentError:
             transaction_data = {'scheme_acc_id': scheme_acc.id}
             task_store = RetryTaskStore()
-            task_store.set_task('payment_card.tasks', 'payment_void_task', transaction_data)
+            task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
 
     @staticmethod
     def attempt_void(payment_audit: PaymentAudit) -> None:
