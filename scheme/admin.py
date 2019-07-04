@@ -34,6 +34,7 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
 
+        """
         if self.instance.is_active:
             if not any(manual_questions):
                 raise ValidationError("You must have a manual question when a scheme is set to active")
@@ -45,6 +46,7 @@ class CredentialQuestionFormset(BaseInlineFormSet):
                             "When the answer_type field value is 'choice' you must provide the choices")
                 elif choice[pos]:
                     raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
+        """
 
 
 class CredentialQuestionInline(admin.StackedInline):

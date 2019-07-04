@@ -19,6 +19,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 import hermes
 from environment import env_var, read_env
+from daedalus_messaging.broker import MessagingService
 
 read_env()
 
@@ -359,3 +360,12 @@ if MANUAL_CHECK_USE_AZURE:
     MANUAL_CHECK_AZURE_ACCOUNT_KEY = env_var('MANUAL_CHECK_AZURE_ACCOUNT_KEY')
     MANUAL_CHECK_AZURE_CONTAINER = env_var('MANUAL_CHECK_AZURE_CONTAINER')
     MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')
+
+TO_DAEDALUS = MessagingService(
+    user=env_var("RABBIT_USER"),               # eg 'quest'
+    password=env_var("RABBIT_PASSWORD"),       # eg 'quest'
+    queue_name=env_var("TO_QUEUE"),                 # eg 'to_daedalus'
+    host=env_var("RABBIT_HOST"),               # eg '127.0.0.1'
+    port=env_var("RABBIT_PORT")                # eg '5672'
+
+)

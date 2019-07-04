@@ -1,7 +1,7 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.admin.models import LogEntry
-from hermes.settings import ARTEMIS
+from hermes.settings import TO_DAEDALUS
 
 
 @receiver(post_save, sender=LogEntry)
@@ -18,5 +18,6 @@ def watch_for_admin_updates(sender, **kwargs):
                 action_type = "admin_delete"
             model_rep = instance.object_repr
             print(model_saved, object_id)
-            ARTEMIS.send({"type": action_type, "model": model_saved, "id": object_id})
+            TO_DAEDALUS.send({"type": action_type, "model": model_saved,
+                              "id": object_id, "rep": model_rep, "sender": sender})
 
