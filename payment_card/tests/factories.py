@@ -7,6 +7,7 @@ from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 
 from payment_card import models
+from payment_card.models import PaymentAudit
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -89,3 +90,8 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     end_date = timezone.make_aware(datetime(2200, 1, 1))
 
     status = models.PaymentCardAccountImage.PUBLISHED
+
+
+class PaymentAuditFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = PaymentAudit
