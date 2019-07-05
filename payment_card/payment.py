@@ -81,6 +81,8 @@ class Payment:
         except requests.RequestException as e:
             # TODO: retry for service errors. Check if this should be a synchronous retry.
             raise PaymentError("Error authorising payment with payment service provider") from e
+        except KeyError as e:
+            raise PaymentError('Could not find transaction_id in auth response') from e
 
     def void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
@@ -119,7 +121,8 @@ class Payment:
         return payment_audit_objects.last()
 
     @staticmethod
-    def process_payment_auth(user_id: int, scheme_acc: SchemeAccount, payment_card_id: int, payment_amount: int=100) -> None:
+    def process_payment_auth(user_id: int, scheme_acc: SchemeAccount, payment_card_id: int,
+                             payment_amount: int=100) -> None:
         """
         Starts an audit trail and authorises a payment.
         Any failure to authorise a payment will cause the join to fail.
@@ -147,7 +150,8 @@ class Payment:
     def process_payment_void(scheme_acc: SchemeAccount) -> None:
         """
         Attempt to void a transaction linked to a scheme account if transaction is in
-        AUTHORISED or VOID_REQUIRED status.
+        AUTHORISED or VOID_REQUIRED status. If the void fails, 'retry_payment_void_task'
+        is placed on the retry_tasks queue
         """
         payment_audit = Payment.get_payment_audit(scheme_acc)
         if not payment_audit:
