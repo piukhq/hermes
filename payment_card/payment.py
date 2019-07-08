@@ -91,10 +91,6 @@ class Payment:
     def void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
 
-        import time
-        if int(time.time()) % 2 == 0:
-            raise PaymentError
-
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")
 
