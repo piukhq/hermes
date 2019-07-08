@@ -1,3 +1,5 @@
+import logging
+
 import requests
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -16,8 +18,10 @@ class PaymentError(APIException):
 
 @receiver(post_save, sender=PaymentAudit)
 def my_handler(sender, **kwargs):
-    # TODO: use logging
-    print("Payment Audit saved/updated: {}".format(PaymentStatus(kwargs['instance'].status).name))
+    logging.info("Payment Audit of id: {} saved/updated: {}".format(
+        kwargs['instance'].pk,
+        PaymentStatus(kwargs['instance'].status).name
+    ))
 
 
 class Payment:
@@ -34,7 +38,7 @@ class Payment:
     contain information of the user and scheme account related to the payment.
 
     Payments requiring void will result in a call to void the transaction to the payment service
-    provider which, if fails, will be cached using django-redis to retry periodically.
+    provider which, if fails, will be cached using django-redis and retried periodically with celery beat.
     """
 
     PAYMENT_TOKEN_AUTH_URL = "core.spreedly.com/v1/gateways/D5lARug9NzuUfrFNkbeiWYSdHtx/authorize.json"
@@ -86,7 +90,6 @@ class Payment:
 
     def void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
-        print('Called void')
 
         import time
         if int(time.time()) % 2 == 0:
@@ -160,8 +163,8 @@ class Payment:
         try:
             Payment.attempt_void(payment_audit)
         except PaymentError:
-            transaction_data = {'scheme_acc_id': scheme_acc.id}
             task_store = RetryTaskStore()
+            transaction_data = {'scheme_acc_id': scheme_acc.id}
             task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
 
     @staticmethod
