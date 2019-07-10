@@ -1,3 +1,4 @@
+import logging
 import re
 import typing as t
 import uuid
@@ -42,6 +43,7 @@ if t.TYPE_CHECKING:
     from django.http import HttpResponse
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
+logger = logging.getLogger(__name__)
 
 
 def replace_escaped_unicode(match):
@@ -390,9 +392,20 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account = self.get_object()
         return Response(self.get_serializer(account).data)
 
+    def log_update(self, scheme_account_id):
+        try:
+            request_patch_fields = self.request.data['account']
+            request_fields = {k: [x['column'] for x in v] for k, v in request_patch_fields.items()}
+            logger.debug(f'Received membership card patch request for scheme account: {scheme_account_id}. '
+                         f'Requested fields to update: {request_fields}.')
+        except (KeyError, ValueError, TypeError) as e:
+            logger.info(f'Failed to log membership card patch request. Error: {repr(e)}')
+
     @censor_and_decorate
     def update(self, request, *args, **kwargs):
         account = self.get_object()
+        self.log_update(account.pk)
+
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
         manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
