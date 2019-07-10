@@ -44,10 +44,9 @@ class TestPayment(APITestCase):
         pass
 
     @patch('payment_card.payment.Payment', autospec=True)
-    def test_process_payment_auth_success(self, payment_instance):
-        mock_payment_instance = MagicMock()
-        mock_payment_instance.transaction_id = 'abc'
-        payment_instance.return_value = mock_payment_instance
+    def test_process_payment_auth_success(self, mock_payment_class):
+        mock_payment_class.attempt_auth = Payment.attempt_auth
+        mock_payment_class.return_value.transaction_id = 'abc'
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
@@ -64,12 +63,12 @@ class TestPayment(APITestCase):
 
         audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
 
-        self.assertTrue(payment_instance.return_value.auth.called)
-        self.assertEqual(payment_instance.return_value.transaction_id, audit_obj.transaction_id)
+        self.assertTrue(mock_payment_class.called)
+        self.assertEqual('abc', audit_obj.transaction_id)
         self.assertEqual(audit_obj.status, PaymentStatus.AUTHORISED)
 
-    @patch('payment_card.payment.Payment', autospec=True)
-    def test_process_payment_auth_invalid_p_card_id_raises_payment_error(self, payment_instance):
+    @patch('payment_card.payment.Payment._auth', autospec=True)
+    def test_process_payment_auth_invalid_p_card_id_raises_payment_error(self, mock_auth_call):
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
@@ -88,12 +87,12 @@ class TestPayment(APITestCase):
 
         audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
 
-        self.assertFalse(payment_instance.return_value.auth.called)
+        self.assertFalse(mock_auth_call.return_value._auth.called)
         self.assertEqual(audit_obj.status, PaymentStatus.AUTH_FAILED)
 
-    @patch('payment_card.payment.Payment', autospec=True)
-    def test_process_payment_auth_sets_correct_status_for_failures(self, payment_instance):
-        payment_instance.return_value.auth.side_effect = PaymentError
+    @patch('payment_card.payment.Payment._auth', autospec=True)
+    def test_process_payment_auth_sets_correct_status_for_failures(self, mock_auth_call):
+        mock_auth_call.side_effect = PaymentError
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
@@ -110,10 +109,25 @@ class TestPayment(APITestCase):
 
         audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
 
-        self.assertTrue(payment_instance.return_value.auth.called)
+        self.assertTrue(mock_auth_call.called)
         self.assertEqual(audit_obj.status, PaymentStatus.AUTH_FAILED)
 
-    @patch.object(Payment, 'void', autospec=True)
+    @patch('payment_card.payment.Payment._auth', autospec=True)
+    def test_process_payment_auth_retries_on_system_failures(self, mock_auth_call):
+        mock_auth_call.side_effect = PaymentError
+
+        with self.assertRaises(PaymentError):
+            Payment.process_payment_auth(
+                user_id=self.user.id,
+                scheme_acc=self.scheme_account,
+                payment_card_id=self.payment_card_account.id,
+                payment_amount=200
+            )
+
+        self.assertTrue(mock_auth_call.called)
+        self.assertEqual(mock_auth_call.call_count, 4)
+
+    @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_success(self, mock_void):
         audit = PaymentAuditFactory(
             scheme_account=self.scheme_account,
@@ -130,13 +144,13 @@ class TestPayment(APITestCase):
         self.assertEqual(audit.void_attempts, 1)
         self.assertEqual(audit.transaction_id, None)
 
-    @patch.object(Payment, 'void', autospec=True)
+    @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_does_not_call_void_without_audit(self, mock_void):
         Payment.process_payment_void(self.scheme_account)
         self.assertFalse(mock_void.called)
 
     @patch.object(RetryTaskStore, 'set_task', autospec=True)
-    @patch.object(Payment, 'void', autospec=True)
+    @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_error_sets_retry_task(self, mock_void, mock_set_task):
         mock_void.side_effect = PaymentError
         audit = PaymentAuditFactory(
@@ -158,9 +172,8 @@ class TestPayment(APITestCase):
             self.assertIn(arg, list(mock_set_task.call_args_list)[0][0])
 
     @patch.object(PaymentAudit, 'save', autospec=True)
-    def test_process_payment_success_returns_none_if_no_audit(self, mock_save):
+    def test_process_payment_success_does_nothing_if_no_audit(self, mock_save):
         Payment.process_payment_success(scheme_acc=self.scheme_account)
-
         self.assertFalse(mock_save.called)
 
     def test_process_payment_success_changes_audit_status(self):
@@ -170,3 +183,14 @@ class TestPayment(APITestCase):
 
             audit.refresh_from_db()
             self.assertEqual(audit.status, PaymentStatus.SUCCESS)
+
+
+class TestPaymentTasks(APITestCase):
+    def setUp(self):
+        pass
+
+    def test_retry_payment_void_task(self):
+        pass
+
+    def test_expired_payment_void_task(self):
+        pass

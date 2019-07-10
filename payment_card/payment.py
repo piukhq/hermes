@@ -1,10 +1,13 @@
+import json
 import logging
 
 import requests
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.exceptions import APIException
+from tenacity import retry, stop_after_attempt, retry_if_exception_type, wait_exponential
 
+from hermes.settings import SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET, SPREEDLY_GATEWAY_TOKEN, SPREEDLY_BASE_URL
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
 from scheme.models import SchemeAccount
@@ -18,6 +21,7 @@ class PaymentError(APIException):
 
 @receiver(post_save, sender=PaymentAudit)
 def my_handler(sender, **kwargs):
+    # TODO: have some sort of error log (Sentry?) if void attempts reaches a certain number?
     logging.info("Payment Audit of id: {} saved/updated: {}".format(
         kwargs['instance'].pk,
         PaymentStatus(kwargs['instance'].status).name
@@ -41,8 +45,8 @@ class Payment:
     provider which, if fails, will be cached using django-redis and retried periodically with celery beat.
     """
 
-    PAYMENT_TOKEN_AUTH_URL = "core.spreedly.com/v1/gateways/D5lARug9NzuUfrFNkbeiWYSdHtx/authorize.json"
-    PAYMENT_TOKEN_VOID_URL = "core.spreedly.com/v1/transactions/{transaction_token}/void.json"
+    PAYMENT_TOKEN_AUTH_URL = "{}/v1/gateways/{gateway_token}/authorize.json"
+    PAYMENT_TOKEN_VOID_URL = "{}/v1/transactions/{transaction_token}/void.json"
 
     def __init__(self, audit_obj: PaymentAudit, amount: int = 0, currency_code: str = 'GBP', payment_token: str = None):
         self.audit_obj = audit_obj
@@ -54,15 +58,11 @@ class Payment:
         self.void_resp = None
         self.transaction_id = None
 
-    def auth(self, payment_token: str=None) -> None:
+    def _auth(self, payment_token: str=None) -> None:
         p_token = payment_token or self.payment_token
 
         if not p_token:
             raise PaymentError("No payment token provided")
-
-        headers = {
-            "Authorization": "Basic {}"
-        }
 
         payload = {
             "transaction": {
@@ -74,39 +74,41 @@ class Payment:
         }
 
         try:
-            # resp = requests.post(self.PAYMENT_TOKEN_AUTH_URL, json=payload, headers=headers)
-            # resp.raise_for_status()
+            resp = requests.post(
+                self.PAYMENT_TOKEN_AUTH_URL.format(SPREEDLY_BASE_URL, gateway_token=SPREEDLY_GATEWAY_TOKEN),
+                json=payload,
+                auth=(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET)
+            )
+            resp.raise_for_status()
 
-            # self.auth_resp = json.dumps(resp.json())
+            self.auth_resp = json.dumps(resp.json())
             self.auth_resp = {'transaction_id': 'test_transaction_id-12356'}
             self.transaction_id = self.auth_resp['transaction_id']
-            print('Called auth')
 
         except requests.RequestException as e:
-            # TODO: retry for service errors. Check if this should be a synchronous retry.
             raise PaymentError("Error authorising payment with payment service provider") from e
         except KeyError as e:
             raise PaymentError('Could not find transaction_id in auth response') from e
 
-    def void(self, transaction_token: str=None) -> None:
+    def _void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
 
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")
 
-        url = self.PAYMENT_TOKEN_VOID_URL.format(transaction_token=transaction_token)
+        url = self.PAYMENT_TOKEN_VOID_URL.format(SPREEDLY_BASE_URL, transaction_token=transaction_token)
 
-        # try:
-        #     resp = requests.post(url)
-        #     resp.raise_for_status()
-        #
-        #     self.void_resp = resp.json()
-        #     if not self.void_resp['response']['success']:
-        #         raise PaymentError('Unsuccessful void response')
-        # except requests.RequestException as e:
-        #     raise PaymentError("Error voiding payment with payment service provider") from e
-        # except KeyError as e:
-        #     raise PaymentError("Unexpected response received when calling void") from e
+        try:
+            resp = requests.post(url, auth=(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET))
+            resp.raise_for_status()
+
+            self.void_resp = resp.json()
+            if not self.void_resp['response']['success']:
+                raise PaymentError('Unsuccessful void response')
+        except requests.RequestException as e:
+            raise PaymentError("Error voiding payment with payment service provider") from e
+        except KeyError as e:
+            raise PaymentError("Unexpected response received when calling void") from e
 
     @staticmethod
     def get_payment_audit(scheme_acc: SchemeAccount):
@@ -127,19 +129,31 @@ class Payment:
         Any failure to authorise a payment will cause the join to fail.
         """
         payment_audit = PaymentAudit.objects.create(user_id=user_id, scheme_account=scheme_acc)
+
         try:
-            pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
-            payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
-
-            payment.auth()
-
-            payment_audit.transaction_id = payment.transaction_id
-            payment_audit.status = PaymentStatus.AUTHORISED
-            payment_audit.save()
+            Payment.attempt_auth(payment_audit, payment_card_id, payment_amount)
         except PaymentCardAccount.DoesNotExist:
             payment_audit.status = PaymentStatus.AUTH_FAILED
             payment_audit.save()
             raise PaymentError('Provided Payment Card Account id does not exist')
+
+    @staticmethod
+    @retry(stop=stop_after_attempt(4),
+           retry=retry_if_exception_type(PaymentError),
+           wait=wait_exponential(min=2, max=8),
+           reraise=True)
+    def attempt_auth(payment_audit: PaymentAudit, payment_card_id: int,
+                     payment_amount: int=100) -> None:
+
+        try:
+            pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
+            payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
+
+            payment._auth()
+
+            payment_audit.transaction_id = payment.transaction_id
+            payment_audit.status = PaymentStatus.AUTHORISED
+            payment_audit.save()
         except PaymentError:
             payment_audit.status = PaymentStatus.AUTH_FAILED
             payment_audit.save()
@@ -169,7 +183,7 @@ class Payment:
         payment_audit.save()
         try:
             payment_audit.void_attempts += 1
-            Payment(audit_obj=payment_audit).void(transaction_token=payment_audit.transaction_id)
+            Payment(audit_obj=payment_audit)._void(transaction_token=payment_audit.transaction_id)
             payment_audit.transaction_id = None
             payment_audit.status = PaymentStatus.VOID_SUCCESSFUL
             payment_audit.save()

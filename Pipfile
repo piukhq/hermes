@@ -35,6 +35,7 @@ Pillow = "==2.9.0"
 PyJWT = "==1.6.4"
 PyYAML = "==3.11"
 sentry-sdk = "*"
+tenacity = "*"
 
 [requires]
 python_version = "3.6"
