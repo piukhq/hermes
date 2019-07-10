@@ -366,8 +366,7 @@ if MANUAL_CHECK_USE_AZURE:
 TO_DAEDALUS = MessagingService(
     user=env_var("RABBIT_USER"),               # eg 'quest'
     password=env_var("RABBIT_PASSWORD"),       # eg 'quest'
-    queue_name=env_var("TO_QUEUE"),                 # eg 'to_daedalus'
+    queue_name=env_var("TO_QUEUE"),            # eg 'to_daedalus''
     host=env_var("RABBIT_HOST"),               # eg '127.0.0.1'
     port=env_var("RABBIT_PORT")                # eg '5672'
-
 )
