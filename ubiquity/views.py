@@ -523,14 +523,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     def _collect_fields_and_determine_route(self) -> t.Tuple[int, dict, dict, dict]:
         try:
-            if self.request.allowed_schemes and int(
-                    self.request.data['membership_plan']) not in self.request.allowed_schemes:
+            scheme_id = self.request.data['membership_plan']
+            if self.request.allowed_schemes and int(scheme_id) not in self.request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
+        except KeyError:
+            raise ParseError('required field membership_plan is missing')
         except ValueError:
             raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data)
-        scheme_id = self.request.data['membership_plan']
         return scheme_id, auth_fields, enrol_fields, add_fields
 
     @staticmethod
