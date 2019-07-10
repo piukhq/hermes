@@ -45,8 +45,8 @@ class Payment:
     provider which, if fails, will be cached using django-redis and retried periodically with celery beat.
     """
 
-    PAYMENT_TOKEN_AUTH_URL = "{}/v1/gateways/{gateway_token}/authorize.json"
-    PAYMENT_TOKEN_VOID_URL = "{}/v1/transactions/{transaction_token}/void.json"
+    payment_auth_url = "{}/v1/gateways/{gateway_token}/authorize.json"
+    payment_void_url = "{}/v1/transactions/{transaction_token}/void.json"
 
     def __init__(self, audit_obj: PaymentAudit, amount: int = 0, currency_code: str = 'GBP', payment_token: str = None):
         self.audit_obj = audit_obj
@@ -68,27 +68,31 @@ class Payment:
             "transaction": {
                 "payment_method_token": self.payment_token,
                 "amount": self.amount,
-                "currency_code": self.currency_code
-                # "order_id":
+                "currency_code": self.currency_code,
+                "order_id": self.audit_obj.transaction_ref
             }
         }
 
         try:
             resp = requests.post(
-                self.PAYMENT_TOKEN_AUTH_URL.format(SPREEDLY_BASE_URL, gateway_token=SPREEDLY_GATEWAY_TOKEN),
+                self.payment_auth_url.format(SPREEDLY_BASE_URL, gateway_token=SPREEDLY_GATEWAY_TOKEN),
                 json=payload,
                 auth=(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET)
             )
-            resp.raise_for_status()
+            self.auth_resp = resp.json()
+            if not self.auth_resp['transaction']['succeeded']:
+                message = "Payment authorisation error - response: {}".format(
+                    self.auth_resp['transaction']['response']
+                )
+                logging.error(message)
+                raise PaymentError("PSP has responded with unsuccessful auth")
 
-            self.auth_resp = json.dumps(resp.json())
-            self.auth_resp = {'transaction_id': 'test_transaction_id-12356'}
-            self.transaction_id = self.auth_resp['transaction_id']
+            self.transaction_id = self.auth_resp['transaction']['token']
 
         except requests.RequestException as e:
             raise PaymentError("Error authorising payment with payment service provider") from e
         except KeyError as e:
-            raise PaymentError('Could not find transaction_id in auth response') from e
+            raise PaymentError("Error with auth response format") from e
 
     def _void(self, transaction_token: str=None) -> None:
         transaction_token = transaction_token or self.auth_resp['transaction']['token']
@@ -96,19 +100,23 @@ class Payment:
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")
 
-        url = self.PAYMENT_TOKEN_VOID_URL.format(SPREEDLY_BASE_URL, transaction_token=transaction_token)
-
         try:
-            resp = requests.post(url, auth=(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET))
-            resp.raise_for_status()
+            resp = requests.post(
+                self.payment_void_url.format(SPREEDLY_BASE_URL, transaction_token=transaction_token),
+                auth=(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET)
+            )
 
             self.void_resp = resp.json()
-            if not self.void_resp['response']['success']:
-                raise PaymentError('Unsuccessful void response')
+            if not self.void_resp['transaction']['succeeded']:
+                message = "Payment void error - response: {}".format(
+                    self.void_resp['transaction']['response']
+                )
+                logging.error(message)
+                raise PaymentError("PSP has responded with unsuccessful void")
         except requests.RequestException as e:
             raise PaymentError("Error voiding payment with payment service provider") from e
         except KeyError as e:
-            raise PaymentError("Unexpected response received when calling void") from e
+            raise PaymentError("Error with void response format") from e
 
     @staticmethod
     def get_payment_audit(scheme_acc: SchemeAccount):
@@ -135,7 +143,7 @@ class Payment:
         except PaymentCardAccount.DoesNotExist:
             payment_audit.status = PaymentStatus.AUTH_FAILED
             payment_audit.save()
-            raise PaymentError('Provided Payment Card Account id does not exist')
+            raise PaymentError("Provided Payment Card Account id does not exist")
 
     @staticmethod
     @retry(stop=stop_after_attempt(4),
