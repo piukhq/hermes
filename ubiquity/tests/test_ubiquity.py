@@ -13,8 +13,7 @@ from rest_framework.test import APITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
-from scheme.models import (SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes,
-                           SchemeAccountCredentialAnswer)
+from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory)
 from ubiquity.censor_empty_fields import remove_empty
@@ -800,7 +799,7 @@ class TestResources(APITestCase):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer='55555')
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer='testpassword')
+        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer='pass')
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -814,7 +813,7 @@ class TestResources(APITestCase):
                 "authorise_fields": [
                     {
                         "column": "password",
-                        "value": "testpassword"
+                        "value": "pass"
                     }
                 ]
             }
@@ -839,7 +838,7 @@ class TestResources(APITestCase):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
         SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account, answer='55555')
-        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer='testpassword')
+        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account, answer='pass')
 
         payload = {
             "membership_plan": self.put_scheme.id,
@@ -853,7 +852,7 @@ class TestResources(APITestCase):
                 "authorise_fields": [
                     {
                         "column": "password",
-                        "value": "testpassword"
+                        "value": "pass"
                     }
                 ]
             }
