@@ -9,9 +9,7 @@ from django_redis import get_redis_connection
 def retry_tasks():
     # needs to try all tasks in list on each scheduled retry beat
     task_store = RetryTaskStore()
-    print('called retry tasks')
     for i in range(0, task_store.length):
-        print('{} tasks in queue'.format(task_store.length))
         task_store.call_next_task()
 
 
