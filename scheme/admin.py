@@ -11,8 +11,24 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
                            ThirdPartyConsentLink, SchemeBundleAssociation)
 from ubiquity.models import SchemeAccountEntry
+from django.contrib import messages
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
+
+
+def check_active_scheme(scheme):
+    message = 'You must have a manual question when a scheme is set to active'
+    if not scheme.manual_question:
+        return True, message
+    message = ""
+    for question in scheme.questions.all():
+        if question.answer_type == 2:
+            if not question.choice:
+                message = "When the answer_type field value is 'choice' you must provide the choices"
+        elif question.choice:
+            message = "The choice field should be filled only when answer_type value is 'choice'"
+
+    return message != "", message
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -33,18 +49,6 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         scan_questions = [form.cleaned_data['scan_question'] for form in self.forms]
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
-
-        if self.instance.is_active:
-            if not any(manual_questions):
-                raise ValidationError("You must have a manual question when a scheme is set to active")
-
-            for pos, answer in enumerate(answer_type):
-                if answer == 2:
-                    if not choice[pos]:
-                        raise ValidationError(
-                            "When the answer_type field value is 'choice' you must provide the choices")
-                elif choice[pos]:
-                    raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
 
 
 class CredentialQuestionInline(admin.StackedInline):
@@ -413,3 +417,21 @@ class SchemeBundleAssociationAdmin(admin.ModelAdmin):
     list_display = ('bundle', 'scheme', 'status')
     search_fields = ('bundle_id', 'scheme__name')
     raw_id_fields = ("scheme",)
+
+    def save_form(self, request, form, change):
+        ret = super().save_form(request, form, change)
+        clean_item = form.cleaned_data
+        scheme = clean_item.get('scheme')
+        status = clean_item.get('status', SchemeBundleAssociation.INACTIVE)
+        old_status = form.initial.get('status', None)
+        error = False
+        if status == SchemeBundleAssociation.ACTIVE:
+            error, message = check_active_scheme(scheme)
+            if error:
+                if old_status is None or old_status == SchemeBundleAssociation.ACTIVE:
+                    old_status = SchemeBundleAssociation.INACTIVE
+                messages.error(request,
+                               f"ERROR - scheme {scheme.name} status reverted"
+                               f" to {SchemeBundleAssociation.STATUSES[old_status][1]} because {message}")
+                ret.status = old_status
+        return ret

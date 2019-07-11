@@ -5,6 +5,8 @@ from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import ugettext_lazy as _
 from scheme.models import SchemeBundleAssociation
 from ubiquity.models import ServiceConsent
+from django.contrib import messages
+from scheme.admin import check_active_scheme
 from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
                          Organisation, Referral, Setting, UserDetail, UserSetting)
 
@@ -177,6 +179,31 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
     inlines = [
         SchemeInline,
     ]
+    current_bundle_status = {}
+
+    def save_formset(self, request, form, formset, change):
+        super().save_formset(request, form, formset, change)
+        cleaned = formset.cleaned_data
+        for clean_item in cleaned:
+            scheme = clean_item.get('scheme')
+            status = clean_item.get('status', SchemeBundleAssociation.INACTIVE)
+            if status == SchemeBundleAssociation.ACTIVE:
+                error, message = check_active_scheme(scheme)
+                if error:
+                    old_status = self.current_bundle_status.get(scheme.id, None)
+                    if old_status is None or old_status == SchemeBundleAssociation.ACTIVE:
+                        old_status = SchemeBundleAssociation.INACTIVE
+                    messages.error(request,
+                                   f"ERROR - scheme {scheme.name} status reverted"
+                                   f" to {SchemeBundleAssociation.STATUSES[old_status][1]} because {message}")
+                    SchemeBundleAssociation.objects.filter(scheme_id=scheme.id).update(status=old_status)
+
+    def save_model(self, request, obj, form, change):
+        current_bundles = SchemeBundleAssociation.objects.filter(bundle__bundle_id=obj.bundle_id)\
+            .values('scheme_id', 'status')
+        self.current_bundle_status = \
+            {current_bundle['scheme_id']: current_bundle['status'] for current_bundle in current_bundles}
+        super().save_model(request, obj, form, change)
 
     def get_fieldsets(self, request, obj=None):
         allowed_issuers = None
