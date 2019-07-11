@@ -1,5 +1,6 @@
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
+import requests
 from rest_framework.test import APITestCase
 
 from hermes.tasks import RetryTaskStore
@@ -19,34 +20,178 @@ class TestPayment(APITestCase):
         self.p_link = PaymentCardAccountEntryFactory(payment_card_account=self.payment_card_account, user=self.user)
         self.s_link = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
-    def test_auth_success(self):
-        pass
+    @patch('requests.post', autospec=True)
+    def test_auth_success(self, mock_post):
+        response = {
+            "transaction": {
+                "token": "abc-123",
+                "succeeded": True
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        payment_token = 'abc'
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
-    def test_auth_missing_token_raises_payment_error(self):
-        pass
+        payment._auth()
 
-    def test_auth_request_exception_raises_payment_error(self):
-        pass
+        self.assertTrue(mock_post.called)
+        self.assertEqual(payment.auth_resp, response)
+        self.assertEqual(payment.transaction_token, response['transaction']['token'])
 
-    def test_void_success(self):
-        pass
+    @patch('requests.post', autospec=True)
+    def test_auth_missing_token_raises_payment_error(self, mock_post):
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment = Payment(audit_obj=audit, amount=100)
 
-    def test_void_missing_token_raises_payment_error(self):
-        pass
+        with self.assertRaises(PaymentError):
+            payment._auth()
 
-    def test_void_request_exception_raises_payment_error(self):
-        pass
+        self.assertFalse(mock_post.called)
 
-    def test_void_unexpected_response_raises_payment_error(self):
-        pass
+    @patch('requests.post', autospec=True)
+    def test_auth_request_exception_raises_payment_error(self, mock_post):
+        mock_post.side_effect = requests.ConnectionError
+        payment_token = 'abc'
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
-    def test_void_failure_response_raises_payment_error(self):
-        pass
+        with self.assertRaises(PaymentError):
+            payment._auth()
+
+        self.assertTrue(mock_post.called)
+
+    @patch('requests.post', autospec=True)
+    def test_auth_unexpected_response_raises_payment_error(self, mock_post):
+        response = {
+            "transaction": {
+                "token": "abc-123",
+                "missing_succeeded_key": True
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        payment_token = 'abc'
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._auth()
+
+        self.assertTrue(mock_post.called)
+        self.assertEqual(payment.auth_resp, response)
+        self.assertNotEqual(payment.transaction_token, response['transaction']['token'])
+
+    @patch('requests.post', autospec=True)
+    def test_auth_unsuccessful_response_raises_payment_error(self, mock_post):
+        response = {
+            "transaction": {
+                "token": "abc-123",
+                "succeeded": False,
+                "response": {}
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        payment_token = 'abc'
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._auth()
+
+        self.assertTrue(mock_post.called)
+        self.assertEqual(payment.auth_resp, response)
+        self.assertNotEqual(payment.transaction_token, response['transaction']['token'])
+
+    @patch('requests.post', autospec=True)
+    def test_void_success(self, mock_post):
+        response = {
+            "transaction": {
+                "succeeded": True
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_token = self.payment_token_success
+
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        payment._void(transaction_token='abc')
+
+        self.assertTrue(mock_post.called)
+
+    @patch('requests.post', autospec=True)
+    def test_void_missing_transaction_token_raises_payment_error(self, mock_post):
+        response = {
+            "transaction": {
+                "succeeded": True
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_token = self.payment_token_success
+
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._void()
+
+        self.assertFalse(mock_post.called)
+
+    @patch('requests.post', autospec=True)
+    def test_void_request_exception_raises_payment_error(self, mock_post):
+        mock_post.side_effect = requests.RequestException
+
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_token = self.payment_token_success
+
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._void(transaction_token='abc')
+
+        self.assertTrue(mock_post.called)
+
+    @patch('requests.post', autospec=True)
+    def test_void_unexpected_response_raises_payment_error(self, mock_post):
+        response = {
+            "transaction": {
+                "missing_succeeded_key": True
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_token = self.payment_token_success
+
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._void(transaction_token='abc')
+
+        self.assertTrue(mock_post.called)
+
+    @patch('requests.post', autospec=True)
+    def test_void_failure_response_raises_payment_error(self, mock_post):
+        response = {
+            "transaction": {
+                "succeeded": False,
+                "response": {}
+            }
+        }
+        mock_post.return_value.json.return_value = response
+        audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_token = self.payment_token_success
+
+        payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
+
+        with self.assertRaises(PaymentError):
+            payment._void(transaction_token='abc')
+
+        self.assertTrue(mock_post.called)
 
     @patch('payment_card.payment.Payment', autospec=True)
     def test_process_payment_auth_success(self, mock_payment_class):
         mock_payment_class.attempt_auth = Payment.attempt_auth
-        mock_payment_class.return_value.transaction_id = 'abc'
+        mock_payment_class.return_value.transaction_token = 'abc'
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)

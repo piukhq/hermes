@@ -56,7 +56,7 @@ class Payment:
 
         self.auth_resp = None
         self.void_resp = None
-        self.transaction_id = None
+        self.transaction_token = None
 
     def _auth(self, payment_token: str=None) -> None:
         p_token = payment_token or self.payment_token
@@ -87,7 +87,7 @@ class Payment:
                 logging.error(message)
                 raise PaymentError("PSP has responded with unsuccessful auth")
 
-            self.transaction_id = self.auth_resp['transaction']['token']
+            self.transaction_token = self.auth_resp['transaction']['token']
 
         except requests.RequestException as e:
             raise PaymentError("Error authorising payment with payment service provider") from e
@@ -95,7 +95,7 @@ class Payment:
             raise PaymentError("Error with auth response format") from e
 
     def _void(self, transaction_token: str=None) -> None:
-        transaction_token = transaction_token or self.auth_resp['transaction']['token']
+        transaction_token = transaction_token or self.transaction_token
 
         if not transaction_token:
             raise PaymentError("No transaction token provided to void")
@@ -159,7 +159,7 @@ class Payment:
 
             payment._auth()
 
-            payment_audit.transaction_id = payment.transaction_id
+            payment_audit.transaction_id = payment.transaction_token
             payment_audit.status = PaymentStatus.AUTHORISED
             payment_audit.save()
         except PaymentError:
