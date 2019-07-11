@@ -424,7 +424,6 @@ class SchemeBundleAssociationAdmin(admin.ModelAdmin):
         scheme = clean_item.get('scheme')
         status = clean_item.get('status', SchemeBundleAssociation.INACTIVE)
         old_status = form.initial.get('status', None)
-        error = False
         if status == SchemeBundleAssociation.ACTIVE:
             error, message = check_active_scheme(scheme)
             if error:
