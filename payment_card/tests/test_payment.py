@@ -328,14 +328,3 @@ class TestPayment(APITestCase):
 
             audit.refresh_from_db()
             self.assertEqual(audit.status, PaymentStatus.SUCCESS)
-
-
-class TestPaymentTasks(APITestCase):
-    def setUp(self):
-        pass
-
-    def test_retry_payment_void_task(self):
-        pass
-
-    def test_expired_payment_void_task(self):
-        pass
