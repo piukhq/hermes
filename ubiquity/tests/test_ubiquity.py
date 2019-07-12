@@ -795,6 +795,35 @@ class TestResources(APITestCase):
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_membership_card_put_missing_membership_plan_error(self, *_):
+        sa = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(scheme_account=sa, user=self.user)
+        payload_put = {
+            "account": {
+                "add_fields": [
+                    {
+                        "column": "barcode",
+                        "value": "1234401022699099"
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "Test Composite"
+                    }
+                ]
+            }
+        }
+        resp = self.client.put(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_put),
+                               content_type='application/json', **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.json(), {'detail': 'required field membership_plan is missing'})
+
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_manual_question(self, *_):
         scheme_account = SchemeAccountFactory(scheme=self.put_scheme)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
