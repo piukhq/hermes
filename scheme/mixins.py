@@ -255,17 +255,7 @@ class SchemeAccountJoinMixin:
             if payment_card_id:
                 Payment.process_payment_auth(user.id, scheme_account, payment_card_id, payment_amount=100)
 
-            if 'consents' in serializer.validated_data:
-                consent_data = serializer.validated_data.pop('consents')
-
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
-
-                for user_consent in user_consents:
-                    user_consent.save()
-
-                user_consents = scheme_account.collect_pending_consents()
-                data['credentials'].update(consents=user_consents)
+            self.save_consents(serializer, user, scheme_account, scheme_id, data)
 
             data['id'] = scheme_account.id
             if data['save_user_information']:
@@ -283,6 +273,20 @@ class SchemeAccountJoinMixin:
         except Exception:
             self.handle_failed_join(scheme_account, user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK, scheme_account
+
+    @staticmethod
+    def save_consents(serializer, user, scheme_account, scheme_id, data):
+        if 'consents' in serializer.validated_data:
+            consent_data = serializer.validated_data.pop('consents')
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+            for user_consent in user_consents:
+                user_consent.save()
+
+            user_consents = scheme_account.collect_pending_consents()
+            data['credentials'].update(consents=user_consents)
 
     @staticmethod
     def handle_failed_join(scheme_account: SchemeAccount, user: 'CustomUser') -> None:
