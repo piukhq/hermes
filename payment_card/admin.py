@@ -147,8 +147,10 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
 
 @admin.register(models.PaymentAudit)
 class PaymentAuditAdmin(admin.ModelAdmin):
-    list_display = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_id', 'status', 'created_on', 'modified_on',)
-    search_fields = ('user_id', 'scheme_account', 'scheme_account__scheme__name' 'transaction_ref', 'transaction_id', 'status',)
+    list_display = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_id', 'status', 'created_on',
+                    'modified_on',)
+    search_fields = ('user_id', 'scheme_account', 'scheme_account__scheme__name' 'transaction_ref', 'transaction_id',
+                     'status',)
     readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_id', 'created_on', 'modified_on',
                        'void_attempts')
 
