@@ -158,7 +158,7 @@ class Payment:
 
             payment._auth()
 
-            payment_audit.transaction_id = payment.transaction_token
+            payment_audit.transaction_token = payment.transaction_token
             payment_audit.status = PaymentStatus.AUTHORISED
             payment_audit.save()
         except PaymentError:
@@ -190,8 +190,8 @@ class Payment:
         payment_audit.save()
         try:
             payment_audit.void_attempts += 1
-            Payment(audit_obj=payment_audit)._void(transaction_token=payment_audit.transaction_id)
-            payment_audit.transaction_id = None
+            Payment(audit_obj=payment_audit)._void(transaction_token=payment_audit.transaction_token)
+            payment_audit.transaction_token = None
             payment_audit.status = PaymentStatus.VOID_SUCCESSFUL
             payment_audit.save()
         except PaymentError:
@@ -208,6 +208,6 @@ class Payment:
             return
 
         if payment_audit.status != PaymentStatus.SUCCESS:
-            payment_audit.transaction_id = None
+            payment_audit.transaction_token = None
             payment_audit.status = PaymentStatus.SUCCESS
             payment_audit.save()
