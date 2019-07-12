@@ -111,7 +111,7 @@ class TestPayment(APITestCase):
         }
         mock_post.return_value.json.return_value = response
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
-        payment_token = self.payment_token_success
+        payment_token = 'abc'
 
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
@@ -128,7 +128,7 @@ class TestPayment(APITestCase):
         }
         mock_post.return_value.json.return_value = response
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
-        payment_token = self.payment_token_success
+        payment_token = 'abc'
 
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
@@ -142,7 +142,7 @@ class TestPayment(APITestCase):
         mock_post.side_effect = requests.RequestException
 
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
-        payment_token = self.payment_token_success
+        payment_token = 'abc'
 
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
@@ -160,7 +160,7 @@ class TestPayment(APITestCase):
         }
         mock_post.return_value.json.return_value = response
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
-        payment_token = self.payment_token_success
+        payment_token = 'abc'
 
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
@@ -179,7 +179,7 @@ class TestPayment(APITestCase):
         }
         mock_post.return_value.json.return_value = response
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
-        payment_token = self.payment_token_success
+        payment_token = 'abc'
 
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
@@ -209,7 +209,7 @@ class TestPayment(APITestCase):
         audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
 
         self.assertTrue(mock_payment_class.called)
-        self.assertEqual('abc', audit_obj.transaction_id)
+        self.assertEqual('abc', audit_obj.transaction_token)
         self.assertEqual(audit_obj.status, PaymentStatus.AUTHORISED)
 
     @patch('payment_card.payment.Payment._auth', autospec=True)
@@ -277,7 +277,7 @@ class TestPayment(APITestCase):
         audit = PaymentAuditFactory(
             scheme_account=self.scheme_account,
             status=PaymentStatus.AUTHORISED,
-            transaction_id='qwerty'
+            transaction_token='qwerty'
         )
 
         Payment.process_payment_void(self.scheme_account)
@@ -287,7 +287,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_SUCCESSFUL)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertEqual(audit.transaction_id, None)
+        self.assertEqual(audit.transaction_token, None)
 
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_does_not_call_void_without_audit(self, mock_void):
@@ -301,7 +301,7 @@ class TestPayment(APITestCase):
         audit = PaymentAuditFactory(
             scheme_account=self.scheme_account,
             status=PaymentStatus.AUTHORISED,
-            transaction_id='qwerty'
+            transaction_token='qwerty'
         )
 
         Payment.process_payment_void(self.scheme_account)
@@ -311,7 +311,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_REQUIRED)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertNotEqual(audit.transaction_id, None)
+        self.assertNotEqual(audit.transaction_token, None)
         self.assertTrue(mock_set_task.called)
         for arg in ['payment_card.tasks', 'retry_payment_void_task', {'scheme_acc_id': self.scheme_account.id}]:
             self.assertIn(arg, list(mock_set_task.call_args_list)[0][0])
