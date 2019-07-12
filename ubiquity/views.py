@@ -454,7 +454,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
 
-        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+        if request.allowed_schemes and int(scheme_id) not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
