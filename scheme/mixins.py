@@ -436,6 +436,14 @@ class UpdateCredentialsMixin:
             query = Q(add_field=True)
 
         required_questions = scheme.questions.values('type').filter(query).all()
+
+        if scheme.manual_question and scheme.manual_question.type in data.keys():
+            if scheme.scan_question:
+                required_questions = required_questions.exclude(type=scheme.scan_question.type)
+        elif scheme.scan_question and scheme.scan_question.type in data.keys():
+            if scheme.manual_question:
+                required_questions = required_questions.exclude(type=scheme.manual_question.type)
+
         for question in required_questions:
             if question['type'] not in data.keys():
                 raise ValidationError('required field {} is missing.'.format(question['type']))
