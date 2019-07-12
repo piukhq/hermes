@@ -1,4 +1,3 @@
-import json
 import logging
 
 import requests
@@ -58,7 +57,7 @@ class Payment:
         self.void_resp = None
         self.transaction_token = None
 
-    def _auth(self, payment_token: str=None) -> None:
+    def _auth(self, payment_token: str = None) -> None:
         p_token = payment_token or self.payment_token
 
         if not p_token:
@@ -94,7 +93,7 @@ class Payment:
         except KeyError as e:
             raise PaymentError("Error with auth response format") from e
 
-    def _void(self, transaction_token: str=None) -> None:
+    def _void(self, transaction_token: str = None) -> None:
         transaction_token = transaction_token or self.transaction_token
 
         if not transaction_token:
@@ -131,7 +130,7 @@ class Payment:
 
     @staticmethod
     def process_payment_auth(user_id: int, scheme_acc: SchemeAccount, payment_card_id: int,
-                             payment_amount: int=100) -> None:
+                             payment_amount: int = 100) -> None:
         """
         Starts an audit trail and authorises a payment.
         Any failure to authorise a payment will cause the join to fail.
@@ -151,7 +150,7 @@ class Payment:
            wait=wait_exponential(min=2, max=8),
            reraise=True)
     def attempt_auth(payment_audit: PaymentAudit, payment_card_id: int,
-                     payment_amount: int=100) -> None:
+                     payment_amount: int = 100) -> None:
 
         try:
             pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
