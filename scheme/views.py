@@ -346,11 +346,13 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
 
+        pending_statuses = [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS, SchemeAccount.PENDING,
+                            SchemeAccount.PENDING_MANUAL_CHECK]
+
         if new_status_code is SchemeAccount.ACTIVE:
             Payment.process_payment_success(scheme_account)
-        # elif new_status_code in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.PENDING]:
-        #     # TODO: check if there are any statuses where the payment obj should not be updated e.g pending states
-        #     pass
+        elif new_status_code in pending_statuses:
+            pass
         else:
             Payment.process_payment_void(scheme_account)
 

@@ -1,6 +1,7 @@
 import logging
 
 import requests
+import sentry_sdk
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.exceptions import APIException
@@ -20,7 +21,12 @@ class PaymentError(APIException):
 
 @receiver(post_save, sender=PaymentAudit)
 def my_handler(sender, **kwargs):
-    # TODO: have some sort of error log (Sentry?) if void attempts reaches a certain number?
+    audit_count = kwargs['instance'].void_attempts
+    if audit_count > 10:
+        sentry_sdk.capture_message(
+            "Payment Audit of id: {} - Has reached a void retry count of {}".format(kwargs['instance'].pk, audit_count)
+        )
+
     logging.info("Payment Audit of id: {} saved/updated: {}".format(
         kwargs['instance'].pk,
         PaymentStatus(kwargs['instance'].status).name
@@ -118,14 +124,10 @@ class Payment:
             raise PaymentError("Error with void response format") from e
 
     @staticmethod
-    def get_payment_audit(scheme_acc: SchemeAccount):
+    def get_payment_audit(scheme_acc: SchemeAccount) -> PaymentAudit:
         statuses_to_update = (PaymentStatus.VOID_REQUIRED, PaymentStatus.AUTHORISED)
         payment_audit_objects = PaymentAudit.objects.filter(scheme_account=scheme_acc,
                                                             status__in=statuses_to_update)
-        if payment_audit_objects.count() > 1:
-            # TODO: Do something? log an error? attempt to void all?
-            pass
-
         return payment_audit_objects.last()
 
     @staticmethod
@@ -151,7 +153,6 @@ class Payment:
            reraise=True)
     def attempt_auth(payment_audit: PaymentAudit, payment_card_id: int,
                      payment_amount: int = 100) -> None:
-
         try:
             pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
             payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
