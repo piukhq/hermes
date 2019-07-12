@@ -83,7 +83,7 @@ class Permit:
                                                       f" bundle ids for client '{self.client}'")
         return self.looked_up_bundle
 
-    def scheme_suspened(self, relation=''):
+    def scheme_suspended(self, relation=''):
         return {f'{relation}schemebundleassociation__status': SchemeBundleAssociation.SUSPENDED}
 
     def scheme_query(self, query, allow=None):

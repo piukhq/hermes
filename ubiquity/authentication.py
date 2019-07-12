@@ -1,4 +1,5 @@
 import jwt
+import logging
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
@@ -6,6 +7,8 @@ from rest_framework.exceptions import NotFound
 from hermes.channels import Permit
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceRegistrationAuthentication(JwtAuthentication):
@@ -17,12 +20,17 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             bundle_id = token_data['bundle_id']
             organisation_id = token_data['organisation_id']
             channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
+            # Check for keys which should be in token but don't cause a failed token or raise a key error
+            if 'property_id' not in token_data:
+                logger.info(f'No property id found in Ubiquity token')
 
-            if not(token_data.get('property_id') and token_data.get('iat')):
-                raise KeyError    # We can't implement a timeout as token refresh not in spec.
+            if 'iat' not in token_data:
+                # We can't implement a timeout as token refresh not in spec.
+                logger.info(f'No iat (time stamp) found in Ubiquity token')
 
             external_id = jwt.decode(token, channels_permit.bundle.client.secret,
                                      verify=True, algorithms=['HS512'])['user_id']
+
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
