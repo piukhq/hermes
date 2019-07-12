@@ -255,7 +255,7 @@ class PaymentAudit(models.Model):
     user_id = models.CharField(max_length=255)
     scheme_account = models.ForeignKey(SchemeAccount, on_delete=models.CASCADE)
     transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
-    transaction_id = models.CharField(max_length=255, null=True)
+    transaction_token = models.CharField(max_length=255, null=True)
     status = models.IntegerField(
         choices=[(status.value, status.name) for status in PaymentStatus],
         default=PaymentStatus.AUTH_PENDING
