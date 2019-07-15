@@ -351,9 +351,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if new_status_code is SchemeAccount.ACTIVE:
             Payment.process_payment_success(scheme_account)
-        elif new_status_code in pending_statuses:
-            pass
-        else:
+        elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
         # method that sends data to Mnemosyne
