@@ -853,6 +853,7 @@ class TestResources(APITestCase):
 
         self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
         answers = scheme_account._collect_credentials()
         new_manual_answer = answers.get(self.put_scheme_manual_q.type)
         self.assertEqual(new_manual_answer, "12345")
@@ -891,6 +892,7 @@ class TestResources(APITestCase):
                                    content_type='application/json', **self.auth_headers)
         self.assertEqual(resp_put.status_code, 200)
         scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
         answers = scheme_account._collect_credentials()
         new_scan_answer = answers.get(self.put_scheme_scan_q.type)
         self.assertEqual(new_scan_answer, "67890")
