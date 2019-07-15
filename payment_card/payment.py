@@ -20,16 +20,19 @@ class PaymentError(APIException):
 
 
 @receiver(post_save, sender=PaymentAudit)
-def my_handler(sender, **kwargs):
-    audit_count = kwargs['instance'].void_attempts
-    if audit_count > 10:
+def payment_audit_log_signal_handler(sender, **kwargs):
+    payment_audit_instance = kwargs['instance']
+    if payment_audit_instance.status == PaymentStatus.VOID_REQUIRED and payment_audit_instance.void_attempts >= 10:
         sentry_sdk.capture_message(
-            "Payment Audit of id: {} - Has reached a void retry count of {}".format(kwargs['instance'].pk, audit_count)
+            "Payment Audit of id: {} - Has reached a void retry count of {}".format(
+                payment_audit_instance.pk,
+                payment_audit_instance.void_attempts
+            )
         )
 
     logging.info("Payment Audit of id: {} saved/updated: {}".format(
-        kwargs['instance'].pk,
-        PaymentStatus(kwargs['instance'].status).name
+        payment_audit_instance.pk,
+        PaymentStatus(payment_audit_instance.status).name
     ))
 
 
@@ -166,7 +169,7 @@ class Payment:
             payment_audit.status = PaymentStatus.AUTH_FAILED
             payment_audit.save()
             logging.error(
-                "Payment error for scheme account id: {} - PaymentAudit id: {} - Error description: {}".format(
+                "Payment error for SchemeAccount id: {} - PaymentAudit id: {} - Error description: {}".format(
                     payment_audit.scheme_account_id,
                     payment_audit.id,
                     e.detail
@@ -205,7 +208,7 @@ class Payment:
         except PaymentError as e:
             payment_audit.save()
             logging.error(
-                "Payment error for scheme account id: {} - PaymentAudit id: {} - Error description: {}".format(
+                "Payment error for SchemeAccount id: {} - PaymentAudit id: {} - Error description: {}".format(
                     payment_audit.scheme_account_id,
                     payment_audit.id,
                     e.detail

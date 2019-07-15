@@ -328,3 +328,17 @@ class TestPayment(APITestCase):
 
             audit.refresh_from_db()
             self.assertEqual(audit.status, PaymentStatus.SUCCESS)
+
+    @patch('payment_card.payment.sentry_sdk.capture_message')
+    @patch.object(Payment, '_void', autospec=True)
+    def test_payment_audit_signal_raises_sentry_message_after_too_many_retries(self, mock_void, mock_capture_message):
+        payment_audit = PaymentAuditFactory(scheme_account=self.scheme_account)
+        payment_audit.void_attempts = 9
+        mock_void.side_effect = PaymentError
+
+        with self.assertRaises(PaymentError):
+            Payment.attempt_void(payment_audit)
+
+        self.assertTrue(mock_void.called)
+        self.assertTrue(mock_capture_message.called)
+        self.assertEqual(mock_capture_message.call_count, 1)
