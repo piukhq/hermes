@@ -329,7 +329,7 @@ class TestPayment(APITestCase):
             Payment.process_payment_success(scheme_acc=self.scheme_account)
 
             audit.refresh_from_db()
-            self.assertEqual(audit.status, PaymentStatus.SUCCESS)
+            self.assertEqual(audit.status, PaymentStatus.SUCCESSFUL)
 
     @patch('payment_card.payment.sentry_sdk.capture_message')
     @patch.object(Payment, '_void', autospec=True)
