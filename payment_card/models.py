@@ -239,7 +239,7 @@ class PaymentStatus(IntEnum):
     AUTH_PENDING = 0
     AUTH_FAILED = 1
     AUTHORISED = 2
-    SUCCESS = 3
+    SUCCESSFUL = 3
     VOID_REQUIRED = 4
     VOID_SUCCESSFUL = 5
 
