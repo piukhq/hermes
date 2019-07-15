@@ -471,6 +471,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if request.query_params.get('autoLink') == 'True':
             self.auto_link_to_payment_cards(request.user, account)
 
+        account.delete_cached_balance()
+        account.set_pending()
         async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
