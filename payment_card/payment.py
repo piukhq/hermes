@@ -194,7 +194,7 @@ class Payment:
         if not payment_audit:
             return
 
-        if payment_audit.status != PaymentStatus.SUCCESS:
+        if payment_audit.status != PaymentStatus.SUCCESSFUL:
             payment_audit.transaction_token = None
-            payment_audit.status = PaymentStatus.SUCCESS
+            payment_audit.status = PaymentStatus.SUCCESSFUL
             payment_audit.save()
