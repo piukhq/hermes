@@ -107,7 +107,6 @@ class HasServiceConsentFilter(SimpleListFilter):
 
 @admin.register(CustomUserConsent)
 class CustomUserServiceConsentAdmin(admin.ModelAdmin):
-    list_per_page = 15
 
     def first_name(self, obj):
         return obj.profile.first_name
