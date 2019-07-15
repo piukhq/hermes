@@ -346,8 +346,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
 
-        pending_statuses = [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS, SchemeAccount.PENDING,
-                            SchemeAccount.PENDING_MANUAL_CHECK]
+        pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
+                            SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
 
         if new_status_code is SchemeAccount.ACTIVE:
             Payment.process_payment_success(scheme_account)
