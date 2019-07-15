@@ -162,9 +162,16 @@ class Payment:
             payment_audit.transaction_token = payment.transaction_token
             payment_audit.status = PaymentStatus.AUTHORISED
             payment_audit.save()
-        except PaymentError:
+        except PaymentError as e:
             payment_audit.status = PaymentStatus.AUTH_FAILED
             payment_audit.save()
+            logging.error(
+                "Payment error for scheme account id: {} - PaymentAudit id: {} - Error description: {}".format(
+                    payment_audit.scheme_account_id,
+                    payment_audit.id,
+                    e.detail
+                )
+            )
             raise
 
     @staticmethod
@@ -195,8 +202,15 @@ class Payment:
             payment_audit.transaction_token = None
             payment_audit.status = PaymentStatus.VOID_SUCCESSFUL
             payment_audit.save()
-        except PaymentError:
+        except PaymentError as e:
             payment_audit.save()
+            logging.error(
+                "Payment error for scheme account id: {} - PaymentAudit id: {} - Error description: {}".format(
+                    payment_audit.scheme_account_id,
+                    payment_audit.id,
+                    e.detail
+                )
+            )
             raise
 
     @staticmethod
