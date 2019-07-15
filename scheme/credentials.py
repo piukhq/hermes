@@ -51,7 +51,7 @@ CREDENTIAL_TYPES = (
     (COUNTRY, 'country'),
     (REGULAR_RESTAURANT, 'regular restaurant'),
     (MERCHANT_IDENTIFIER, 'merchant identifier'),
-    (PAYMENT_CARD_ID, 'payment_card_id')
+    (PAYMENT_CARD_ID, 'payment_card_id'),
 )
 
 DATE_TYPE_CREDENTIALS = (

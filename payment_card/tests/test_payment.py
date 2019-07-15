@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import requests
 from rest_framework.test import APITestCase
@@ -36,8 +36,8 @@ class TestPayment(APITestCase):
         payment._auth()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.auth_resp, response)
-        self.assertEqual(payment.transaction_token, response['transaction']['token'])
+        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
     def test_auth_missing_token_raises_payment_error(self, mock_post):
@@ -78,8 +78,8 @@ class TestPayment(APITestCase):
             payment._auth()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.auth_resp, response)
-        self.assertNotEqual(payment.transaction_token, response['transaction']['token'])
+        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
     def test_auth_unsuccessful_response_raises_payment_error(self, mock_post):
@@ -99,8 +99,8 @@ class TestPayment(APITestCase):
             payment._auth()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.auth_resp, response)
-        self.assertNotEqual(payment.transaction_token, response['transaction']['token'])
+        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
     def test_void_success(self, mock_post):
@@ -191,7 +191,9 @@ class TestPayment(APITestCase):
     @patch('payment_card.payment.Payment', autospec=True)
     def test_process_payment_auth_success(self, mock_payment_class):
         mock_payment_class.attempt_auth = Payment.attempt_auth
-        mock_payment_class.return_value.transaction_token = 'abc'
+        mock_spreedly = MagicMock()
+        mock_spreedly.transaction_token = 'abc'
+        mock_payment_class.return_value.spreedly = mock_spreedly
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)

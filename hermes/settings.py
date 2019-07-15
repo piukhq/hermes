@@ -352,13 +352,12 @@ INFLUX_DB_CONFIG = {
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
 
-SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', 'https://core.spreedly.com')
 SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', '')
 SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', '')
 SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
 
 # Time in seconds for the interval between retry tasks called by celery beats
-RETRY_PERIOD = env_var('RETRY_PERIOD', '60')
+RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
 # Time in seconds for interval of checking if payments have not been updated and require voiding
 PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
 # Time in seconds of how long is required before a payment is deemed to be expired
