@@ -630,6 +630,10 @@ class SchemeAccount(models.Model):
         cache_key = 'scheme_{}'.format(self.pk)
         cache.delete(cache_key)
 
+    def delete_saved_balance(self):
+        self.balances = dict()
+        self.save()
+
     def question(self, question_type):
         """
         Return the scheme question instance for the given question type
