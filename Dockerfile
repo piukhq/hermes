@@ -7,10 +7,10 @@ RUN apk add --no-cache --virtual build \
       git \
       libffi-dev \
       zlib-dev \
-      jpeg-dev \
       build-base && \
     apk add --no-cache \
       su-exec \
+      jpeg-dev \
       postgresql-dev && \
     adduser -D hermes && \
     pip install gunicorn pipenv && \
