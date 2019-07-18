@@ -237,6 +237,32 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
+MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'INFO')
+UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'INFO')
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': MASTER_LOG_LEVEL,
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'ubiquity': {
+            'level': UBIQUITY_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
+        },
+    },
+}
+
 HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(

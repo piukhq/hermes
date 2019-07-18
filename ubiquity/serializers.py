@@ -403,7 +403,9 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         authorise_fields = instance.questions.filter(auth_field=True).all()
         registration_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
-        status = 'active' if instance.is_active else 'suspended'
+        # To get here status must be active (i.e. suspended currently maps to inactive)
+        # if changed for real status is required call channels_permit.scheme_status_name(instance.id)
+        status = 'active'
         documents = instance.documents.all()
         consents = self._get_scheme_consents(scheme=instance)
 

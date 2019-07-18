@@ -5,8 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.permissions import BasePermission
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from user.models import CustomUser, ClientApplicationBundle
+from user.models import CustomUser
+from hermes.channels import Permit
 
 
 class JwtAuthentication(BaseAuthentication):
@@ -62,18 +62,7 @@ class JwtAuthentication(BaseAuthentication):
         bundle_id = credentials.get('bundle_id', '')
         if not bundle_id:
             bundle_id = 'com.bink.wallet'
-        try:
-            bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id, client=user.client)
-        except ObjectDoesNotExist:
-            raise exceptions.AuthenticationFailed('Bundle Id not configured')
-        except MultipleObjectsReturned:
-            # This should not occur after release as unique together constraint has been added in a migration
-            # Covers edge case of duplicate already exists which would cause the unique together migration to fail
-            # then this error message will help debug
-            raise exceptions.AuthenticationFailed(f"Multiple '{bundle_id}' bundle ids for client '{user.client}'")
-
-        setattr(request, 'allowed_issuers', [issuer.pk for issuer in bundle.issuers.all()])
-        setattr(request, 'allowed_schemes', [scheme.pk for scheme in bundle.schemes.all()])
+        setattr(request, 'channels_permit', Permit(bundle_id, user.client))
         return user, None
 
     def authenticate_credentials(self, key):
@@ -129,6 +118,7 @@ class ServiceAuthentication(JwtAuthentication):
         return ServiceUser(), None
 
     def authenticate(self, request):
+        setattr(request, 'channels_permit', Permit(service_allow_all=True))
         return self.authenticate_credentials(self.get_token(request))
 
 

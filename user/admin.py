@@ -3,8 +3,10 @@ from django.contrib import admin
 from django.contrib.admin import StackedInline, SimpleListFilter
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import ugettext_lazy as _
-
+from scheme.models import SchemeBundleAssociation
 from ubiquity.models import ServiceConsent
+from django.contrib import messages
+from scheme.admin import check_active_scheme
 from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
                          Organisation, Referral, Setting, UserDetail, UserSetting)
 
@@ -161,63 +163,68 @@ class ClientApplicationAdmin(admin.ModelAdmin):
     search_fields = ('name', 'organisation__name', 'client_id')
 
 
+class SchemeInline(admin.TabularInline):
+    model = SchemeBundleAssociation
+    raw_id_fields = ("scheme",)
+    extra = 1
+    verbose_name = 'Schemes'
+
+
 @admin.register(ClientApplicationBundle)
 class ClientApplicationBundleAdmin(admin.ModelAdmin):
     list_display = ('bundle_id', 'client')
     search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
-    filter_horizontal = ('schemes', 'issuers')
-    list_filter = ('client__organisation__name', 'client__name', 'issuers', 'schemes')
+    filter_horizontal = ('scheme', 'issuer')
+    list_filter = ('client__organisation__name', 'client__name', 'issuer', 'scheme')
+    inlines = [
+        SchemeInline,
+    ]
+    current_bundle_status = {}
+
+    def save_formset(self, request, form, formset, change):
+        super().save_formset(request, form, formset, change)
+        cleaned = formset.cleaned_data
+        for clean_item in cleaned:
+            scheme = clean_item.get('scheme')
+            status = clean_item.get('status', SchemeBundleAssociation.INACTIVE)
+            if status == SchemeBundleAssociation.ACTIVE:
+                error, message = check_active_scheme(scheme)
+                if error:
+                    old_status = self.current_bundle_status.get(scheme.id, None)
+                    if old_status is None or old_status == SchemeBundleAssociation.ACTIVE:
+                        old_status = SchemeBundleAssociation.INACTIVE
+                    messages.error(request,
+                                   f"ERROR - scheme {scheme.name} status reverted"
+                                   f" to {SchemeBundleAssociation.STATUSES[old_status][1]} because {message}")
+                    SchemeBundleAssociation.objects.filter(scheme_id=scheme.id).update(status=old_status)
+
+    def save_model(self, request, obj, form, change):
+        current_bundles = SchemeBundleAssociation.objects.filter(bundle__bundle_id=obj.bundle_id)\
+            .values('scheme_id', 'status')
+        self.current_bundle_status = \
+            {current_bundle['scheme_id']: current_bundle['status'] for current_bundle in current_bundles}
+        super().save_model(request, obj, form, change)
 
     def get_fieldsets(self, request, obj=None):
-        allowed_schemes = None
         allowed_issuers = None
         bundle_id = None
         return_fields = ((None, {'fields': ('bundle_id', 'client')}),)
+        choice_description = "Schemes"
 
         if obj:
-            allowed_schemes = [scheme.pk for scheme in obj.schemes.all()]
-            allowed_issuers = [issuers.pk for issuers in obj.issuers.all()]
+            allowed_issuers = [issuer.pk for issuer in obj.issuer.all()]
             bundle_id = obj.bundle_id
 
-        if bundle_id == 'com.bink.wallet':
-            choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
-                                 " immediately</h3>"
-        elif obj:
-            choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing users may" \
-                                 " need to re-login before choices take effect</h3>"
-        else:
-            choice_description = "<h3 style='color:red;'>Note: To activate this feature make at least one choice." \
-                                 " All schemes will be permitted until a choice is made</h3><h3>For the Bink app " \
-                                 "only the choices made in 'com.bink.wallet' will take effect immediately - for" \
-                                 " any other bundle any logged in Bink users would need to re-login</h3>"
-
-        if allowed_schemes:
+        if bundle_id:
             if bundle_id == 'com.bink.wallet':
-                choice_description = "<h3>For the Bink app the choices made in this bundle will take effect" \
-                                     " immediately</h3>"
-            else:
-                choice_description = "<h3 style='color:red;'>Warning if the Bink app uses this bundle existing" \
-                                     " users may need to re-login before choices take effect</h3>"
-
-            return_fields += (
-                                 ('Choose which Schemes are permitted',
-                                  {
-                                      'classes': ('wide',),
-                                      'description': choice_description,
-                                      'fields': ('schemes',),
-                                  }),
-            )
-
+                choice_description = "Available Schemes for the Bink app."
+            elif obj:
+                choice_description = "Available schemes. (Warning if used by Bink app existing users will need to" \
+                                     " login to use this scheme)"
         else:
-            return_fields += (
-                ('All Schemes are currently permitted - click "show" to remove schemes from this bundle',
-                 {
-                     'classes': ('collapse',),
-                     'description': choice_description,
-                     'fields': ('schemes',),
-                 }),
-            )
+            choice_description = "No Schemes are Accessible with this bundle (Please add required schemes below)"
 
+        SchemeInline.verbose_name_plural = choice_description
         if bundle_id != 'com.bink.wallet':
             if allowed_issuers:
                 issuers_description = "<h3>Note: This feature only applies to Ubiquity</h3>"
@@ -226,7 +233,7 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
                      {
                          'classes': ('wide',),
                          'description': issuers_description,
-                         'fields': ('issuers',),
+                         'fields': ('issuer',),
                      }),
                 )
 
@@ -239,7 +246,7 @@ class ClientApplicationBundleAdmin(admin.ModelAdmin):
                      {
                          'classes': ('collapse',),
                          'description': issuers_description,
-                         'fields': ('issuers',),
+                         'fields': ('issuer',),
                      }),
                 )
 
