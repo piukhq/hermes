@@ -71,8 +71,13 @@ class TestResources(APITestCase):
         token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
                                 external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
         self.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
+
+        self.scheme_bundle_association_put = SchemeBundleAssociationFactory(scheme=self.put_scheme,
+                                                                            bundle=self.bundle,
+                                                                            status=SchemeBundleAssociation.ACTIVE)
         self.put_scheme_manual_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=CARD_NUMBER,
                                                                    label=CARD_NUMBER, manual_question=True)
         self.put_scheme_scan_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=BARCODE,
