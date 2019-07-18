@@ -6,6 +6,8 @@ ADD . .
 RUN apk add --no-cache --virtual build \
       git \
       libffi-dev \
+      zlib-dev \
+      jpeg-dev \
       build-base && \
     apk add --no-cache \
       su-exec \
