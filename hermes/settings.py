@@ -361,6 +361,10 @@ INFLUX_DB_CONFIG = {
 
 CELERY_BROKER_URL = env_var('CELERY_BROKER_URL', 'pyamqp://guest@localhost//')
 CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async-midas')
+CELERY_TASK_SERIALIZER = 'pickle'
+CELERY_ACCEPT_CONTENT = ['pickle', 'json']
+CELERY_RESULT_SERIALIZER = 'pickle'
+
 
 DATADOG_TRACE = {
     'DEFAULT_SERVICE': 'hermes',
