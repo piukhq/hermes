@@ -43,6 +43,11 @@ if t.TYPE_CHECKING:
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 
 
+def is_auto_link(req):
+    return req.query_params.get('autoLink', '').lower() == 'true' or \
+           req.query_params.get('autolink', '').lower() == 'true'
+
+
 def replace_escaped_unicode(match):
     return match.group(1).encode().decode('unicode-escape')
 
@@ -283,7 +288,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
 
         account.refresh_from_db()
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, account)
 
         return Response(self.get_serializer(account).data, status.HTTP_200_OK)
@@ -336,7 +341,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         if status_code == status.HTTP_201_CREATED:
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, pcard)
 
         return Response(self.get_serializer(pcard).data, status=status_code)
@@ -454,7 +459,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
 
-        if request.allowed_schemes and scheme_id not in request.allowed_schemes:
+        if request.allowed_schemes and int(scheme_id) not in request.allowed_schemes:
             raise ParseError('membership plan not allowed for this user.')
 
         if enrol_fields:
@@ -468,9 +473,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
+        account.delete_saved_balance()
+        account.delete_cached_balance()
+        account.set_pending()
         async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
@@ -523,14 +531,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     def _collect_fields_and_determine_route(self) -> t.Tuple[int, dict, dict, dict]:
         try:
-            if self.request.allowed_schemes and int(
-                    self.request.data['membership_plan']) not in self.request.allowed_schemes:
+            scheme_id = self.request.data['membership_plan']
+            if self.request.allowed_schemes and int(scheme_id) not in self.request.allowed_schemes:
                 raise ParseError('membership plan not allowed for this user.')
+        except KeyError:
+            raise ParseError('required field membership_plan is missing')
         except ValueError:
             raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data)
-        scheme_id = self.request.data['membership_plan']
         return scheme_id, auth_fields, enrol_fields, add_fields
 
     @staticmethod
@@ -725,7 +734,7 @@ class ListMembershipCardView(MembershipCardView):
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
