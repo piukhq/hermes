@@ -109,7 +109,9 @@ class Payment:
         Starts an audit trail and authorises a payment.
         Any failure to authorise a payment will cause the join to fail.
         """
-        payment_audit = PaymentAudit.objects.create(user_id=user_id, scheme_account=scheme_acc)
+        payment_audit = PaymentAudit.objects.create(user_id=user_id,
+                                                    scheme_account=scheme_acc,
+                                                    payment_card_id=payment_card_id)
 
         try:
             Payment.attempt_auth(payment_audit, payment_card_id, payment_amount)
