@@ -48,6 +48,8 @@ class Spreedly:
 
         except requests.RequestException as e:
             raise SpreedlyError("Error authorising payment with Spreedly") from e
+        except KeyError as e:
+            raise SpreedlyError("Error with auth response format") from e
 
     def void(self, transaction_token: str) -> None:
         try:
@@ -65,3 +67,5 @@ class Spreedly:
                 raise SpreedlyError("Spreedly has responded with unsuccessful void")
         except requests.RequestException as e:
             raise SpreedlyError("Error voiding payment with Spreedly") from e
+        except KeyError as e:
+            raise SpreedlyError("Error with void response format") from e
