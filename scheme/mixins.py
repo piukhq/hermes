@@ -25,6 +25,7 @@ from ubiquity.models import SchemeAccountEntry
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
+    from hermes.channels import Permit
     from rest_framework.serializers import Serializer
 
 
@@ -122,8 +123,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
+        permit = self.request.channels_permit
 
-        if scheme.status == Scheme.SUSPENDED:
+        if permit and permit.is_scheme_suspended(scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         if scheme.url == settings.MY360_SCHEME_URL:
@@ -233,11 +235,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int) -> t.Tuple[dict, int, SchemeAccount]:
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit')\
+            -> t.Tuple[dict, int, SchemeAccount]:
+
         scheme_account = data.get('scheme_account')
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
-        if join_scheme.status == Scheme.SUSPENDED:
+        if permit and permit.is_scheme_suspended(scheme_id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         serializer = JoinSerializer(data=data, context={
@@ -247,6 +251,7 @@ class SchemeAccountJoinMixin:
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
+
         if not scheme_account:
             scheme_account = self.create_join_account(data, user, scheme_id)
 

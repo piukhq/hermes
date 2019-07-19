@@ -56,8 +56,7 @@ class TransactionHeaderSerializer(serializers.Serializer):
     be represented by a simple list of headers.
     """
 
-    @staticmethod
-    def to_representation(obj):
+    def to_representation(self, obj):
         return [{"name": i} for i in obj]
 
 
@@ -70,11 +69,21 @@ class SchemeSerializer(serializers.ModelSerializer):
     one_question_link = QuestionSerializer()
     scan_question = QuestionSerializer()
     consents = ConsentsSerializer(many=True, read_only=True)
-    is_active = serializers.BooleanField()
+    status = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+
+    def get_is_active(self, obj):
+        if self.context and self.context.get('request'):
+            return self.context['request'].channels_permit.is_scheme_available(obj.id)
+        # If no context return true as default case is that the SchemeBundleAssociation Status is not INACTIVE
+        return True
+
+    def get_status(self, obj):
+        return self.context['request'].channels_permit.scheme_status(obj.id)
 
     @staticmethod
     def get_link_questions(obj):
@@ -89,11 +98,14 @@ class SchemeSerializer(serializers.ModelSerializer):
 
 class SchemeSerializerNoQuestions(serializers.ModelSerializer):
     transaction_headers = TransactionHeaderSerializer()
-    is_active = serializers.BooleanField()
+    is_active = serializers.SerializerMethodField()
 
     class Meta:
         model = Scheme
         exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+
+    def get_is_active(self, obj):
+        return self.context['request'].channels_permit.is_scheme_active(obj.id)
 
 
 class UserConsentSerializer(serializers.Serializer):
@@ -407,9 +419,9 @@ class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLi
     pass
 
 
-def add_object_type_to_image_response(data, type):
+def add_object_type_to_image_response(data, obj_type):
     new_data = copy(data)
-    new_data['object_type'] = type
+    new_data['object_type'] = obj_type
     return new_data
 
 
