@@ -80,8 +80,6 @@ class Payment:
             )
         except SpreedlyError as e:
             raise PaymentError from e
-        except KeyError as e:
-            raise PaymentError("Error with auth response format") from e
 
     def _void(self, transaction_token: Optional[str] = None) -> None:
         transaction_token = transaction_token or self.spreedly.transaction_token
@@ -92,8 +90,6 @@ class Payment:
             self.spreedly.void(transaction_token)
         except SpreedlyError as e:
             raise PaymentError from e
-        except KeyError as e:
-            raise PaymentError("Error with void response format") from e
 
     @staticmethod
     def get_payment_audit(scheme_acc: SchemeAccount) -> PaymentAudit:
