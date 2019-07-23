@@ -6,6 +6,7 @@ stages:
 
 tests:
   stage: tests
+  image: olympus.azurecr.io/python:3.6
   script:
     - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
@@ -16,11 +17,13 @@ tests:
 
 complexity:
   stage: tests
+  image: olympus.azurecr.io/python:3.6
   script:
     - xenon --max-average A --max-modules B --max-absolute B .
 
 flake8:
   stage: tests
+  image: olympus.azurecr.io/python:3.6
   script:
     - flake8 *
 
