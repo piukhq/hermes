@@ -137,7 +137,7 @@ def send_merchant_metrics_for_new_account(user_id: int, scheme_account_id: int, 
 @shared_task
 def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: str, date: str, date_type: str) -> None:
     if date_type not in ('link', 'delete'):
-        raise Exception(f'{date_type} in an invalid merchant metrics date_type')
+        raise ValueError(f'{date_type} in an invalid merchant metrics date_type')
 
     payload = {
         'scheme_account_id': scheme_account_id,
