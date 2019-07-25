@@ -1,11 +1,8 @@
 from django.test import TestCase
 from hermes.channels import Permit
-from user.models import ClientApplicationBundle
 from scheme.models import SchemeBundleAssociation, Scheme
-from scheme.tests.factories import (SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
+from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory)
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
-from scheme.models import SchemeBundleAssociation
-from user.models import ClientApplicationBundle,  ClientApplication
 
 
 class TestPermit(TestCase):
@@ -141,18 +138,6 @@ class TestPermit(TestCase):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
         ubiquity_permit = self.set_ubiquity_status(self.ubiquity_scheme_bundle_association,
                                                    SchemeBundleAssociation.SUSPENDED)
-
-        bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
-        self.assertEqual(self.bink_scheme.id, bink_query[0].id)
-
-        ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
-
-    def test_scheme_query_bink_active_ubiquity_inactive(self):
-        bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
-        ubiquity_permit = self.set_ubiquity_status(self.ubiquity_scheme_bundle_association,
-                                                   SchemeBundleAssociation.INACTIVE)
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
         self.assertEquals(len(bink_query), 1)
@@ -304,18 +289,6 @@ class TestPermitSharedScheme(TestCase):
         bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
         ubiquity_permit = self.set_ubiquity_status(self.ubiquity_scheme_bundle_association,
                                                    SchemeBundleAssociation.SUSPENDED)
-
-        bink_query = bink_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(bink_query), 1)
-        self.assertEqual(self.scheme.id, bink_query[0].id)
-
-        ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
-        self.assertEquals(len(ubiquity_query), 0)
-
-    def test_scheme_query_bink_active_ubiquity_inactive(self):
-        bink_permit = self.set_status(self.bink_scheme_bundle_association, SchemeBundleAssociation.ACTIVE)
-        ubiquity_permit = self.set_ubiquity_status(self.ubiquity_scheme_bundle_association,
-                                                   SchemeBundleAssociation.INACTIVE)
 
         bink_query = bink_permit.scheme_query(Scheme.objects)
         self.assertEquals(len(bink_query), 1)
