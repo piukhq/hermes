@@ -9,13 +9,15 @@ from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory)
+                                    SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
+                                    SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
@@ -25,6 +27,10 @@ from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipTransactionView, MembershipCardView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
+
+
+class RequestMock:
+    channels_permit = None
 
 
 class TestResources(APITestCase):
@@ -53,17 +59,25 @@ class TestResources(APITestCase):
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
+        # Need to add an active association since it was assumed no setting was enabled
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
+
         self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
         self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
-
         token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
                                 external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
         self.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
+
+        self.scheme_bundle_association_put = SchemeBundleAssociationFactory(scheme=self.put_scheme,
+                                                                            bundle=self.bundle,
+                                                                            status=SchemeBundleAssociation.ACTIVE)
         self.put_scheme_manual_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=CARD_NUMBER,
                                                                    label=CARD_NUMBER, manual_question=True)
         self.put_scheme_scan_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=BARCODE,
@@ -534,8 +548,33 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 200)
         self.assertEqual(resp_membership.status_code, 200)
 
-        self.bundle.issuers.add(IssuerFactory())
-        self.bundle.schemes.add(SchemeFactory())
+        self.bundle.issuer.add(IssuerFactory())
+        self.scheme_bundle_association.status = SchemeBundleAssociation.INACTIVE
+        self.scheme_bundle_association.save()
+
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 404)
+        self.assertEqual(resp_membership.status_code, 404)
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_card_rule_filtering_suspended(self, *_):
+        """
+        This test may need revision when ubiquity suspended feature is implemented
+        """
+        resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
+                                       **self.auth_headers)
+        resp_membership = self.client.get(reverse('membership-card', args=[self.scheme_account.id]),
+                                          **self.auth_headers)
+        self.assertEqual(resp_payment.status_code, 200)
+        self.assertEqual(resp_membership.status_code, 200)
+
+        self.bundle.issuer.add(IssuerFactory())
+        self.scheme_bundle_association.status = SchemeBundleAssociation.SUSPENDED
+        self.scheme_bundle_association.save()
 
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
                                        **self.auth_headers)
@@ -549,9 +588,9 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
-        self.bundle.issuers.add(IssuerFactory())
-        self.bundle.schemes.add(SchemeFactory())
-
+        self.bundle.issuer.add(IssuerFactory())
+        self.scheme_bundle_association.status = SchemeBundleAssociation.INACTIVE
+        self.scheme_bundle_association.save()
         payload = {
             "card": {
                 "last_four_digits": 5234,
@@ -1198,10 +1237,12 @@ class TestMembershipCardCredentials(APITestCase):
     def setUp(self):
         organisation = OrganisationFactory(name='set up authentication for credentials')
         client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
-        bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
+        self.bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
         external_id = 'credentials@user.com'
         self.user = UserFactory(external_id=external_id, client=client, email=external_id)
         self.scheme = SchemeFactory()
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
                                         add_field=True)
@@ -1218,7 +1259,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
                                                                           scheme_account=self.scheme_account)
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
+        token = GenerateJWToken(client.organisation.name, client.secret, self.bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.serializers.async_balance', autospec=True)

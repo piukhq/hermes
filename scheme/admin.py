@@ -1,20 +1,34 @@
 import re
-
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
-
 from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink)
+                           ThirdPartyConsentLink, SchemeBundleAssociation)
 from ubiquity.models import SchemeAccountEntry
+from django.contrib import messages
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
+
+
+def check_active_scheme(scheme):
+    message = 'You must have a manual question when a scheme is set to active'
+    if not scheme.manual_question:
+        return True, message
+    message = ""
+    for question in scheme.questions.all():
+        if question.answer_type == 2:
+            if not question.choice:
+                message = "When the answer_type field value is 'choice' you must provide the choices"
+        elif question.choice:
+            message = "The choice field should be filled only when answer_type value is 'choice'"
+
+    return message != "", message
 
 
 class CredentialQuestionFormset(BaseInlineFormSet):
@@ -35,18 +49,6 @@ class CredentialQuestionFormset(BaseInlineFormSet):
         scan_questions = [form.cleaned_data['scan_question'] for form in self.forms]
         if scan_questions.count(True) > 1:
             raise ValidationError("You may only select one scan question")
-
-        if self.instance.is_active:
-            if not any(manual_questions):
-                raise ValidationError("You must have a manual question when a scheme is set to active")
-
-            for pos, answer in enumerate(answer_type):
-                if answer == 2:
-                    if not choice[pos]:
-                        raise ValidationError(
-                            "When the answer_type field value is 'choice' you must provide the choices")
-                elif choice[pos]:
-                    raise ValidationError("The choice field should be filled only when answer_type value is 'choice'")
 
 
 class CredentialQuestionInline(admin.StackedInline):
@@ -114,8 +116,8 @@ class SchemeDetailsInline(admin.StackedInline):
 class SchemeAdmin(admin.ModelAdmin):
     inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
     exclude = []
-    list_display = ('name', 'id', 'category', 'is_active', 'company',)
-    list_filter = ('status',)
+    list_display = ('name', 'id', 'category', 'company',)
+
     form = SchemeForm
     search_fields = ['name']
 
@@ -408,3 +410,27 @@ class ThirdPartyConsentLinkAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Category)
+
+
+@admin.register(SchemeBundleAssociation)
+class SchemeBundleAssociationAdmin(admin.ModelAdmin):
+    list_display = ('bundle', 'scheme', 'status')
+    search_fields = ('bundle_id', 'scheme__name')
+    raw_id_fields = ("scheme",)
+
+    def save_form(self, request, form, change):
+        ret = super().save_form(request, form, change)
+        clean_item = form.cleaned_data
+        scheme = clean_item.get('scheme')
+        status = clean_item.get('status', SchemeBundleAssociation.INACTIVE)
+        old_status = form.initial.get('status', None)
+        if status == SchemeBundleAssociation.ACTIVE:
+            error, message = check_active_scheme(scheme)
+            if error:
+                if old_status is None or old_status == SchemeBundleAssociation.ACTIVE:
+                    old_status = SchemeBundleAssociation.INACTIVE
+                messages.error(request,
+                               f"ERROR - scheme {scheme.name} status reverted"
+                               f" to {SchemeBundleAssociation.STATUSES[old_status][1]} because {message}")
+                ret.status = old_status
+        return ret

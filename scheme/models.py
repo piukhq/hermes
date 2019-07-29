@@ -18,7 +18,6 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
-
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
 from hermes.traced_requests import requests
@@ -33,14 +32,22 @@ class Category(models.Model):
         return self.name
 
 
-class ActiveSchemeManager(models.Manager):
-
-    def get_queryset(self):
-        return super().get_queryset().exclude(status=Scheme.INACTIVE)
-
-
 def _default_transaction_headers():
     return ["Date", "Reference", "Points"]
+
+
+class SchemeBundleAssociation(models.Model):
+    ACTIVE = 0
+    SUSPENDED = 1
+    INACTIVE = 2
+    STATUSES = (
+        (ACTIVE, 'Active'),
+        (SUSPENDED, 'Suspended'),
+        (INACTIVE, 'Inactive'),
+    )
+    scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
+    bundle = models.ForeignKey('user.ClientApplicationBundle', on_delete=models.CASCADE)
+    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
 
 
 class Scheme(models.Model):
@@ -71,15 +78,6 @@ class Scheme(models.Model):
         (4, '4 (0+)'),
     )
     MAX_POINTS_VALUE_LENGTH = 11
-
-    ACTIVE = 0
-    SUSPENDED = 1
-    INACTIVE = 2
-    STATUSES = (
-        (ACTIVE, 'Active'),
-        (SUSPENDED, 'Suspended'),
-        (INACTIVE, 'Inactive'),
-    )
 
     # this is the same slugs found in the active.py file in the midas repo
     name = models.CharField(max_length=200)
@@ -115,7 +113,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-    status = models.IntegerField(choices=STATUSES, default=ACTIVE)
+
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -126,8 +124,6 @@ class Scheme(models.Model):
                                           help_text="Prefix to from barcode -> card number mapping")
     barcode_prefix = models.CharField(max_length=100, blank=True,
                                       help_text="Prefix to from card number -> barcode mapping")
-    all_objects = models.Manager()
-    objects = ActiveSchemeManager()
 
     # ubiquity fields
     authorisation_required = models.BooleanField(default=False)
@@ -142,10 +138,6 @@ class Scheme(models.Model):
     linking_support = ArrayField(models.CharField(max_length=50), default=[], blank=True,
                                  help_text='journeys supported by the scheme in the ubiquity endpoints, '
                                            'ie: ADD, REGISTRATION, ENROL')
-
-    @property
-    def is_active(self):
-        return self.status != self.INACTIVE
 
     @property
     def manual_question(self):
@@ -290,8 +282,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True). \
-            exclude(scheme__status=Scheme.INACTIVE)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True)
 
 
 class SchemeAccount(models.Model):

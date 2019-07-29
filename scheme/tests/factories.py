@@ -9,7 +9,7 @@ from scheme.models import Control
 from faker import Factory
 from scheme.credentials import USER_NAME
 from scheme.models import Consent, ConsentStatus, JourneyTypes, UserConsent
-from user.tests.factories import UserFactory
+from user.tests.factories import UserFactory, ClientApplicationBundleFactory
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -81,6 +81,15 @@ class ControlFactory(factory.DjangoModelFactory):
     hint_text = fake.sentence(nb_words=10)
 
     scheme = factory.SubFactory(SchemeFactory)
+
+
+class SchemeBundleAssociationFactory(factory.DjangoModelFactory):
+    class Meta:
+        model = models.SchemeBundleAssociation
+
+    scheme = factory.SubFactory(SchemeFactory)
+    bundle = factory.SubFactory(ClientApplicationBundleFactory)
+    status = models.SchemeBundleAssociation.ACTIVE
 
 
 class SchemeAccountFactory(factory.DjangoModelFactory):
