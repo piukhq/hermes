@@ -134,16 +134,49 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 404)
+
+        self.user.is_tester = True
+        self.user.save()
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+        self.user.is_tester = False
+        self.user.save()
+        self.scheme.test_scheme = False
+        self.scheme.save()
+
     @patch('ubiquity.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_all_membership_cards(self, *_):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
+        SchemeBundleAssociationFactory(scheme=scheme_account_2.scheme, bundle=self.bundle,
+                                       status=SchemeBundleAssociation.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
+        self.assertEqual(len(resp.json()), 2)
+
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+        self.assertEqual(len(resp.json()), 1)
+
+        self.user.is_tester = True
+        self.user.save()
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+        self.assertEqual(len(resp.json()), 2)
+
+        self.user.is_tester = False
+        self.user.save()
+        self.scheme.test_scheme = False
+        self.scheme.save()
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
@@ -400,6 +433,23 @@ class TestResources(APITestCase):
         response = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]),
                                      content_type='application/json', data=payload, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
+
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        response = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]),
+                                     content_type='application/json', data=payload, **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+
+        self.user.is_tester = True
+        self.user.save()
+        response = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]),
+                                     content_type='application/json', data=payload, **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+        self.scheme.test_scheme = False
+        self.scheme.save()
+        self.user.is_tester = False
+        self.user.save()
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -1020,6 +1070,22 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(isinstance(resp.json(), list))
+        schemes_number = len(resp.json())
+
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
+        self.assertLess(len(resp.json()), schemes_number)
+
+        self.user.is_tester = True
+        self.user.save()
+        resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
+        self.assertEqual(len(resp.json()), schemes_number)
+
+        self.scheme.test_scheme = False
+        self.scheme.save()
+        self.user.is_tester = False
+        self.user.save()
 
     def test_membership_plan(self):
         mock_request_context = MagicMock()
@@ -1031,6 +1097,21 @@ class TestResources(APITestCase):
             remove_empty(MembershipPlanSerializer(self.scheme, context={'request': mock_request_context}).data),
             resp.json()
         )
+
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 404)
+
+        self.user.is_tester = True
+        self.user.save()
+        resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+        self.scheme.test_scheme = False
+        self.scheme.save()
+        self.user.is_tester = False
+        self.user.save()
 
     def test_composite_membership_plan(self):
         mock_request_context = MagicMock()
@@ -1227,10 +1308,10 @@ class TestResources(APITestCase):
             {'scheme_account_id': sae_correct.scheme_account_id},
             {'scheme_account_id': sae_wrong.scheme_account_id}
         ]
-        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user.id, data)
+        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user, data)
         self.assertEqual(len(filtered_data), 2)
-        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_correct.scheme_account_id))
-        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user.id, sae_wrong.scheme_account_id))
+        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user, sae_correct.scheme_account_id))
+        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user, sae_wrong.scheme_account_id))
 
 
 class TestMembershipCardCredentials(APITestCase):

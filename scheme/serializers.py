@@ -237,8 +237,12 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     verify_account_exists = True
 
     def validate(self, data):
+        scheme_query = {'pk': data['scheme']}
+        if not self.context['request'].user.is_tester:
+            scheme_query['test_scheme'] = False
+
         try:
-            scheme = Scheme.objects.get(pk=data['scheme'])
+            scheme = Scheme.objects.get(**scheme_query)
         except Scheme.DoesNotExist:
             raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
 
