@@ -64,7 +64,13 @@ class SchemesList(ListAPIView):
     serializer_class = SchemeSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(super().get_queryset())
+        queryset = Scheme.objects
+        query = {}
+
+        if not self.request.user.is_tester:
+            query['test_scheme'] = False
+
+        return self.request.channels_permit.scheme_query(queryset.filter(**query))
 
 
 class RetrieveScheme(RetrieveAPIView):
@@ -75,7 +81,13 @@ class RetrieveScheme(RetrieveAPIView):
     serializer_class = SchemeSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(super().get_queryset())
+        queryset = Scheme.objects
+        query = {}
+
+        if not self.request.user.is_tester:
+            query['test_scheme'] = False
+
+        return self.request.channels_permit.scheme_query(queryset.filter(**query))
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
@@ -89,8 +101,13 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        queryset = SchemeAccount.objects.filter(user_set__id=self.request.user.id)
-        return self.request.channels_permit.scheme_account_query(queryset)
+        queryset = SchemeAccount.objects
+        query = {'user_set__id': self.request.user.id}
+
+        if not self.request.user.is_tester:
+            query['scheme__test_scheme'] = False
+
+        return self.request.channels_permit.scheme_account_query(queryset.filter(**query))
 
     def delete(self, request, *args, **kwargs):
         """
@@ -234,14 +251,19 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         return super().get(self, request, *args, **kwargs)
 
     def get_queryset(self):
-        user_id = self.request.user.id
         channels_permit = self.request.channels_permit
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id)
-        scheme_accounts = channels_permit.scheme_account_query(scheme_accounts)
-        scheme_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
-                                                  **channels_permit.scheme_suspended('scheme__'))
+        queryset = SchemeAccount.objects
+        exclude_by = {
+            'status__in': SchemeAccount.JOIN_ACTION_REQUIRED,
+            **channels_permit.scheme_suspended('scheme__')
+        }
 
-        return scheme_accounts
+        filter_by = {'user_set__id': self.request.user.id}
+
+        if not self.request.user.is_tester:
+            filter_by['scheme__test_scheme'] = False
+
+        return channels_permit.scheme_account_query(queryset.filter(**filter_by).exclude(**exclude_by))
 
     def post(self, request, *args, **kwargs):
         """
@@ -459,9 +481,12 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
     def get_queryset(self):
         queryset = SchemeAccount.objects
         if self.request.user.uid != 'api_user':
-            queryset = self.request.channels_permit.scheme_account_query(queryset)
-            queryset = queryset.filter(user_set__id=self.request.user.id)
-        return queryset
+            query = {'user_set__id': self.request.user.id}
+            if not self.request.user.is_tester:
+                query['scheme__test_scheme'] = False
+
+            queryset = queryset.filter(**query)
+        return self.request.channels_permit.scheme_account_query(queryset)
 
     def put(self, request, *args, **kwargs):
         """
@@ -692,6 +717,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         if not self.request.channels_permit.is_scheme_available(scheme_id):
             raise NotFound('Scheme does not exist.')
 
-        message, status_code, _ = self.handle_join_request(request.data, request.user, int(kwargs['pk']),
+        message, status_code, _ = self.handle_join_request(request.data, request.user, scheme_id,
                                                            request.channels_permit)
         return Response(message, status=status_code)
