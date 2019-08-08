@@ -2,13 +2,14 @@ import logging
 
 import requests
 
+from hermes.settings import SPREEDLY_BASE_URL
+
 
 class SpreedlyError(Exception):
     pass
 
 
 class Spreedly:
-    BASE_URL = "https://core.spreedly.com"
     payment_auth_url = "{}/v1/gateways/{gateway_token}/authorize.json"
     payment_void_url = "{}/v1/transactions/{transaction_token}/void.json"
 
@@ -32,7 +33,7 @@ class Spreedly:
         }
         try:
             resp = requests.post(
-                self.payment_auth_url.format(self.BASE_URL, gateway_token=gateway_token),
+                self.payment_auth_url.format(SPREEDLY_BASE_URL, gateway_token=gateway_token),
                 json=payload,
                 auth=(self.environment_key, self.access_secret)
             )
@@ -54,7 +55,7 @@ class Spreedly:
     def void(self, transaction_token: str) -> None:
         try:
             resp = requests.post(
-                self.payment_void_url.format(self.BASE_URL, transaction_token=transaction_token),
+                self.payment_void_url.format(SPREEDLY_BASE_URL, transaction_token=transaction_token),
                 auth=(self.environment_key, self.access_secret)
             )
 
