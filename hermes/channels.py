@@ -2,6 +2,7 @@ from user.models import ClientApplicationBundle
 from scheme.models import SchemeBundleAssociation
 from rest_framework import exceptions
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.db.models import Q
 
 
 class Permit:
@@ -98,37 +99,29 @@ class Permit:
     def related_model_query(self, query, relation='', allow=None):
         if self.service_allow_all:
             return query
-        includes = []
-        excludes = []
         bundle_root = f'{relation}schemebundleassociation__'
         status_key = f'{bundle_root}status'
+        bundle = {f'{bundle_root}bundle': self.bundle}
+        active = {status_key: SchemeBundleAssociation.ACTIVE}
+        suspended = {status_key: SchemeBundleAssociation.SUSPENDED}
+        q = Q(**bundle)
 
         if allow == self.AVAILABLE or allow is None:
             # By default permit query filter selects only defined schemes which are not inactive
             # thus inactive is the same as not defined
             if self.ubiquity:
-                includes = [SchemeBundleAssociation.ACTIVE]
+                q = q & Q(**active)
             else:
-                excludes = [SchemeBundleAssociation.INACTIVE]
+                q = q & (Q(**active) | Q(**suspended))
         elif allow == self.SUSPENDED:
             if self.ubiquity:
-                includes = [SchemeBundleAssociation.ACTIVE]
+                q = q & Q(**active)
             else:
-                excludes = [SchemeBundleAssociation.INACTIVE]
+                q = q & (Q(**active) | Q(**suspended))
         elif allow == self.ACTIVE:
-            includes = [SchemeBundleAssociation.ACTIVE]
+            q = q & Q(**active)
 
-        filters = {f'{bundle_root}bundle': self.bundle}
-
-        for inc in includes:
-            filters[status_key] = inc
-        query = query.filter(**filters)
-
-        filters = {}
-        for ex in excludes:
-            filters[status_key] = ex
-        query = query.exclude(**filters)
-        return query
+        return query.filter(q)
 
     def is_scheme_suspended(self, scheme_id):
         return self.scheme_status(scheme_id) == SchemeBundleAssociation.SUSPENDED

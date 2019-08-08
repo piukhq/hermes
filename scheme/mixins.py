@@ -27,6 +27,7 @@ if t.TYPE_CHECKING:
     from user.models import CustomUser
     from hermes.channels import Permit
     from rest_framework.serializers import Serializer
+    from django.db.models import QuerySet
 
 
 class BaseLinkMixin(object):
@@ -235,7 +236,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit')\
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit') \
             -> t.Tuple[dict, int, SchemeAccount]:
 
         scheme_account = data.get('scheme_account')
@@ -445,14 +446,7 @@ class UpdateCredentialsMixin:
         return new_answers, main_answer
 
     @staticmethod
-    def _check_required_data_presence(scheme: Scheme, data: dict) -> None:
-        if scheme.authorisation_required:
-            query = Q(add_field=True) | Q(auth_field=True)
-        else:
-            query = Q(add_field=True)
-
-        required_questions = scheme.questions.values('type').filter(query).all()
-
+    def _filter_required_questions(required_questions: 'QuerySet', scheme: Scheme, data: dict) -> 'QuerySet':
         if scheme.manual_question and scheme.manual_question.type in data.keys():
             if scheme.scan_question:
                 required_questions = required_questions.exclude(type=scheme.scan_question.type)
@@ -460,6 +454,20 @@ class UpdateCredentialsMixin:
             if scheme.manual_question:
                 required_questions = required_questions.exclude(type=scheme.manual_question.type)
 
-        for question in required_questions:
+        return required_questions
+
+    def _check_required_data_presence(self, scheme: Scheme, data: dict) -> None:
+        if not self.request.user.is_tester and scheme.test_scheme:
+            raise ValidationError(f'Scheme {scheme.id} not allowed for this user')
+
+        if scheme.authorisation_required:
+            query = Q(add_field=True) | Q(auth_field=True)
+        else:
+            query = Q(add_field=True)
+
+        required_questions = scheme.questions.values('type').filter(query)
+        filtered_required_questions = self._filter_required_questions(required_questions, scheme, data)
+
+        for question in filtered_required_questions.all():
             if question['type'] not in data.keys():
-                raise ValidationError('required field {} is missing.'.format(question['type']))
+                raise ValidationError(f'required field {question["type"]} is missing.')

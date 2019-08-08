@@ -162,6 +162,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_tester = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4, db_index=True)
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
