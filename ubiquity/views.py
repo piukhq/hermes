@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 import analytics
+from hermes.channels import Permit
 from hermes.traced_requests import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
@@ -37,13 +38,17 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
-from hermes.channels import Permit
 
 if t.TYPE_CHECKING:
     from django.http import HttpResponse
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
+
+
+def is_auto_link(req):
+    return req.query_params.get('autoLink', '').lower() == 'true' or \
+           req.query_params.get('autolink', '').lower() == 'true'
 
 
 def replace_escaped_unicode(match):
@@ -284,7 +289,7 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
 
         account.refresh_from_db()
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, account)
 
         return Response(self.get_serializer(account).data, status.HTTP_200_OK)
@@ -337,7 +342,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         if status_code == status.HTTP_201_CREATED:
             return Response(self._create_payment_card_consent(consent, pcard), status=status_code)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_membership_cards(request.user, pcard)
 
         return Response(self.get_serializer(pcard).data, status=status_code)
@@ -359,6 +364,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             'user_set__id': self.request.user.id,
             'is_deleted': False
         }
+
+        if not self.request.user.is_tester:
+            query['scheme__test_scheme'] = False
 
         return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
 
@@ -479,9 +487,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
+        account.delete_saved_balance()
+        account.delete_cached_balance()
+        account.set_pending()
         async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
@@ -536,12 +547,18 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         try:
             if not self.request.channels_permit.is_scheme_available(int(self.request.data['membership_plan'])):
                 raise ParseError('membership plan not allowed for this user.')
-        except ValueError:
+
+            scheme = Scheme.objects.get(pk=self.request.data['membership_plan'])
+            if not self.request.user.is_tester and scheme.test_scheme:
+                raise ParseError('membership plan not allowed for this user.')
+
+        except KeyError:
+            raise ParseError('required field membership_plan is missing')
+        except (ValueError, Scheme.DoesNotExist):
             raise ParseError
 
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data)
-        scheme_id = self.request.data['membership_plan']
-        return scheme_id, auth_fields, enrol_fields, add_fields
+        return scheme.id, auth_fields, enrol_fields, add_fields
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
@@ -737,7 +754,7 @@ class ListMembershipCardView(MembershipCardView):
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
                                                                   add_fields)
 
-        if request.query_params.get('autoLink') == 'True':
+        if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
@@ -749,29 +766,30 @@ class CardLinkView(ModelViewSet):
     @censor_and_decorate
     def update_payment(self, request, *args, **kwargs):
         self.serializer_class = PaymentCardSerializer
-        link, status_code = self._update_link(request.user.id, kwargs['pcard_id'], kwargs['mcard_id'])
+        link, status_code = self._update_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
         serializer = self.get_serializer(link.payment_card_account)
         return Response(serializer.data, status_code)
 
     @censor_and_decorate
     def update_membership(self, request, *args, **kwargs):
         self.serializer_class = MembershipCardSerializer
-        link, status_code = self._update_link(request.user.id, kwargs['pcard_id'], kwargs['mcard_id'])
+        link, status_code = self._update_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
         serializer = self.get_serializer(link.scheme_account)
         return Response(serializer.data, status_code)
 
     @censor_and_decorate
     def destroy_payment(self, request, *args, **kwargs):
-        pcard, _ = self._destroy_link(request.user.id, kwargs['pcard_id'], kwargs['mcard_id'])
+        pcard, _ = self._destroy_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
         return Response({}, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
-        _, mcard = self._destroy_link(request.user.id, kwargs['pcard_id'], kwargs['mcard_id'])
+        _, mcard = self._destroy_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
         return Response({}, status.HTTP_200_OK)
 
-    def _destroy_link(self, user_id: int, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
-        pcard, mcard = self._collect_cards(pcard_id, mcard_id, user_id)
+    def _destroy_link(self, user: CustomUser, pcard_id: int, mcard_id: int
+                      ) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+        pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
@@ -781,8 +799,8 @@ class CardLinkView(ModelViewSet):
         link.delete()
         return pcard, mcard
 
-    def _update_link(self, user_id: int, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
-        pcard, mcard = self._collect_cards(pcard_id, mcard_id, user_id)
+    def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
+        pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
         link, created = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
         if created:
@@ -794,10 +812,16 @@ class CardLinkView(ModelViewSet):
 
     @staticmethod
     def _collect_cards(payment_card_id: int, membership_card_id: int,
-                       user_id: int) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+                       user: CustomUser) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
         try:
-            payment_card = PaymentCardAccount.objects.get(user_set__id=user_id, pk=payment_card_id)
-            membership_card = SchemeAccount.objects.get(user_set__id=user_id, pk=membership_card_id)
+            filters = {'is_deleted': False}
+            payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
+
+            if not user.is_tester:
+                filters['scheme__test_scheme'] = False
+
+            membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
+
         except PaymentCardAccount.DoesNotExist:
             raise NotFound('The payment card of id {} was not found.'.format(payment_card_id))
         except SchemeAccount.DoesNotExist:
@@ -817,6 +841,9 @@ class CompositeMembershipCardView(ListMembershipCardView):
             'is_deleted': False,
             'payment_card_account_set__id': self.kwargs['pcard_id']
         }
+
+        if not self.request.user.is_tester:
+            query['scheme__test_scheme'] = False
 
         return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
 
@@ -881,7 +908,12 @@ class MembershipPlanView(ModelViewSet):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(Scheme.objects)
+        queryset = Scheme.objects
+
+        if not self.request.user.is_tester:
+            queryset = queryset.filter(test_scheme=False)
+
+        return self.request.channels_permit.scheme_query(queryset)
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -893,7 +925,12 @@ class ListMembershipPlanView(ModelViewSet, IdentifyCardMixin):
     serializer_class = MembershipPlanSerializer
 
     def get_queryset(self):
-        return self.request.channels_permit.scheme_query(Scheme.objects)
+        queryset = Scheme.objects
+
+        if not self.request.user.is_tester:
+            queryset = queryset.filter(test_scheme=False)
+
+        return self.request.channels_permit.scheme_query(queryset)
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
@@ -928,7 +965,7 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
             if isinstance(data, list):
                 data = data[0]
 
-            if self._account_belongs_to_user(request.user.id, data.get('scheme_account_id')):
+            if self._account_belongs_to_user(request.user, data.get('scheme_account_id')):
                 return Response(self.get_serializer(data, many=False).data)
 
         return Response({})
@@ -939,7 +976,7 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200 and resp.json():
-            data = self._filter_transactions_for_current_user(request.user.id, resp.json())
+            data = self._filter_transactions_for_current_user(request.user, resp.json())
             if data:
                 return Response(self.get_serializer(data, many=True).data)
 
@@ -947,24 +984,30 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        if not self._account_belongs_to_user(request.user.id, kwargs['mcard_id']):
+        if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
             return Response([])
 
         response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
         return Response(response)
 
     @staticmethod
-    def _account_belongs_to_user(user_id: int, mcard_id: int) -> bool:
-        return SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account_id=mcard_id).exists()
+    def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
+        query = {
+            'id': mcard_id,
+            'is_deleted': False
+        }
+        if not user.is_tester:
+            query['scheme__test_scheme'] = False
+
+        return user.scheme_account_set.filter(**query).exists()
 
     @staticmethod
-    def _filter_transactions_for_current_user(user_id: int, data: t.List[dict]) -> t.List[dict]:
-        current_user_accounts = {
-            account['scheme_account_id']
-            for account in SchemeAccountEntry.objects.values('scheme_account_id').filter(user_id=user_id).all()
-        }
+    def _filter_transactions_for_current_user(user: CustomUser, data: t.List[dict]) -> t.List[dict]:
+        queryset = user.scheme_account_set.values('id')
+        if not user.is_tester:
+            queryset = queryset.filter(scheme__test_scheme=False)
+
         return [
-            tx
-            for tx in data
-            if tx.get('scheme_account_id') in current_user_accounts
+            tx for tx in data
+            if tx.get('scheme_account_id') in {account['id'] for account in queryset.all()}
         ]

@@ -183,6 +183,21 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['display_status'], SchemeAccount.ACTIVE)
 
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+
+        self.user.is_tester = True
+        self.user.save()
+        response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+        self.scheme.test_scheme = False
+        self.scheme.save()
+        self.user.is_tester = False
+        self.user.save()
+
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     def test_delete_schemes_account(self, mock_date, mock_update_attr):
@@ -503,6 +518,22 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('barcode_regex', response.data[0]['scheme'])
         expected_transaction_headers = [{"name": "header 1"}, {"name": "header 2"}, {"name": "header 3"}]
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
+        schemes_number = len(response.json())
+
+        self.scheme.test_scheme = True
+        self.scheme.save()
+        response = self.client.get('/schemes/accounts', **self.auth_headers)
+        self.assertLess(len(response.json()), schemes_number)
+
+        self.user.is_tester = True
+        self.user.save()
+        response = self.client.get('/schemes/accounts', **self.auth_headers)
+        self.assertEqual(len(response.json()), schemes_number)
+
+        self.scheme.test_scheme = False
+        self.scheme.save()
+        self.user.is_tester = False
+        self.user.save()
 
     def test_list_schemes_accounts_with_suspended_scheme(self):
         join_scheme = SchemeFactory()
