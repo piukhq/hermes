@@ -401,3 +401,4 @@ TO_DAEDALUS = MessagingService(
 )
 
 INTERNAL_SERVICE_BUNDLE = env_var('INTERNAL_SERVICE_BUNDLE', 'com.bink.daedalus')
+JWT_EXPIRY_TIME = env_var('JWT_EXPIRY_TIME', 600)
