@@ -246,14 +246,14 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
+        query = {}
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return self.queryset.filter(**query)
+        return self.request.channels_permission.payment_card_account_query(
+            self.queryset.filter(**query),
+            user_filter=True
+        )
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -317,14 +317,15 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
+        query = {}
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return PaymentCardAccount.objects.filter(**query)
+        return self.request.channels_permission.payment_card_account_query(
+            PaymentCardAccount.objects.filter(**query),
+            user_filter=True
+        )
+
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

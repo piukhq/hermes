@@ -106,6 +106,11 @@ class Permit:
     def scheme_payment_account_query(self, query, allow=None):
         return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
 
+    def payment_card_account_query(self, query, user_id=None, user_filter=True):
+        if user_filter and not self.service_allow_all:
+            query = self._user_filter(query, user_id)
+        return query
+
     def related_model_query(self, query, relation='', allow=None):
         if self.service_allow_all:
             return query
