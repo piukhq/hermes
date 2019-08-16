@@ -360,15 +360,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
-
+        query = {}
         if not self.request.user.is_tester:
             query['scheme__test_scheme'] = False
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
+        return self.request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
@@ -837,15 +837,17 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
     def get_queryset(self):
         query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False,
             'payment_card_account_set__id': self.kwargs['pcard_id']
         }
 
         if not self.request.user.is_tester:
             query['scheme__test_scheme'] = False
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
+        return self.request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

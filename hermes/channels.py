@@ -1,3 +1,4 @@
+from hermes.settings import INTERNAL_SERVICE_BUNDLE
 from user.models import ClientApplicationBundle
 from scheme.models import SchemeBundleAssociation
 from rest_framework import exceptions
@@ -55,6 +56,9 @@ class Permit:
                                                       f" bundle ids for client '{self.client}'")
             self.client = self.looked_up_bundle.client
 
+        if bundle_id == INTERNAL_SERVICE_BUNDLE:
+            self.service_allow_all = True
+
     @staticmethod
     def is_authenticated():
         """
@@ -68,7 +72,7 @@ class Permit:
     @property
     def bundle(self):
         if self.service_allow_all:
-            return None
+            return self.looked_up_bundle
         # Bundle will only be looked up when required and only once per request
         if not self.looked_up_bundle:
             try:
@@ -90,8 +94,14 @@ class Permit:
     def scheme_query(self, query, allow=None):
         return self.related_model_query(query, '', allow)
 
-    def scheme_account_query(self, query, allow=None):
+    def scheme_account_query(self, query, allow=None, user_id=None, user_filter=True):
+        if user_filter and not self.service_allow_all:
+            query = self._user_filter(query, user_id)
         return self.related_model_query(query, 'scheme__', allow)
+
+    @staticmethod
+    def _user_filter(query, user_id):
+        return query.filter(user_set__id=user_id)
 
     def scheme_payment_account_query(self, query, allow=None):
         return self.related_model_query(query, 'scheme_account_set__scheme__', allow)

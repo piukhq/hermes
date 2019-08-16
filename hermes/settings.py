@@ -400,3 +400,5 @@ TO_DAEDALUS = MessagingService(
     host=env_var("RABBIT_HOST"),               # eg '127.0.0.1'
     port=env_var("RABBIT_PORT")                # eg '5672'
 )
+
+INTERNAL_SERVICE_BUNDLE = env_var('INTERNAL_SERVICE_BUNDLE', 'com.bink.daedalus')

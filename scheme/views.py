@@ -102,12 +102,15 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
 
     def get_queryset(self):
         queryset = SchemeAccount.objects
-        query = {'user_set__id': self.request.user.id}
-
+        query = {}
         if not self.request.user.is_tester:
-            query['scheme__test_scheme'] = False
+            query = {'scheme__test_scheme': False}
 
-        return self.request.channels_permit.scheme_account_query(queryset.filter(**query))
+        return self.request.channels_permit.scheme_account_query(
+            queryset.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     def delete(self, request, *args, **kwargs):
         """
@@ -187,7 +190,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         ---
         response_serializer: ResponseSchemeAccountAndBalanceSerializer
         """
-        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects)
+        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
                                            user_set__id=self.request.user.id)
         serializer = SchemeAnswerSerializer(data=request.data)
@@ -202,7 +205,7 @@ class LinkCredentials(BaseLinkMixin, GenericAPIView):
         response_serializer: ResponseLinkSerializer
         """
         permit = request.channels_permit
-        queryset = permit.scheme_account_query(SchemeAccount.objects)
+        queryset = permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=request.user.id)
 
         if permit.is_scheme_suspended(scheme_account.scheme_id):
@@ -258,12 +261,15 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
             **channels_permit.scheme_suspended('scheme__')
         }
 
-        filter_by = {'user_set__id': self.request.user.id}
-
+        filter_by = {}
         if not self.request.user.is_tester:
             filter_by['scheme__test_scheme'] = False
 
-        return channels_permit.scheme_account_query(queryset.filter(**filter_by).exclude(**exclude_by))
+        return channels_permit.scheme_account_query(
+            queryset.filter(**filter_by).exclude(**exclude_by),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     def post(self, request, *args, **kwargs):
         """
@@ -480,13 +486,20 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
 
     def get_queryset(self):
         queryset = SchemeAccount.objects
+        user_filter = False
         if self.request.user.uid != 'api_user':
-            query = {'user_set__id': self.request.user.id}
+            user_filter = True
+            query = {}
             if not self.request.user.is_tester:
                 query['scheme__test_scheme'] = False
 
             queryset = queryset.filter(**query)
-        return self.request.channels_permit.scheme_account_query(queryset)
+
+        return self.request.channels_permit.scheme_account_query(
+            queryset,
+            user_id=self.request.user.id,
+            user_filter=user_filter
+        )
 
     def put(self, request, *args, **kwargs):
         """

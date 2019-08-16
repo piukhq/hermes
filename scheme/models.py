@@ -21,6 +21,7 @@ from django.utils import timezone
 
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
+from hermes.settings import TO_DAEDALUS
 from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -549,6 +550,14 @@ class SchemeAccount(models.Model):
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
+
+                TO_DAEDALUS.send(
+                    {"type": 'membership_card_update',
+                     "model": 'schemeaccount',
+                     "id": str(self.id),
+                     "rep": repr(self)},
+                    headers={'X-content-type': 'application/json'}
+                )
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
