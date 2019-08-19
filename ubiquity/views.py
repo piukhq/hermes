@@ -250,8 +250,9 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return self.request.channels_permission.payment_card_account_query(
+        return self.request.channels_permit.payment_card_account_query(
             self.queryset.filter(**query),
+            user_id=self.request.user.id,
             user_filter=True
         )
 
@@ -321,11 +322,11 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return self.request.channels_permission.payment_card_account_query(
+        return self.request.channels_permit.payment_card_account_query(
             PaymentCardAccount.objects.filter(**query),
+            user_id=self.request.user.id,
             user_filter=True
         )
-
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

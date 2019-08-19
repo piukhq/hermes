@@ -10,7 +10,7 @@ def create_service_client_app(apps, schema_editor):
     ClientApplication = apps.get_model('user', 'ClientApplication')
     ClientApplicationBundle = apps.get_model('user', 'ClientApplicationBundle')
 
-    bink_org = Organisation.objects.get_or_create(name="Loyalty Angels")
+    bink_org = Organisation.objects.get_or_create(name="Loyalty Angels")[0]
 
     daedalus_client = ClientApplication.objects.create(organisation=bink_org, name="Daedalus")
     ClientApplicationBundle.objects.create(client=daedalus_client, bundle_id="com.bink.daedalus")

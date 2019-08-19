@@ -101,6 +101,8 @@ class Permit:
 
     @staticmethod
     def _user_filter(query, user_id):
+        if not user_id:
+            raise ValueError("user_id is required when filtering by user")
         return query.filter(user_set__id=user_id)
 
     def scheme_payment_account_query(self, query, allow=None):
