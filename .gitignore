@@ -13,3 +13,5 @@ media
 __pychache__
 .cache
 venv/
+.DS_Store
+celerybeat-schedule
