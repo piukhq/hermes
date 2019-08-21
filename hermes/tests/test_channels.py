@@ -1,8 +1,19 @@
+from unittest.mock import patch
+
 from django.test import TestCase
+from django.urls import reverse
+
 from hermes.channels import Permit
+from hermes.settings import INTERNAL_SERVICE_BUNDLE
+from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
-from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory)
-from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
+from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
+from ubiquity.serializers import MembershipTransactionsMixin
+from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardAccountEntryFactory
+from ubiquity.tests.property_token import GenerateJWToken
+from user.models import Organisation, ClientApplication, ClientApplicationBundle
+from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
+                                  UserFactory)
 
 
 class TestPermit(TestCase):
@@ -321,3 +332,123 @@ class TestPermitSharedScheme(TestCase):
         ubiquity_query = ubiquity_permit.scheme_query(Scheme.objects)
         self.assertEquals(len(ubiquity_query), 1)
         self.assertEqual(self.scheme.id, ubiquity_query[0].id)
+
+
+class TestInternalService(TestCase):
+    def setUp(self):
+        self.bink_org = Organisation.objects.get(name='Loyalty Angels')
+        self.internal_service_client = ClientApplication.objects.get(organisation=self.bink_org, name='Daedalus')
+        self.internal_service_bundle = ClientApplicationBundle.objects.get(bundle_id=INTERNAL_SERVICE_BUNDLE)
+
+        self.other_org = OrganisationFactory(name='Other Organisation')
+        self.other_client = ClientApplicationFactory(organisation=self.other_org)
+        self.other_bundle = ClientApplicationBundleFactory(client=self.other_client)
+
+        internal_service_id = 'external_id@testbink.com'
+        other_external_id = 'someotherexternalid@testbink.com'
+        self.bink_user = UserFactory(client=self.internal_service_client, external_id=internal_service_id)
+        self.other_user = UserFactory(client=self.other_client, external_id=other_external_id)
+
+        self.scheme = SchemeFactory()
+
+        SchemeBundleAssociationFactory(scheme=self.scheme,
+                                       bundle=self.other_bundle,
+                                       status=SchemeBundleAssociation.ACTIVE)
+
+        self.scheme_account_1 = SchemeAccountFactory(scheme=self.scheme)
+        self.scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
+
+        SchemeAccountEntryFactory(user=self.bink_user, scheme_account=self.scheme_account_1)
+        SchemeAccountEntryFactory(user=self.other_user, scheme_account=self.scheme_account_2)
+
+        self.payment_card_account_1 = PaymentCardAccountFactory()
+        self.payment_card_account_2 = PaymentCardAccountFactory()
+
+        PaymentCardAccountEntryFactory(user=self.bink_user, payment_card_account=self.payment_card_account_1)
+        PaymentCardAccountEntryFactory(user=self.other_user, payment_card_account=self.payment_card_account_2)
+
+        internal_service_token = GenerateJWToken(
+            self.internal_service_client.organisation.name,
+            self.internal_service_client.secret,
+            self.internal_service_bundle.bundle_id,
+            internal_service_id
+        ).get_token()
+        self.internal_service_auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(internal_service_token)}
+
+        token = GenerateJWToken(
+            self.other_client.organisation.name,
+            self.other_client.secret,
+            self.other_bundle.bundle_id,
+            other_external_id
+        ).get_token()
+        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_get_single_membership_card(self, mock_get_transactions, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = self.scheme_account_1.balances
+        resp = self.client.get(
+            reverse('membership-card', args=[self.scheme_account_1.id]), **self.internal_service_auth_headers
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        self.assertTrue(mock_get_midas_balance.delay.called)
+        self.assertTrue(mock_get_transactions.called)
+
+        mock_get_midas_balance.return_value = self.scheme_account_2.balances
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account_2.id]), **self.internal_service_auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.get(
+            reverse('membership-card', args=[self.scheme_account_1.id]), **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 404)
+
+        mock_get_midas_balance.return_value = self.scheme_account_2.balances
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account_2.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_service_get_any_payment_card_account(self):
+        resp = self.client.get(
+            reverse('payment-card', args=[self.payment_card_account_1.id]), **self.internal_service_auth_headers
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.get(
+            reverse('payment-card', args=[self.payment_card_account_2.id]), **self.internal_service_auth_headers
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        resp = self.client.get(
+            reverse('payment-card', args=[self.payment_card_account_1.id]), **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 404)
+
+        resp = self.client.get(
+            reverse('payment-card', args=[self.payment_card_account_2.id]), **self.auth_headers
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_service_get_all_scheme_accounts(self, mock_get_transactions, mock_get_midas_balance):
+        mock_get_midas_balance.return_value = self.scheme_account_1.balances
+        resp = self.client.get(reverse('membership-cards'), **self.internal_service_auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 1)
+
+        self.assertTrue(mock_get_midas_balance.delay.called)
+        self.assertTrue(mock_get_transactions.called)
+
+    def test_service_get_all_payment_card_accounts(self):
+        resp = self.client.get(reverse('payment-cards'), **self.internal_service_auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 2)
+
+        resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.json()), 1)
