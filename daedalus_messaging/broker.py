@@ -11,7 +11,7 @@ class MessagingService:
         self.user = user
         self.password = password
         self.host = host
-        self.port = port
+        self.port = int(port)
         self.queue_name = queue_name
         self.exchange = Exchange(f'{self.queue_name}_exchange', type='direct', durable=True)
         self.queue = Queue(self.queue_name, exchange=self.exchange, routing_key=queue_name)
