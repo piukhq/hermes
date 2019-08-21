@@ -1,10 +1,11 @@
+import time
 from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
 
 from hermes.channels import Permit
-from hermes.settings import INTERNAL_SERVICE_BUNDLE
+from hermes.settings import INTERNAL_SERVICE_BUNDLE, JWT_EXPIRY_TIME
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
@@ -344,9 +345,9 @@ class TestInternalService(TestCase):
         self.other_client = ClientApplicationFactory(organisation=self.other_org)
         self.other_bundle = ClientApplicationBundleFactory(client=self.other_client)
 
-        internal_service_id = 'external_id@testbink.com'
+        self.internal_service_id = 'external_id@testbink.com'
         other_external_id = 'someotherexternalid@testbink.com'
-        self.bink_user = UserFactory(client=self.internal_service_client, external_id=internal_service_id)
+        self.bink_user = UserFactory(client=self.internal_service_client, external_id=self.internal_service_id)
         self.other_user = UserFactory(client=self.other_client, external_id=other_external_id)
 
         self.scheme = SchemeFactory()
@@ -371,7 +372,7 @@ class TestInternalService(TestCase):
             self.internal_service_client.organisation.name,
             self.internal_service_client.secret,
             self.internal_service_bundle.bundle_id,
-            internal_service_id
+            self.internal_service_id
         ).get_token()
         self.internal_service_auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(internal_service_token)}
 
@@ -452,3 +453,20 @@ class TestInternalService(TestCase):
         resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.json()), 1)
+
+    def test_service_token_expiry(self):
+        generate_token = GenerateJWToken(
+            self.internal_service_client.organisation.name,
+            self.internal_service_client.secret,
+            self.internal_service_bundle.bundle_id,
+            self.internal_service_id
+        )
+        generate_token.payload['iat'] = time.time() - JWT_EXPIRY_TIME
+        expired_token = generate_token.get_token()
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(expired_token)}
+
+        resp = self.client.get(
+            reverse('payment-card', args=[self.payment_card_account_1.id]), **auth_headers
+        )
+        self.assertEqual(resp.status_code, 401)

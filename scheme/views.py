@@ -104,7 +104,7 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
         queryset = SchemeAccount.objects
         query = {}
         if not self.request.user.is_tester:
-            query = {'scheme__test_scheme': False}
+            query['scheme__test_scheme'] = False
 
         return self.request.channels_permit.scheme_account_query(
             queryset.filter(**query),
