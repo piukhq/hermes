@@ -397,7 +397,9 @@ class TestInternalService(TestCase):
         self.assertTrue(mock_get_transactions.called)
 
         mock_get_midas_balance.return_value = self.scheme_account_2.balances
-        resp = self.client.get(reverse('membership-card', args=[self.scheme_account_2.id]), **self.internal_service_auth_headers)
+        resp = self.client.get(
+            reverse('membership-card', args=[self.scheme_account_2.id]), **self.internal_service_auth_headers
+        )
         self.assertEqual(resp.status_code, 200)
 
         resp = self.client.get(
