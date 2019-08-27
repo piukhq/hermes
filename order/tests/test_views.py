@@ -3,7 +3,7 @@ from rest_framework.utils.serializer_helpers import ReturnList
 
 from payment_card.models import PaymentCardAccount
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, SchemeBundleAssociation
 from user.models import ClientApplicationBundle
 
 
@@ -15,7 +15,8 @@ class TestOrder(APITestCase):
         payment_card_entry = PaymentCardAccountEntryFactory()
         payment_card_account = payment_card_entry.payment_card_account
         bundle, created = ClientApplicationBundle.objects.get_or_create(bundle_id='com.bink.wallet', client=user.client)
-        bundle.schemes.add(scheme_account.scheme.id)
+        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme_account.scheme,
+                                                      status=SchemeBundleAssociation.ACTIVE)
         # to do: bundle.issuers.add payment issue id required when issues filter is added
 
         data = [{
@@ -45,7 +46,8 @@ class TestOrder(APITestCase):
         payment_card_account = payment_card_entry.payment_card_account
         bundle_id = 'my_test_bundle'
         bundle, created = ClientApplicationBundle.objects.get_or_create(bundle_id=bundle_id, client=user.client)
-        bundle.schemes.add(scheme_account.scheme.id)
+        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme_account.scheme,
+                                                      status=SchemeBundleAssociation.ACTIVE)
         # to do: bundle.issuers.add payment issue id required when issues filter is added
 
         data = [{

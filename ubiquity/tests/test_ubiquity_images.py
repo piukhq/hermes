@@ -3,10 +3,10 @@ from unittest.mock import patch
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APITestCase
-
+from scheme.models import SchemeBundleAssociation
 from common.models import Image
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
-from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory
+from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
 from ubiquity.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
@@ -54,6 +54,10 @@ class TestPaymentCardAccountImages(APITestCase):
             SchemeImageFactory(image_type_code=2, scheme=cls.membership_card_account.scheme),
             SchemeImageFactory(image_type_code=3, scheme=cls.membership_card_account.scheme),
         ]
+
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.membership_card_account.scheme,
+                                                                       bundle=bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}

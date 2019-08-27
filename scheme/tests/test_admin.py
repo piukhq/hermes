@@ -38,14 +38,6 @@ class TestCredentialsAdmin(TestCase):
             CredentialQuestionFormset.clean(mocked_instance)
         self.assertEqual(e.exception.args[0], 'You may only select one scan question')
 
-    def test_clean_active_and_no_manual(self):
-        mocked_instance = self.create_instance({'scan_question': False, 'manual_question': False})
-        mocked_instance.instance.is_active = True
-
-        with self.assertRaises(ValidationError) as e:
-            CredentialQuestionFormset.clean(mocked_instance)
-        self.assertEqual(e.exception.args[0], 'You must have a manual question when a scheme is set to active')
-
 
 class TestSchemeValidation(TestCase):
     def setUp(self):
