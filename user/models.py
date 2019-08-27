@@ -110,7 +110,6 @@ class ClientApplication(models.Model):
     secret = models.CharField(max_length=128, unique=False, default=_get_random_string, db_index=True)
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT)
     name = models.CharField(max_length=100, unique=True)
-
     bink_app = None
 
     def __str__(self):
@@ -128,8 +127,9 @@ class ClientApplicationBundle(models.Model):
     """
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
-    issuers = models.ManyToManyField('payment_card.Issuer', blank=True)
-    schemes = models.ManyToManyField('scheme.Scheme', blank=True)
+    issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
+    scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
+                                    related_name='related_bundle')
 
     class Meta:
         unique_together = ('client', 'bundle_id',)
@@ -162,6 +162,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_tester = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4, db_index=True)
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)

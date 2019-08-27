@@ -11,12 +11,18 @@ from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCreden
 from ubiquity.tasks import async_balance, async_all_balance, async_link, async_join, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
+from hermes.channels import Permit
+from scheme.models import SchemeBundleAssociation
+from user.tests.factories import ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory
 
 
 class TestTasks(TestCase):
 
     def setUp(self):
         external_id = 'tasks@testbink.com'
+        self.org = OrganisationFactory(name='Barclays')
+        self.client = ClientApplicationFactory(organisation=self.org, name="Barclays-client")
+        self.bundle = ClientApplicationBundleFactory(client=self.client)
         self.user = UserFactory(external_id=external_id, email=external_id)
         self.entry = SchemeAccountEntryFactory(user=self.user)
         self.entry2 = SchemeAccountEntryFactory(user=self.user)
@@ -45,7 +51,11 @@ class TestTasks(TestCase):
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance(self, mock_async_balance):
         user_id = self.user.id
-        async_all_balance(user_id)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry.scheme_account.scheme)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+
+        async_all_balance(user_id, channels_permit=channels_permit)
 
         scheme_account = SchemeAccountFactory(is_deleted=True)
         deleted_entry = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account)
@@ -58,11 +68,19 @@ class TestTasks(TestCase):
 
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_filtering(self, mock_async_balance):
-        entry_active = SchemeAccountEntryFactory()
+        scheme_account_1 = SchemeAccountFactory()
+        scheme_account_2 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+        scheme_account_3 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+        scheme_account_4 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
+
+        entry_active = SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_1)
         user = entry_active.user
-        entry_pending = SchemeAccountEntryFactory(user=user)
-        entry_invalid_credentials = SchemeAccountEntryFactory(user=user)
-        entry_end_site_down = SchemeAccountEntryFactory(user=user)
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=scheme_account_1.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+
+        entry_pending = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_2)
+        entry_invalid_credentials = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_3)
+        entry_end_site_down = SchemeAccountEntryFactory(user=user, scheme_account=scheme_account_4)
 
         entry_pending.scheme_account.status = SchemeAccount.PENDING
         entry_pending.scheme_account.save()
@@ -71,7 +89,7 @@ class TestTasks(TestCase):
         entry_end_site_down.scheme_account.status = SchemeAccount.END_SITE_DOWN
         entry_end_site_down.scheme_account.save()
 
-        async_all_balance(user.id)
+        async_all_balance(user.id, channels_permit=channels_permit)
 
         refreshed_scheme_accounts = [x[0][0] for x in mock_async_balance.call_args_list]
         self.assertIn(entry_active.scheme_account.id, refreshed_scheme_accounts)
@@ -82,8 +100,9 @@ class TestTasks(TestCase):
     @patch('ubiquity.tasks.async_balance.delay')
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
         user_id = self.user.id
-        async_all_balance(user_id, allowed_schemes=[self.entry2.scheme_account.scheme.id])
-
+        SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
+        channels_permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
+        async_all_balance(user_id, channels_permit=channels_permit)
         self.assertTrue(mock_async_balance.called)
         async_balance_call_args = [call_args[0][0] for call_args in mock_async_balance.call_args_list]
         self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
@@ -110,12 +129,12 @@ class TestTasks(TestCase):
     def test_async_join_validation_failure(self, mock_create_join_account):
         # This is just to break out of the function if the initial validation check hasn't failed
         mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-
+        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
         scheme_id = self.link_scheme.id
 
-        async_join(scheme_account_id, user_id, scheme_id, {})
+        async_join(scheme_account_id, user_id, permit, scheme_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
@@ -124,7 +143,7 @@ class TestTasks(TestCase):
     def test_async_register_validation_failure(self, mock_create_join_account):
         # This is just to break out of the function if the initial validation check hasn't failed
         mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-
+        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
         card_number = SchemeCredentialQuestionFactory(
             scheme=self.link_scheme,
             type=CARD_NUMBER,
@@ -141,7 +160,7 @@ class TestTasks(TestCase):
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
 
-        async_registration(user_id, scheme_account_id, {})
+        async_registration(user_id, permit, scheme_account_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)

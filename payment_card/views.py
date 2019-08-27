@@ -2,8 +2,6 @@ import csv
 import json
 from io import StringIO
 
-import arrow
-from hermes.traced_requests import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
@@ -84,14 +82,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
             instance.save()
             PaymentCardSchemeEntry.objects.filter(payment_card_account=instance).delete()
 
-            requests.delete(settings.METIS_URL + '/payment_service/payment_card', json={
-                'payment_token': instance.psp_token,
-                'card_token': instance.token,
-                'partner_slug': instance.payment_card.slug,
-                'id': instance.id,
-                'date': arrow.get(instance.created).timestamp}, headers={
-                'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                'Content-Type': 'application/json'})
+            metis.delete_payment_card(instance)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -109,10 +100,6 @@ class ListCreatePaymentCardAccount(APIView):
         return Response(accounts, status=200)
 
     def post(self, request):
-        message, status_code, _ = self.create_payment_card_account(request.data, request.user)
-        return Response(message, status=status_code)
-
-    def create_payment_card_account(self, data, user):
         """Add a payment card account
         ---
         request_serializer: serializers.PaymentCardAccountSerializer
@@ -123,7 +110,10 @@ class ListCreatePaymentCardAccount(APIView):
             - code: 403
               message: A payment card account by that fingerprint and expiry already exists.
         """
+        message, status_code, _ = self.create_payment_card_account(request.data, request.user)
+        return Response(message, status=status_code)
 
+    def create_payment_card_account(self, data, user):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
         if serializer.is_valid():
             data = serializer.validated_data
@@ -136,6 +126,7 @@ class ListCreatePaymentCardAccount(APIView):
                 result = self._create_payment_card_account(account, user)
                 if not isinstance(result, PaymentCardAccount):
                     return result
+
                 self.apply_barclays_images(account)
 
             except Exception as e:
@@ -161,47 +152,50 @@ class ListCreatePaymentCardAccount(APIView):
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
-    def _create_payment_card_account(account, user):
-        if account.payment_card.system == PaymentCard.MASTERCARD:
-            # get the oldest matching account
-            old_account = PaymentCardAccount.all_objects.filter(
-                fingerprint=account.fingerprint).order_by('-created').first()
+    def _create_payment_card_account(new_acc, user):
+        # check if an new_acc with the same fingerprint already exists
+        old_accounts = PaymentCardAccount.all_objects.filter(fingerprint=new_acc.fingerprint).order_by('-created')
+        if old_accounts.exists():
+            # get the latest new_acc from the same client if it exists
+            same_client_old_accounts = old_accounts.filter(user_set__client=user.client.pk)
+            old_account = same_client_old_accounts.first() or old_accounts.first()
 
-            if old_account:
-                return ListCreatePaymentCardAccount.supercede_old_card(account, old_account, user)
-        account.save()
-        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
-        metis.enrol_new_payment_card(account)
-        return account
+            return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_account, user)
+
+        new_acc.save()
+        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_acc)
+        metis.enrol_new_payment_card(new_acc)
+
+        return new_acc
 
     @staticmethod
-    def supercede_old_card(account, old_account, user):
+    def supercede_old_account(new_account, old_account, user):
         # if the clients are the same but the users don't match, reject the card.
         if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
                 client=user.client).exists():
             return Response({'error': 'Fingerprint is already in use by another user.',
                              'code': '403'}, status=status.HTTP_403_FORBIDDEN)
 
-        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
-
-        account.token = old_account.token
-        account.psp_token = old_account.psp_token
+        # copy the tokens from the previous account
+        new_account.token = old_account.token
+        new_account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
-            account.save()
-            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
-            metis.enrol_existing_payment_card(account)
+            new_account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
+            metis.enrol_existing_payment_card(new_account)
         else:
-            account.status = old_account.status
-            account.save()
-            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+            new_account.status = old_account.status
+            new_account.save()
+            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
 
-            # only delete the old card if it's on the same app
+            # delete the old account if it is on the same client.
             if old_account.user_set.filter(client=user.client).exists():
                 old_account.is_deleted = True
                 old_account.save()
 
-        return account
+        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
+        return new_account
 
     @staticmethod
     def apply_barclays_images(account):
