@@ -403,7 +403,9 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         authorise_fields = instance.questions.filter(auth_field=True).all()
         registration_fields = instance.questions.filter(register_field=True).all()
         enrol_fields = instance.questions.filter(enrol_field=True).all()
-        status = 'active' if instance.is_active else 'suspended'
+        # To get here status must be active (i.e. suspended currently maps to inactive)
+        # if changed for real status is required call channels_permit.scheme_status_name(instance.id)
+        status = 'active'
         documents = instance.documents.all()
         consents = self._get_scheme_consents(scheme=instance)
 
@@ -413,14 +415,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             card_type = 1
         else:
             card_type = 0
-
-        # todo remove this horrible patch as soon as Barclays uses the right field in their app.
-        company_name = instance.company
-        plan_name_card = instance.plan_name_card
-        if 'harvey-nichols' in instance.slug:
-            company_name = 'Rewards'
-            plan_name_card = 'by Harvey Nichols'
-        # ------------------------- end of horrible patch ------------------------------------ #
 
         return {
             'id': instance.id,
@@ -454,14 +448,14 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             'images': self._get_ubiquity_images(instance),
             'account': {
                 'plan_name': instance.name,
-                'plan_name_card': plan_name_card,
+                'plan_name_card': instance.plan_name_card,
                 'plan_url': instance.url,
                 'plan_summary': instance.plan_summary,
                 'plan_description': instance.plan_description,
                 'plan_documents': MembershipPlanDocumentSerializer(documents, many=True).data,
                 'barcode_redeem_instructions': instance.barcode_redeem_instructions,
                 'plan_register_info': instance.plan_register_info,
-                'company_name': company_name,
+                'company_name': instance.company,
                 'company_url': instance.company_url,
                 'enrol_incentive': instance.enrol_incentive,
                 'category': instance.category.name,
