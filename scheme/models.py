@@ -18,6 +18,7 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
+
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
 from hermes.traced_requests import requests
@@ -113,7 +114,7 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
-
+    test_scheme = models.BooleanField(default=False)
     category = models.ForeignKey(Category)
 
     card_number_regex = models.CharField(max_length=100, blank=True,

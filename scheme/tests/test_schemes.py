@@ -1,21 +1,19 @@
 from unittest.mock import patch
 
+from django.conf import settings
+from django.test import TestCase
+from django.utils import timezone
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
-from django.test import TestCase
-from django.conf import settings
-from django.utils import timezone
 
-from scheme.tests.factories import (SchemeCredentialQuestionFactory,
-                                    SchemeImageFactory, SchemeFactory, ConsentFactory,
-                                    SchemeCredentialQuestionChoiceFactory, SchemeCredentialQuestionChoiceValueFactory,
-                                    ControlFactory, SchemeBundleAssociationFactory)
-from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
-from scheme.models import SchemeCredentialQuestion, Control, SchemeBundleAssociation
-from user.tests.factories import (UserFactory)
 from common.models import Image
-from scheme.models import JourneyTypes
-from user.models import ClientApplicationBundle,  ClientApplication
+from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
+from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, Control, JourneyTypes
+from scheme.tests.factories import (SchemeBundleAssociationFactory, SchemeCredentialQuestionChoiceFactory,
+                                    SchemeCredentialQuestionFactory, SchemeImageFactory, SchemeFactory,
+                                    ConsentFactory, SchemeCredentialQuestionChoiceValueFactory, ControlFactory)
+from user.models import ClientApplication, ClientApplicationBundle
+from user.tests.factories import UserFactory
 
 
 class TestSchemeImages(APITestCase):
@@ -69,8 +67,14 @@ class TestSchemeViews(APITestCase):
 
     def test_scheme_list(self):
         SchemeCredentialQuestionFactory(manual_question=True)
+        scheme = SchemeFactory()
+        bundle, created = ClientApplicationBundle.objects.get_or_create(
+            bundle_id='com.bink.wallet',
+            client=self.user.client)
+        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
-        self.assertEqual(response.status_code, 200,)
+
+        self.assertEqual(response.status_code, 200, )
         self.assertEqual(type(response.data), ReturnList)
         self.assertIn('has_points', response.data[0])
         self.assertIn('has_transactions', response.data[0])
@@ -79,6 +83,24 @@ class TestSchemeViews(APITestCase):
         self.assertIn('consents', response.data[0])
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
+
+        scheme.test_scheme = True
+        scheme.save()
+        response = self.client.get('/schemes/', **self.auth_headers)
+        self.assertNotIn(scheme.id, [s['id'] for s in response.json()])
+
+        self.user.is_tester = True
+        self.user.save()
+
+        response = self.client.get('/schemes/', **self.auth_headers)
+        self.assertIn(scheme.id, [s['id'] for s in response.json()])
+
+        scheme.test_scheme = False
+        scheme.save()
+        self.user.is_tester = False
+        self.user.save()
+        if created:
+            bundle.delete()
 
     def test_scheme_consents(self):
         scheme2 = SchemeFactory()
@@ -180,6 +202,22 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(len(response.data['images']), 1)
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
         self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
+
+        scheme.test_scheme = True
+        scheme.save()
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 404)
+
+        self.user.is_tester = True
+        self.user.save()
+
+        response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+        scheme.test_scheme = False
+        scheme.save()
+        self.user.is_tester = False
+        self.user.save()
 
     def test_scheme_item_with_question_choices(self):
         manual_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=self.scheme, manual_question=True,
