@@ -97,6 +97,14 @@ def async_registration(user_id: int, permit: 'Permit', scheme_account_id: int, r
         scheme_account.save()
 
 
+@shared_task
+def async_join_journey_fetch_balance_and_update_status(scheme_account_id: int) -> None:
+    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+    scheme_account.status = scheme_account.PENDING
+    scheme_account.save(update_fields=['status'])
+    scheme_account.get_cached_balance()
+
+
 def _format_info(scheme_account: SchemeAccount, user_id: int) -> dict:
     consents = scheme_account.userconsent_set.filter(user_id=user_id).all()
     return {
