@@ -568,8 +568,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     def get_translated_status(instance: 'SchemeAccount') -> dict:
         status = instance.status
         if status in instance.SYSTEM_ACTION_REQUIRED:
-            status = instance.ACTIVE
-            if not instance.balances:
+            if instance.balances:
+                status = instance.ACTIVE
+            else:
                 status = instance.PENDING
 
         return {
