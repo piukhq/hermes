@@ -35,6 +35,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.tasks import send_merchant_metrics_for_link_delete
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -376,8 +377,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
 
         elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
-            scheme_account.link_date = timezone.now()
+            date_time_now = timezone.now()
+            scheme_slug = scheme_account.scheme.slug
+
+            scheme_account.link_date = date_time_now
             scheme_account.save(update_fields=['link_date'])
+
+            if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
 
         return Response({
             'id': scheme_account.id,
