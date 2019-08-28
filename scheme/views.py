@@ -4,6 +4,7 @@ import logging
 from io import StringIO
 
 import requests
+import sentry_sdk
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -16,7 +17,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
-import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -374,6 +374,10 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
+
+        elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
+            scheme_account.link_date = timezone.now()
+            scheme_account.save(update_fields=['link_date'])
 
         return Response({
             'id': scheme_account.id,
