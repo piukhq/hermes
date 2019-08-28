@@ -1,4 +1,5 @@
 *.pyc
+.python-version
 .idea
 aes
 .pytest_cache/

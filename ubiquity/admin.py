@@ -48,6 +48,6 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 @admin.register(MembershipPlanDocument)
 class MembershipPlanDocumentAdmin(admin.ModelAdmin):
     list_display = ('name', 'scheme', 'url', 'display', 'checkbox')
-    search_fields = ('name', 'scheme', 'url', 'display')
+    search_fields = ('name', 'scheme__name', 'url', 'display')
     list_filter = ('scheme',)
     raw_id_fields = ('scheme',)

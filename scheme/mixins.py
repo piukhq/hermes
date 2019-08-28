@@ -24,7 +24,9 @@ from ubiquity.models import SchemeAccountEntry
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
+    from hermes.channels import Permit
     from rest_framework.serializers import Serializer
+    from django.db.models import QuerySet
 
 
 class BaseLinkMixin(object):
@@ -121,8 +123,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer.is_valid(raise_exception=True)
         # my360 schemes should never come through this endpoint
         scheme = Scheme.objects.get(id=data['scheme'])
+        permit = self.request.channels_permit
 
-        if scheme.status == Scheme.SUSPENDED:
+        if permit and permit.is_scheme_suspended(scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         if scheme.url == settings.MY360_SCHEME_URL:
@@ -232,11 +235,37 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int) -> t.Tuple[dict, int, SchemeAccount]:
+    def join_consent(self, data, serializer, scheme_account, join_scheme, scheme_id, user):
+        if 'consents' in serializer.validated_data:
+            consent_data = serializer.validated_data.pop('consents')
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+            for user_consent in user_consents:
+                user_consent.save()
+
+            user_consents = scheme_account.collect_pending_consents()
+            data['credentials'].update(consents=user_consents)
+
+        data['id'] = scheme_account.id
+        if data['save_user_information']:
+            self.save_user_profile(data['credentials'], user)
+
+        self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
+
+        keys_to_remove = ['save_user_information', 'credentials']
+        response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
+
+        return response_dict, status.HTTP_201_CREATED, scheme_account
+
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit') \
+            -> t.Tuple[dict, int, SchemeAccount]:
+
         scheme_account = data.get('scheme_account')
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
-        if join_scheme.status == Scheme.SUSPENDED:
+        if permit and permit.is_scheme_suspended(scheme_id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         serializer = JoinSerializer(data=data, context={
@@ -246,32 +275,12 @@ class SchemeAccountJoinMixin:
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         data['scheme'] = scheme_id
+
         if not scheme_account:
             scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
-            if 'consents' in serializer.validated_data:
-                consent_data = serializer.validated_data.pop('consents')
-
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-                UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
-
-                for user_consent in user_consents:
-                    user_consent.save()
-
-                user_consents = scheme_account.collect_pending_consents()
-                data['credentials'].update(consents=user_consents)
-
-            data['id'] = scheme_account.id
-            if data['save_user_information']:
-                self.save_user_profile(data['credentials'], user)
-
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
-
-            keys_to_remove = ['save_user_information', 'credentials']
-            response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
-
-            return response_dict, status.HTTP_201_CREATED, scheme_account
+            return self.join_consent(data, serializer, scheme_account, join_scheme, scheme_id, user)
         except serializers.ValidationError:
             self.handle_failed_join(scheme_account, user)
             raise
@@ -429,13 +438,28 @@ class UpdateCredentialsMixin:
         return new_answers, main_answer
 
     @staticmethod
-    def _check_required_data_presence(scheme: Scheme, data: dict) -> None:
+    def _filter_required_questions(required_questions: 'QuerySet', scheme: Scheme, data: dict) -> 'QuerySet':
+        if scheme.manual_question and scheme.manual_question.type in data.keys():
+            if scheme.scan_question:
+                required_questions = required_questions.exclude(type=scheme.scan_question.type)
+        elif scheme.scan_question and scheme.scan_question.type in data.keys():
+            if scheme.manual_question:
+                required_questions = required_questions.exclude(type=scheme.manual_question.type)
+
+        return required_questions
+
+    def _check_required_data_presence(self, scheme: Scheme, data: dict) -> None:
+        if not self.request.user.is_tester and scheme.test_scheme:
+            raise ValidationError(f'Scheme {scheme.id} not allowed for this user')
+
         if scheme.authorisation_required:
             query = Q(add_field=True) | Q(auth_field=True)
         else:
             query = Q(add_field=True)
 
-        required_questions = scheme.questions.values('type').filter(query).all()
-        for question in required_questions:
+        required_questions = scheme.questions.values('type').filter(query)
+        filtered_required_questions = self._filter_required_questions(required_questions, scheme, data)
+
+        for question in filtered_required_questions.all():
             if question['type'] not in data.keys():
-                raise ValidationError('required field {} is missing.'.format(question['type']))
+                raise ValidationError(f'required field {question["type"]} is missing.')
