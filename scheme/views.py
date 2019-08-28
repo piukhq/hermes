@@ -35,7 +35,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status
+from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -365,22 +365,28 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
 
-        if journey == 'join':
+        scheme_account.status = new_status_code
+        scheme_account.save(update_fields=['status'])
+
+        if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save()
+            async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
-            if new_status_code == SchemeAccount.ACTIVE:
-                update_status = False
-                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
-
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
 
-        if update_status:
-            scheme_account.status = new_status_code
-            scheme_account.save(update_fields=['status'])
+        elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
+            date_time_now = timezone.now()
+            scheme_slug = scheme_account.scheme.slug
+
+            scheme_account.link_date = date_time_now
+            scheme_account.save(update_fields=['link_date'])
+
+            if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
 
         return Response({
             'id': scheme_account.id,
