@@ -24,6 +24,7 @@ from analytics.api import update_scheme_account_attribute_new_status, update_sch
 from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
+from scheme import vouchers
 
 
 class Category(models.Model):
@@ -51,6 +52,18 @@ class SchemeBundleAssociation(models.Model):
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
 
 
+BARCODE_TYPES = (
+    (0, 'CODE128 (B or C)'),
+    (1, 'QrCode'),
+    (2, 'AztecCode'),
+    (3, 'Pdf417'),
+    (4, 'EAN (13)'),
+    (5, 'DataMatrix'),
+    (6, "ITF (Interleaved 2 of 5)"),
+    (7, 'Code 39'),
+)
+
+
 class Scheme(models.Model):
     PLL = 1
     BASIC = 2
@@ -61,16 +74,7 @@ class Scheme(models.Model):
         (3, 'Partner'),
     )
     TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
-    BARCODE_TYPES = (
-        (0, 'CODE128 (B or C)'),
-        (1, 'QrCode'),
-        (2, 'AztecCode'),
-        (3, 'Pdf417'),
-        (4, 'EAN (13)'),
-        (5, 'DataMatrix'),
-        (6, "ITF (Interleaved 2 of 5)"),
-        (7, 'Code 39'),
-    )
+
     MAX_POINTS_VALUE_LENGTHS = (
         (0, '0 (no numeric points value)'),
         (1, '1 (0-9)'),
@@ -383,6 +387,7 @@ class SchemeAccount(models.Model):
 
     # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
+    vouchers = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):
@@ -596,19 +601,88 @@ class SchemeAccount(models.Model):
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
+        vouchers = None  # should we cache these too?
 
         if not balance:
             journey = self.get_journey_type()
             balance = self.get_midas_balance(journey=journey)
             if balance:
+                if "vouchers" in balance:
+                    vouchers = self.make_vouchers_response(balance["vouchers"])
+                    del balance["vouchers"]
+
                 balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
                 cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
+        needs_save = False
+
         if balance != self.balances and balance:
             self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]
+            needs_save = True
+
+        if vouchers != self.vouchers and vouchers:
+            self.vouchers = vouchers
+            needs_save = True
+
+        if needs_save:
             self.save()
 
         return balance
+
+    def make_vouchers_response(self, vouchers: list):
+        """
+        Vouchers come from Midas with the following fields:
+        * issue_date: int, required
+        * redeem_date: int, optional
+        * code: str, required
+        * type: int, required
+        * value: Decimal, optional
+        * target_value: Decimal, optional
+        """
+        return [
+            self.make_single_voucher(voucher_fields) for voucher_fields in vouchers
+        ]
+
+    def make_single_voucher(self, voucher_fields):
+        voucher_type = vouchers.VoucherType(voucher_fields["type"])
+
+        try:
+            voucher_scheme = VoucherScheme.objects.get(
+                scheme=self.scheme,
+                earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
+            )
+        except VoucherScheme.DoesNotExist:
+            return None
+
+        issue_date = arrow.get(voucher_fields["issue_date"])
+        expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
+
+        # TODO: check this logic and add remaining possible states
+        if "redeem_date" in voucher_fields:
+            state = vouchers.VoucherState.REDEEMED
+        elif expiry_date <= arrow.utcnow():
+            state = vouchers.VoucherState.EXPIRED
+        else:
+            state = vouchers.VoucherState.ISSUED
+
+        return {
+            "state": vouchers.voucher_state_names[state],
+            "earn": {
+                "type": vouchers.voucher_type_names[voucher_type],
+            },
+            "burn": {
+                "currency": voucher_scheme.burn_currency,
+                "prefix": voucher_scheme.burn_prefix,
+                "suffix": voucher_scheme.burn_suffix,
+                "type": voucher_scheme.burn_type_name,
+                "value": voucher_scheme.burn_value,
+            },
+            "code": voucher_fields["code"],
+            "headline": voucher_scheme.get_headline(state),
+            "subtext": voucher_scheme.subtext,
+            "date_issued": issue_date.timestamp,
+            "expiry_date": expiry_date.timestamp,
+        }
 
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
@@ -942,3 +1016,71 @@ class ThirdPartyConsentLink(models.Model):
     auth_field = models.BooleanField(default=False)
     register_field = models.BooleanField(default=False)
     enrol_field = models.BooleanField(default=False)
+
+
+class VoucherScheme(models.Model):
+    EARNTYPE_JOIN = "join"
+    EARNTYPE_ACCUMULATOR = "accumulator"
+
+    EARN_TYPES = (
+        (EARNTYPE_JOIN, "Join"),
+        (EARNTYPE_ACCUMULATOR, "Accumulator"),
+    )
+
+    BURNTYPE_VOUCHER = "voucher"
+    BURNTYPE_COUPON = "coupon"
+    BURNTYPE_DISCOUNT = "discount"
+
+    BURN_TYPES = (
+        (BURNTYPE_VOUCHER, "Voucher"),
+        (BURNTYPE_COUPON, "Coupon"),
+        (BURNTYPE_DISCOUNT, "Discount"),
+    )
+
+    scheme = models.ForeignKey("scheme.Scheme")
+
+    earn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
+    earn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
+    earn_suffix = models.CharField(max_length=50, blank=True, verbose_name="Suffix")
+    earn_type = models.CharField(max_length=50, choices=EARN_TYPES, verbose_name="Earn Type")
+    earn_target_value = models.FloatField(blank=True, null=True, verbose_name="Target Value")
+
+    burn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
+    burn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
+    burn_suffix = models.CharField(max_length=50, blank=True, verbose_name="Suffix")
+    burn_type = models.CharField(max_length=50, choices=BURN_TYPES, verbose_name="Burn Type")
+    burn_value = models.FloatField(blank=True, null=True, verbose_name="Value")
+
+    barcode_type = models.IntegerField(choices=BARCODE_TYPES)
+
+    headline_inprogress = models.CharField(max_length=250, verbose_name="In Progress")
+    headline_expired = models.CharField(max_length=250, verbose_name="Expired")
+    headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
+    headline_issued = models.CharField(max_length=250, verbose_name="Issued")
+
+    subtext = models.CharField(max_length=250)
+
+    expiry_months = models.IntegerField()
+
+    def __str__(self):
+        type_name = dict(self.EARN_TYPES)[self.earn_type]
+        return "{} {} - id: {}".format(self.scheme.name, type_name, self.id)
+
+    def get_headline(self, state: vouchers.VoucherState):
+        return {
+            vouchers.VoucherState.ISSUED: self.headline_issued,
+            vouchers.VoucherState.IN_PROGRESS: self.headline_inprogress,
+            vouchers.VoucherState.EXPIRED: self.headline_expired,
+            vouchers.VoucherState.REDEEMED: self.headline_redeemed,
+        }[state]
+
+    @property
+    def burn_type_name(self):
+        return dict(VoucherScheme.BURN_TYPES)[self.burn_type]
+
+    @staticmethod
+    def earn_type_from_voucher_type(voucher_type: vouchers.VoucherType):
+        return {
+            vouchers.VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
+            vouchers.VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
+        }[voucher_type]

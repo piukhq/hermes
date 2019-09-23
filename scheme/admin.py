@@ -9,7 +9,7 @@ from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink, SchemeBundleAssociation)
+                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme)
 from ubiquity.models import SchemeAccountEntry
 from django.contrib import messages
 
@@ -434,3 +434,45 @@ class SchemeBundleAssociationAdmin(admin.ModelAdmin):
                                f" to {SchemeBundleAssociation.STATUSES[old_status][1]} because {message}")
                 ret.status = old_status
         return ret
+
+
+TEMPLATING_HELP_TEXT = """
+<p>Use two curly braces to substitute values.</p>
+<p>For example: <pre>\"{{earn_target_value - burn_value}} left to go!\"</pre></p>
+"""
+
+
+@admin.register(VoucherScheme)
+class VoucherSchemeAdmin(admin.ModelAdmin):
+    list_display = ("scheme", "earn_type", "burn_type", "expiry_months")
+    list_filter = ("scheme", "earn_type", "burn_type")
+    fieldsets = (
+        (None, {"fields": ("scheme", "barcode_type", "subtext", "expiry_months")}),
+        ("Earn", {
+            "fields": (
+                "earn_currency",
+                "earn_prefix",
+                "earn_suffix",
+                "earn_type",
+                "earn_target_value",
+            )
+        }),
+        ("Burn", {
+            "fields": (
+                "burn_currency",
+                "burn_prefix",
+                "burn_suffix",
+                "burn_type",
+                "burn_value",
+            )
+        }),
+        ("Headlines", {
+            "description": f'<div class="help">{TEMPLATING_HELP_TEXT}</div>',
+            "fields": (
+                "headline_inprogress",
+                "headline_expired",
+                "headline_redeemed",
+                "headline_issued",
+            )
+        }),
+    )
