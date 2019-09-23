@@ -353,17 +353,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         exclude = ('name',)
 
     @staticmethod
-    def _get_ubiquity_images(instance: Scheme) -> t.List[dict]:
-        # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
-        filtered_images = {
-            image.image_type_code: image
-            for image in instance.images.all()
-            if image.image_type_code in [image.HERO, image.ICON]
-        }
-
-        return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
-
-    @staticmethod
     def _add_alternatives_key(formatted_fields: dict) -> None:
         options = {field["column"] for field in formatted_fields}
         for field in formatted_fields:
@@ -397,6 +386,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return consents
 
     def to_representation(self, instance: Scheme) -> dict:
+        images = instance.images.all()
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
         add_fields = instance.questions.filter(add_field=True).all()
@@ -445,7 +435,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': self._get_ubiquity_images(instance),
+            'images': UbiquityImageSerializer(images, many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
