@@ -657,11 +657,13 @@ class SchemeAccount(models.Model):
         issue_date = arrow.get(voucher_fields["issue_date"])
         expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
 
-        # TODO: check this logic and add remaining possible states
+        # TODO: check this logic
         if "redeem_date" in voucher_fields:
             state = vouchers.VoucherState.REDEEMED
         elif expiry_date <= arrow.utcnow():
             state = vouchers.VoucherState.EXPIRED
+        elif "target_value" in voucher_fields:
+            state = vouchers.VoucherState.IN_PROGRESS
         else:
             state = vouchers.VoucherState.ISSUED
 
