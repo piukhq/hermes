@@ -3,14 +3,11 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.admin.models import LogEntry
 from hermes.settings import TO_DAEDALUS, ENABLE_DAEDALUS_MESSAGING
-from scheme.models import (Scheme, SchemeBundleAssociation, Exchange, SchemeAccount, SchemeImage, Category,
-                           SchemeAccountCredentialAnswer, SchemeCredentialQuestion, SchemeAccountImage, Consent,
-                           UserConsent, SchemeBalanceDetails, SchemeCredentialQuestionChoice,
-                           SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink)
-from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument
-
-import json
+from scheme.models import (Scheme, SchemeBundleAssociation, SchemeAccount, SchemeImage, Consent,
+                           UserConsent, Control, SchemeDetail, ThirdPartyConsentLink)
+from payment_card.models import PaymentCardAccount
+from user.models import ClientApplicationBundle
+from ubiquity.models import MembershipPlanDocument, PaymentCardAccountEntry, SchemeAccountEntry
 
 
 class Actions(Enum):
@@ -43,7 +40,7 @@ def lookup_collection(model: str):
         return Collections.SCHEME
     elif model == "schemeaccount":
         return Collections.SCHEME_ACCOUNT
-    elif model == "paymentcardasaccount":
+    elif model == "paymentcardaccount":
         return Collections.PAYMENT_ACCOUNT
     return False
 
@@ -89,7 +86,22 @@ association_map = {
         'model': UserConsent,
         'field': 'scheme_id'
     },
+    'schemeaccountentry': {
+        'collection': Collections.PAYMENT_ACCOUNT,
+        'model': SchemeAccount,
+        'field': 'scheme_account_id'
+    }
 }
+
+
+def make_service_list(users: list):
+    service_list = []
+    for u in users:
+        external_id = u.user.external_id
+        bundle_id = ClientApplicationBundle.objects.values_list('bundle_id', flat=True).get(client=u.user.client_id)
+        service_key = {'bundle_id': bundle_id, 'external_id': external_id}
+        service_list.append(service_key)
+    return service_list
 
 
 def notify_daedalus(action: Actions, collection: Collections, object_id: int):
@@ -103,6 +115,18 @@ def notify_daedalus(action: Actions, collection: Collections, object_id: int):
                 if bundle_link.status != SchemeBundleAssociation.INACTIVE:
                     bundle_list.append(bundle_link.bundle.bundle_id)
             extra_info['bundles'] = bundle_list
+
+        elif collection == Collections.SCHEME_ACCOUNT:
+            scheme_account = SchemeAccount.objects.get(id=object_id)
+            extra_info['membership_plan_key'] = scheme_account.scheme_id
+            users = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+            extra_info['services'] = make_service_list(users)
+
+        elif collection == Collections.PAYMENT_ACCOUNT:
+            payment_account = PaymentCardAccount.objects.get(id=object_id)
+            extra_info['issuer_key'] = payment_account.issuer_id
+            users = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_account)
+            extra_info['services'] = make_service_list(users)
 
     TO_DAEDALUS.send({"type": action.value,
                       "collection": collection.value,
