@@ -1,3 +1,5 @@
+import time
+
 import jwt
 import logging
 from django.utils.translation import ugettext_lazy as _
@@ -5,6 +7,7 @@ from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import NotFound
 from hermes.channels import Permit
+from hermes.settings import INTERNAL_SERVICE_BUNDLE, JWT_EXPIRY_TIME
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
 
@@ -27,6 +30,12 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             if 'iat' not in token_data:
                 # We can't implement a timeout as token refresh not in spec.
                 logger.info(f'No iat (time stamp) found in Ubiquity token')
+
+            if bundle_id == INTERNAL_SERVICE_BUNDLE:
+                if 'iat' not in token_data:
+                    raise exceptions.AuthenticationFailed(_('No iat for internal service JWT'))
+                if token_data['iat'] < time.time() - JWT_EXPIRY_TIME:
+                    raise exceptions.AuthenticationFailed(_('Expired token.'))
 
             external_id = jwt.decode(token, channels_permit.bundle.client.secret,
                                      verify=True, algorithms=['HS512'])['user_id']
