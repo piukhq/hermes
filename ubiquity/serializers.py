@@ -221,7 +221,7 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_payment_card(obj):
-        first_6 = obj['first_six_digits']
+        first_6 = str(obj['first_six_digits'])
         slug = 'other'
         match_to_first_6 = {
             'range': lambda match: match.value[0] <= int(first_6[:match.len]) <= match.value[1],
