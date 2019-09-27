@@ -19,6 +19,8 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 import hermes
 from environment import env_var, read_env
+from daedalus_messaging.broker import MessagingService
+
 
 read_env()
 
@@ -85,6 +87,7 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
+    'daedalus_messaging',
 )
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
@@ -389,3 +392,16 @@ if MANUAL_CHECK_USE_AZURE:
     MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')
 
 SCHEMES_COLLECTING_METRICS = env_var('SCHEMES_COLLECTING_METRICS', 'cooperative').split(',')
+
+ENABLE_DAEDALUS_MESSAGING = env_var("ENABLE_DAEDALUS_MESSAGING", False)
+
+if ENABLE_DAEDALUS_MESSAGING:
+    TO_DAEDALUS = MessagingService(
+        user=env_var("RABBIT_USER", "guest"),               # eg 'guest'
+        password=env_var("RABBIT_PASSWORD", "guest"),       # eg 'guest'
+        queue_name=env_var("TO_QUEUE", "to_daedalus"),      # eg 'to_daedalus'
+        host=env_var("RABBIT_HOST", "127.0.0.1"),           # eg '127.0.0.1'
+        port=env_var("RABBIT_PORT", "5672")                 # eg '5672'
+    )
+else:
+    TO_DAEDALUS = None
