@@ -7,6 +7,7 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
+from hermes.settings import BIN_TO_PROVIDER
 from hermes.traced_requests import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
@@ -219,8 +220,21 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
         return Issuer.objects.values('id').get(name='Barclays')['id']
 
     @staticmethod
-    def get_payment_card(_):
-        return PaymentCard.objects.values('id').get(slug='visa')['id']
+    def get_payment_card(obj):
+        first_6 = obj['first_six_digits']
+        slug = 'other'
+        match_to_first_6 = {
+            'range': lambda match: match.value[0] <= int(first_6[:match.len]) <= match.value[1],
+            'equal': lambda match: first_6[:match.len] == match.value
+        }
+
+        for provider, values in BIN_TO_PROVIDER.items():
+            for bin_match in values:
+                if match_to_first_6[bin_match.type](bin_match):
+                    slug = provider
+                    break
+
+        return PaymentCard.objects.values('id').get(slug=slug)['id']
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
@@ -343,7 +357,7 @@ class UbiquityConsentSerializer(serializers.Serializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        data['type'] = SchemeCredentialQuestion.ANSWER_TYPE_CHOICES[3][0]    # boolean
+        data['type'] = SchemeCredentialQuestion.ANSWER_TYPE_CHOICES[3][0]  # boolean
         return data
 
 
@@ -554,7 +568,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             image.image_type_code: image
             for image in images
             if image.image_type_code in [image.HERO, image.ICON] or (
-                image.image_type_code == image.TIER and image.reward_tier == tier)
+                    image.image_type_code == image.TIER and image.reward_tier == tier)
         }
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data

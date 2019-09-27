@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
+from collections import namedtuple
+from itertools import chain
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -389,3 +391,18 @@ if MANUAL_CHECK_USE_AZURE:
     MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')
 
 SCHEMES_COLLECTING_METRICS = env_var('SCHEMES_COLLECTING_METRICS', 'cooperative').split(',')
+
+BinMatch = namedtuple('BinMatch', 'type len value')
+BIN_TO_PROVIDER = {
+    'visa': [
+        BinMatch(type='equal', len=1, value='4'),
+    ],
+    'amex': [
+        BinMatch(type='equal', len=2, value='34'),
+        BinMatch(type='equal', len=2, value='37')
+    ],
+    'mastercard': [
+        BinMatch(type='range', len=2, value=(51, 55)),
+        BinMatch(type='range', len=4, value=(2221, 2720))
+    ]
+}
