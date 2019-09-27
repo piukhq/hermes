@@ -14,7 +14,6 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 from collections import namedtuple
-from itertools import chain
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
