@@ -8,7 +8,7 @@ from django.conf import settings
 from rest_framework import serializers
 
 from hermes.settings import BIN_TO_PROVIDER
-from hermes.traced_requests import requests
+import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)

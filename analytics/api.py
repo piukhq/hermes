@@ -1,7 +1,7 @@
-import datetime
 import json
 import time
-from hermes.traced_requests import requests
+import datetime
+import requests
 from django.conf import settings
 import sentry_sdk
 

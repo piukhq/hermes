@@ -74,7 +74,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_admin_env_notice',
     'django.contrib.admin',
-    'ddtrace.contrib.django',
     'rest_framework',
     'corsheaders',
     'user',
@@ -364,13 +363,6 @@ CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async
 CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
-
-DATADOG_TRACE = {
-    'DEFAULT_SERVICE': 'hermes',
-    'TAGS': {'env': env_var('DATADOG_APM_ENV')},
-    'AGENT_HOSTNAME': env_var('DATADOG_APM_HOST', 'datadog-agent-trace.datadog'),
-    'ENABLED': env_var('DATADOG_APM_ENABLED', False)
-}
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
