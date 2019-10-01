@@ -147,12 +147,12 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             })
         return serializer
 
-    def create_account(self, data: dict, user: 'CustomUser', user_pk: int = None) -> t.Tuple[SchemeAccount, dict, bool]:
+    def create_account(self, data: dict, user: 'CustomUser') -> t.Tuple[SchemeAccount, dict, bool]:
         serializer = self.get_validated_data(data, user)
-        return self.create_account_with_valid_data(serializer, user, user_pk)
+        return self.create_account_with_valid_data(serializer, user)
 
     def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser',
-                                       user_pk: int = None) -> t.Tuple[SchemeAccount, dict, bool]:
+                                       account_id: int = None) -> t.Tuple[SchemeAccount, dict, bool]:
         account_created = False
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
@@ -169,14 +169,14 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
             raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type, user_pk)
+            scheme_account, account_created = self._create_account(user, data, answer_type, account_id)
 
         data['id'] = scheme_account.id
         return scheme_account, data, account_created
 
     @staticmethod
     def _create_account(user: 'CustomUser', data: dict, answer_type: str,
-                        user_pk: int = None) -> t.Tuple[SchemeAccount, bool]:
+                        account_id: int = None) -> t.Tuple[SchemeAccount, bool]:
         account_created = False  # Required for /ubiquity
 
         with transaction.atomic():
@@ -195,14 +195,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account_updated = True
 
             except SchemeAccount.DoesNotExist:
+                account_id_param = {"pk": account_id} if account_id else {}
                 scheme_account = SchemeAccount(
+                    **account_id_param,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
                 )
-                if user_pk is not None:
-                    scheme_account.pk = user_pk
-                scheme_account.save(force_insert=True)
 
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
                 account_created = True

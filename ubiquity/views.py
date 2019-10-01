@@ -337,6 +337,13 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard_data, consent = self._collect_creation_data(request.data, request.allowed_issuers)
+        object_id = request.META.get('HTTP_X_OBJECT_ID')
+        if object_id:
+            try:
+                pcard_data['id'] = int(object_id)
+            except ValueError:
+                raise ValidationError('X-object-id header must be an integer value.')
+
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
             return Response(self.get_serializer(pcard).data, status=status_code)
@@ -591,11 +598,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict,
-                                  use_pk: int = None) -> t.Tuple[SchemeAccount, int]:
+                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme_id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user)
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, account_id)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if auth_fields:
@@ -620,8 +627,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, channels_permit: Permit,
-                                  scheme_id: int, enrol_fields: dict) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
+                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
@@ -630,7 +637,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             scheme_account.set_async_join_status()
         except SchemeAccount.DoesNotExist:
+            account_id_param = {'pk': account_id} if account_id else {}
             scheme_account = SchemeAccount.objects.create(
+                **account_id_param,
                 order=0,
                 scheme_id=scheme_id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -756,13 +765,20 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
+        object_id = request.META.get('HTTP_X_OBJECT_ID')
+        if object_id:
+            try:
+                object_id = int(object_id)
+            except ValueError:
+                raise ValidationError('X-object-id header must be an integer value.')
+
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
             account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
-                                                                  scheme_id, enrol_fields)
+                                                                  scheme_id, enrol_fields, account_id=object_id)
         else:
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
-                                                                  add_fields)
+                                                                  add_fields, account_id=object_id)
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
