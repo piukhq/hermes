@@ -209,7 +209,7 @@ class TestSchemeAccountViews(APITestCase):
             {
                 '{0}'.format(self.scheme_account.scheme.company):
                     'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(
-                    self.scheme_account.scheme.slug)
+                        self.scheme_account.scheme.slug)
             }
         )
 
@@ -440,7 +440,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api._get_today_datetime')
     @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date,):
+    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date, ):
         error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         mock_get_midas_balance.return_value = None
@@ -609,8 +609,9 @@ class TestSchemeAccountViews(APITestCase):
         )
 
     @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_bink_user(self, mock_notify_rollback, mock_mnemosyne):
+    def test_scheme_account_update_status_bink_user(self, mock_notify_rollback, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         user_set = str(self.bink_user.id)
@@ -630,8 +631,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_ubiquity_user(self, mock_notify_rollback, mock_mnemosyne):
+    def test_scheme_account_update_status_ubiquity_user(self, mock_notify_rollback, *_):
         client_app = ClientApplicationFactory(name='barclays')
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         user = UserFactory(client=client_app)
@@ -654,8 +656,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_join_callback(self, mock_notify_rollback, mock_mnemosyne):
+    def test_scheme_account_update_status_join_callback(self, mock_notify_rollback, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
 
@@ -674,8 +677,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
         self.assertFalse(mock_notify_rollback.called)
 
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback):
+    def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback, *_):
         entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
         user_set = [str(entry.user.id) for entry in entries]
         self.assertTrue(len(user_set) > 1)
@@ -712,8 +716,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
 
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback):
+    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback, *_):
         user_info = {
             'user_set': ', '.join([str(x.id) for x in self.scheme_account1.user_set.all()])
         }

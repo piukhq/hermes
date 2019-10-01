@@ -3,6 +3,7 @@ import re
 import socket
 import sre_constants
 import uuid
+import requests
 from decimal import Decimal
 from enum import IntEnum
 
@@ -134,7 +135,7 @@ class Scheme(models.Model):
     plan_name_card = models.CharField(max_length=50, null=True, blank=True)
     plan_summary = models.TextField(default='', blank=True, max_length=250)
     plan_description = models.TextField(default='', blank=True, max_length=500)
-    enrol_incentive = models.CharField(max_length=50, null=True, blank=True)
+    enrol_incentive = models.CharField(max_length=250, null=False, blank=True)
     barcode_redeem_instructions = models.TextField(default='', blank=True)
     plan_register_info = models.TextField(default='', blank=True)
     linking_support = ArrayField(models.CharField(max_length=50), default=[], blank=True,

@@ -2,8 +2,10 @@ import csv
 import json
 import logging
 from io import StringIO
+from typing import TYPE_CHECKING
 
 import requests
+import sentry_sdk
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -16,7 +18,6 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 from rest_framework.views import APIView
-import sentry_sdk
 
 import analytics
 from payment_card.models import PaymentCardAccount
@@ -35,8 +36,12 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class SchemeAccountQuery(APIView):
@@ -359,6 +364,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+
         scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
         new_status_code = int(request.data['status'])
@@ -372,14 +378,25 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account.status = new_status_code
         scheme_account.save(update_fields=['status'])
 
-        if journey == 'join':
+        if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save()
+            async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS and new_status_code == SchemeAccount.ACTIVE:
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
+
+        elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
+            date_time_now = timezone.now()
+            scheme_slug = scheme_account.scheme.slug
+
+            scheme_account.link_date = date_time_now
+            scheme_account.save(update_fields=['link_date'])
+
+            if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
 
         return Response({
             'id': scheme_account.id,
@@ -413,12 +430,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                         dict(scheme_account.STATUSES).get(new_status_code))
 
     @staticmethod
-    def notify_rollback_transactions(scheme_slug, scheme_account, join_date):
-        """
-        :type scheme_slug: str
-        :type scheme_account: scheme.models.SchemeAccount
-        :type join_date: datetime.datetime
-        """
+    def notify_rollback_transactions(scheme_slug: str, scheme_account: SchemeAccount, join_date: 'datetime'):
         if settings.ROLLBACK_TRANSACTIONS_URL:
             user_id = scheme_account.get_transaction_matching_user_id()
             payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
