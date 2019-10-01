@@ -15,6 +15,7 @@ omit = *migrations*
        common/admin.py
        daedalus_messaging/broker.py
        daedalus_messaging/message_config.py
+       daedalus_messaging/signals.py
 branch = True
 
 [report]
