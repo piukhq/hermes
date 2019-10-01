@@ -185,7 +185,7 @@ class TestResources(APITestCase):
             "card": {
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "first_six_digits": 523456,
+                "first_six_digits": 423456,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
@@ -215,7 +215,7 @@ class TestResources(APITestCase):
             "card": {
                 "last_four_digits": "5234",
                 "currency_code": "GBP",
-                "first_six_digits": "523456",
+                "first_six_digits": "423456",
                 "name_on_card": "test user 2",
                 "token": "token-to-ignore",
                 "fingerprint": str(pca.fingerprint),
@@ -244,7 +244,7 @@ class TestResources(APITestCase):
             "card": {
                 "last_four_digits": "5234",
                 "currency_code": "GBP",
-                "first_six_digits": "523456",
+                "first_six_digits": "423456",
                 "name_on_card": "test user 2",
                 "token": "token-to-ignore",
                 "fingerprint": "this-is-not-{}".format(pca.fingerprint),
@@ -645,7 +645,7 @@ class TestResources(APITestCase):
             "card": {
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "first_six_digits": 523456,
+                "first_six_digits": 423456,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
@@ -742,7 +742,7 @@ class TestResources(APITestCase):
             "card": {
                 "last_four_digits": 5234,
                 "currency_code": "GBP",
-                "first_six_digits": 523456,
+                "first_six_digits": 423456,
                 "name_on_card": "test user 2",
                 "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",

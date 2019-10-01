@@ -3,6 +3,7 @@ import re
 import socket
 import sre_constants
 import uuid
+import requests
 from decimal import Decimal
 from enum import IntEnum
 
@@ -22,7 +23,6 @@ from django.utils import timezone
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
 from hermes.settings import TO_DAEDALUS, ENABLE_DAEDALUS_MESSAGING
-from hermes.traced_requests import requests
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 

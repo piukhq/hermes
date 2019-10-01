@@ -17,7 +17,7 @@ from rest_framework.viewsets import ModelViewSet
 
 import analytics
 from hermes.channels import Permit
-from hermes.traced_requests import requests
+import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS

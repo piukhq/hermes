@@ -45,7 +45,7 @@ class PaymentCard(models.Model):
     AMEX = 'amex'
     SYSTEMS = (
         (VISA, 'Visa'),
-        (MASTERCARD, 'Master Card'),
+        (MASTERCARD, 'Mastercard'),
         (AMEX, 'American Express'),
     )
 

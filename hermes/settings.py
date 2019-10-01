@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
+from collections import namedtuple
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -75,7 +76,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_admin_env_notice',
     'django.contrib.admin',
-    'ddtrace.contrib.django',
     'rest_framework',
     'corsheaders',
     'user',
@@ -367,13 +367,6 @@ CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
-DATADOG_TRACE = {
-    'DEFAULT_SERVICE': 'hermes',
-    'TAGS': {'env': env_var('DATADOG_APM_ENV')},
-    'AGENT_HOSTNAME': env_var('DATADOG_APM_HOST', 'datadog-agent-trace.datadog'),
-    'ENABLED': env_var('DATADOG_APM_ENABLED', False)
-}
-
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
 
@@ -392,6 +385,22 @@ if MANUAL_CHECK_USE_AZURE:
     MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')
 
 SCHEMES_COLLECTING_METRICS = env_var('SCHEMES_COLLECTING_METRICS', 'cooperative').split(',')
+
+BinMatch = namedtuple('BinMatch', 'type len value')
+BIN_TO_PROVIDER = {
+    'visa': [
+        BinMatch(type='equal', len=1, value='4'),
+    ],
+    'amex': [
+        BinMatch(type='equal', len=2, value='34'),
+        BinMatch(type='equal', len=2, value='37')
+    ],
+    'mastercard': [
+        BinMatch(type='range', len=2, value=(51, 55)),
+        BinMatch(type='range', len=4, value=(2221, 2720))
+    ]
+}
+
 INTERNAL_SERVICE_BUNDLE = env_var('INTERNAL_SERVICE_BUNDLE', 'com.bink.daedalus')
 JWT_EXPIRY_TIME = env_var('JWT_EXPIRY_TIME', 600)
 
