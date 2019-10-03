@@ -208,6 +208,37 @@ class TestResources(APITestCase):
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_creation(self, *_):
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxz",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effz",
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        provided_id = 150000000
+
+        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
+                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()['id'], provided_id)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_replace(self, *_):
         pca = PaymentCardAccountFactory(token='original-token')
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
