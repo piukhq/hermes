@@ -208,7 +208,7 @@ class TestResources(APITestCase):
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
-    def test_payment_card_creation(self, *_):
+    def test_payment_card_creation_with_id(self, *_):
         payload = {
             "card": {
                 "last_four_digits": 5234,
