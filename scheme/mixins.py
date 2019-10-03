@@ -196,7 +196,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
             except SchemeAccount.DoesNotExist:
                 account_id_param = {"pk": account_id} if account_id else {}
-                scheme_account = SchemeAccount(
+                scheme_account = SchemeAccount.objects.create(
                     **account_id_param,
                     scheme_id=data['scheme'],
                     order=data['order'],
