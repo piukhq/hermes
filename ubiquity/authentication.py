@@ -1,4 +1,3 @@
-import time
 import jwt
 import logging
 from django.conf import settings
