@@ -27,13 +27,18 @@ class JwtAuthentication(BaseAuthentication):
     * user -- The user to which the token belongs
     """
 
-    @staticmethod
-    def get_token(request, token_name=b'token'):
+    def get_token_type(self, request):
         auth = get_authorization_header(request).split()
+        return self.check_token(auth), auth[0].lower()
 
+    def get_token(self, request, token_name=b'token'):
+        auth = get_authorization_header(request).split()
         if not auth or auth[0].lower() != token_name:
             return None
+        return self.check_token(auth)
 
+    @staticmethod
+    def check_token(auth):
         if len(auth) == 1:
             msg = _('Invalid token header. No credentials provided.')
             raise exceptions.AuthenticationFailed(msg)

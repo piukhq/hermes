@@ -1,10 +1,13 @@
+import time
 import jwt
 import logging
+from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import NotFound
 from hermes.channels import Permit
+from hermes.settings import INTERNAL_SERVICE_BUNDLE, JWT_EXPIRY_TIME
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
 
@@ -14,12 +17,16 @@ logger = logging.getLogger(__name__)
 class ServiceRegistrationAuthentication(JwtAuthentication):
     expected_fields = []
 
-    def authenticate_credentials(self, token):
+    def authenticate_credentials(self, token, token_type=b'bearer'):
         try:
-            token_data = jwt.decode(token, verify=False, algorithms=['HS512'])
+            token_data = jwt.decode(token, verify=False, algorithms=['HS512', 'HS256'])
             bundle_id = token_data['bundle_id']
-            organisation_id = token_data['organisation_id']
-            channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
+            if token_type == b'bearer':
+                organisation_id = token_data['organisation_id']
+                channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
+            else:
+                user = CustomUser.objects.get(id=token_data['sub'])
+                channels_permit = Permit(bundle_id, user=user, ubiquity=True)
             # Check for keys which should be in token but don't cause a failed token or raise a key error
             if 'property_id' not in token_data:
                 logger.info(f'No property id found in Ubiquity token')
@@ -28,8 +35,20 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                 # We can't implement a timeout as token refresh not in spec.
                 logger.info(f'No iat (time stamp) found in Ubiquity token')
 
-            external_id = jwt.decode(token, channels_permit.bundle.client.secret,
-                                     verify=True, algorithms=['HS512'])['user_id']
+            if bundle_id == INTERNAL_SERVICE_BUNDLE:
+                if 'iat' not in token_data:
+                    raise exceptions.AuthenticationFailed(_('No iat for internal service JWT'))
+                if token_data['iat'] < time.time() - JWT_EXPIRY_TIME:
+                    raise exceptions.AuthenticationFailed(_('Expired token.'))
+
+            if token_type == b'token':
+                jwt.decode(token, channels_permit.bundle.client.secret + user.salt, leeway=settings.CLOCK_SKEW_LEEWAY,
+                           verify=True, algorithms=['HS256', 'HS512'])
+                external_id = user.external_id
+
+            else:
+                external_id = jwt.decode(token, channels_permit.bundle.client.secret,
+                                         verify=True, algorithms=['HS512'])['user_id']
 
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
@@ -55,16 +74,22 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
     expected_fields = []
 
     def authenticate(self, request):
-        token = self.get_token(request, b'bearer')
-        if not token or "." not in token:
+        token, token_type = self.get_token_type(request)
+
+        if not token or "." not in token or token_type not in [b'bearer', b'token']:
             return None
 
-        channels_permit, external_id = self.authenticate_credentials(token)
-
-        try:
-            user = CustomUser.objects.get(external_id=external_id, client=channels_permit.bundle.client, is_active=True)
-        except CustomUser.DoesNotExist:
-            raise NotFound
+        channels_permit, external_id = self.authenticate_credentials(token, token_type)
+        user = channels_permit.user
+        if user:
+            if not user.is_active:
+                exceptions.AuthenticationFailed(_('Invalid token/inactive user.'))
+        else:
+            try:
+                user = CustomUser.objects.get(external_id=external_id, client=channels_permit.bundle.client,
+                                              is_active=True)
+            except CustomUser.DoesNotExist:
+                raise NotFound
 
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', external_id)
@@ -73,15 +98,22 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
 
 class PropertyAuthentication(ServiceRegistrationAuthentication):
     def authenticate(self, request):
-        token = self.get_token(request, b'bearer')
-        if not token or "." not in token:
+        token, token_type = self.get_token_type(request)
+
+        if not token or "." not in token or token_type not in [b'bearer', b'token']:
             return None
 
-        channels_permit, external_id = self.authenticate_credentials(token)
-        try:
-            user = CustomUser.objects.get(external_id=external_id, client=channels_permit.bundle.client, is_active=True)
-        except CustomUser.DoesNotExist:
-            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+        channels_permit, external_id = self.authenticate_credentials(token, token_type)
+        user = channels_permit.user
+        if user:
+            if not user.is_active:
+                exceptions.AuthenticationFailed(_('Invalid token/inactive user.'))
+        else:
+            try:
+                user = CustomUser.objects.get(external_id=external_id, client=channels_permit.bundle.client,
+                                              is_active=True)
+            except CustomUser.DoesNotExist:
+                raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
         setattr(request, 'allowed_issuers', [issuer.pk for issuer in channels_permit.bundle.issuer.all()])
         setattr(request, 'channels_permit', channels_permit)

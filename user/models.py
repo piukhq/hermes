@@ -261,6 +261,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def create_token(self, bundle_id=''):
         payload = {
             'bundle_id': bundle_id,
+            'user_id': self.email,
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }

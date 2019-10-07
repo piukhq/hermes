@@ -74,7 +74,7 @@ class RegisterSerializer(serializers.Serializer):
     def to_representation(self, instance):
         ret = OrderedDict()
         ret['email'] = instance.email
-        ret['api_key'] = instance.create_token()
+        ret['api_key'] = instance.create_token(self.validated_data.get('bundle_id'))
         ret['uid'] = instance.uid
         return ret
 

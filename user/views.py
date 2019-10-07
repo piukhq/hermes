@@ -236,7 +236,9 @@ class Login(GenericAPIView):
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
-                                                 'api_key': user.create_token(bundle_id), 'uid': user.uid})
+                                                 'api_key': user.create_token(bundle_id),
+                                                 'uid': user.uid
+                                                 })
         return Response(out_serializer.data)
 
     @classmethod
