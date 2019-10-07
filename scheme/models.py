@@ -646,13 +646,12 @@ class SchemeAccount(models.Model):
     def make_single_voucher(self, voucher_fields):
         voucher_type = vouchers.VoucherType(voucher_fields["type"])
 
-        try:
-            voucher_scheme = VoucherScheme.objects.get(
-                scheme=self.scheme,
-                earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
-            )
-        except VoucherScheme.DoesNotExist:
-            return None
+        # this can fail with a VoucherScheme.DoesNotExist if the configuration is incorrect
+        # i let this exception go as this is something we would want to know about & fix in the database.
+        voucher_scheme = VoucherScheme.objects.get(
+            scheme=self.scheme,
+            earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
+        )
 
         issue_date = arrow.get(voucher_fields["issue_date"])
         expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
@@ -667,10 +666,19 @@ class SchemeAccount(models.Model):
         else:
             state = vouchers.VoucherState.ISSUED
 
+        headline_template = voucher_scheme.get_headline(state)
+        headline = vouchers.apply_template(
+            headline_template,
+            voucher_scheme=voucher_scheme,
+            earn_value=voucher_fields.get("value", 0)
+        )
+
         return {
             "state": vouchers.voucher_state_names[state],
             "earn": {
                 "type": vouchers.voucher_type_names[voucher_type],
+                "value": voucher_fields.get("value", 0),
+                "target_value": voucher_fields.get("target_value", 0),
             },
             "burn": {
                 "currency": voucher_scheme.burn_currency,
@@ -680,7 +688,7 @@ class SchemeAccount(models.Model):
                 "value": voucher_scheme.burn_value,
             },
             "code": voucher_fields["code"],
-            "headline": voucher_scheme.get_headline(state),
+            "headline": headline,
             "subtext": voucher_scheme.subtext,
             "date_issued": issue_date.timestamp,
             "expiry_date": expiry_date.timestamp,
