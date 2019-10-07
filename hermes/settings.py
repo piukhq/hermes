@@ -35,33 +35,25 @@ SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
-    ".chingrewards.com",
+    "127.0.0.1",
     ".bink.com",
-    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "hermes",
     ".bink.com",
-    ".bink-staging.com",
-    ".bink-dev.com",
     ".bink-sandbox.com",
-    ".chingrewards.com",
+    ".svc.cluster.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
     "127.0.0.1",
-    "0.0.0.0:8001",
-    "staging.chingweb.chingrewards.com",
-    "local.chingweb.chingrewards.com",
-    "dev.chingweb.loyaltyangels.local",
-    "local.chingweb.chingrewards.com:8000",
-    "dev.api.chingrewards.com",
-    "staging.api.chingrewards.com",
-    "api.chingrewards.com",
-    "dev.docs.loyaltyangels.local",
+    "hermes",
+    ".bink.com",
+    ".bink-sandbox.com",
+    ".svc.cluster.local",
 )
 
 # Application definition
