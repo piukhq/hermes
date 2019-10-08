@@ -556,6 +556,7 @@ class SchemeAccount(models.Model):
                         {"type": 'membership_card_update',
                          "model": 'schemeaccount',
                          "id": str(self.id),
+                         "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
                          "rep": repr(self)},
                         headers={'X-content-type': 'application/json'}
                     )
