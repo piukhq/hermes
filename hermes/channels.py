@@ -62,6 +62,14 @@ class Permit:
                                                       f" bundle ids for client '{self.client}'")
             self.client = self.looked_up_bundle.client
 
+        elif self.client and not bundle_id:
+            try:
+                self.bundle_id = ClientApplicationBundle.objects.values_list('bundle_id',
+                                                                             flat=True).get(client=self.client)
+            except MultipleObjectsReturned:
+                raise exceptions.AuthenticationFailed(f"Undefined bundle_id could not be resolved as there"
+                                                      f" multiple bundle ids for client '{self.client}'")
+
     @staticmethod
     def is_authenticated():
         """
