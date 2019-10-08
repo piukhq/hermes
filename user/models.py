@@ -259,6 +259,8 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return True
 
     def create_token(self, bundle_id=''):
+        if not bundle_id:
+            pass
         payload = {
             'bundle_id': bundle_id,
             'user_id': self.email,
