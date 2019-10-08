@@ -260,7 +260,9 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def create_token(self, bundle_id=''):
         if not bundle_id:
-            pass
+            # This will raise an exception if more than one bundle has the same client_Id
+            # if bundles are properly defined only one associate with the user should be found.
+            bundle_id = ClientApplicationBundle.objects.values_list('bundle_id', flat=True).get(client=self.client_id)
         payload = {
             'bundle_id': bundle_id,
             'user_id': self.email,
