@@ -2,7 +2,7 @@ from django.conf.urls import url
 from user.views import (Users, NewRegister, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
                         ResetPassword, ApplyPromoCode, ForgotPassword, ValidateResetToken, ResetPasswordFromToken,
                         Settings, UserSettings, IdentifyApplicationKit, VerifyToken, OrganisationTermsAndConditions,
-                        Logout)
+                        Renew, Logout)
 
 urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticate_user'),
                url(r'auth/facebook/?$', FaceBookLogin.as_view(), name='authenticate_facebook_user'),
@@ -22,7 +22,7 @@ urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticat
                url(r'validate_reset_token/?$', ValidateResetToken.as_view(), name='validate_reset'),
                url(r'settings/?$', Settings.as_view(), name='settings'),
                url(r'^app_kit/?$', IdentifyApplicationKit.as_view(), name='app_kit'),
-
+               url(r'renew_token/$', Renew.as_view(), name='renew'),
                url(r'^organisation/terms_and_conditions/?$',
                    OrganisationTermsAndConditions.as_view(),
                    name='terms_and_conditions'), ]

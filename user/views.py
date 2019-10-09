@@ -21,6 +21,7 @@ from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
+from rest_framework import exceptions
 from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
@@ -29,6 +30,7 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
                               UserSettingSerializer)
+from django.core.exceptions import MultipleObjectsReturned
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -307,6 +309,25 @@ class TwitterLogin(CreateAPIView):
         response_serializer: ResponseAuthSerializer
         """
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+
+
+class Renew(APIView):
+
+    def post(self, request, *args, **kwargs):
+        auth = JwtAuthentication()
+        token, token_type = auth.get_token_type(request)
+        if token_type != b'token':
+            return Response({'error': "Invalid Token"}, status=400)
+
+        user, token_contents = auth.authenticate_credentials(token)
+        bundle_id = token_contents.get('bundle_id', '')
+        # Note create_token will try to get bundle_id if not set.
+        try:
+            new_token = user.create_token(bundle_id)
+        except MultipleObjectsReturned:
+            raise exceptions.AuthenticationFailed("No bundle_id in token and multiple bundles defined for this user")
+
+        return Response({'api_key': new_token})
 
 
 class Logout(APIView):
