@@ -28,15 +28,15 @@ voucher_state_names = {
 }
 
 
-def apply_template(template_string, *, voucher_scheme, earn_value):
+def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_value):
     """
     Applies a set of context variables to the given template.
     Context is pulled from the given voucher scheme and additional keyword arguments.
 
     Example template:
-        "{{earn_target_value - earn_value}} left to go!"
+        "{{earn_prefix}}{{earn_target_remaining}} left to go!"
     Becomes:
-        "120 left to go!"
+        "£30 left to go!"
     """
     template = Template(template_string)
     context = Context(
@@ -46,7 +46,6 @@ def apply_template(template_string, *, voucher_scheme, earn_value):
                 "earn_currency",
                 "earn_prefix",
                 "earn_suffix",
-                "earn_target_value",
                 "burn_currency",
                 "burn_prefix",
                 "burn_suffix",
@@ -54,6 +53,8 @@ def apply_template(template_string, *, voucher_scheme, earn_value):
             ]
         }
     )
-    context.update({"earn_value": earn_value})
+
+    context["earn_value"] = earn_value
+    context["earn_target_remaining"] = max(earn_target_value - earn_value, 0)
 
     return template.render(context)

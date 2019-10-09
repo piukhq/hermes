@@ -632,9 +632,9 @@ class SchemeAccount(models.Model):
     def make_vouchers_response(self, vouchers: list):
         """
         Vouchers come from Midas with the following fields:
-        * issue_date: int, required
+        * issue_date: int, optional
         * redeem_date: int, optional
-        * code: str, required
+        * code: str, optional
         * type: int, required
         * value: Decimal, optional
         * target_value: Decimal, optional
@@ -653,13 +653,16 @@ class SchemeAccount(models.Model):
             earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
         )
 
-        issue_date = arrow.get(voucher_fields["issue_date"])
-        expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
+        if "issue_date" in voucher_fields:
+            issue_date = arrow.get(voucher_fields["issue_date"])
+            expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
+        else:
+            issue_date = None
 
         # TODO: check this logic
         if "redeem_date" in voucher_fields:
             state = vouchers.VoucherState.REDEEMED
-        elif expiry_date <= arrow.utcnow():
+        elif issue_date is not None and expiry_date <= arrow.utcnow():
             state = vouchers.VoucherState.EXPIRED
         elif "target_value" in voucher_fields:
             state = vouchers.VoucherState.IN_PROGRESS
@@ -670,10 +673,11 @@ class SchemeAccount(models.Model):
         headline = vouchers.apply_template(
             headline_template,
             voucher_scheme=voucher_scheme,
-            earn_value=voucher_fields.get("value", 0)
+            earn_value=voucher_fields.get("value", 0),
+            earn_target_value=voucher_fields.get("target_value", 0),
         )
 
-        return {
+        voucher = {
             "state": vouchers.voucher_state_names[state],
             "earn": {
                 "type": vouchers.voucher_type_names[voucher_type],
@@ -687,12 +691,20 @@ class SchemeAccount(models.Model):
                 "type": voucher_scheme.burn_type_name,
                 "value": voucher_scheme.burn_value,
             },
-            "code": voucher_fields["code"],
             "headline": headline,
             "subtext": voucher_scheme.subtext,
-            "date_issued": issue_date.timestamp,
-            "expiry_date": expiry_date.timestamp,
         }
+
+        if issue_date is not None:
+            voucher.update({
+                "date_issued": issue_date.timestamp,
+                "expiry_date": expiry_date.timestamp,
+            })
+
+        if "code" in voucher_fields:
+            voucher["code"] = voucher_fields["code"]
+
+        return voucher
 
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
@@ -1053,7 +1065,6 @@ class VoucherScheme(models.Model):
     earn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
     earn_suffix = models.CharField(max_length=50, blank=True, verbose_name="Suffix")
     earn_type = models.CharField(max_length=50, choices=EARN_TYPES, verbose_name="Earn Type")
-    earn_target_value = models.FloatField(blank=True, null=True, verbose_name="Target Value")
 
     burn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
     burn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
