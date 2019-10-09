@@ -39,36 +39,39 @@ class Permit:
         # it is best use one of the high level checks
         self.service_allow_all = service_allow_all
 
+        # User is defined with client to server permits
         if user:
             self.client = user.client
 
         if not self.client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')
-
         elif organisation_name and not client:
-            # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
-            # to permit authentication to continue
-            try:
-                self.looked_up_bundle = ClientApplicationBundle\
-                    .objects.get(bundle_id=bundle_id, client__organisation__name=organisation_name)
-                self.client = self.looked_up_bundle.client
-            except ObjectDoesNotExist:
-                raise KeyError
-            except MultipleObjectsReturned:
-                # This should not occur after release as unique together constraint has been added in a migration
-                # Covers edge case of duplicate already exists which would cause the unique together migration to fail
-                # then this error message will help debug
-                raise exceptions.AuthenticationFailed(f"Multiple '{self.bundle_id}'"
-                                                      f" bundle ids for client '{self.client}'")
-            self.client = self.looked_up_bundle.client
-
+            self._init_server_to_server(organisation_name)
         elif self.client and not bundle_id:
+            # This occurs if an old client to server token without client or bundle_id is encountered.
             try:
                 self.bundle_id = ClientApplicationBundle.objects.values_list('bundle_id',
                                                                              flat=True).get(client=self.client)
             except MultipleObjectsReturned:
                 raise exceptions.AuthenticationFailed(f"Undefined bundle_id could not be resolved as there"
                                                       f" multiple bundle ids for client '{self.client}'")
+
+    def _init_server_to_server(self, organisation_name):
+        # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
+        # to permit authentication to continue
+        try:
+            self.looked_up_bundle = ClientApplicationBundle \
+                .objects.get(bundle_id=self.bundle_id, client__organisation__name=organisation_name)
+            self.client = self.looked_up_bundle.client
+        except ObjectDoesNotExist:
+            raise KeyError
+        except MultipleObjectsReturned:
+            # This should not occur after release as unique together constraint has been added in a migration
+            # Covers edge case of duplicate already exists which would cause the unique together migration to fail
+            # then this error message will help debug
+            raise exceptions.AuthenticationFailed(f"Multiple '{self.bundle_id}'"
+                                                  f" bundle ids for client '{self.client}'")
+        self.client = self.looked_up_bundle.client
 
     @staticmethod
     def is_authenticated():

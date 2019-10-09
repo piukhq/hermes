@@ -1,5 +1,5 @@
 from django.conf.urls import url
-from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
+from user.views import (Users, NewRegister, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
                         ResetPassword, ApplyPromoCode, ForgotPassword, ValidateResetToken, ResetPasswordFromToken,
                         Settings, UserSettings, IdentifyApplicationKit, VerifyToken, OrganisationTermsAndConditions,
                         Logout)

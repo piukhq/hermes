@@ -174,7 +174,7 @@ class TestRegisterNewUserViews(TestCase):
         client = Client()
         response = client.post(reverse('register_user'), {'email': 'test_4@example', 'password': 'Password4',
                                                           'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                         })
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
