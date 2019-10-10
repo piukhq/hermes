@@ -598,21 +598,26 @@ class SchemeAccount(models.Model):
         else:
             return JourneyTypes.LINK
 
+    def _update_cached_balance(self, cache_key):
+        journey = self.get_journey_type()
+        balance = self.get_midas_balance(journey=journey)
+        vouchers = None
+        if balance:
+            if "vouchers" in balance:
+                vouchers = self.make_vouchers_response(balance["vouchers"])
+                del balance["vouchers"]
+
+            balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
+            cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+        return balance, vouchers
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
 
         if not balance:
-            journey = self.get_journey_type()
-            balance = self.get_midas_balance(journey=journey)
-            if balance:
-                if "vouchers" in balance:
-                    vouchers = self.make_vouchers_response(balance["vouchers"])
-                    del balance["vouchers"]
-
-                balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
-                cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+            balance, vouchers = self._update_cached_balance(cache_key)
 
         needs_save = False
 
