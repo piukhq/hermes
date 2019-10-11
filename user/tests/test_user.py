@@ -855,6 +855,37 @@ class TestFacebookLogin(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], user.email)
 
+    @httpretty.activate
+    def test_facebook_login_no_email_available(self):
+        facebook_id = 'O7bz6vG60Y'
+        user = UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
+        response = facebook_login('Ju76xER1A5')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], None)
+
+    @httpretty.activate
+    def test_facebook_login_no_email_twitter_email(self):
+        facebook_id = 'O7bz6vG60Y'
+        user = UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "twitter_email", "id": facebook_id}), content_type="application/json")
+        response = facebook_login('Ju76xER1A5')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], "twitter_email")
+
+    @httpretty.activate
+    def test_facebook_login_no_email_app_email_priority(self):
+        facebook_id = 'O7bz6vG60Y'
+        user = UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+                               content_type="application/json")
+        response = facebook_login('Ju76xER1A5', "app_email")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], "app_email")
+
 
 class TestSocialLogin(APITestCase):
     def test_social_login_exists(self):
@@ -870,6 +901,13 @@ class TestSocialLogin(APITestCase):
         status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
         self.assertEqual(status, 200)
         self.assertEqual(user.email, 'frank@sea.com')
+
+    def test_social_login_exists_no_email_twitter(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        status, user = social_login(facebook_id, '', 'facebook')
+        self.assertEqual(status, 200)
+        self.assertEqual(user.email, None)
 
     def test_social_login_not_linked(self):
         user = UserFactory()
