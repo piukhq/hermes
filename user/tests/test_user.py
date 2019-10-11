@@ -858,7 +858,7 @@ class TestFacebookLogin(APITestCase):
     @httpretty.activate
     def test_facebook_login_no_email_available(self):
         facebook_id = 'O7bz6vG60Y'
-        user = UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email=None)
         httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
                                body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
         response = facebook_login('Ju76xER1A5')
@@ -868,9 +868,10 @@ class TestFacebookLogin(APITestCase):
     @httpretty.activate
     def test_facebook_login_no_email_twitter_email(self):
         facebook_id = 'O7bz6vG60Y'
-        user = UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email=None)
         httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({"email": "twitter_email", "id": facebook_id}), content_type="application/json")
+                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+                               content_type="application/json")
         response = facebook_login('Ju76xER1A5')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], "twitter_email")
@@ -878,7 +879,7 @@ class TestFacebookLogin(APITestCase):
     @httpretty.activate
     def test_facebook_login_no_email_app_email_priority(self):
         facebook_id = 'O7bz6vG60Y'
-        user = UserFactory(facebook=facebook_id, email=None)
+        UserFactory(facebook=facebook_id, email=None)
         httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
                                body=json.dumps({"email": "twitter_email", "id": facebook_id}),
                                content_type="application/json")
