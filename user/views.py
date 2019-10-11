@@ -288,12 +288,13 @@ class FaceBookLogin(CreateAPIView):
         """
         access_token = request.data['access_token']
         user_id = request.data['user_id']
+        email = request.data.get('email', None)
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
             return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token)
+        return facebook_login(access_token, email)
 
 
 class TwitterLogin(CreateAPIView):
@@ -321,11 +322,15 @@ class Renew(APIView):
 
         user, token_contents = auth.authenticate_credentials(token)
         bundle_id = token_contents.get('bundle_id', '')
+
+        if not user.email:
+            raise exceptions.AuthenticationFailed(_('User does not have an email address'))
+
         # Note create_token will try to get bundle_id if not set.
         try:
             new_token = user.create_token(bundle_id)
         except MultipleObjectsReturned:
-            raise exceptions.AuthenticationFailed("No bundle_id in token and multiple bundles defined for this user")
+            raise exceptions.AuthenticationFailed(_("No bundle_id in token and multiple bundles defined for this user"))
 
         return Response({'api_key': new_token})
 
@@ -362,14 +367,17 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token):
+def facebook_login(access_token, user_email=None):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/me', params=params)
     if not r.ok:
         return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
-    return social_response(profile['id'], profile.get('email'), 'facebook')
+    # Email from client over-rides the facebook one
+    if not user_email:
+        user_email = profile.get('email')
+    return social_response(profile['id'], user_email, 'facebook')
 
 
 def twitter_login(access_token, access_token_secret):

@@ -233,6 +233,7 @@ class SchemeAccountSerializer(serializers.Serializer):
 class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    email = serializers.CharField(max_length=600, required=False, write_only=True)
 
 
 class TwitterRegisterSerializer(serializers.Serializer):

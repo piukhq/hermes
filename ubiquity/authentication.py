@@ -58,6 +58,8 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                 user = CustomUser.objects.get(id=token_data['sub'])
                 channels_permit = Permit(bundle_id, user=user, ubiquity=True)
 
+                if not user.email:
+                    raise exceptions.AuthenticationFailed(_('User does not have an email address'))
                 if 'iat' not in token_data:
                     raise exceptions.AuthenticationFailed(_('Invalid token content'))
 
