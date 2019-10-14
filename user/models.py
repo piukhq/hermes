@@ -168,7 +168,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
-    marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True)
+    marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True, on_delete=models.SET_NULL)
     salt = models.CharField(max_length=8)
     external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
 
@@ -291,7 +291,7 @@ GENDERS = (
 
 
 class UserDetail(models.Model):
-    user = models.OneToOneField(CustomUser, related_name='profile')
+    user = models.OneToOneField(CustomUser, related_name='profile', on_delete=models.CASCADE)
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
     gender = models.CharField(max_length=6, null=True, blank=True, choices=GENDERS)
@@ -328,8 +328,8 @@ class UserDetail(models.Model):
 
 
 class Referral(models.Model):
-    referrer = models.ForeignKey(CustomUser, related_name='referrer')
-    recipient = models.OneToOneField(CustomUser, related_name='recipient')
+    referrer = models.ForeignKey(CustomUser, related_name='referrer', on_delete=models.CASCADE)
+    recipient = models.OneToOneField(CustomUser, related_name='recipient', on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -379,7 +379,7 @@ class Setting(models.Model):
     slug = models.SlugField(unique=True)
     value_type = models.IntegerField(choices=VALUE_TYPES)
     default_value = models.CharField(max_length=255)
-    scheme = models.ForeignKey(Scheme, null=True, blank=True)
+    scheme = models.ForeignKey(Scheme, null=True, blank=True, on_delete=models.CASCADE)
     label = models.CharField(max_length=255, null=True, blank=True)
     category = models.IntegerField(choices=CATEGORIES, null=True, blank=True)
 
@@ -407,8 +407,8 @@ setting_value_type_validators = {
 class UserSetting(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(CustomUser, related_name='user')
-    setting = models.ForeignKey(Setting, related_name='setting')
+    user = models.ForeignKey(CustomUser, related_name='user', on_delete=models.CASCADE)
+    setting = models.ForeignKey(Setting, related_name='setting', on_delete=models.CASCADE)
     value = models.CharField(max_length=255)
 
     def __str__(self):

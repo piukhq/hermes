@@ -115,7 +115,7 @@ class Scheme(models.Model):
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
     test_scheme = models.BooleanField(default=False)
-    category = models.ForeignKey(Category)
+    category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
                                          help_text="Regex to map barcode to card number")
@@ -196,7 +196,7 @@ class Control(models.Model):
     label = models.CharField(max_length=50, blank=True)
     hint_text = models.CharField(max_length=250, blank=True)
 
-    scheme = models.ForeignKey(Scheme, related_name="controls")
+    scheme = models.ForeignKey(Scheme, related_name="controls", on_delete=models.CASCADE)
 
 
 class Consent(models.Model):
@@ -208,7 +208,7 @@ class Consent(models.Model):
 
     check_box = models.BooleanField()
     text = models.TextField()
-    scheme = models.ForeignKey(Scheme, related_name="consents")
+    scheme = models.ForeignKey(Scheme, related_name="consents", on_delete=models.CASCADE)
     is_enabled = models.BooleanField(default=True)
     required = models.BooleanField()
     order = models.IntegerField()
@@ -233,8 +233,8 @@ class Consent(models.Model):
 
 
 class Exchange(models.Model):
-    donor_scheme = models.ForeignKey('scheme.Scheme', related_name='donor_in')
-    host_scheme = models.ForeignKey('scheme.Scheme', related_name='host_in')
+    donor_scheme = models.ForeignKey('scheme.Scheme', related_name='donor_in', on_delete=models.CASCADE)
+    host_scheme = models.ForeignKey('scheme.Scheme', related_name='host_in', on_delete=models.CASCADE)
 
     exchange_rate_donor = models.IntegerField(default=1)
     exchange_rate_host = models.IntegerField(default=1)
@@ -267,12 +267,12 @@ class ActiveSchemeImageManager(models.Manager):
 
 class SchemeImage(Image):
     objects = ActiveSchemeImageManager()
-    scheme = models.ForeignKey('scheme.Scheme', related_name='images')
+    scheme = models.ForeignKey('scheme.Scheme', related_name='images', on_delete=models.CASCADE)
 
 
 class SchemeAccountImage(Image):
     objects = ActiveSchemeImageManager()
-    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True)
+    scheme = models.ForeignKey('scheme.Scheme', null=True, blank=True, on_delete=models.SET_NULL)
     scheme_accounts = models.ManyToManyField('scheme.SchemeAccount', related_name='scheme_accounts_set')
 
     def __str__(self):
@@ -370,7 +370,7 @@ class SchemeAccount(models.Model):
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
-    scheme = models.ForeignKey('scheme.Scheme')
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
@@ -860,14 +860,14 @@ class SchemeDetail(models.Model):
         (0, 'Tier'),
     )
 
-    scheme_id = models.ForeignKey('Scheme')
+    scheme_id = models.ForeignKey('Scheme', on_delete=models.CASCADE)
     type = models.IntegerField(choices=TYPE_CHOICES, default=0)
     name = models.CharField(max_length=255)
     description = models.TextField()
 
 
 class SchemeBalanceDetails(models.Model):
-    scheme_id = models.ForeignKey('Scheme')
+    scheme_id = models.ForeignKey('Scheme', on_delete=models.CASCADE)
     currency = models.CharField(default='', blank=True, max_length=50)
     prefix = models.CharField(default='', blank=True, max_length=50)
     suffix = models.CharField(default='', blank=True, max_length=50)
@@ -878,7 +878,7 @@ class SchemeBalanceDetails(models.Model):
 
 
 class SchemeAccountCredentialAnswer(models.Model):
-    scheme_account = models.ForeignKey(SchemeAccount)
+    scheme_account = models.ForeignKey(SchemeAccount, on_delete=models.CASCADE)
     question = models.ForeignKey(SchemeCredentialQuestion, null=True, on_delete=models.PROTECT)
     answer = models.CharField(max_length=250)
 
@@ -934,9 +934,9 @@ class UserConsent(models.Model):
 
 class ThirdPartyConsentLink(models.Model):
     consent_label = models.CharField(max_length=50)
-    client_app = models.ForeignKey('user.ClientApplication', related_name='client_app')
-    scheme = models.ForeignKey('scheme.Scheme', related_name='scheme')
-    consent = models.ForeignKey(Consent, related_name='consent')
+    client_app = models.ForeignKey('user.ClientApplication', related_name='client_app', on_delete=models.CASCADE)
+    scheme = models.ForeignKey('scheme.Scheme', related_name='scheme', on_delete=models.CASCADE)
+    consent = models.ForeignKey(Consent, related_name='consent', on_delete=models.CASCADE)
 
     add_field = models.BooleanField(default=False)
     auth_field = models.BooleanField(default=False)
