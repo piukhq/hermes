@@ -17,7 +17,7 @@ from rest_framework.viewsets import ModelViewSet
 
 import analytics
 from hermes.channels import Permit
-from hermes.traced_requests import requests
+import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS
@@ -35,7 +35,8 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                   ServiceConsentSerializer, TransactionsSerializer,
                                   LinkMembershipCardSerializer)
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance
+from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
+    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -499,6 +500,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
+        scheme_slug = scheme_account.scheme.slug
+        scheme_account_id = scheme_account.id
+        delete_date = arrow.utcnow().format()
         m_card_users = [
             user['id'] for user in
             scheme_account.user_set.values('id').exclude(id=request.user.id)
@@ -509,6 +513,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         }
         PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query).delete()
         super().delete(request, *args, **kwargs)
+
+        if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+            send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, delete_date, 'delete')
+
         return Response({}, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -756,6 +764,9 @@ class ListMembershipCardView(MembershipCardView):
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
+
+        if account.scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
+            send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
 
         return Response(MembershipCardSerializer(account, context={'request': request}).data, status=status_code)
 

@@ -1,5 +1,5 @@
-from hermes.traced_requests import requests
 import arrow
+import requests
 
 from django.conf import settings
 
