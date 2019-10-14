@@ -3,6 +3,7 @@ import socket
 import typing as t
 import uuid
 
+import requests
 import sentry_sdk
 from django.conf import settings
 from django.db import transaction
