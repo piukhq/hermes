@@ -7,7 +7,8 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from hermes.traced_requests import requests
+from hermes.settings import BIN_TO_PROVIDER
+import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
@@ -219,8 +220,21 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
         return Issuer.objects.values('id').get(name='Barclays')['id']
 
     @staticmethod
-    def get_payment_card(_):
-        return PaymentCard.objects.values('id').get(slug='visa')['id']
+    def get_payment_card(obj):
+        first_6 = str(obj['first_six_digits'])
+        slug = 'other'
+        match_to_first_6 = {
+            'range': lambda match: match.value[0] <= int(first_6[:match.len]) <= match.value[1],
+            'equal': lambda match: first_6[:match.len] == match.value
+        }
+
+        for provider, values in BIN_TO_PROVIDER.items():
+            for bin_match in values:
+                if match_to_first_6[bin_match.type](bin_match):
+                    slug = provider
+                    break
+
+        return PaymentCard.objects.values('id').get(slug=slug)['id']
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
@@ -343,7 +357,7 @@ class UbiquityConsentSerializer(serializers.Serializer):
 
     def to_representation(self, obj):
         data = super().to_representation(obj)
-        data['type'] = SchemeCredentialQuestion.ANSWER_TYPE_CHOICES[3][0]    # boolean
+        data['type'] = SchemeCredentialQuestion.ANSWER_TYPE_CHOICES[3][0]  # boolean
         return data
 
 
@@ -351,17 +365,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
         exclude = ('name',)
-
-    @staticmethod
-    def _get_ubiquity_images(instance: Scheme) -> t.List[dict]:
-        # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
-        filtered_images = {
-            image.image_type_code: image
-            for image in instance.images.all()
-            if image.image_type_code in [image.HERO, image.ICON]
-        }
-
-        return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
     @staticmethod
     def _add_alternatives_key(formatted_fields: dict) -> None:
@@ -397,6 +400,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return consents
 
     def to_representation(self, instance: Scheme) -> dict:
+        images = instance.images.all()
         balances = instance.schemebalancedetails_set.all()
         tiers = instance.schemedetail_set.filter(type=0).all()
         add_fields = instance.questions.filter(add_field=True).all()
@@ -445,7 +449,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': self._get_ubiquity_images(instance),
+            'images': UbiquityImageSerializer(images, many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
@@ -554,7 +558,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             image.image_type_code: image
             for image in images
             if image.image_type_code in [image.HERO, image.ICON] or (
-                image.image_type_code == image.TIER and image.reward_tier == tier)
+                    image.image_type_code == image.TIER and image.reward_tier == tier)
         }
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data

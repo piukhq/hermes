@@ -1,5 +1,5 @@
 import analytics
-from hermes.traced_requests import requests
+import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError

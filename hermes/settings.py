@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
 import sys
+from collections import namedtuple
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -34,33 +35,25 @@ SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
-    ".chingrewards.com",
+    "127.0.0.1",
     ".bink.com",
-    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "hermes",
     ".bink.com",
-    ".bink-staging.com",
-    ".bink-dev.com",
     ".bink-sandbox.com",
-    ".chingrewards.com",
+    ".svc.cluster.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
     "127.0.0.1",
-    "0.0.0.0:8001",
-    "staging.chingweb.chingrewards.com",
-    "local.chingweb.chingrewards.com",
-    "dev.chingweb.loyaltyangels.local",
-    "local.chingweb.chingrewards.com:8000",
-    "dev.api.chingrewards.com",
-    "staging.api.chingrewards.com",
-    "api.chingrewards.com",
-    "dev.docs.loyaltyangels.local",
+    "hermes",
+    ".bink.com",
+    ".bink-sandbox.com",
+    ".svc.cluster.local",
 )
 
 # Application definition
@@ -73,7 +66,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_admin_env_notice',
     'django.contrib.admin',
-    'ddtrace.contrib.django',
     'rest_framework',
     'corsheaders',
     'user',
@@ -364,13 +356,6 @@ CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
-DATADOG_TRACE = {
-    'DEFAULT_SERVICE': 'hermes',
-    'TAGS': {'env': env_var('DATADOG_APM_ENV')},
-    'AGENT_HOSTNAME': env_var('DATADOG_APM_HOST', 'datadog-agent-trace.datadog'),
-    'ENABLED': env_var('DATADOG_APM_ENABLED', False)
-}
-
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
 
@@ -389,3 +374,18 @@ if MANUAL_CHECK_USE_AZURE:
     MANUAL_CHECK_AZURE_FOLDER = env_var('MANUAL_CHECK_AZURE_FOLDER')
 
 SCHEMES_COLLECTING_METRICS = env_var('SCHEMES_COLLECTING_METRICS', 'cooperative').split(',')
+
+BinMatch = namedtuple('BinMatch', 'type len value')
+BIN_TO_PROVIDER = {
+    'visa': [
+        BinMatch(type='equal', len=1, value='4'),
+    ],
+    'amex': [
+        BinMatch(type='equal', len=2, value='34'),
+        BinMatch(type='equal', len=2, value='37')
+    ],
+    'mastercard': [
+        BinMatch(type='range', len=2, value=(51, 55)),
+        BinMatch(type='range', len=4, value=(2221, 2720))
+    ]
+}
