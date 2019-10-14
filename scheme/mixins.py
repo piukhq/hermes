@@ -15,7 +15,6 @@ from rest_framework.generics import get_object_or_404
 
 import analytics
 from payment_card.payment import Payment, PaymentError
-from hermes.traced_requests import requests
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent)
