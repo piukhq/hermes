@@ -1,5 +1,4 @@
-from django.conf.urls import url
-from order.views import OrderUpdate
+from django.urls import path
+from order import views
 
-urlpatterns = [
-    url(r'^$', OrderUpdate.as_view(), name='update_order'), ]
+urlpatterns = [path("", views.OrderUpdate.as_view(), name="update_order")]

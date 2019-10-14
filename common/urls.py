@@ -1,8 +1,6 @@
-from django.conf.urls import url
+from django.urls import path
 
-from . import views
+from common import views
 
 
-urlpatterns = [
-    url(r'^healthz$', views.HealthCheck.as_view())
-]
+urlpatterns = [path("healthz/", views.HealthCheck.as_view())]
