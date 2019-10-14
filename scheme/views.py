@@ -382,6 +382,14 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         scheme_account.status = new_status_code
         scheme_account.save(update_fields=['status'])
 
+        self.process_active_accounts(scheme_account, journey, new_status_code)
+
+        return Response({
+            'id': scheme_account.id,
+            'status': new_status_code
+        })
+
+    def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
@@ -400,12 +408,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             scheme_account.save(update_fields=['link_date'])
 
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
-
-        return Response({
-            'id': scheme_account.id,
-            'status': new_status_code
-        })
+                send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, 'link')
 
     def send_to_intercom(self, new_status_code, scheme_account):
         try:
