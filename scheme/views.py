@@ -20,6 +20,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from payment_card.payment import Payment
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -366,12 +367,29 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+
+        pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
+                            SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
+
+        if new_status_code is SchemeAccount.ACTIVE:
+            Payment.process_payment_success(scheme_account)
+        elif new_status_code not in pending_statuses:
+            Payment.process_payment_void(scheme_account)
+
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
 
         scheme_account.status = new_status_code
         scheme_account.save(update_fields=['status'])
 
+        self.process_active_accounts(scheme_account, journey, new_status_code)
+
+        return Response({
+            'id': scheme_account.id,
+            'status': new_status_code
+        })
+
+    def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
@@ -390,12 +408,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             scheme_account.save(update_fields=['link_date'])
 
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
-
-        return Response({
-            'id': scheme_account.id,
-            'status': new_status_code
-        })
+                send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, 'link')
 
     def send_to_intercom(self, new_status_code, scheme_account):
         try:

@@ -485,6 +485,14 @@
             "git": "https://github.com/BackwardSpy/django-storages.git",
             "ref": "ebff9987ce041d79128919d2a172e3da93f44f79"
         },
+        "tenacity": {
+            "hashes": [
+                "sha256:a0c3c5f7ae0c33f5556c775ca059c12d6fd8ab7121613a713e8b7d649908571b",
+                "sha256:b87c1934daa0b2ccc7db153c37b8bf91d12f165936ade8628e7b962b92dc7705"
+            ],
+            "index": "pypi",
+            "version": "==5.0.4"
+        },
         "urllib3": {
             "hashes": [
                 "sha256:a68ac5e15e76e7e5dd2b8f94007233e01effe3e50e8daddf69acfd81cb686baf",
