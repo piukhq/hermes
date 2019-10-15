@@ -1,30 +1,36 @@
-from django.urls import path
+from django.urls import re_path
 
 from payment_card import views
 
 urlpatterns = [
-    path("/", views.ListPaymentCard.as_view(), name="payment_card_list"),
-    path("accounts/query/", views.PaymentCardAccountQuery.as_view(), name="query_payment_card_accounts"),
-    path("accounts/", views.ListCreatePaymentCardAccount.as_view(), name="create_payment_card_account"),
-    path("accounts/loyalty_id/<slug:scheme_slug>/", views.RetrieveLoyaltyID.as_view(), name="retrieve_loyalty_ids"),
-    path(
-        "accounts/payment_card_user_info/<slug:scheme_slug>/",
+    re_path(r"^/?$", views.ListPaymentCard.as_view(), name="payment_card_list"),
+    re_path(r"^/accounts/query$", views.PaymentCardAccountQuery.as_view(), name="query_payment_card_accounts"),
+    re_path(r"^/accounts$", views.ListCreatePaymentCardAccount.as_view(), name="create_payment_card_account"),
+    re_path(
+        r"^/accounts/loyalty_id/(?P<scheme_slug>.+)$", views.RetrieveLoyaltyID.as_view(), name="retrieve_loyalty_ids"
+    ),
+    re_path(
+        r"^/accounts/payment_card_user_info/(?P<scheme_slug>.+)$",
         views.RetrievePaymentCardUserInfo.as_view(),
         name="retrieve_payment_card_user_info",
     ),
-    path("accounts/<int:pk>/", views.RetrievePaymentCardAccount.as_view(), name="retrieve_payment_card_account"),
-    path(
-        "scheme_accounts/<str:token>/",
+    re_path(
+        r"^/accounts/(?P<pk>[0-9]+)$", views.RetrievePaymentCardAccount.as_view(), name="retrieve_payment_card_account"
+    ),
+    re_path(
+        r"^/scheme_accounts/(?P<token>.+)$",
         views.RetrievePaymentCardSchemeAccounts.as_view(),
         name="retrieve_payment_card_scheme_accounts",
     ),
-    path("accounts/status/", views.UpdatePaymentCardAccountStatus.as_view(), name="update_payment_card_account_status"),
-    path(
-        "provider_status_mappings/<slug:slug>/",
+    re_path(
+        r"^/accounts/status$", views.UpdatePaymentCardAccountStatus.as_view(), name="update_payment_card_account_status"
+    ),
+    re_path(
+        r"^/provider_status_mappings/(?P<slug>.+)$",
         views.ListProviderStatusMappings.as_view(),
         name="list_provider_status_mappings",
     ),
-    path("csv_upload/", views.csv_upload, name="csv_upload"),
-    path("auth_transaction/", views.AuthTransactionView.as_view(), name="auth_transaction"),
-    path("client_apps/", views.ListPaymentCardClientApplication.as_view(), name="list_payment_card_client_apps"),
+    re_path(r"^/csv_upload", views.csv_upload, name="csv_upload"),
+    re_path(r"^/auth_transaction$", views.AuthTransactionView.as_view(), name="auth_transaction"),
+    re_path(r"^/client_apps$", views.ListPaymentCardClientApplication.as_view(), name="list_payment_card_client_apps"),
 ]

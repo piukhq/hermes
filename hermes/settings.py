@@ -139,6 +139,8 @@ REST_FRAMEWORK = {
 
 WSGI_APPLICATION = 'hermes.wsgi.application'
 
+APPEND_SLASH = False
+
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 

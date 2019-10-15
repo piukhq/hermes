@@ -1,12 +1,12 @@
+from django.urls import include, re_path, path
 from django.contrib import admin
-from django.urls import path, include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("users/", include("user.urls")),
-    path("schemes/", include("scheme.urls")),
-    path("payment_cards/", include("payment_card.urls")),
-    path("order/", include("order.urls")),
-    path("ubiquity/", include("ubiquity.urls")),
-    path("", include("common.urls")),
+    re_path(r"^users/", include("user.urls")),
+    re_path(r"^schemes", include("scheme.urls")),
+    re_path(r"^payment_cards", include("payment_card.urls")),
+    re_path(r"^order", include("order.urls")),
+    re_path(r"^ubiquity", include("ubiquity.urls")),
+    re_path(r"", include("common.urls")),
 ]

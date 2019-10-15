@@ -1,6 +1,18 @@
-from django.urls import path
+from django.urls import re_path
 
-from ubiquity import views
+from ubiquity.views import (
+    CompositeMembershipCardView,
+    CompositePaymentCardView,
+    CardLinkView,
+    ListMembershipCardView,
+    ListPaymentCardView,
+    MembershipCardView,
+    MembershipPlanView,
+    ListMembershipPlanView,
+    MembershipTransactionView,
+    PaymentCardView,
+    ServiceView,
+)
 
 service_view = {"get": "retrieve", "post": "create", "delete": "destroy"}
 cards_plural = {"get": "list", "post": "create"}
@@ -9,53 +21,55 @@ link_payment = {"patch": "update_payment", "delete": "destroy_payment"}
 link_membership = {"patch": "update_membership", "delete": "destroy_membership"}
 
 urlpatterns = [
-    path("service/", views.ServiceView.as_view(service_view), name="service"),
-    path("payment_cards/", views.ListPaymentCardView.as_view(cards_plural), name="payment-cards"),
-    path("payment_card/<int:pk>/", views.PaymentCardView.as_view(cards_singular), name="payment-card"),
-    path("membership_cards/", views.ListMembershipCardView.as_view(cards_plural), name="membership-cards"),
-    path("membership_card/<int:pk>/", views.MembershipCardView.as_view(cards_singular), name="membership-card"),
-    path(
-        "membership_transactions/", views.MembershipTransactionView.as_view({"get": "list"}), name="user-transactions"
+    re_path(r"^/service/?$", ServiceView.as_view(service_view), name="service"),
+    re_path(r"^/payment_cards/?$", ListPaymentCardView.as_view(cards_plural), name="payment-cards"),
+    re_path(r"^/payment_card/(?P<pk>[0-9]+)?$", PaymentCardView.as_view(cards_singular), name="payment-card"),
+    re_path(r"^/membership_cards/?$", ListMembershipCardView.as_view(cards_plural), name="membership-cards"),
+    re_path(r"^/membership_card/(?P<pk>[0-9]+)?$", MembershipCardView.as_view(cards_singular), name="membership-card"),
+    re_path(
+        r"^/membership_transactions/?$", MembershipTransactionView.as_view({"get": "list"}), name="user-transactions"
     ),
-    path(
-        "membership_transaction/<int:transaction_id>/",
-        views.MembershipTransactionView.as_view({"get": "retrieve"}),
+    re_path(
+        r"^/membership_transaction/(?P<transaction_id>[0-9]+)?$",
+        MembershipTransactionView.as_view({"get": "retrieve"}),
         name="retrieve-transactions",
     ),
-    path(
-        "membership_card/<int:mcard_id>/membership_transactions/",
-        views.MembershipTransactionView.as_view({"get": "composite"}),
+    re_path(
+        r"^/membership_card?/(?P<mcard_id>[0-9]+)/membership_transactions$",
+        MembershipTransactionView.as_view({"get": "composite"}),
         name="membership-card-transactions",
     ),
-    path(
-        "membership_card/<int:mcard_id>/membership_plan/",
-        views.MembershipCardView.as_view({"get": "membership_plan"}),
+    re_path(
+        r"^/membership_card?/(?P<mcard_id>[0-9]+)/membership_plan$",
+        MembershipCardView.as_view({"get": "membership_plan"}),
         name="membership-card-plan",
     ),
-    path(
-        "membership_plans/",
-        views.ListMembershipPlanView.as_view({"get": "list", "post": "identify"}),
+    re_path(
+        r"^/membership_plans/?$",
+        ListMembershipPlanView.as_view({"get": "list", "post": "identify"}),
         name="membership-plans",
     ),
-    path("membership_plan/<int:pk>/", views.MembershipPlanView.as_view({"get": "retrieve"}), name="membership-plan"),
-    path(
-        "payment_card/<int:pcard_id>/membership_cards/",
-        views.CompositeMembershipCardView.as_view(cards_plural),
+    re_path(
+        r"^/membership_plan/(?P<pk>[0-9]+)$", MembershipPlanView.as_view({"get": "retrieve"}), name="membership-plan"
+    ),
+    re_path(
+        r"^/payment_card/(?P<pcard_id>\d+)/membership_cards/?$",
+        CompositeMembershipCardView.as_view(cards_plural),
         name="composite-membership-cards",
     ),
-    path(
-        "membership_card/<int:mcard_id>/payment_cards/",
-        views.CompositePaymentCardView.as_view(cards_plural),
+    re_path(
+        r"^/membership_card/(?P<mcard_id>\d+)/payment_cards/?$",
+        CompositePaymentCardView.as_view(cards_plural),
         name="composite-payment-cards",
     ),
-    path(
-        "payment_card/<int:pcard_id>/membership_card/<int:mcard_id>/",
-        views.CardLinkView.as_view(link_membership),
+    re_path(
+        r"^/payment_card/(?P<pcard_id>[0-9]+)/membership_card/(?P<mcard_id>[0-9]+)/?$",
+        CardLinkView.as_view(link_membership),
         name="membership-link",
     ),
-    path(
-        "membership_card/<int:mcard_id>/payment_card/<int:pcard_id>/",
-        views.CardLinkView.as_view(link_payment),
+    re_path(
+        r"^/membership_card/(?P<mcard_id>[0-9]+)/payment_card/(?P<pcard_id>[0-9]+)/?$",
+        CardLinkView.as_view(link_payment),
         name="payment-link",
     ),
 ]

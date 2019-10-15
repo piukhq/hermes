@@ -1,6 +1,6 @@
-from django.urls import path
+from django.urls import re_path
 
-from common import views
+from . import views
 
 
-urlpatterns = [path("healthz/", views.HealthCheck.as_view())]
+urlpatterns = [re_path(r"^healthz$", views.HealthCheck.as_view())]
