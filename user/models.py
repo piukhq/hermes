@@ -191,7 +191,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return hash_ids.encode(self.id)
 
     def get_expiry_date(self):
-        return arrow.utcnow().replace(hours=+3)
+        return arrow.utcnow().shift(hours=+3)
 
     def generate_reset_token(self):
         expiry_date = self.get_expiry_date()
@@ -200,7 +200,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'expiry_date': expiry_date.timestamp
         }
         reset_token = jwt.encode(payload, self.client.secret)
-        self.reset_token = reset_token
+        self.reset_token = reset_token.decode("utf-8")
         self.save()
         return reset_token
 

@@ -165,7 +165,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
-        raise_errors_on_nested_writes('update', self, validated_data)
         user_detail_instance = UserDetail.objects.get(user=instance)
         email = validated_data.pop('email', None)
         if 'profile' in validated_data:

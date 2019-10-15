@@ -668,7 +668,7 @@ class DonorSchemes(APIView):
         response_serializer: scheme.serializers.DonorSchemeAccountSerializer
 
         """
-        host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
+        host_scheme = Scheme.objects.get(pk=kwargs['scheme_id'])
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         return_data = []

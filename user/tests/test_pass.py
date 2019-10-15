@@ -44,7 +44,7 @@ class TestResetPassword(TestCase):
 
     def test_reset_token_expiry(self):
         expiry_date = arrow.utcnow()
-        expiry_date.replace(hours=-1)
+        expiry_date.shift(hours=-1)
         payload = {
             'email': self.user.email,
             'expiry_date': expiry_date.timestamp

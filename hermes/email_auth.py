@@ -6,7 +6,7 @@ from .settings import BINK_CLIENT_ID
 
 class EmailBackend(ModelBackend):
 
-    def authenticate(self, username=None, password=None, client_id=BINK_CLIENT_ID, **kwargs):
+    def authenticate(self, request, username=None, password=None, client_id=BINK_CLIENT_ID, **kwargs):
         UserModel = get_user_model()
 
         if username is None:

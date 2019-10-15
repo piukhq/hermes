@@ -146,7 +146,7 @@ class ForgotPassword(APIView):
         if user:
             user.generate_reset_token()
             send_mail('email.tpl',
-                      {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
+                      {'link': '{}/{}'.format(LETHE_URL, user.reset_token),
                                'hermes_url': MEDIA_URL},
                       settings.DEFAULT_FROM_EMAIL,
                       [user.email],
