@@ -18,7 +18,7 @@ from collections import namedtuple
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-import hermes
+from hermes.version import __version__
 from environment import env_var, read_env
 
 read_env()
@@ -258,7 +258,7 @@ HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
-        release=hermes.__version__,
+        release=__version__,
         integrations=[DjangoIntegration(transaction_style="function_name")],
     )
 
