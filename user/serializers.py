@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
-from rest_framework.serializers import raise_errors_on_nested_writes
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
