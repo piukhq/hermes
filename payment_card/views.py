@@ -173,8 +173,8 @@ class ListCreatePaymentCardAccount(APIView):
         # if the clients are the same but the users don't match, reject the card.
         if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
                 client=user.client).exists():
-            return Response({'error': 'Fingerprint is already in use by another user.',
-                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+            return {'error': 'Fingerprint is already in use by another user.',
+                    'code': '403'}, status.HTTP_403_FORBIDDEN, None
 
         # copy the tokens from the previous account
         new_account.token = old_account.token
