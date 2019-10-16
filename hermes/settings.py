@@ -18,7 +18,7 @@ from collections import namedtuple
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-import hermes
+from hermes.version import __version__
 from environment import env_var, read_env
 
 read_env()
@@ -258,7 +258,7 @@ HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
-        release=hermes.__version__,
+        release=__version__,
         integrations=[DjangoIntegration(transaction_style="function_name")],
     )
 
@@ -334,7 +334,23 @@ cache_options = {
     }
 }
 CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis'],
+    "retry_tasks": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
+            password=REDIS_PASSWORD,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 100
+        },
+        "KEY_PREFIX": "hermes-retry-task-",
+        "TIMEOUT": None
+    }
 }
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
@@ -355,6 +371,18 @@ CELERY_TASK_DEFAULT_QUEUE = env_var('CELERY_TASK_DEFAULT_QUEUE', 'ubiquity-async
 CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
+
+SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', '')
+SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', '')
+SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', '')
+SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
+
+# Time in seconds for the interval between retry tasks called by celery beats
+RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
+# Time in seconds for interval of checking if payments have not been updated and require voiding
+PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
+# Time in seconds of how long is required before a payment is deemed to be expired
+PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
 
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')

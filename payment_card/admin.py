@@ -145,4 +145,14 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
     card_is_deleted.boolean = True
 
 
+@admin.register(models.PaymentAudit)
+class PaymentAuditAdmin(admin.ModelAdmin):
+    list_display = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'status', 'created_on',
+                    'modified_on',)
+    search_fields = ('user_id', 'scheme_account', 'scheme_account__scheme__name' 'transaction_ref', 'transaction_token',
+                     'status',)
+    readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
+                       'void_attempts')
+
+
 admin.site.register(models.Issuer)

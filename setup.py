@@ -1,10 +1,10 @@
 from setuptools import setup
 
-import hermes
+from hermes.version import __version__
 
 setup(
     name='hermes',
-    version=hermes.__version__,
+    version=__version__,
     description='Bink loyalty cards, payment cards, and users API.',
     url='https://git.bink.com/Olympus/hermes',
     author='Chris Latham',
