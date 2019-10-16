@@ -7,7 +7,6 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from hermes.settings import BIN_TO_PROVIDER
 import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
@@ -228,7 +227,7 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
             'equal': lambda match: first_6[:match.len] == match.value
         }
 
-        for provider, values in BIN_TO_PROVIDER.items():
+        for provider, values in settings.BIN_TO_PROVIDER.items():
             for bin_match in values:
                 if match_to_first_6[bin_match.type](bin_match):
                     slug = provider

@@ -23,7 +23,6 @@ from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
 from rest_framework import exceptions
-from hermes.settings import LETHE_URL, MEDIA_URL
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -145,12 +144,16 @@ class ForgotPassword(APIView):
         user = CustomUser.objects.filter(client_id=client_id, email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
-            send_mail('email.tpl',
-                      {'link': '{}/{}'.format(LETHE_URL, user.reset_token),
-                               'hermes_url': MEDIA_URL},
-                      settings.DEFAULT_FROM_EMAIL,
-                      [user.email],
-                      fail_silently=False)
+            send_mail(
+                'email.tpl',
+                {
+                    'link': '{}/{}'.format(settings.LETHE_URL, user.reset_token),
+                    'hermes_url': settings.MEDIA_URL
+                },
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False
+            )
 
         return Response('An email has been sent with details of how to reset your password.', 200)
 

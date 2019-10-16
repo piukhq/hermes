@@ -4,10 +4,10 @@ from typing import Optional
 import sentry_sdk
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.conf import settings
 from rest_framework.exceptions import APIException
 from tenacity import retry, stop_after_attempt, retry_if_exception_type, wait_exponential
 
-from hermes.settings import SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET, SPREEDLY_GATEWAY_TOKEN
 from hermes.spreedly import Spreedly, SpreedlyError
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
@@ -64,7 +64,11 @@ class Payment:
         self.currency_code = currency_code
         self.payment_token = payment_token
 
-        self.spreedly = Spreedly(SPREEDLY_ENVIRONMENT_KEY, SPREEDLY_ACCESS_SECRET, currency_code=currency_code)
+        self.spreedly = Spreedly(
+            settings.SPREEDLY_ENVIRONMENT_KEY,
+            settings.SPREEDLY_ACCESS_SECRET,
+            currency_code=currency_code
+        )
 
     def _auth(self, payment_token: Optional[str] = None) -> None:
         p_token = payment_token or self.payment_token
@@ -76,7 +80,7 @@ class Payment:
                 payment_token=self.payment_token,
                 amount=self.amount,
                 order_id=self.audit_obj.transaction_ref,
-                gateway_token=SPREEDLY_GATEWAY_TOKEN
+                gateway_token=settings.SPREEDLY_GATEWAY_TOKEN
             )
         except SpreedlyError as e:
             raise PaymentError from e
