@@ -542,6 +542,8 @@ class TestSchemeAccountViews(APITestCase):
 
         bundle_assoc = SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle,
                                                       status=SchemeBundleAssociation.ACTIVE)
+        SchemeBundleAssociationFactory(scheme=join_scheme, status=SchemeBundleAssociation.SUSPENDED)
+
         auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + join_entry.user.create_token()}
 
         response = self.client.get('/schemes/accounts', **auth_headers)

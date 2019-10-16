@@ -390,7 +390,7 @@ ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDd
 ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
-MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')
+MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', '').split(',')
 MANUAL_CHECK_LOCAL_CSV_PATH = env_var('MANUAL_CHECK_LOCAL_CSV_PATH', '/tmp/output/hn/test.csv')
 
 MANUAL_CHECK_USE_AZURE = env_var('MANUAL_CHECK_USE_AZURE', False)
