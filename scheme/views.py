@@ -27,7 +27,7 @@ from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
 from scheme.models import (ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage,
-                           UserConsent)
+                           UserConsent, SchemeBundleAssociation)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer,
@@ -259,15 +259,22 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
     def get_queryset(self):
         channels_permit = self.request.channels_permit
         queryset = SchemeAccount.objects
-        exclude_by = {
-            'status__in': SchemeAccount.JOIN_ACTION_REQUIRED,
-            **channels_permit.scheme_suspended('scheme__')
-        }
 
         filter_by = {'user_set__id': self.request.user.id}
 
         if not self.request.user.is_tester:
             filter_by['scheme__test_scheme'] = False
+
+        exclude_by = {}
+        suspended_schemes = Scheme.objects.filter(
+            schemebundleassociation__bundle=channels_permit.bundle,
+            schemebundleassociation__status=SchemeBundleAssociation.SUSPENDED,
+        )
+        if suspended_schemes:
+            exclude_by = {
+                'scheme__in': suspended_schemes,
+                'status__in': SchemeAccount.JOIN_ACTION_REQUIRED
+            }
 
         return channels_permit.scheme_account_query(queryset.filter(**filter_by).exclude(**exclude_by))
 
