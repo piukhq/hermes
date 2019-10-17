@@ -5,14 +5,18 @@ omit = *migrations*
        payment_card/admin.py
        ubiquity/admin.py
        user/admin.py
+       scheme/admin.py
+       common/admin.py
+       hermes/tasks.py
+       payment_card/tasks.py
+       ubiquity/tasks.py
        user/exceptions.py
-       manage.py
        hermes/wsgi.py
        hermes/runners.py
        hermes/middleware.py
        ubiquity/influx_audit.py
-       scheme/admin.py
-       common/admin.py
+       manage.py
+       setup.py
 branch = True
 
 [report]

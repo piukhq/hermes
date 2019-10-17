@@ -1,17 +1,17 @@
 from django.conf.urls import url
-from user.views import (Users, Register, NewRegister, Login, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
+from user.views import (Users, NewRegister, NewLogin, Authenticate, FaceBookLogin, TwitterLogin,
                         ResetPassword, ApplyPromoCode, ForgotPassword, ValidateResetToken, ResetPasswordFromToken,
                         Settings, UserSettings, IdentifyApplicationKit, VerifyToken, OrganisationTermsAndConditions,
-                        Logout)
+                        Renew, Logout)
 
 urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticate_user'),
                url(r'auth/facebook/?$', FaceBookLogin.as_view(), name='authenticate_facebook_user'),
                url(r'auth/twitter/?$', TwitterLogin.as_view(), name='authenticate_twitter_user'),
                url(r'^auth/verify_token/?$', VerifyToken.as_view(), name='verify_token'),
                url(r'^v2_register/?$', NewRegister.as_view(), name='new_register_user'),
-               url(r'^register/?$', Register.as_view(), name='register_user'),
+               url(r'^register/?$', NewRegister.as_view(), name='register_user'),
                url(r'^v2_login/?$', NewLogin.as_view(), name='new_login'),
-               url(r'^login/?$', Login.as_view(), name='login'),
+               url(r'^login/?$',  NewLogin.as_view(), name='login'),
                url(r'me/?$', Users.as_view(), name='user_detail'),
                url(r'me/password/?$', ResetPassword.as_view(), name='reset_password'),
                url(r'me/settings/?$', UserSettings.as_view(), name='user_settings'),
@@ -22,6 +22,7 @@ urlpatterns = [url(r'authenticate/?$', Authenticate.as_view(), name='authenticat
                url(r'validate_reset_token/?$', ValidateResetToken.as_view(), name='validate_reset'),
                url(r'settings/?$', Settings.as_view(), name='settings'),
                url(r'^app_kit/?$', IdentifyApplicationKit.as_view(), name='app_kit'),
+               url(r'renew_token/$', Renew.as_view(), name='renew'),
                url(r'^organisation/terms_and_conditions/?$',
                    OrganisationTermsAndConditions.as_view(),
                    name='terms_and_conditions'), ]

@@ -18,6 +18,7 @@ class UserFactory(factory.DjangoModelFactory):
         model = models.CustomUser
 
     email = FuzzyAttribute(fake.email)
+    external_id = ''
     password = factory.PostGenerationMethodCall('set_password', 'defaultpassword')
     is_active = True
     is_staff = False
