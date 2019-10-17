@@ -35,6 +35,11 @@ class RequestMock:
 
 class TestResources(APITestCase):
 
+    def _get_auth_header(self, user):
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                user.external_id).get_token()
+        return 'Bearer {}'.format(token)
+
     def setUp(self):
         organisation = OrganisationFactory(name='test_organisation')
         self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
@@ -68,9 +73,8 @@ class TestResources(APITestCase):
         self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
-                                external_id).get_token()
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+        self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
 
         self.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
@@ -1198,11 +1202,9 @@ class TestResources(APITestCase):
         new_external_id = 'Test User 2'
         new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
         PaymentCardAccountEntryFactory(user=new_user, payment_card_account=self.payment_card_account)
-        new_token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
-                                    new_external_id).get_token()
-
+        auth_header = self._get_auth_header(new_user)
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
-                                HTTP_AUTHORIZATION='Bearer {}'.format(new_token))
+                                HTTP_AUTHORIZATION=auth_header)
         self.assertEqual(resp.status_code, 400)
         self.assertIn(
             'This card already exists, but the provided credentials do not match.',
@@ -1240,9 +1242,9 @@ class TestResources(APITestCase):
     def test_auto_link(self, *_):
         external_id = 'test auto link'
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
-                                external_id).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+        auth_header = self._get_auth_header(user)
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(auth_header)}
         payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
         PaymentCardAccountEntryFactory(user=user, payment_card_account=payment_card_account)
         query = {'payment_card_account_id': payment_card_account.id}
@@ -1312,6 +1314,13 @@ class TestResources(APITestCase):
         self.assertEqual(len(filtered_data), 2)
         self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user, sae_correct.scheme_account_id))
         self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user, sae_wrong.scheme_account_id))
+
+
+class TestAgainWithWeb2(TestResources):
+
+    def _get_auth_header(self, user):
+        token = user.create_token()
+        return 'Token {}'.format(token)
 
 
 class TestMembershipCardCredentials(APITestCase):
