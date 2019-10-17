@@ -52,6 +52,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                     logger.info(f'No iat (time stamp) found in Ubiquity token')
 
                 auth_user_id = jwt.decode(token, channels_permit.bundle.client.secret,
+                                          leeway=settings.CLOCK_SKEW_LEEWAY,
                                           verify=True, algorithms=['HS512'])['user_id']
             elif token_type == b'token':
                 # This is the client server token with "token" prefix
@@ -59,9 +60,11 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                 channels_permit = Permit(bundle_id, user=user, ubiquity=True)
 
                 if not user.email:
-                    raise exceptions.AuthenticationFailed(_('User does not have an email address'))
+                    logger.info(f"'token' type token does not have an email address")
+                    raise exceptions.AuthenticationFailed(_('Invalid token'))
                 if 'iat' not in token_data:
-                    raise exceptions.AuthenticationFailed(_('Invalid token content'))
+                    logger.info(f"'token' type token does not a time stamp 'iat'' field")
+                    raise exceptions.AuthenticationFailed(_('Invalid token'))
 
                 jwt.decode(token, channels_permit.bundle.client.secret + channels_permit.user.salt,
                            leeway=settings.CLOCK_SKEW_LEEWAY,
