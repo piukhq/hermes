@@ -487,14 +487,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 account.save()
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
-                account.delete_saved_balance()
-                account.delete_cached_balance()
-                account.set_pending()
-                async_balance.delay(account.id)
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
+        account.delete_saved_balance()
+        account.delete_cached_balance()
+        account.set_pending()
+        async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -988,6 +988,7 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200 and resp.json():
             data = self._filter_transactions_for_current_user(request.user, resp.json())
+            data = data[:5]  # limit to 5 transactions as per documentation
             if data:
                 return Response(self.get_serializer(data, many=True).data)
 
