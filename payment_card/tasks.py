@@ -4,8 +4,8 @@ import logging
 import sentry_sdk
 import arrow
 from celery import shared_task
+from django.conf import settings
 
-from hermes.settings import PAYMENT_EXPIRY_TIME
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
@@ -38,7 +38,7 @@ def expired_payment_void_task() -> None:
     statuses = (PaymentStatus.AUTHORISED, PaymentStatus.VOID_REQUIRED)
     payment_audits = PaymentAudit.objects.filter(
         status__in=statuses,
-        created_on__lt=time_now.replace(seconds=-int(PAYMENT_EXPIRY_TIME)).datetime
+        created_on__lt=time_now.replace(seconds=-int(settings.PAYMENT_EXPIRY_TIME)).datetime
     )
     task_store = RetryTaskStore()
     tasks_in_queue = task_store.storage.lrange(task_store.task_list, 0, task_store.length)

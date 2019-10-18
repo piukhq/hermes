@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
-from rest_framework.serializers import raise_errors_on_nested_writes
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
@@ -165,7 +164,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
-        raise_errors_on_nested_writes('update', self, validated_data)
         user_detail_instance = UserDetail.objects.get(user=instance)
         email = validated_data.pop('email', None)
         if 'profile' in validated_data:

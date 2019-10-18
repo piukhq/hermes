@@ -713,6 +713,7 @@ class TestSchemeAccountViews(APITestCase):
                                         'status': 112,
                                         'journey': None
                                     },
+                                    format="json",
                                     **self.auth_service_headers)
 
         self.assertEqual(response.status_code, 400)
@@ -1793,7 +1794,7 @@ class TestSchemeAccountCredentials(APITestCase):
 
         credential_list = self.scheme_account2.schemeaccountcredentialanswer_set.all()
         scheme_account_types = [answer.question.type for answer in credential_list]
-        self.assertEqual(['card_number', 'password'], scheme_account_types)
+        self.assertSequenceEqual(sorted(['card_number', 'password']), sorted(scheme_account_types))
         self.assertEqual(self.scheme_account2._collect_credentials()['password'], 'newpassword')
 
     def test_update_credentials_wrong_credential_type(self):
@@ -1858,7 +1859,7 @@ class TestSchemeAccountCredentials(APITestCase):
     def test_delete_credentials_invalid_request(self):
         response = self.send_delete_credential_request({'all': 'not a boolean'})
         self.assertEqual(response.status_code, 400)
-        self.assertTrue('is not a valid boolean' in str(response.json()))
+        self.assertTrue('Must be a valid boolean' in str(response.json()))
 
         credential_list = self.scheme_account.schemeaccountcredentialanswer_set.all()
         self.assertEqual(len(credential_list), 3)

@@ -1,8 +1,6 @@
-from django.conf.urls import url
+from django.urls import re_path
 
 from . import views
 
 
-urlpatterns = [
-    url(r'^healthz$', views.HealthCheck.as_view())
-]
+urlpatterns = [re_path(r"^healthz$", views.HealthCheck.as_view())]

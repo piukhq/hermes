@@ -1,12 +1,11 @@
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth import get_user_model
-
-from .settings import BINK_CLIENT_ID
+from django.conf import settings
 
 
 class EmailBackend(ModelBackend):
 
-    def authenticate(self, username=None, password=None, client_id=BINK_CLIENT_ID, **kwargs):
+    def authenticate(self, request, username=None, password=None, client_id=settings.BINK_CLIENT_ID, **kwargs):
         UserModel = get_user_model()
 
         if username is None:

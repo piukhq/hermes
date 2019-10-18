@@ -236,11 +236,10 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
         ]
 
 
-class RetrieveLoyaltyID(View):
-    authentication_classes = ServiceAuthentication,
+class RetrieveLoyaltyID(APIView):
+    authentication_classes = (ServiceAuthentication,)
 
-    @staticmethod
-    def post(request, scheme_slug):
+    def post(self, request, scheme_slug):
         response_data = []
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
@@ -269,7 +268,7 @@ class RetrieveLoyaltyID(View):
 
 
 class RetrievePaymentCardUserInfo(View):
-    authentication_classes = ServiceAuthentication,
+    authentication_classes = (ServiceAuthentication,)
 
     @staticmethod
     def post(request, scheme_slug):
