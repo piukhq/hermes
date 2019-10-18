@@ -1064,7 +1064,7 @@ class VoucherScheme(models.Model):
         (BURNTYPE_DISCOUNT, "Discount"),
     )
 
-    scheme = models.ForeignKey("scheme.Scheme")
+    scheme = models.ForeignKey("scheme.Scheme", on_delete=models.CASCADE)
 
     earn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
     earn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
