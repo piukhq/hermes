@@ -375,7 +375,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
 
-
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
 
