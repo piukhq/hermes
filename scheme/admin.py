@@ -211,13 +211,13 @@ class SchemeAccountAdmin(admin.ModelAdmin):
         credential_emails = SchemeAccountCredentialAnswer.objects.filter(scheme_account=obj.id,
                                                                          question__type__exact='email')
         user_list = [x.answer for x in credential_emails]
-        return '</br>'.join(user_list)
+        return format_html('</br>'.join(user_list))
 
     def user_email(self, obj):
         user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
                                  assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
                      for assoc in SchemeAccountEntry.objects.filter(scheme_account=obj.id)]
-        return '</br>'.join(user_list)
+        return format_html('</br>'.join(user_list))
 
     def get_list_display(self, request):
         list_display = super().get_list_display(request)
