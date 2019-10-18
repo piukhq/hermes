@@ -438,7 +438,7 @@ class SchemeBundleAssociationAdmin(admin.ModelAdmin):
 
 TEMPLATING_HELP_TEXT = """
 <p>Use two curly braces to substitute values.</p>
-<p>For example: <pre>\"{{earn_target_value - earn_value}} left to go!\"</pre></p>
+<p>For example: <pre>\"{{earn_target_remaining}} left to go!\"</pre></p>
 """
 
 
