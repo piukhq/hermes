@@ -373,7 +373,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
-        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
 
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
