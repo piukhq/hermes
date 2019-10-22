@@ -22,7 +22,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
         return self.authenticate_credentials(token, token_type)
 
-    def user_authenticate(self, request):
+    def user_authenticate(self, request, no_user_error):
         channels_permit, auth_user_id = self.authenticate_request(request)
 
         if channels_permit.user:
@@ -33,7 +33,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
                 channels_permit.user = CustomUser.objects.get(
                     external_id=auth_user_id, client=channels_permit.bundle.client, is_active=True)
             except CustomUser.DoesNotExist:
-                raise NotFound
+                raise no_user_error
 
         return channels_permit, auth_user_id
 
@@ -94,7 +94,9 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
     expected_fields = []
 
     def authenticate(self, request):
-        channels_permit, auth_user_id = self.user_authenticate(request)
+        # authenticate user raising NotFound error if user does not exist.  This is the expected error get Service
+        # end point which causes a Not Found message to indicate that the Service had not been posted
+        channels_permit, auth_user_id = self.user_authenticate(request, NotFound)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
         return channels_permit.user, None
@@ -103,7 +105,10 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
 class PropertyAuthentication(ServiceRegistrationAuthentication):
 
     def authenticate(self, request):
-        channels_permit, auth_user_id = self.user_authenticate(request)
+        # authenticate user raising Invalid token if user does not exist.  This is the expected error for all
+        # non service end points.
+        channels_permit, auth_user_id = self.user_authenticate(request,
+                                                               exceptions.AuthenticationFailed(_('Invalid token.')))
         setattr(request, 'allowed_issuers', [issuer.pk for issuer in channels_permit.bundle.issuer.all()])
         setattr(request, 'channels_permit', channels_permit)
         return channels_permit.user, None
