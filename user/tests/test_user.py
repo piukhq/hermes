@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -29,7 +29,9 @@ BINK_BUNDLE_ID = 'com.bink.wallet'
 class TestRegisterNewUserViews(TestCase):
     def test_register(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_1@example.com', 'password': 'Password1'})
+        response = client.post(reverse('register_user'), {'email': 'test_1@example.com', 'password': 'Password1',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
         self.assertIn('email', content.keys())
@@ -140,6 +142,8 @@ class TestRegisterNewUserViews(TestCase):
         data = {
             'email': 'test_1@example.com',
             'password': 'Password1',
+            'client_id': BINK_CLIENT_ID,
+            'bundle_id': BINK_BUNDLE_ID
         }
 
         register_url = reverse('register_user')
@@ -150,12 +154,16 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_uid_is_unique(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_2@example.com', 'password': 'Password2'})
+        response = client.post(reverse('register_user'), {'email': 'test_2@example.com', 'password': 'Password2',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid_1 = content['api_key']
 
-        response = client.post(reverse('register_user'), {'email': 'test_3@example.com', 'password': 'Password3'})
+        response = client.post(reverse('register_user'), {'email': 'test_3@example.com', 'password': 'Password3',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
         uid_2 = content['api_key']
@@ -164,7 +172,9 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_invalid_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_4@example', 'password': 'Password4'})
+        response = client.post(reverse('register_user'), {'email': 'test_4@example', 'password': 'Password4',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -172,13 +182,17 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_no_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'password': 'Password5', 'promo_code': ''})
+        response = client.post(reverse('register_user'), {'password': 'Password5', 'promo_code': '',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
         self.assertEqual(content['message'], 'Registration failed.')
 
-        response = client.post(reverse('register_user'), {'email': '', 'password': 'Password5'})
+        response = client.post(reverse('register_user'), {'email': '', 'password': 'Password5',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -186,13 +200,17 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_no_password(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_5@example.com'})
+        response = client.post(reverse('register_user'), {'email': 'test_5@example.com',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
         self.assertEqual(content['message'], 'Registration failed.')
 
-        response = client.post(reverse('register_user'), {'email': 'test_5@example.com', 'password': ''})
+        response = client.post(reverse('register_user'), {'email': 'test_5@example.com', 'password': '',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -200,7 +218,7 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_no_email_and_no_password(self):
         client = Client()
-        response = client.post(reverse('register_user'))
+        response = client.post(reverse('register_user'), {'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -209,7 +227,9 @@ class TestRegisterNewUserViews(TestCase):
     def test_good_promo_code(self):
         client = Client()
         # Register a user
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
+        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         self.assertEqual(response.status_code, 201)
         # get the corresponding promo code for that user
         u = CustomUser.objects.all().filter(email='test_6@example.com')
@@ -217,7 +237,8 @@ class TestRegisterNewUserViews(TestCase):
         # Apply the promo code for that user with a new user registration
         response = client.post(
             reverse('register_user'),
-            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc})
+            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc,
+             'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
         self.assertEqual(response.status_code, 201)
 
     def test_good_marketing_code(self):
@@ -235,14 +256,20 @@ class TestRegisterNewUserViews(TestCase):
         # Apply the marketing code for this user with a new user registration
         response = client.post(
             reverse('register_user'),
-            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': code})
+            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': code,
+             'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+             })
         self.assertEqual(response.status_code, 201)
 
     def test_existing_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
+        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         self.assertEqual(response.status_code, 201)
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
+        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -250,9 +277,13 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_existing_email_switch_case(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6'})
+        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         self.assertEqual(response.status_code, 201)
-        response = client.post(reverse('register_user'), {'email': 'TeSt_6@Example.com', 'password': 'Password6'})
+        response = client.post(reverse('register_user'), {'email': 'TeSt_6@Example.com', 'password': 'Password6',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                          })
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
         self.assertEqual(content['name'], 'REGISTRATION_FAILED')
@@ -260,13 +291,17 @@ class TestRegisterNewUserViews(TestCase):
 
     def test_strange_email_case(self):
         email = 'TEST_12@Example.com'
-        response = self.client.post(reverse('register_user'), {'email': email, 'password': 'Password6'})
+        response = self.client.post(reverse('register_user'), {'email': email, 'password': 'Password6',
+                                                               'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                               })
         content = json.loads(response.content.decode())
         user = CustomUser.objects.get(email=content['email'])
         # Test that django lowers the domain of the email address
         self.assertEqual(user.email, 'TEST_12@example.com')
         # Test that we can login with the domain still with upper case letters
-        response = self.client.post(reverse('login'), data={"email": email, "password": 'Password6'})
+        response = self.client.post(reverse('login'), data={"email": email, "password": 'Password6',
+                                                            'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
+                                                            })
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
 
@@ -300,7 +335,8 @@ class TestUserProfileViews(TestCase):
         # Create User
         client = Client()
         email = 'user_profile@example.com'
-        response = client.post(reverse('register_user'), {'email': email, 'password': 'Password1'})
+        response = client.post(reverse('register_user'), {'email': email, 'password': 'Password1',
+                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
         self.assertEqual(response.status_code, 201)
 
         api_key = response.data['api_key']
@@ -553,7 +589,9 @@ class TestAuthenticationViews(APITestCase):
     def test_local_login_valid(self):
         data = {
             "email": self.user.email,
-            "password": 'defaultpassword'
+            "password": 'defaultpassword',
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
         response = self.client.post(reverse('login'), data=data)
 
@@ -563,7 +601,9 @@ class TestAuthenticationViews(APITestCase):
     def test_local_login_invalid(self):
         data = {
             "email": self.user.email,
-            "password": 'badpassword'
+            "password": 'badpassword',
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
         response = self.client.post(reverse('login'), data=data)
 
@@ -575,7 +615,9 @@ class TestAuthenticationViews(APITestCase):
         self.user.save()
         data = {
             "email": self.user.email,
-            "password": 'defaultpassword'
+            "password": 'defaultpassword',
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
         response = self.client.post(reverse('login'), data=data)
 
@@ -603,6 +645,8 @@ class TestAuthenticationViews(APITestCase):
         data_1_old = {
             'email': self.user.email,
             'password': 'defaultpassword',
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
         data_1_new = {
             'email': self.user.email,
@@ -734,7 +778,7 @@ class TestAuthenticationViews(APITestCase):
 
     @mock.patch('user.models.CustomUser.get_expiry_date')
     def test_change_password_once_timeout(self, mock_get_expiry_date):
-        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+2)
+        mock_get_expiry_date.return_value = arrow.utcnow().shift(seconds=+2)
 
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
         response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
@@ -811,6 +855,38 @@ class TestFacebookLogin(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], user.email)
 
+    @httpretty.activate
+    def test_facebook_login_no_email_available(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
+        response = facebook_login('Ju76xER1A5')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], None)
+
+    @httpretty.activate
+    def test_facebook_login_no_email_twitter_email(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+                               content_type="application/json")
+        response = facebook_login('Ju76xER1A5')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], "twitter_email")
+
+    @httpretty.activate
+    def test_facebook_login_no_email_app_email_priority(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
+                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+                               content_type="application/json")
+        response = facebook_login('Ju76xER1A5', "app_email")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['email'], "app_email")
+
 
 class TestSocialLogin(APITestCase):
     def test_social_login_exists(self):
@@ -826,6 +902,13 @@ class TestSocialLogin(APITestCase):
         status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
         self.assertEqual(status, 200)
         self.assertEqual(user.email, 'frank@sea.com')
+
+    def test_social_login_exists_no_email_twitter(self):
+        facebook_id = 'O7bz6vG60Y'
+        UserFactory(facebook=facebook_id, email=None)
+        status, user = social_login(facebook_id, '', 'facebook')
+        self.assertEqual(status, 200)
+        self.assertEqual(user.email, None)
 
     def test_social_login_not_linked(self):
         user = UserFactory()

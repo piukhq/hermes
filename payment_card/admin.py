@@ -53,7 +53,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
         user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
                                  assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
                      for assoc in PaymentCardAccountEntry.objects.filter(payment_card_account=obj.id)]
-        return '</br>'.join(user_list)
+        return format_html('</br>'.join(user_list))
 
     user_email.allow_tags = True
 
@@ -143,6 +143,16 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
         return obj.payment_card_account.is_deleted
 
     card_is_deleted.boolean = True
+
+
+@admin.register(models.PaymentAudit)
+class PaymentAuditAdmin(admin.ModelAdmin):
+    list_display = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'status', 'created_on',
+                    'modified_on',)
+    search_fields = ('user_id', 'scheme_account', 'scheme_account__scheme__name' 'transaction_ref', 'transaction_token',
+                     'status',)
+    readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
+                       'void_attempts')
 
 
 admin.site.register(models.Issuer)

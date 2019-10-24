@@ -173,8 +173,8 @@ class ListCreatePaymentCardAccount(APIView):
         # if the clients are the same but the users don't match, reject the card.
         if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
                 client=user.client).exists():
-            return Response({'error': 'Fingerprint is already in use by another user.',
-                             'code': '403'}, status=status.HTTP_403_FORBIDDEN)
+            return {'error': 'Fingerprint is already in use by another user.',
+                    'code': '403'}, status.HTTP_403_FORBIDDEN, None
 
         # copy the tokens from the previous account
         new_account.token = old_account.token
@@ -236,11 +236,10 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
         ]
 
 
-class RetrieveLoyaltyID(View):
-    authentication_classes = ServiceAuthentication,
+class RetrieveLoyaltyID(APIView):
+    authentication_classes = (ServiceAuthentication,)
 
-    @staticmethod
-    def post(request, scheme_slug):
+    def post(self, request, scheme_slug):
         response_data = []
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
@@ -269,7 +268,7 @@ class RetrieveLoyaltyID(View):
 
 
 class RetrievePaymentCardUserInfo(View):
-    authentication_classes = ServiceAuthentication,
+    authentication_classes = (ServiceAuthentication,)
 
     @staticmethod
     def post(request, scheme_slug):

@@ -4,6 +4,10 @@ from scheme.models import SchemeBundleAssociation
 from rest_framework import exceptions
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db.models import Q
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class Permit:
@@ -11,7 +15,8 @@ class Permit:
     SUSPENDED = 2
     ACTIVE = 3
 
-    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False, ubiquity=False):
+    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False, ubiquity=False,
+                 user=None):
         """This class is instantiated during authentication and should be passed via request object to allow query
         filtering and channel status testing
         Each group of users belongs to a client application which belongs to one organisation.
@@ -21,6 +26,7 @@ class Permit:
         :param bundle_id: String identifier for a channel
         :param client:  client application
         :param organisation_name: Organisation eg Barclays, Loyality Angels
+        :param user: User model
 
         Bundle_id and client are unique together but Ubiquity token only defines Organisation and bundle id.
         During configuration for Ubiquity an Organisation must use unique bundle ids to prevent blocking authentication.
@@ -29,6 +35,7 @@ class Permit:
         self.found_issuers_status = {}
         self.looked_up_bundle = None
         self.client = client
+        self.user = user
         self.bundle_id = bundle_id
         self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
 
@@ -37,24 +44,44 @@ class Permit:
         # it is best use one of the high level checks
         self.service_allow_all = service_allow_all
 
-        if not client and not organisation_name and not self.service_allow_all:
+        # User is defined with client to server permits
+        if user:
+            self.client = user.client
+
+        if not self.client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')
-        elif organisation_name and not client:
-            # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
-            # to permit authentication to continue
+        elif organisation_name and not self.client:
+            self._init_server_to_server(organisation_name)
+        elif self.client and not bundle_id:
+            # This occurs if an old client to server token without client or bundle_id is encountered.
             try:
-                self.looked_up_bundle = ClientApplicationBundle\
-                    .objects.get(bundle_id=bundle_id, client__organisation__name=organisation_name)
-                self.client = self.looked_up_bundle.client
-            except ObjectDoesNotExist:
-                raise KeyError
+                self.bundle_id = ClientApplicationBundle.objects.values_list('bundle_id',
+                                                                             flat=True).get(client=self.client)
             except MultipleObjectsReturned:
-                # This should not occur after release as unique together constraint has been added in a migration
-                # Covers edge case of duplicate already exists which would cause the unique together migration to fail
-                # then this error message will help debug
-                raise exceptions.AuthenticationFailed(f"Multiple '{self.bundle_id}'"
-                                                      f" bundle ids for client '{self.client}'")
+                logger.error(f"There are multiple bundle ids for client '{self.client}' due to a configuration error"
+                             "Error found in channels.py when trying to "
+                             "find a bundle_id using client because it was not in the token")
+                raise exceptions.AuthenticationFailed('Invalid Token')
+
+    def _init_server_to_server(self, organisation_name):
+        # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
+        # to permit authentication to continue
+        try:
+            self.looked_up_bundle = ClientApplicationBundle \
+                .objects.get(bundle_id=self.bundle_id, client__organisation__name=organisation_name)
             self.client = self.looked_up_bundle.client
+        except ObjectDoesNotExist:
+            raise KeyError
+        except MultipleObjectsReturned:
+            # This should not occur after release as unique together constraint has been added in a migration
+            # Covers edge case of duplicate already exists which would cause the unique together migration to fail
+            # then this error message will help debug
+            logger.error(f"Multiple bundles match '{self.bundle_id}' and organisation '{organisation_name}'"
+                         "Error found in channels.py when checking token. A migration added unique together constraint"
+                         "which should have prevented this error")
+            raise exceptions.AuthenticationFailed('Invalid Token')
+
+        self.client = self.looked_up_bundle.client
 
         if bundle_id == INTERNAL_SERVICE_BUNDLE:
             self.service_allow_all = True
@@ -79,13 +106,14 @@ class Permit:
                 self.looked_up_bundle = ClientApplicationBundle.objects.get(bundle_id=self.bundle_id,
                                                                             client=self.client)
             except ObjectDoesNotExist:
-                raise exceptions.AuthenticationFailed('Bundle Id not configured for client')
+                logger.error(f"No ClientApplicationBundle found for '{self.bundle_id}' and client '{self.client}'"
+                             "Bundle id has not been configured to a client in Admin")
+                raise exceptions.AuthenticationFailed('Invalid Token')
             except MultipleObjectsReturned:
-                # This should not occur after release as unique together constraint has been added in a migration
-                # Covers edge case of duplicate already exists which would cause the unique together migration to fail
-                # then this error message will help debug
-                raise exceptions.AuthenticationFailed(f"Multiple '{self.bundle_id}'"
-                                                      f" bundle ids for client '{self.client}'")
+                logger.error(f"Multiple bundles match '{self.bundle_id}' and client '{self.client}'"
+                             "Error found in channels.py when looking up bundle. This a error caused by"
+                             "configuring the same bundle to more than one client/organisation.")
+                raise exceptions.AuthenticationFailed('Invalid Token')
         return self.looked_up_bundle
 
     def scheme_suspended(self, relation=''):
@@ -168,8 +196,10 @@ class Permit:
         status_list = SchemeBundleAssociation.\
             objects.filter(bundle__bundle_id=self.bundle_id, scheme_id=scheme_id).values('status')
         if len(status_list) > 1:
-            raise exceptions.AuthenticationFailed(f"Channels id ='{self.bundle_id}' has "
-                                                  f"multiple entries for scheme id '{scheme_id}'")
+            logger.error(f"Channels id ='{self.bundle_id}' has "
+                         f"multiple entries for scheme id '{scheme_id}'")
+            raise exceptions.AuthenticationFailed('Invalid Token')
+
         if status_list:
             status = status_list[0]['status']
         else:

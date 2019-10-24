@@ -7,7 +7,6 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from hermes.settings import BIN_TO_PROVIDER
 import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
@@ -228,7 +227,7 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
             'equal': lambda match: first_6[:match.len] == match.value
         }
 
-        for provider, values in BIN_TO_PROVIDER.items():
+        for provider, values in settings.BIN_TO_PROVIDER.items():
             for bin_match in values:
                 if match_to_first_6[bin_match.type](bin_match):
                     slug = provider
@@ -602,7 +601,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         except (ValueError, KeyError):
             reward_tier = 0
 
-        return {
+        card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
@@ -620,6 +619,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             },
             'balances': UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
         }
+
+        if instance.vouchers is not None:
+            card_repr["vouchers"] = instance.vouchers
+
+        return card_repr
 
 
 # not used for now but will be needed

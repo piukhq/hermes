@@ -1,15 +1,15 @@
-from rest_framework import generics
-from order.serializers import OrderSerializer
-from rest_framework.response import Response
-from scheme.models import SchemeAccount
-from payment_card.models import PaymentCardAccount
 from collections import defaultdict
 
+from rest_framework.response import Response
+from rest_framework import generics
 
-account_classes = {
-    'scheme': SchemeAccount,
-    'payment_card': PaymentCardAccount,
-}
+from payment_card.models import PaymentCardAccount
+from user.authentication import JwtAuthentication
+from order.serializers import OrderSerializer
+from scheme.models import SchemeAccount
+
+
+account_classes = {"scheme": SchemeAccount, "payment_card": PaymentCardAccount}
 
 
 class OrderUpdate(generics.CreateAPIView):
@@ -24,6 +24,8 @@ class OrderUpdate(generics.CreateAPIView):
               type: list
               paramType: body
     """
+
+    authentication_classes = (JwtAuthentication,)
     serializer_class = OrderSerializer
 
     def create(self, request, *args, **kwargs):
@@ -32,12 +34,12 @@ class OrderUpdate(generics.CreateAPIView):
             accounts = defaultdict(list)
 
             for obj in serializer.data:
-                account_type = obj['type']
+                account_type = obj["type"]
                 account_class = account_classes[account_type]
-                accounts[account_type].append(account_class(id=obj['id'], order=obj['order']))
+                accounts[account_type].append(account_class(id=obj["id"], order=obj["order"]))
 
             for account_type, objs in accounts.items():
-                account_classes[account_type].objects.bulk_update(objs, update_fields=['order'])
+                account_classes[account_type].objects.bulk_update(objs, update_fields=["order"])
 
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)

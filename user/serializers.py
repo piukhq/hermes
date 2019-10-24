@@ -2,7 +2,6 @@ from collections import OrderedDict
 
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
-from rest_framework.serializers import raise_errors_on_nested_writes
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
@@ -74,7 +73,7 @@ class RegisterSerializer(serializers.Serializer):
     def to_representation(self, instance):
         ret = OrderedDict()
         ret['email'] = instance.email
-        ret['api_key'] = instance.create_token()
+        ret['api_key'] = instance.create_token(self.validated_data.get('bundle_id'))
         ret['uid'] = instance.uid
         return ret
 
@@ -165,7 +164,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
-        raise_errors_on_nested_writes('update', self, validated_data)
         user_detail_instance = UserDetail.objects.get(user=instance)
         email = validated_data.pop('email', None)
         if 'profile' in validated_data:
@@ -233,6 +231,7 @@ class SchemeAccountSerializer(serializers.Serializer):
 class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    email = serializers.CharField(max_length=600, required=False, write_only=True)
 
 
 class TwitterRegisterSerializer(serializers.Serializer):

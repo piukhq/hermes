@@ -1008,6 +1008,7 @@ class MembershipTransactionView(ModelViewSet, MembershipTransactionsMixin):
         resp = requests.get(url, headers=headers)
         if resp.status_code == 200 and resp.json():
             data = self._filter_transactions_for_current_user(request.user, resp.json())
+            data = data[:5]  # limit to 5 transactions as per documentation
             if data:
                 return Response(self.get_serializer(data, many=True).data)
 
