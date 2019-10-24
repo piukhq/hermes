@@ -15,7 +15,6 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
-import requests
 
 from hermes.settings import INTERNAL_SERVICE_BUNDLE
 from payment_card.payment import Payment, PaymentError

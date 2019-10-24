@@ -63,6 +63,9 @@ class Permit:
                              "find a bundle_id using client because it was not in the token")
                 raise exceptions.AuthenticationFailed('Invalid Token')
 
+        if bundle_id == INTERNAL_SERVICE_BUNDLE:
+            self.service_allow_all = True
+
     def _init_server_to_server(self, organisation_name):
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
@@ -82,9 +85,6 @@ class Permit:
             raise exceptions.AuthenticationFailed('Invalid Token')
 
         self.client = self.looked_up_bundle.client
-
-        if bundle_id == INTERNAL_SERVICE_BUNDLE:
-            self.service_allow_all = True
 
     @staticmethod
     def is_authenticated():
