@@ -53,7 +53,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
         user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
                                  assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
                      for assoc in PaymentCardAccountEntry.objects.filter(payment_card_account=obj.id)]
-        return '</br>'.join(user_list)
+        return format_html('</br>'.join(user_list))
 
     user_email.allow_tags = True
 

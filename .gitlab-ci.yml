@@ -1,12 +1,13 @@
 stages:
   - tests
   - build
-  - tagging
-  - statics
+  - dev
+  - staging
+  - prod
 
 tests:
   stage: tests
-  image: olympus.azurecr.io/python:3.6
+  image: olympus.azurecr.io/python:3.7
   script:
     - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
@@ -17,13 +18,13 @@ tests:
 
 complexity:
   stage: tests
-  image: olympus.azurecr.io/python:3.6
+  image: olympus.azurecr.io/python:3.7
   script:
     - xenon --max-average A --max-modules B --max-absolute B .
 
 flake8:
   stage: tests
-  image: olympus.azurecr.io/python:3.6
+  image: olympus.azurecr.io/python:3.7
   script:
     - flake8 *
 
@@ -40,25 +41,6 @@ build-develop:
   only:
     - develop
 
-tag-develop:
-  stage: tagging
-  image: binkops.azurecr.io/tagbot:latest
-  environment: dev
-  script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:latest" --tag "develop-$CI_COMMIT_SHORT_SHA"
-  only:
-    - develop
-
-statics-dev:
-  stage: statics
-  image: binkops.azurecr.io/kubedeployer:latest
-  environment: dev
-  script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=dev deploystatic
-  only:
-    - develop
-
 build-master:
   stage: build
   image: docker:latest
@@ -72,8 +54,26 @@ build-master:
   only:
     - tags
 
+tag-develop:
+  stage: dev
+  image: binkops.azurecr.io/tagbot:latest
+  environment: dev
+  script:
+    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:latest" --tag "develop-$CI_COMMIT_SHORT_SHA"
+  only:
+    - develop
+
+statics-dev:
+  stage: dev
+  image: binkops.azurecr.io/kubedeployer:latest
+  script:
+    - bash collectstatic.sh
+    - ENVIRONMENT=dev deploystatic
+  only:
+    - develop
+
 tag-staging:
-  stage: tagging
+  stage: staging
   image: binkops.azurecr.io/tagbot:latest
   environment: staging
   script:
@@ -82,7 +82,7 @@ tag-staging:
     - tags
 
 statics-staging:
-  stage: statics
+  stage: staging
   image: binkops.azurecr.io/kubedeployer:latest
   environment: staging
   script:
@@ -92,7 +92,7 @@ statics-staging:
     - tags
 
 tag-prod:
-  stage: tagging
+  stage: prod
   image: binkops.azurecr.io/tagbot:latest
   environment: prod
   script:
@@ -102,13 +102,10 @@ tag-prod:
     - tags
 
 statics-prod:
-  stage: statics
+  stage: prod
   image: binkops.azurecr.io/kubedeployer:latest
-  environment: prod
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=prod deploystatic
   only:
     - tags
-
-

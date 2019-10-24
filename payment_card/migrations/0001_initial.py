@@ -51,9 +51,9 @@ class Migration(migrations.Migration):
                 ('updated', models.DateTimeField(auto_now=True)),
                 ('postcode', models.CharField(max_length=20, blank=True, null=True)),
                 ('security_code', models.CharField(max_length=6)),
-                ('issuer', models.ForeignKey(to='payment_card.Issuer')),
-                ('payment_card', models.ForeignKey(to='payment_card.PaymentCard')),
-                ('user', models.ForeignKey(to=settings.AUTH_USER_MODEL)),
+                ('issuer', models.ForeignKey(to='payment_card.Issuer', on_delete=models.CASCADE)),
+                ('payment_card', models.ForeignKey(to='payment_card.PaymentCard', on_delete=models.CASCADE)),
+                ('user', models.ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=models.CASCADE)),
             ],
         ),
     ]

@@ -47,14 +47,7 @@ ALLOWED_HOSTS = [
     ".svc.cluster.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_ALLOW_ALL = False
-CORS_ORIGIN_WHITELIST = (
-    "127.0.0.1",
-    "hermes",
-    ".bink.com",
-    ".bink-sandbox.com",
-    ".svc.cluster.local",
-)
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 
@@ -85,7 +78,6 @@ MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -147,6 +139,8 @@ REST_FRAMEWORK = {
 
 WSGI_APPLICATION = 'hermes.wsgi.application'
 
+APPEND_SLASH = False
+
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
@@ -178,9 +172,10 @@ USE_TZ = True
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
-AUTHENTICATION_BACKENDS = (
+AUTHENTICATION_BACKENDS = [
     'hermes.email_auth.EmailBackend',
-)
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/

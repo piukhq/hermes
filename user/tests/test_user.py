@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.http import HttpResponse
 from django.test import Client, TestCase
 from django.utils import timezone
@@ -778,7 +778,7 @@ class TestAuthenticationViews(APITestCase):
 
     @mock.patch('user.models.CustomUser.get_expiry_date')
     def test_change_password_once_timeout(self, mock_get_expiry_date):
-        mock_get_expiry_date.return_value = arrow.utcnow().replace(seconds=+2)
+        mock_get_expiry_date.return_value = arrow.utcnow().shift(seconds=+2)
 
         auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
         response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)

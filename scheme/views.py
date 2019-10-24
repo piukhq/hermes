@@ -373,7 +373,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
-        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
 
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
@@ -668,7 +668,7 @@ class DonorSchemes(APIView):
         response_serializer: scheme.serializers.DonorSchemeAccountSerializer
 
         """
-        host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
+        host_scheme = Scheme.objects.get(pk=kwargs['scheme_id'])
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         return_data = []
