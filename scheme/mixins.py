@@ -15,12 +15,15 @@ from rest_framework.generics import get_object_or_404
 
 import analytics
 import requests
+
+from hermes.settings import INTERNAL_SERVICE_BUNDLE
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent)
 from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
+from user.models import ClientApplicationBundle
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
@@ -165,6 +168,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             scheme_account = SchemeAccount.objects.filter(**query).distinct().get()
 
             if user.client_id == settings.ALLOWED_CLIENT_ID:
+                return scheme_account, data, account_created
+
+            internal_service_client = ClientApplicationBundle.objects.get(
+                bundle_id=INTERNAL_SERVICE_BUNDLE).client.client_id
+            if user.client_id == internal_service_client:
                 return scheme_account, data, account_created
 
             raise ValidationError('Scheme Account already exists in another wallet.')

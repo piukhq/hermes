@@ -337,10 +337,9 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard_data, consent = self._collect_creation_data(request.data, request.allowed_issuers)
-        object_id = request.META.get('HTTP_X_OBJECT_ID')
-        if object_id:
+        if self.request.channels_permit.service_allow_all:
             try:
-                pcard_data['id'] = int(object_id)
+                pcard_data['id'] = int(request.META.get('HTTP_X_OBJECT_ID'))
             except ValueError:
                 raise ValidationError('X-object-id header must be an integer value.')
 
@@ -765,10 +764,11 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        object_id = request.META.get('HTTP_X_OBJECT_ID')
-        if object_id:
+        object_id = None
+
+        if self.request.channels_permit.service_allow_all:
             try:
-                object_id = int(object_id)
+                object_id = int(request.META.get('HTTP_X_OBJECT_ID'))
             except ValueError:
                 raise ValidationError('X-object-id header must be an integer value.')
 

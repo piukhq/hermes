@@ -9,6 +9,8 @@ from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+
+from hermes.settings import INTERNAL_SERVICE_BUNDLE
 from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
@@ -25,6 +27,7 @@ from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerial
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipTransactionView, MembershipCardView
+from user.models import ClientApplication, Organisation
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -206,9 +209,142 @@ class TestResources(APITestCase):
                                 content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_membership_card_creation_with_id(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
+        external_id = "daedalus-updater@bink.com"
+        bink_org = Organisation.objects.get(name="Loyalty Angels")
+        client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
+        UserFactory(external_id=external_id, client=client_app, is_active=True)
+
+        token = GenerateJWToken(client_app.organisation.name, client_app.secret, INTERNAL_SERVICE_BUNDLE,
+                                external_id).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
+        }
+        provided_id = 150000000
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                HTTP_X_OBJECT_ID=provided_id, **auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        create_data = resp.data
+        self.assertEqual(resp.json()['id'], provided_id)
+        # replay and check same data with 200 response
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                HTTP_X_OBJECT_ID=provided_id, **auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, create_data)
+        self.assertTrue(mock_hades.called)
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
+        self.assertEqual(resp.json()['id'], provided_id)
+
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_membership_card_creation_with_id_fails_when_not_internal_user(self, mock_date, mock_hades,
+                                                                           mock_async_balance, mock_async_link, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
+        }
+        provided_id = 150000000
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                HTTP_X_OBJECT_ID=provided_id, **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(mock_hades.called)
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
+        self.assertNotEqual(resp.json()['id'], provided_id)
+
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_with_id(self, *_):
+        external_id = "daedalus-updater@bink.com"
+        bink_org = Organisation.objects.get(name="Loyalty Angels")
+        client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
+        UserFactory(external_id=external_id, client=client_app, is_active=True)
+
+        token = GenerateJWToken(client_app.organisation.name, client_app.secret, INTERNAL_SERVICE_BUNDLE,
+                                external_id).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+        payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxz",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effz",
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+        provided_id = 150000000
+
+        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
+                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.json()['id'], provided_id)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_creation_with_id_fails_when_not_internal_user(self, *_):
         payload = {
             "card": {
                 "last_four_digits": 5234,
@@ -235,7 +371,7 @@ class TestResources(APITestCase):
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
                                 content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.json()['id'], provided_id)
+        self.assertNotEqual(resp.json()['id'], provided_id)
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
