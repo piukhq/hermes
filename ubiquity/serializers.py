@@ -601,7 +601,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         except (ValueError, KeyError):
             reward_tier = 0
 
-        return {
+        card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme.id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
@@ -619,6 +619,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             },
             'balances': UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
         }
+
+        if instance.vouchers is not None:
+            card_repr["vouchers"] = instance.vouchers
+
+        return card_repr
 
 
 # not used for now but will be needed
