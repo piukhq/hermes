@@ -22,7 +22,6 @@ from django.utils import timezone
 
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
-from hermes.settings import TO_DAEDALUS, ENABLE_DAEDALUS_MESSAGING
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
@@ -556,8 +555,8 @@ class SchemeAccount(models.Model):
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
 
-                if ENABLE_DAEDALUS_MESSAGING:
-                    TO_DAEDALUS.send(
+                if settings.ENABLE_DAEDALUS_MESSAGING:
+                    settings.TO_DAEDALUS.send(
                         {"type": 'membership_card_update',
                          "model": 'schemeaccount',
                          "id": str(self.id),
