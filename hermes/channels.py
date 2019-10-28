@@ -1,9 +1,9 @@
-from hermes.settings import INTERNAL_SERVICE_BUNDLE
 from user.models import ClientApplicationBundle
 from scheme.models import SchemeBundleAssociation
 from rest_framework import exceptions
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db.models import Q
+from django.conf import settings
 import logging
 
 
@@ -47,6 +47,8 @@ class Permit:
         # User is defined with client to server permits
         if user:
             self.client = user.client
+        if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
+            self.service_allow_all = True
 
         if not self.client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')

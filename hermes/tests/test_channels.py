@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from django.urls import reverse
+from django.conf import settings
 
 from hermes.channels import Permit
-from hermes.settings import INTERNAL_SERVICE_BUNDLE, JWT_EXPIRY_TIME
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
@@ -339,7 +339,7 @@ class TestInternalService(TestCase):
     def setUp(self):
         self.bink_org = Organisation.objects.get(name='Loyalty Angels')
         self.internal_service_client = ClientApplication.objects.get(organisation=self.bink_org, name='Daedalus')
-        self.internal_service_bundle = ClientApplicationBundle.objects.get(bundle_id=INTERNAL_SERVICE_BUNDLE)
+        self.internal_service_bundle = ClientApplicationBundle.objects.get(bundle_id=settings.INTERNAL_SERVICE_BUNDLE)
 
         self.other_org = OrganisationFactory(name='Other Organisation')
         self.other_client = ClientApplicationFactory(organisation=self.other_org)
@@ -463,7 +463,7 @@ class TestInternalService(TestCase):
             self.internal_service_bundle.bundle_id,
             self.internal_service_id
         )
-        generate_token.payload['iat'] = time.time() - JWT_EXPIRY_TIME
+        generate_token.payload['iat'] = time.time() - settings.JWT_EXPIRY_TIME
         expired_token = generate_token.get_token()
 
         auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(expired_token)}

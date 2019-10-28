@@ -1,5 +1,5 @@
 from django.apps import AppConfig
-from hermes.settings import ENABLE_DAEDALUS_MESSAGING
+from django.conf import settings
 
 
 class MessageAppConfig(AppConfig):
@@ -8,6 +8,6 @@ class MessageAppConfig(AppConfig):
     verbose_name = 'daedalus messaging'
 
     def ready(self):
-        if ENABLE_DAEDALUS_MESSAGING:
+        if settings.ENABLE_DAEDALUS_MESSAGING:
             # import signal handlers - THIS IS NOT AN ERROR
             import daedalus_messaging.signals  # noqa: F401

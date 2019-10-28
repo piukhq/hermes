@@ -2,7 +2,7 @@ from enum import Enum
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.admin.models import LogEntry
-from hermes.settings import TO_DAEDALUS, ENABLE_DAEDALUS_MESSAGING
+from django.conf import settings
 from scheme.models import (Scheme, SchemeBundleAssociation, SchemeAccount, SchemeImage, Consent,
                            UserConsent, Control, SchemeDetail, ThirdPartyConsentLink)
 from payment_card.models import PaymentCardAccount
@@ -128,13 +128,14 @@ def notify_daedalus(action: Actions, collection: Collections, object_id: int):
             users = PaymentCardAccountEntry.objects.filter(payment_card_account=payment_account)
             extra_info['services'] = make_service_list(users)
 
-    TO_DAEDALUS.send({"type": action.value,
-                      "collection": collection.value,
-                      "id": str(object_id),
-                      "extra": extra_info,
-                      },
-                     headers={'X-content-type': 'application/json'}
-                     )
+    settings.TO_DAEDALUS.send({
+        "type": action.value,
+        "collection": collection.value,
+        "id": str(object_id),
+        "extra": extra_info,
+    },
+        headers={'X-content-type': 'application/json'}
+    )
 
 
 def notify_related(action: Actions, model_name: str, object_id: int):
@@ -151,7 +152,7 @@ def notify_related(action: Actions, model_name: str, object_id: int):
 @receiver(post_save, sender=LogEntry)
 def watch_for_admin_updates(sender, **kwargs):
     instance = kwargs.get("instance")
-    if instance and ENABLE_DAEDALUS_MESSAGING:
+    if instance and settings.ENABLE_DAEDALUS_MESSAGING:
         object_id = instance.object_id
         content_type = instance.content_type
         if content_type:
