@@ -25,7 +25,7 @@ class Permit:
         We are keeping the bundle name because this makes sense of the names used in tokens etc.
         :param bundle_id: String identifier for a channel
         :param client:  client application
-        :param organisation_name: Organisation eg Barclays, Loyality Angels
+        :param organisation_name: Organisation eg Barclays, Loyalty Angels
         :param user: User model
 
         Bundle_id and client are unique together but Ubiquity token only defines Organisation and bundle id.
@@ -39,10 +39,10 @@ class Permit:
         self.bundle_id = bundle_id
         self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
 
-        # This forces an active permit regardless of scheme for inter-service calls.  However trying to get a bundle
-        # object will return None.  Generally outside of authentication, getting bundle from Permit is not required as
-        # it is best use one of the high level checks
+        # This forces an active permit regardless of scheme for inter-service calls.
         self.service_allow_all = service_allow_all
+        if bundle_id == INTERNAL_SERVICE_BUNDLE:
+            self.service_allow_all = True
 
         # User is defined with client to server permits
         if user:
@@ -62,9 +62,6 @@ class Permit:
                              "Error found in channels.py when trying to "
                              "find a bundle_id using client because it was not in the token")
                 raise exceptions.AuthenticationFailed('Invalid Token')
-
-        if bundle_id == INTERNAL_SERVICE_BUNDLE:
-            self.service_allow_all = True
 
     def _init_server_to_server(self, organisation_name):
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
