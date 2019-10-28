@@ -41,7 +41,7 @@ class Permit:
 
         # This forces an active permit regardless of scheme for inter-service calls.
         self.service_allow_all = service_allow_all
-        if bundle_id == INTERNAL_SERVICE_BUNDLE:
+        if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
             self.service_allow_all = True
 
         # User is defined with client to server permits
