@@ -1,5 +1,6 @@
 import base64
 import uuid
+from enum import IntEnum
 
 from bulk_update.helper import bulk_update
 from django.contrib.postgres.fields import JSONField
@@ -8,6 +9,7 @@ from django.db.models import F, Q
 from django.utils import timezone
 
 from common.models import Image
+from scheme.models import SchemeAccount
 
 
 class Issuer(models.Model):
@@ -28,12 +30,12 @@ class ActivePaymentCardImageManager(models.Manager):
 
 class PaymentCardImage(Image):
     objects = ActivePaymentCardImageManager()
-    payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images')
+    payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images', on_delete=models.CASCADE)
 
 
 class PaymentCardAccountImage(Image):
     objects = ActivePaymentCardImageManager()
-    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True)
+    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True, on_delete=models.SET_NULL)
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
                                                    related_name='payment_card_accounts_set',
                                                    blank=True)
@@ -146,7 +148,7 @@ class PaymentCardAccount(models.Model):
                                       related_name='payment_card_account_set')
     scheme_account_set = models.ManyToManyField('scheme.SchemeAccount', through='ubiquity.PaymentCardSchemeEntry',
                                                 related_name='payment_card_account_set')
-    payment_card = models.ForeignKey(PaymentCard)
+    payment_card = models.ForeignKey(PaymentCard, models.PROTECT)
     name_on_card = models.CharField(max_length=150)
     start_month = models.IntegerField(null=True, blank=True)
     start_year = models.IntegerField(null=True, blank=True)
@@ -162,10 +164,10 @@ class PaymentCardAccount(models.Model):
     order = models.IntegerField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-    issuer = models.ForeignKey(Issuer, null=True, blank=True)
+    issuer = models.ForeignKey(Issuer, null=True, blank=True, on_delete=models.PROTECT)
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
-    consents = JSONField(default=[])
+    consents = JSONField(default=list)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
@@ -215,7 +217,7 @@ class PaymentCardAccount(models.Model):
 
 
 class ProviderStatusMapping(models.Model):
-    provider = models.ForeignKey('payment_card.PaymentCard')
+    provider = models.ForeignKey('payment_card.PaymentCard', on_delete=models.CASCADE)
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
 
@@ -231,3 +233,39 @@ class AuthTransaction(models.Model):
 
     def __str__(self):
         return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)
+
+
+class PaymentStatus(IntEnum):
+    AUTH_PENDING = 0
+    AUTH_FAILED = 1
+    AUTHORISED = 2
+    SUCCESSFUL = 3
+    VOID_REQUIRED = 4
+    VOID_SUCCESSFUL = 5
+
+
+def _generate_tx_ref() -> str:
+    prefix = 'BNK-'
+    identifier = uuid.uuid4()
+
+    return '{}{}'.format(prefix, identifier)
+
+
+class PaymentAudit(models.Model):
+    user_id = models.CharField(max_length=255)
+    scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
+    payment_card_id = models.CharField(max_length=255)
+    transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
+    transaction_token = models.CharField(max_length=255, null=True)
+    status = models.IntegerField(
+        choices=[(status.value, status.name) for status in PaymentStatus],
+        default=PaymentStatus.AUTH_PENDING
+    )
+    void_attempts = models.IntegerField(default=0)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return 'PaymentAudit id: {} - User id: {} - SchemeAccount id: {}'.format(
+            self.id, self.user_id, self.scheme_account_id
+        )

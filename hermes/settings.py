@@ -18,7 +18,7 @@ from collections import namedtuple
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-import hermes
+from hermes.version import __version__
 from environment import env_var, read_env
 from daedalus_messaging.broker import MessagingService
 
@@ -37,34 +37,19 @@ SECRET_KEY = '*is3^%seh_2=sgc$8dw+vcd)5cwrecvy%cxiv69^q8hz3q%=fo'
 DEBUG = env_var("HERMES_DEBUG", True)
 
 CSRF_TRUSTED_ORIGINS = [
-    ".chingrewards.com",
+    "127.0.0.1",
     ".bink.com",
-    ".bink-staging.com",
 ]
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "hermes",
     ".bink.com",
-    ".bink-staging.com",
-    ".bink-dev.com",
     ".bink-sandbox.com",
-    ".chingrewards.com",
+    ".svc.cluster.local",
 ]
 CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_ALLOW_ALL = False
-CORS_ORIGIN_WHITELIST = (
-    "127.0.0.1",
-    "0.0.0.0:8001",
-    "staging.chingweb.chingrewards.com",
-    "local.chingweb.chingrewards.com",
-    "dev.chingweb.loyaltyangels.local",
-    "local.chingweb.chingrewards.com:8000",
-    "dev.api.chingrewards.com",
-    "staging.api.chingrewards.com",
-    "api.chingrewards.com",
-    "dev.docs.loyaltyangels.local",
-)
+CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 
@@ -96,7 +81,6 @@ MIDDLEWARE = (
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -158,6 +142,8 @@ REST_FRAMEWORK = {
 
 WSGI_APPLICATION = 'hermes.wsgi.application'
 
+APPEND_SLASH = False
+
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
@@ -189,9 +175,10 @@ USE_TZ = True
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
-AUTHENTICATION_BACKENDS = (
+AUTHENTICATION_BACKENDS = [
     'hermes.email_auth.EmailBackend',
-)
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
@@ -269,7 +256,7 @@ HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
-        release=hermes.__version__,
+        release=__version__,
         integrations=[DjangoIntegration(transaction_style="function_name")],
     )
 
@@ -345,7 +332,23 @@ cache_options = {
     }
 }
 CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis']
+    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis'],
+    "retry_tasks": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
+            password=REDIS_PASSWORD,
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            db=REDIS_DB
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "MAX_ENTRIES": 10000,
+            "CULL_FREQUENCY": 100
+        },
+        "KEY_PREFIX": "hermes-retry-task-",
+        "TIMEOUT": None
+    }
 }
 
 BALANCE_RENEW_PERIOD = 20 * 60  # 20 minutes
@@ -367,13 +370,25 @@ CELERY_TASK_SERIALIZER = 'pickle'
 CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
+SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', '')
+SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', '')
+SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', '')
+SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
+
+# Time in seconds for the interval between retry tasks called by celery beats
+RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
+# Time in seconds for interval of checking if payments have not been updated and require voiding
+PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
+# Time in seconds of how long is required before a payment is deemed to be expired
+PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
+
 # client_id of ClientApplication used by Barclays in django admin
 ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
 
 ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
-MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', 'harvey-nichols').split(',')
+MANUAL_CHECK_SCHEMES = env_var('MANUAL_CHECK_SCHEMES', '').split(',')
 MANUAL_CHECK_LOCAL_CSV_PATH = env_var('MANUAL_CHECK_LOCAL_CSV_PATH', '/tmp/output/hn/test.csv')
 
 MANUAL_CHECK_USE_AZURE = env_var('MANUAL_CHECK_USE_AZURE', False)

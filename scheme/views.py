@@ -20,13 +20,14 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from payment_card.payment import Payment
 from payment_card.models import PaymentCardAccount
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
 from scheme.models import (ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage,
-                           UserConsent)
+                           UserConsent, SchemeBundleAssociation)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
                                 ListSchemeAccountSerializer,
@@ -261,14 +262,21 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
     def get_queryset(self):
         channels_permit = self.request.channels_permit
         queryset = SchemeAccount.objects
-        exclude_by = {
-            'status__in': SchemeAccount.JOIN_ACTION_REQUIRED,
-            **channels_permit.scheme_suspended('scheme__')
-        }
 
         filter_by = {}
         if not self.request.user.is_tester:
             filter_by['scheme__test_scheme'] = False
+
+        exclude_by = {}
+        suspended_schemes = Scheme.objects.filter(
+            schemebundleassociation__bundle=channels_permit.bundle,
+            schemebundleassociation__status=SchemeBundleAssociation.SUSPENDED,
+        )
+        if suspended_schemes:
+            exclude_by = {
+                'scheme__in': suspended_schemes,
+                'status__in': SchemeAccount.JOIN_ACTION_REQUIRED
+            }
 
         return channels_permit.scheme_account_query(
             queryset.filter(**filter_by).exclude(**exclude_by),
@@ -371,13 +379,30 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
-        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id)
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
+
+        pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
+                            SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
+
+        if new_status_code is SchemeAccount.ACTIVE:
+            Payment.process_payment_success(scheme_account)
+        elif new_status_code not in pending_statuses:
+            Payment.process_payment_void(scheme_account)
+
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
 
         scheme_account.status = new_status_code
         scheme_account.save(update_fields=['status'])
 
+        self.process_active_accounts(scheme_account, journey, new_status_code)
+
+        return Response({
+            'id': scheme_account.id,
+            'status': new_status_code
+        })
+
+    def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
@@ -396,12 +421,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             scheme_account.save(update_fields=['link_date'])
 
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-                send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, date_time_now, 'link')
-
-        return Response({
-            'id': scheme_account.id,
-            'status': new_status_code
-        })
+                send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, 'link')
 
     def send_to_intercom(self, new_status_code, scheme_account):
         try:
@@ -661,7 +681,7 @@ class DonorSchemes(APIView):
         response_serializer: scheme.serializers.DonorSchemeAccountSerializer
 
         """
-        host_scheme = Scheme.objects.filter(pk=kwargs['scheme_id'])
+        host_scheme = Scheme.objects.get(pk=kwargs['scheme_id'])
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=kwargs['user_id'], status=SchemeAccount.ACTIVE)
         exchanges = Exchange.objects.filter(host_scheme=host_scheme, donor_scheme__in=scheme_accounts.values('scheme'))
         return_data = []

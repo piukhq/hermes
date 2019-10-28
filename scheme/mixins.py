@@ -3,6 +3,7 @@ import socket
 import typing as t
 import uuid
 
+import requests
 import sentry_sdk
 from django.conf import settings
 from django.db import transaction
@@ -14,7 +15,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
-import requests
+from payment_card.payment import Payment, PaymentError
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent)
@@ -235,30 +236,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
-    def join_consent(self, data, serializer, scheme_account, join_scheme, scheme_id, user):
-        if 'consents' in serializer.validated_data:
-            consent_data = serializer.validated_data.pop('consents')
-
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
-
-            for user_consent in user_consents:
-                user_consent.save()
-
-            user_consents = scheme_account.collect_pending_consents()
-            data['credentials'].update(consents=user_consents)
-
-        data['id'] = scheme_account.id
-        if data['save_user_information']:
-            self.save_user_profile(data['credentials'], user)
-
-        self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
-
-        keys_to_remove = ['save_user_information', 'credentials']
-        response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
-
-        return response_dict, status.HTTP_201_CREATED, scheme_account
-
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit') \
             -> t.Tuple[dict, int, SchemeAccount]:
 
@@ -280,13 +257,42 @@ class SchemeAccountJoinMixin:
             scheme_account = self.create_join_account(data, user, scheme_id)
 
         try:
-            return self.join_consent(data, serializer, scheme_account, join_scheme, scheme_id, user)
-        except serializers.ValidationError:
+            payment_card_id = data['credentials'].get('payment_card_id')
+            if payment_card_id:
+                Payment.process_payment_auth(user.id, scheme_account, payment_card_id, payment_amount=100)
+
+            self.save_consents(serializer, user, scheme_account, scheme_id, data)
+
+            data['id'] = scheme_account.id
+            if data['save_user_information']:
+                self.save_user_profile(data['credentials'], user)
+
+            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
+
+            keys_to_remove = ['save_user_information', 'credentials']
+            response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
+
+            return response_dict, status.HTTP_201_CREATED, scheme_account
+        except (serializers.ValidationError, PaymentError):
             self.handle_failed_join(scheme_account, user)
             raise
         except Exception:
             self.handle_failed_join(scheme_account, user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK, scheme_account
+
+    @staticmethod
+    def save_consents(serializer, user, scheme_account, scheme_id, data):
+        if 'consents' in serializer.validated_data:
+            consent_data = serializer.validated_data.pop('consents')
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+
+            for user_consent in user_consents:
+                user_consent.save()
+
+            user_consents = scheme_account.collect_pending_consents()
+            data['credentials'].update(consents=user_consents)
 
     @staticmethod
     def handle_failed_join(scheme_account: SchemeAccount, user: 'CustomUser') -> None:
@@ -303,6 +309,8 @@ class SchemeAccountJoinMixin:
                 scheme_account,
                 user,
                 dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
+
+        Payment.process_payment_void(scheme_account)
 
         scheme_account.status = SchemeAccount.JOIN
         scheme_account.save()

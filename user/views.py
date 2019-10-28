@@ -7,6 +7,7 @@ from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.utils.translation import ugettext_lazy as _
 from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
 from mail_templated import send_mail
@@ -21,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
-from hermes.settings import LETHE_URL, MEDIA_URL
+from rest_framework import exceptions
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -29,6 +30,7 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
                               UserSettingSerializer)
+from django.core.exceptions import MultipleObjectsReturned
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -142,12 +144,16 @@ class ForgotPassword(APIView):
         user = CustomUser.objects.filter(client_id=client_id, email__iexact=request.data['email']).first()
         if user:
             user.generate_reset_token()
-            send_mail('email.tpl',
-                      {'link': '{}/{}'.format(LETHE_URL, user.reset_token.decode('UTF-8')),
-                               'hermes_url': MEDIA_URL},
-                      settings.DEFAULT_FROM_EMAIL,
-                      [user.email],
-                      fail_silently=False)
+            send_mail(
+                'email.tpl',
+                {
+                    'link': '{}/{}'.format(settings.LETHE_URL, user.reset_token),
+                    'hermes_url': settings.MEDIA_URL
+                },
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False
+            )
 
         return Response('An email has been sent with details of how to reset your password.', 200)
 
@@ -236,7 +242,9 @@ class Login(GenericAPIView):
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
-                                                 'api_key': user.create_token(bundle_id), 'uid': user.uid})
+                                                 'api_key': user.create_token(bundle_id),
+                                                 'uid': user.uid
+                                                 })
         return Response(out_serializer.data)
 
     @classmethod
@@ -284,12 +292,13 @@ class FaceBookLogin(CreateAPIView):
         """
         access_token = request.data['access_token']
         user_id = request.data['user_id']
+        email = request.data.get('email', None)
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
             return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token)
+        return facebook_login(access_token, email)
 
 
 class TwitterLogin(CreateAPIView):
@@ -305,6 +314,29 @@ class TwitterLogin(CreateAPIView):
         response_serializer: ResponseAuthSerializer
         """
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+
+
+class Renew(APIView):
+
+    def post(self, request, *args, **kwargs):
+        auth = JwtAuthentication()
+        token, token_type = auth.get_token_type(request)
+        if token_type != b'token':
+            return Response({'error': "Invalid Token"}, status=400)
+
+        user, token_contents = auth.authenticate_credentials(token)
+        bundle_id = token_contents.get('bundle_id', '')
+
+        if not user.email:
+            raise exceptions.AuthenticationFailed(_('User does not have an email address'))
+
+        # Note create_token will try to get bundle_id if not set.
+        try:
+            new_token = user.create_token(bundle_id)
+        except MultipleObjectsReturned:
+            raise exceptions.AuthenticationFailed(_("No bundle_id in token and multiple bundles defined for this user"))
+
+        return Response({'api_key': new_token})
 
 
 class Logout(APIView):
@@ -339,14 +371,17 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token):
+def facebook_login(access_token, user_email=None):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/me', params=params)
     if not r.ok:
         return error_response(FACEBOOK_GRAPH_ACCESS)
     profile = r.json()
-    return social_response(profile['id'], profile.get('email'), 'facebook')
+    # Email from client over-rides the facebook one
+    if not user_email:
+        user_email = profile.get('email')
+    return social_response(profile['id'], user_email, 'facebook')
 
 
 def twitter_login(access_token, access_token_secret):
