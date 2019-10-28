@@ -43,42 +43,11 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             token_data = jwt.decode(token, verify=False, algorithms=['HS512', 'HS256'])
             bundle_id = token_data['bundle_id']
             if token_type == b'bearer':
-                organisation_id = token_data['organisation_id']
-                channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
-                # Check for keys which should be in token but don't cause a failed token or raise a key error
-                if 'property_id' not in token_data:
-                    logger.info(f'No property id found in Ubiquity token')
-                if 'iat' not in token_data:
-                    # We can't implement a timeout as token refresh not in spec.
-                    logger.info(f'No iat (time stamp) found in Ubiquity token')
-
-                auth_user_id = jwt.decode(token, channels_permit.bundle.client.secret,
-                                          leeway=settings.CLOCK_SKEW_LEEWAY,
-                                          verify=True, algorithms=['HS512'])['user_id']
+                channels_permit, auth_user_id = self._authenticate_bearer(token, token_data, bundle_id)
             elif token_type == b'token':
-                # This is the client server token with "token" prefix
-                user = CustomUser.objects.get(id=token_data['sub'])
-                channels_permit = Permit(bundle_id, user=user, ubiquity=True)
-
-                if not user.email:
-                    logger.info(f"'token' type token does not have an email address")
-                    raise exceptions.AuthenticationFailed(_('Invalid token'))
-                if 'iat' not in token_data:
-                    logger.info(f"'token' type token does not a time stamp 'iat'' field")
-                    raise exceptions.AuthenticationFailed(_('Invalid token'))
-
-                jwt.decode(token, channels_permit.bundle.client.secret + channels_permit.user.salt,
-                           leeway=settings.CLOCK_SKEW_LEEWAY,
-                           verify=True, algorithms=['HS256', 'HS512'])
-                auth_user_id = channels_permit.user.email
+                channels_permit, auth_user_id = self._authenticate_token(token, token_data, bundle_id)
             else:
                 raise exceptions.AuthenticationFailed(_('Unknown token.'))
-
-            if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
-                if 'iat' not in token_data:
-                    raise exceptions.AuthenticationFailed(_('No iat for internal service JWT'))
-                if token_data['iat'] < time.time() - settings.JWT_EXPIRY_TIME:
-                    raise exceptions.AuthenticationFailed(_('Expired token.'))
 
         except (jwt.DecodeError, KeyError, self.model.DoesNotExist):
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
@@ -93,6 +62,48 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
         return channels_permit, None
+
+    @staticmethod
+    def _authenticate_bearer(token, token_data, bundle_id):
+        organisation_id = token_data['organisation_id']
+        channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
+        # Check for keys which should be in token but don't cause a failed token or raise a key error
+        if 'property_id' not in token_data:
+            logger.info(f'No property id found in Ubiquity token')
+        if 'iat' not in token_data:
+            # We can't implement a timeout as token refresh not in spec.
+            logger.info(f'No iat (time stamp) found in Ubiquity token')
+
+        if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
+            if 'iat' not in token_data:
+                raise exceptions.AuthenticationFailed(_('No iat for internal service JWT'))
+            if token_data['iat'] < time.time() - settings.JWT_EXPIRY_TIME:
+                raise exceptions.AuthenticationFailed(_('Expired token.'))
+
+        auth_user_id = jwt.decode(token, channels_permit.bundle.client.secret,
+                                  leeway=settings.CLOCK_SKEW_LEEWAY,
+                                  verify=True, algorithms=['HS512'])['user_id']
+        return channels_permit, auth_user_id
+
+    @staticmethod
+    def _authenticate_token(token, token_data, bundle_id):
+        # This is the client server token with "token" prefix
+        user = CustomUser.objects.get(id=token_data['sub'])
+        channels_permit = Permit(bundle_id, user=user, ubiquity=True)
+
+        if not user.email:
+            logger.info(f"'token' type token does not have an email address")
+            raise exceptions.AuthenticationFailed(_('Invalid token'))
+        if 'iat' not in token_data:
+            logger.info(f"'token' type token does not a time stamp 'iat'' field")
+            raise exceptions.AuthenticationFailed(_('Invalid token'))
+
+        jwt.decode(token, channels_permit.bundle.client.secret + channels_permit.user.salt,
+                   leeway=settings.CLOCK_SKEW_LEEWAY,
+                   verify=True, algorithms=['HS256', 'HS512'])
+        auth_user_id = channels_permit.user.email
+
+        return channels_permit, auth_user_id
 
 
 class ServiceAuthentication(ServiceRegistrationAuthentication):
