@@ -50,6 +50,9 @@ class Permit:
         if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
             self.service_allow_all = True
 
+        self._authenticate_bundle(organisation_name, bundle_id)
+
+    def _authenticate_bundle(self, organisation_name, bundle_id):
         if not self.client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')
         elif organisation_name and not self.client:
