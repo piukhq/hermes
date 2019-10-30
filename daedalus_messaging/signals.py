@@ -97,10 +97,14 @@ association_map = {
 def make_service_list(users: list):
     service_list = []
     for u in users:
-        external_id = u.user.external_id
-        bundle_id = ClientApplicationBundle.objects.values_list('bundle_id', flat=True).get(client=u.user.client_id)
-        service_key = {'bundle_id': bundle_id, 'external_id': external_id}
-        service_list.append(service_key)
+        user_identity = u.user.external_id
+        # This will need to be looked at after ubiquity refactoring and must consider Web 2.0
+        if not user_identity:
+            user_identity = u.user.email
+        if user_identity:
+            bundle_id = ClientApplicationBundle.objects.values_list('bundle_id', flat=True).get(client=u.user.client_id)
+            service_key = {'bundle_id': bundle_id, 'external_id': user_identity}
+            service_list.append(service_key)
     return service_list
 
 
