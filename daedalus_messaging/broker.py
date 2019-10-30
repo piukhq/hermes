@@ -45,7 +45,7 @@ class MessagingService:
 
         try:
             self._pub(message)
-        except Exception as e:
+        except Exception:
             self.close()
             self.connect()
             self._pub(message)
