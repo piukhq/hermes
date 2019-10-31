@@ -16,7 +16,7 @@ from rest_framework.generics import get_object_or_404
 
 import analytics
 
-from hermes.settings import INTERNAL_SERVICE_BUNDLE
+from django.conf import settings
 from payment_card.payment import Payment, PaymentError
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
@@ -172,7 +172,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 return scheme_account, data, account_created
 
             internal_service_client = ClientApplicationBundle.objects.get(
-                bundle_id=INTERNAL_SERVICE_BUNDLE).client.client_id
+                bundle_id=settings.INTERNAL_SERVICE_BUNDLE).client.client_id
             if user.client_id == internal_service_client:
                 return scheme_account, data, account_created
 

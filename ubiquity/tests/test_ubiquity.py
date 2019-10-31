@@ -10,7 +10,7 @@ from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from hermes.settings import INTERNAL_SERVICE_BUNDLE
+from django.conf import settings
 from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
@@ -228,7 +228,7 @@ class TestResources(APITestCase):
         client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
         UserFactory(external_id=external_id, client=client_app, is_active=True)
 
-        token = GenerateJWToken(client_app.organisation.name, client_app.secret, INTERNAL_SERVICE_BUNDLE,
+        token = GenerateJWToken(client_app.organisation.name, client_app.secret, settings.INTERNAL_SERVICE_BUNDLE,
                                 external_id).get_token()
         auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
@@ -314,7 +314,7 @@ class TestResources(APITestCase):
         client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
         UserFactory(external_id=external_id, client=client_app, is_active=True)
 
-        token = GenerateJWToken(client_app.organisation.name, client_app.secret, INTERNAL_SERVICE_BUNDLE,
+        token = GenerateJWToken(client_app.organisation.name, client_app.secret, settings.INTERNAL_SERVICE_BUNDLE,
                                 external_id).get_token()
         auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
