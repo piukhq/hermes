@@ -10,7 +10,6 @@ from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from django.conf import settings
 from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
