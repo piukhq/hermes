@@ -84,7 +84,6 @@ tag-staging:
 statics-staging:
   stage: staging
   image: binkops.azurecr.io/kubedeployer:latest
-  environment: staging
   script:
     - bash collectstatic.sh
     - ENVIRONMENT=staging deploystatic
