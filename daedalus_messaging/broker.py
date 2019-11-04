@@ -43,11 +43,9 @@ class MessagingService:
             'headers': x_headers
         }
 
-        print(f'Hermes to Daedalus-update: {message}')
         try:
             self._pub(message)
-        except Exception as e:
-            print(f'Exception on connecting to Message Broker - time out? {e} retry send')
+        except Exception:
             self.close()
             self.connect()
             self._pub(message)
