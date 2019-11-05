@@ -660,11 +660,10 @@ class SchemeAccount(models.Model):
 
         if "issue_date" in voucher_fields:
             issue_date = arrow.get(voucher_fields["issue_date"])
-            expiry_date = issue_date.replace(months=+voucher_scheme.expiry_months)
+            expiry_date = issue_date.shift(months=+voucher_scheme.expiry_months)
         else:
             issue_date = None
 
-        # TODO: check this logic
         if "redeem_date" in voucher_fields:
             state = vouchers.VoucherState.REDEEMED
         elif issue_date is not None and expiry_date <= arrow.utcnow():
@@ -693,7 +692,7 @@ class SchemeAccount(models.Model):
                 "currency": voucher_scheme.burn_currency,
                 "prefix": voucher_scheme.burn_prefix,
                 "suffix": voucher_scheme.burn_suffix,
-                "type": voucher_scheme.burn_type_name,
+                "type": voucher_scheme.burn_type,
                 "value": voucher_scheme.burn_value,
             },
             "headline": headline,
@@ -1099,10 +1098,6 @@ class VoucherScheme(models.Model):
             vouchers.VoucherState.EXPIRED: self.headline_expired,
             vouchers.VoucherState.REDEEMED: self.headline_redeemed,
         }[state]
-
-    @property
-    def burn_type_name(self):
-        return dict(VoucherScheme.BURN_TYPES)[self.burn_type]
 
     @staticmethod
     def earn_type_from_voucher_type(voucher_type: vouchers.VoucherType):
