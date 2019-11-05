@@ -1,6 +1,8 @@
 from django.test import TestCase
 
-from scheme.models import Category, Scheme, VoucherScheme
+import arrow
+
+from scheme.models import Category, Scheme, SchemeAccount, VoucherScheme
 from scheme import vouchers
 
 
@@ -17,6 +19,7 @@ class TestVouchers(TestCase):
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
             earn_prefix="£",
+            burn_type=VoucherScheme.BURNTYPE_VOUCHER,
             burn_value=5,
             burn_prefix="£",
             headline_inprogress="{{earn_prefix}}{{earn_target_remaining|floatformat}} left to go!",
@@ -29,6 +32,7 @@ class TestVouchers(TestCase):
             barcode_type=0,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_JOIN,
+            burn_type=VoucherScheme.BURNTYPE_VOUCHER,
             burn_value=5,
             burn_prefix="£",
             headline_issued="{{burn_prefix}}{{burn_value|floatformat}} voucher earned",
@@ -77,3 +81,35 @@ class TestVouchers(TestCase):
         headline_template = vs.get_headline(vouchers.VoucherState.EXPIRED)
         headline = vouchers.apply_template(headline_template, voucher_scheme=vs, earn_value=50, earn_target_value=100)
         self.assertEqual(headline, "Voucher expired")
+
+    def test_make_voucher(self):
+        now = arrow.utcnow().timestamp
+        voucher_fields = {
+            "issue_date": now,
+            "code": "abc123",
+            "type": vouchers.VoucherType.ACCUMULATOR.value,
+            "value": 300,
+        }
+        scheme = Scheme.objects.get(slug=TEST_SLUG)
+        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_JOIN)
+        account = SchemeAccount.objects.create(scheme=scheme, order=0)
+        voucher = account.make_single_voucher(voucher_fields)
+        self.assertEqual(
+            voucher,
+            {
+                "earn": {"type": "accumulator", "value": 300, "target_value": 0},
+                "burn": {
+                    "type": vs.burn_type,
+                    "currency": vs.burn_currency,
+                    "prefix": vs.burn_prefix,
+                    "suffix": vs.burn_suffix,
+                    "value": vs.burn_value,
+                },
+                "code": "abc123",
+                "date_issued": now,
+                "expiry_date": arrow.get(now).shift(months=vs.expiry_months).timestamp,
+                "headline": "£5 voucher earned",
+                "state": "issued",
+                "subtext": "",
+            },
+        )
