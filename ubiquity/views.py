@@ -24,8 +24,7 @@ from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCard
 from scheme.credentials import DATE_TYPE_CREDENTIALS
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
-from scheme.models import (Scheme, SchemeAccount, SchemeAccountCredentialAnswer, SchemeCredentialQuestion,
-                           ThirdPartyConsentLink, ConsentStatus)
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, ConsentStatus
 from scheme.serializers import UserConsentSerializer
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
