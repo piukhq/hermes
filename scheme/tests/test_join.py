@@ -16,7 +16,7 @@ class TestJoinExisting(TestCase):
         self.new_user = CustomUser.objects.create_user(self.join_email, "Password02")
 
         category = Category.objects.create()
-        self.scheme = Scheme.objects.create(tier=Scheme.PLL, category=category)
+        self.scheme = Scheme.objects.create(tier=Scheme.PLL, category=category, slug="fatface")
         question = SchemeCredentialQuestion.objects.create(
             scheme=self.scheme, type=credentials.EMAIL, manual_question=True
         )
