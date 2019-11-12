@@ -11,6 +11,8 @@ RUN apk add --no-cache --virtual build \
     apk add --no-cache \
       su-exec \
       jpeg-dev \
+      libc-dev \
+      binutils \
       postgresql-dev && \
     pip install gunicorn pipenv && \
     pipenv install --system --deploy --ignore-pipfile && \
