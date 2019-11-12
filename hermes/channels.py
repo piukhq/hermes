@@ -3,6 +3,7 @@ from scheme.models import SchemeBundleAssociation
 from rest_framework import exceptions
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db.models import Q
+from django.conf import settings
 import logging
 
 
@@ -24,7 +25,7 @@ class Permit:
         We are keeping the bundle name because this makes sense of the names used in tokens etc.
         :param bundle_id: String identifier for a channel
         :param client:  client application
-        :param organisation_name: Organisation eg Barclays, Loyality Angels
+        :param organisation_name: Organisation eg Barclays, Loyalty Angels
         :param user: User model
 
         Bundle_id and client are unique together but Ubiquity token only defines Organisation and bundle id.
@@ -38,15 +39,18 @@ class Permit:
         self.bundle_id = bundle_id
         self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
 
-        # This forces an active permit regardless of scheme for inter-service calls.  However trying to get a bundle
-        # object will return None.  Generally outside of authentication, getting bundle from Permit is not required as
-        # it is best use one of the high level checks
+        # This forces an active permit regardless of scheme for inter-service calls.
         self.service_allow_all = service_allow_all
+        if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
+            self.service_allow_all = True
 
         # User is defined with client to server permits
         if user:
             self.client = user.client
 
+        self._authenticate_bundle(organisation_name, bundle_id)
+
+    def _authenticate_bundle(self, organisation_name, bundle_id):
         if not self.client and not organisation_name and not self.service_allow_all:
             raise exceptions.AuthenticationFailed('Invalid Token')
         elif organisation_name and not self.client:
@@ -95,7 +99,7 @@ class Permit:
     @property
     def bundle(self):
         if self.service_allow_all:
-            return None
+            return self.looked_up_bundle
         # Bundle will only be looked up when required and only once per request
         if not self.looked_up_bundle:
             try:
@@ -118,11 +122,24 @@ class Permit:
     def scheme_query(self, query, allow=None):
         return self.related_model_query(query, '', allow)
 
-    def scheme_account_query(self, query, allow=None):
+    def scheme_account_query(self, query, allow=None, user_id=None, user_filter=True):
+        if user_filter and not self.service_allow_all:
+            query = self._user_filter(query, user_id)
         return self.related_model_query(query, 'scheme__', allow)
+
+    @staticmethod
+    def _user_filter(query, user_id):
+        if not user_id:
+            raise ValueError("user_id is required when filtering by user")
+        return query.filter(user_set__id=user_id)
 
     def scheme_payment_account_query(self, query, allow=None):
         return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
+
+    def payment_card_account_query(self, query, user_id=None, user_filter=True):
+        if user_filter and not self.service_allow_all:
+            query = self._user_filter(query, user_id)
+        return query
 
     def related_model_query(self, query, relation='', allow=None):
         if self.service_allow_all:

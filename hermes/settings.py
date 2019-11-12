@@ -20,6 +20,8 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from hermes.version import __version__
 from environment import env_var, read_env
+from daedalus_messaging.broker import MessagingService
+
 
 read_env()
 
@@ -70,6 +72,7 @@ INSTALLED_APPS = (
     'anymail',
     'storages',
     'ubiquity',
+    'daedalus_messaging',
 )
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
@@ -412,3 +415,19 @@ BIN_TO_PROVIDER = {
         BinMatch(type='range', len=4, value=(2221, 2720))
     ]
 }
+
+INTERNAL_SERVICE_BUNDLE = env_var('INTERNAL_SERVICE_BUNDLE', 'com.bink.daedalus')
+JWT_EXPIRY_TIME = env_var('JWT_EXPIRY_TIME', 600)
+
+ENABLE_DAEDALUS_MESSAGING = env_var("ENABLE_DAEDALUS_MESSAGING", False)
+
+if ENABLE_DAEDALUS_MESSAGING:
+    TO_DAEDALUS = MessagingService(
+        user=env_var("RABBIT_USER", "guest"),               # eg 'guest'
+        password=env_var("RABBIT_PASSWORD", "guest"),       # eg 'guest'
+        queue_name=env_var("TO_QUEUE", "to_daedalus"),      # eg 'to_daedalus'
+        host=env_var("RABBIT_HOST", "127.0.0.1"),           # eg '127.0.0.1'
+        port=env_var("RABBIT_PORT", "5672")                 # eg '5672'
+    )
+else:
+    TO_DAEDALUS = None

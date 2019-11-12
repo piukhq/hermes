@@ -8,6 +8,7 @@ import arrow
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db.models import Q
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
@@ -247,14 +248,15 @@ class PaymentCardView(RetrievePaymentCardAccount, PaymentCardCreationMixin, Auto
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
+        query = {}
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return self.queryset.filter(**query)
+        return self.request.channels_permit.payment_card_account_query(
+            self.queryset.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -318,14 +320,15 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     serializer_class = PaymentCardSerializer
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
+        query = {}
         if self.request.allowed_issuers:
             query['issuer__in'] = self.request.allowed_issuers
 
-        return PaymentCardAccount.objects.filter(**query)
+        return self.request.channels_permit.payment_card_account_query(
+            PaymentCardAccount.objects.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
@@ -335,6 +338,12 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, PaymentCardCreationMixin
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         pcard_data, consent = self._collect_creation_data(request.data, request.allowed_issuers)
+        if self.request.channels_permit.service_allow_all:
+            try:
+                pcard_data['id'] = int(request.META.get('HTTP_X_OBJECT_ID'))
+            except ValueError:
+                raise ValidationError('X-object-id header must be an integer value.')
+
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
             return Response(self.get_serializer(pcard).data, status=status_code)
@@ -361,15 +370,15 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False
-        }
-
+        query = {}
         if not self.request.user.is_tester:
             query['scheme__test_scheme'] = False
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
+        return self.request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     def get_validated_data(self, data, user):
         serializer = self.get_serializer(data=data)
@@ -589,11 +598,11 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict,
-                                  use_pk: int = None) -> t.Tuple[SchemeAccount, int]:
+                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme_id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user)
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, use_pk)
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, account_id)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if auth_fields:
@@ -618,8 +627,29 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, channels_permit: Permit,
-                                  scheme_id: int, enrol_fields: dict) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
+                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+        # fatface logic will be revisited before fatface goes live in other applications
+        if Scheme.objects.get(pk=scheme_id).slug == 'fatface':
+            questions = SchemeCredentialQuestion.objects.filter(
+                Q(manual_question=True) | Q(scan_question=True),
+                scheme_id=scheme_id,
+            )
+            lookup_question_type = {q.type for q in questions}.intersection(enrol_fields.keys()).pop()
+            lookup_answer = enrol_fields[lookup_question_type]
+
+            other_accounts = SchemeAccount.objects.filter(
+                scheme_id=scheme_id,
+                schemeaccountcredentialanswer__answer=lookup_answer,
+            )
+            if other_accounts.exists():
+                scheme_account = other_accounts.first()
+                SchemeAccountEntry.objects.get_or_create(
+                    scheme_account=scheme_account,
+                    user=user,
+                )
+                return scheme_account, status.HTTP_201_CREATED
+
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
@@ -628,7 +658,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             scheme_account.set_async_join_status()
         except SchemeAccount.DoesNotExist:
+            account_id_param = {'pk': account_id} if account_id else {}
             scheme_account = SchemeAccount.objects.create(
+                **account_id_param,
                 order=0,
                 scheme_id=scheme_id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -754,13 +786,20 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
+        object_id = None
+        if self.request.channels_permit.service_allow_all:
+            try:
+                object_id = int(request.META.get('HTTP_X_OBJECT_ID'))
+            except ValueError:
+                raise ValidationError('X-object-id header must be an integer value.')
+
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
             account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
-                                                                  scheme_id, enrol_fields)
+                                                                  scheme_id, enrol_fields, account_id=object_id)
         else:
             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
-                                                                  add_fields)
+                                                                  add_fields, account_id=object_id)
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
@@ -848,15 +887,17 @@ class CompositeMembershipCardView(ListMembershipCardView):
 
     def get_queryset(self):
         query = {
-            'user_set__id': self.request.user.id,
-            'is_deleted': False,
             'payment_card_account_set__id': self.kwargs['pcard_id']
         }
 
         if not self.request.user.is_tester:
             query['scheme__test_scheme'] = False
 
-        return self.request.channels_permit.scheme_account_query(SchemeAccount.objects.filter(**query))
+        return self.request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(**query),
+            user_id=self.request.user.id,
+            user_filter=True
+        )
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):

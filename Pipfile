@@ -24,7 +24,7 @@ requests = "*"
 requests-oauthlib = "*"
 django-admin-env-notice = "*"
 storages = {git = "https://github.com/BackwardSpy/django-storages.git",ref = "1.7"}
-azure-storage-blob = "*"
+azure-storage-blob = "==2.1.0"
 django-redis = "*"
 redis = "*"
 dictfilter = "*"

@@ -723,7 +723,7 @@ class TestSchemeAccountViews(APITestCase):
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback, *_):
         user_info = {
-            'user_set': '1'
+            'user_set': ', '.join([str(x.id) for x in self.scheme_account1.user_set.all()])
         }
         data = {
             'status': 1,

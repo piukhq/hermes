@@ -70,6 +70,7 @@ class QueryPaymentCardAccountSerializer(serializers.ModelSerializer):
 
 
 class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
     # psp_token = serializers.CharField(
     #     max_length=255,
     #     write_only=True,
