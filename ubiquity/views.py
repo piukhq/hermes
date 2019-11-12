@@ -8,6 +8,7 @@ import arrow
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db.models import Q
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
@@ -628,6 +629,27 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @staticmethod
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
                                   account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+        # fatface logic will be revisited before fatface goes live in other applications
+        if Scheme.objects.get(pk=scheme_id).slug == 'fatface':
+            questions = SchemeCredentialQuestion.objects.filter(
+                Q(manual_question=True) | Q(scan_question=True),
+                scheme_id=scheme_id,
+            )
+            lookup_question_type = {q.type for q in questions}.intersection(enrol_fields.keys()).pop()
+            lookup_answer = enrol_fields[lookup_question_type]
+
+            other_accounts = SchemeAccount.objects.filter(
+                scheme_id=scheme_id,
+                schemeaccountcredentialanswer__answer=lookup_answer,
+            )
+            if other_accounts.exists():
+                scheme_account = other_accounts.first()
+                SchemeAccountEntry.objects.get_or_create(
+                    scheme_account=scheme_account,
+                    user=user,
+                )
+                return scheme_account, status.HTTP_201_CREATED
+
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
