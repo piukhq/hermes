@@ -765,11 +765,10 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         object_id = None
-        object_id_header = 'HTTP_X_OBJECT_ID'
-        if self.request.channels_permit.service_allow_all and object_id_header in request.META:
+        if self.request.channels_permit.service_allow_all:
             try:
-                object_id = int(request.META[object_id_header])
-            except KeyError:
+                object_id = int(request.META.get('HTTP_X_OBJECT_ID'))
+            except ValueError:
                 raise ValidationError('X-object-id header must be an integer value.')
 
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
