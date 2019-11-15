@@ -11,7 +11,8 @@ import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
-from scheme.models import Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink
+from scheme.models import (
+    Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink, VoucherScheme)
 from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
@@ -473,7 +474,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'enrol_fields': (SchemeQuestionSerializer(enrol_fields, many=True).data +
                                  UbiquityConsentSerializer(consents['enrol'], many=True).data),
             },
-            'balances': SchemeBalanceDetailSerializer(balances, many=True).data
+            'balances': SchemeBalanceDetailSerializer(balances, many=True).data,
+            'has_vouchers': VoucherScheme.objects.filter(scheme_id=instance.id).exists(),
         }
 
 
