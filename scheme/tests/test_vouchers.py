@@ -19,6 +19,7 @@ class TestVouchers(TestCase):
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
             earn_prefix="£",
+            earn_suffix="pounds",
             earn_currency="GBP",
             burn_type=VoucherScheme.BURNTYPE_VOUCHER,
             burn_value=5,
@@ -34,6 +35,7 @@ class TestVouchers(TestCase):
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_JOIN,
             earn_prefix="£",
+            earn_suffix="pounds",
             earn_currency="GBP",
             burn_type=VoucherScheme.BURNTYPE_VOUCHER,
             burn_value=5,
@@ -103,6 +105,7 @@ class TestVouchers(TestCase):
                 "earn": {
                     "type": "accumulator",
                     "prefix": vs.earn_prefix,
+                    "suffix": vs.earn_suffix,
                     "currency": vs.earn_currency,
                     "value": 300,
                     "target_value": 0
