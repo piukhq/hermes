@@ -696,6 +696,7 @@ class SchemeAccount(models.Model):
             "earn": {
                 "type": vouchers.voucher_type_names[voucher_type],
                 "prefix": voucher_scheme.earn_prefix,
+                "suffix": voucher_scheme.earn_suffix,
                 "currency": voucher_scheme.earn_currency,
                 "value": voucher_fields.get("value", 0),
                 "target_value": voucher_fields.get("target_value", 0),
