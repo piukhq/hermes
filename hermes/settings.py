@@ -253,9 +253,11 @@ LOGGING = {
 }
 
 HERMES_SENTRY_DSN = env_var('HERMES_SENTRY_DSN', None)
+HERMES_SENTRY_ENV = env_var('HERMES_SENTRY_ENV', None)
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
+        environment=HERMES_SENTRY_ENV,
         release=__version__,
         integrations=[DjangoIntegration(transaction_style="function_name")],
     )
