@@ -15,7 +15,7 @@ class TestVouchers(TestCase):
         scheme = Scheme.objects.create(tier=Scheme.PARTNER, category=category, slug=TEST_SLUG)
         VoucherScheme.objects.create(
             scheme=scheme,
-            barcode_type=0,
+            barcode_type=1,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
             earn_prefix="£",
@@ -31,7 +31,7 @@ class TestVouchers(TestCase):
         )
         VoucherScheme.objects.create(
             scheme=scheme,
-            barcode_type=0,
+            barcode_type=2,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_JOIN,
             earn_prefix="£",
@@ -96,7 +96,7 @@ class TestVouchers(TestCase):
             "value": 300,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
-        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_JOIN)
+        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
         voucher = account.make_single_voucher(voucher_fields)
         self.assertEqual(
@@ -108,7 +108,7 @@ class TestVouchers(TestCase):
                     "suffix": vs.earn_suffix,
                     "currency": vs.earn_currency,
                     "value": 300,
-                    "target_value": 0
+                    "target_value": 0,
                 },
                 "burn": {
                     "type": vs.burn_type,
@@ -123,5 +123,6 @@ class TestVouchers(TestCase):
                 "headline": "£5.00 voucher earned",
                 "state": "issued",
                 "subtext": "",
+                "barcode_type": vs.barcode_type,
             },
         )

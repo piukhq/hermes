@@ -708,6 +708,7 @@ class SchemeAccount(models.Model):
                 "type": voucher_scheme.burn_type,
                 "value": voucher_scheme.burn_value,
             },
+            "barcode_type": voucher_scheme.barcode_type,
             "headline": headline,
             "subtext": voucher_scheme.subtext,
         }
