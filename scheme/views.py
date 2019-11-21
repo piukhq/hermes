@@ -403,16 +403,17 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         })
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
-        if journey == 'join' and new_status_code == SchemeAccount.ACTIVE:
+        if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:
             scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
-            scheme_account.save()
-            async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
+            scheme_account.save(update_fields=["join_date"])
+
+            if journey == "join":
+                async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
-
         elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
             scheme_slug = scheme_account.scheme.slug
