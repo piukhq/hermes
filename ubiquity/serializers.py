@@ -420,7 +420,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         else:
             card_type = 0
 
-        return {
+        plan = {
             'id': instance.id,
             'status': status,
             'feature_set': {
@@ -475,8 +475,12 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                                  UbiquityConsentSerializer(consents['enrol'], many=True).data),
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data,
-            'has_vouchers': VoucherScheme.objects.filter(scheme_id=instance.id).exists(),
         }
+
+        if VoucherScheme.objects.filter(scheme_id=instance.id).exists():
+            plan['has_vouchers'] = True
+
+        return plan
 
 
 # not used for now but will be needed
