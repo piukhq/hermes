@@ -28,6 +28,8 @@ class TestVouchers(TestCase):
             headline_issued="{{burn_prefix}}{{burn_value|floatformat:2}} voucher earned",
             headline_redeemed="Voucher redeemed",
             headline_expired="Voucher expired",
+            terms_and_conditions_url="https://example.com",
+            body_text="voucher body",
         )
         VoucherScheme.objects.create(
             scheme=scheme,
@@ -121,8 +123,10 @@ class TestVouchers(TestCase):
                 "date_issued": now,
                 "expiry_date": arrow.get(now).shift(months=vs.expiry_months).timestamp,
                 "headline": "£5.00 voucher earned",
-                "state": "issued",
+                "body_text": "voucher body",
                 "subtext": "",
+                "state": "issued",
                 "barcode_type": vs.barcode_type,
+                "terms_and_conditions_url": "https://example.com",
             },
         )
