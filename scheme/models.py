@@ -710,7 +710,9 @@ class SchemeAccount(models.Model):
             },
             "barcode_type": voucher_scheme.barcode_type,
             "headline": headline,
+            "body_text": voucher_scheme.body_text,
             "subtext": voucher_scheme.subtext,
+            "terms_and_conditions_url": voucher_scheme.terms_and_conditions_url,
         }
 
         if issue_date is not None:
@@ -1097,7 +1099,9 @@ class VoucherScheme(models.Model):
     headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
     headline_issued = models.CharField(max_length=250, verbose_name="Issued")
 
-    subtext = models.CharField(max_length=250)
+    body_text = models.TextField(null=False, blank=True)
+    subtext = models.CharField(max_length=250, null=False, blank=True)
+    terms_and_conditions_url = models.URLField(null=False, blank=True)
 
     expiry_months = models.IntegerField()
 
