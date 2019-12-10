@@ -420,7 +420,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         else:
             card_type = 0
 
-        return {
+        plan = {
             'id': instance.id,
             'status': status,
             'feature_set': {
@@ -428,7 +428,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'transactions_available': instance.has_transactions,
                 'digital_only': instance.digital_only,
                 'has_points': instance.has_points,
-                'has_vouchers': VoucherScheme.objects.filter(scheme_id=instance.id).exists(),
                 'card_type': card_type,
                 'linking_support': instance.linking_support,
                 'apps': [
@@ -477,6 +476,11 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             },
             'balances': SchemeBalanceDetailSerializer(balances, many=True).data,
         }
+
+        if VoucherScheme.objects.filter(scheme_id=instance.id).exists():
+            plan['has_vouchers'] = True
+
+        return plan
 
 
 # not used for now but will be needed
