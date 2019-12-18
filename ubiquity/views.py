@@ -635,7 +635,10 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 Q(manual_question=True) | Q(scan_question=True),
                 scheme_id=scheme_id,
             )
-            lookup_question_type = {q.type for q in questions}.intersection(enrol_fields.keys()).pop()
+            lookup_question_type_set = {q.type for q in questions}.intersection(enrol_fields.keys())
+            if not lookup_question_type_set:
+                raise serializers.ValidationError("Missing primary credential")
+            lookup_question_type = lookup_question_type_set.pop()
             lookup_answer = enrol_fields[lookup_question_type]
 
             other_accounts = SchemeAccount.objects.filter(
