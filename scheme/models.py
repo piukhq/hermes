@@ -719,6 +719,9 @@ class SchemeAccount(models.Model):
                 "expiry_date": expiry_date.timestamp,
             })
 
+        if "redeem_date" in voucher_fields:
+            voucher["date_redeemed"] = voucher_fields["redeem_date"]
+
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
 
