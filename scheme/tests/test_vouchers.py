@@ -126,3 +126,46 @@ class TestVouchers(TestCase):
                 "barcode_type": vs.barcode_type,
             },
         )
+
+    def test_make_redeemed_voucher(self):
+        now = arrow.utcnow().timestamp
+        voucher_fields = {
+            "issue_date": now,
+            "code": "abc123",
+            "type": vouchers.VoucherType.ACCUMULATOR.value,
+            "value": 300,
+            "redeem_date": now,
+        }
+        scheme = Scheme.objects.get(slug=TEST_SLUG)
+        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
+        account = SchemeAccount.objects.create(scheme=scheme, order=0)
+        voucher = account.make_single_voucher(voucher_fields)
+        self.maxDiff = None
+        self.assertEqual(
+            voucher,
+            {
+                "earn": {
+                    "type": "accumulator",
+                    "prefix": vs.earn_prefix,
+                    "suffix": vs.earn_suffix,
+                    "currency": vs.earn_currency,
+                    "value": 300,
+                    "target_value": 0,
+                },
+                "burn": {
+                    "type": vs.burn_type,
+                    "currency": vs.burn_currency,
+                    "prefix": vs.burn_prefix,
+                    "suffix": vs.burn_suffix,
+                    "value": vs.burn_value,
+                },
+                "code": "abc123",
+                "date_issued": now,
+                "date_redeemed": now,
+                "expiry_date": arrow.get(now).shift(months=vs.expiry_months).timestamp,
+                "headline": "Voucher redeemed",
+                "state": "redeemed",
+                "subtext": "",
+                "barcode_type": vs.barcode_type,
+            },
+        )
