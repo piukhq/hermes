@@ -720,7 +720,7 @@ class SchemeAccount(models.Model):
             })
 
         if "redeem_date" in voucher_fields:
-            voucher["date_redeemed"] = voucher_fields["redeem_date"]
+            voucher["date_redeemed"] = arrow.get(voucher_fields["redeem_date"]).timestamp
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
