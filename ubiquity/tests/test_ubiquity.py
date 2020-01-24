@@ -184,6 +184,22 @@ class TestResources(APITestCase):
         self.scheme.test_scheme = False
         self.scheme.save()
 
+    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_list_membership_cards_hides_join_cards(self, *_):
+        join_scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN)
+        SchemeBundleAssociationFactory(scheme=join_scheme_account.scheme, bundle=self.bundle,
+                                       status=SchemeBundleAssociation.ACTIVE)
+        SchemeAccountEntryFactory(scheme_account=join_scheme_account, user=self.user)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id, status=SchemeAccount.JOIN).all()
+        join_ids = [account.id for account in scheme_accounts]
+
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        resp_join_ids = [card['id'] for card in resp.json()]
+        for join_id in join_ids:
+            self.assertFalse(join_id in resp_join_ids)
+
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation(self, *_):

@@ -784,7 +784,7 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset())
+        accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate
