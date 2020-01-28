@@ -130,4 +130,5 @@ ubiquity_status_translation = {
     537: 'failed',
     538: 'failed',
     900: 'failed',
+    901: 'failed',
 }
