@@ -52,6 +52,7 @@ CURRENT_STATUS_CODES = (
     (537, "Service connection error"),
     (538, "A system error occurred during join"),
     (900, "Join"),
+    (901, 'Join Failed'),
 )
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
