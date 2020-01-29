@@ -674,6 +674,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
+        SchemeAccountJoinMixin.join_credentials_validation(scheme_account, user, scheme_id, enrol_fields)
         async_join.delay(scheme_account.id, user.id, channels_permit, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
