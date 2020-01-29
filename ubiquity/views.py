@@ -464,14 +464,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @staticmethod
     def save_new_consents(scheme_account, user, all_fields):
-        consents = []
+        consent_list = []
         for field in all_fields:
             if field is not None and 'consents' in field:
                 consents = field.pop('consents')
                 if consents:
-                    consents.append(consents)
+                    consent_list.extend(consents)
 
-        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consents, user)
+        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_list, user)
         for user_consent in user_consents:
             user_consent.status = ConsentStatus.SUCCESS
             user_consent.save()
