@@ -471,6 +471,9 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 if consents:
                     consent_list.extend(consents)
 
+        consent_serializer = UserConsentSerializer(data=consent_list, many=True)
+        consent_serializer.is_valid(raise_exception=True)
+        consent_list = consent_serializer.validated_data
         user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_list, user)
         for user_consent in user_consents:
             user_consent.status = ConsentStatus.SUCCESS
