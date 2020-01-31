@@ -35,7 +35,7 @@ CURRENT_STATUS_CODES = (
     (437, "You can only Link one card per day."),
     (438, "Unknown Card number"),
     (439, "General Error such as incorrect user details"),
-    (441, "Join in progress"),
+    (441, "Join in progress"),    # Error raised by Iceland when attempting second join during a join in progress
     (442, "Asynchronous join in progress"),
     (444, "No user currently found"),
     (445, "Account already exists"),
@@ -52,6 +52,7 @@ CURRENT_STATUS_CODES = (
     (537, "Service connection error"),
     (538, "A system error occurred during join"),
     (900, "Join"),
+    (901, 'Join Failed'),
 )
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
@@ -73,10 +74,10 @@ reason_code_translation = {
     437: None,
     438: 'X105',
     439: None,
-    441: None,
+    441: 'X201',
     442: 'X200',
     444: 'X101',
-    445: None,
+    445: 'X202',
     446: 'X104',
     447: 'X304',
     503: None,
@@ -89,7 +90,8 @@ reason_code_translation = {
     536: None,
     537: None,
     538: None,
-    900: None,
+    900: 'X201',
+    901: 'X201',
 }
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
@@ -128,4 +130,5 @@ ubiquity_status_translation = {
     537: 'failed',
     538: 'failed',
     900: 'failed',
+    901: 'failed',
 }

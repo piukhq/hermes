@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 import arrow
+import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
@@ -18,7 +19,6 @@ from rest_framework.viewsets import ModelViewSet
 
 import analytics
 from hermes.channels import Permit
-import requests
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS
@@ -464,14 +464,17 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
     @staticmethod
     def save_new_consents(scheme_account, user, all_fields):
-        consents = []
+        consent_list = []
         for field in all_fields:
             if field is not None and 'consents' in field:
                 consents = field.pop('consents')
                 if consents:
-                    consents.append(consents)
+                    consent_list.extend(consents)
 
-        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consents, user)
+        consent_serializer = UserConsentSerializer(data=consent_list, many=True)
+        consent_serializer.is_valid(raise_exception=True)
+        consent_list = consent_serializer.validated_data
+        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_list, user)
         for user_consent in user_consents:
             user_consent.status = ConsentStatus.SUCCESS
             user_consent.save()
@@ -485,9 +488,14 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             raise ParseError('membership plan not allowed for this user.')
 
         self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
+        account.delete_saved_balance()
+        account.delete_cached_balance()
 
         if enrol_fields:
-            raise NotImplementedError
+            account.schemeaccountcredentialanswer_set.all().delete()
+            account.set_async_join_status()
+            async_join.delay(account.id, request.user.id, request.channels_permit, scheme_id, enrol_fields)
+
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
@@ -497,13 +505,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme_id)
 
+            account.set_pending()
+            async_balance.delay(account.id)
+
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
-        account.delete_saved_balance()
-        account.delete_cached_balance()
-        account.set_pending()
-        async_balance.delay(account.id)
         return Response(MembershipCardSerializer(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -670,6 +677,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
+        SchemeAccountJoinMixin.validate_join_credentials(scheme_account, user, scheme_id, enrol_fields)
         async_join.delay(scheme_account.id, user.id, channels_permit, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 
@@ -784,7 +792,7 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset())
+        accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
         return Response(self.get_serializer(accounts, many=True).data)
 
     @censor_and_decorate

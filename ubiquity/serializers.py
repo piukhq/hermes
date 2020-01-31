@@ -585,7 +585,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return {
             'state': ubiquity_status_translation[status],
             'reason_codes': [
-                reason_code_translation[status],
+                reason_code_translation[code] for code in [status]
+                if reason_code_translation[code] is not None
             ]
         }
 

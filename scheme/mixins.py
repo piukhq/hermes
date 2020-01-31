@@ -241,6 +241,27 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 class SchemeAccountJoinMixin:
 
+    @staticmethod
+    def validate_join_credentials(scheme_account, user, scheme_id, enrol_fields):
+        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+        data = {
+            'order': 0,
+            **enrol_fields,
+            'save_user_information': 'false',
+            'scheme_account': scheme_account
+        }
+
+        serializer = JoinSerializer(data=data, context={
+            'scheme': join_scheme,
+            'user': user
+        })
+        serializer.is_valid(raise_exception=True)
+
+        if 'consents' in enrol_fields:
+            consent_data = enrol_fields['consents']
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.JOIN.value)
+
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit') \
             -> t.Tuple[dict, int, SchemeAccount]:
 
