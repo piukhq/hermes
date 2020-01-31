@@ -258,7 +258,7 @@ class SchemeAccountJoinMixin:
         serializer.is_valid(raise_exception=True)
 
         if 'consents' in enrol_fields:
-            consent_data = enrol_fields.get('consents')
+            consent_data = enrol_fields['consents']
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
             UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.JOIN.value)
 
