@@ -242,7 +242,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 class SchemeAccountJoinMixin:
 
     @staticmethod
-    def join_credentials_validation(scheme_account, user, scheme_id, enrol_fields):
+    def validate_join_credentials(scheme_account, user, scheme_id, enrol_fields):
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
         data = {
             'order': 0,
