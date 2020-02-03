@@ -58,7 +58,7 @@ def replace_escaped_unicode(match):
 
 
 def send_data_to_atlas(response: 'HttpResponse') -> None:
-    url = f"{settings.ATLAS_URL}/ubiquity_user/save"
+    url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
