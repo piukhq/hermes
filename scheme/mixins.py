@@ -260,7 +260,7 @@ class SchemeAccountJoinMixin:
             scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, scheme_id)
 
         if 'consents' in validated_data:
-            consent_data = data['consents']
+            consent_data = validated_data['consents']
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
             UserConsentSerializer.validate_consents(user_consents, join_scheme.id, JourneyTypes.JOIN.value)
 
