@@ -137,7 +137,7 @@ class TestTasks(TestCase):
         async_join(scheme_account_id, user_id, permit, scheme_id, {})
 
         self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN)
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN_FAILED)
 
     @patch.object(SchemeAccountJoinMixin, 'create_join_account')
     def test_async_register_validation_failure(self, mock_create_join_account):

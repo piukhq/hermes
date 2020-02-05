@@ -338,7 +338,7 @@ class SchemeAccountJoinMixin:
 
         Payment.process_payment_void(scheme_account)
 
-        scheme_account.status = SchemeAccount.JOIN
+        scheme_account.status = SchemeAccount.JOIN_FAILED
         scheme_account.save()
         sentry_sdk.capture_exception()
 
