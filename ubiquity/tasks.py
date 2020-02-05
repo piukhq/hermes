@@ -61,14 +61,12 @@ def async_join(scheme_account_id: int, user_id: int, permit: object, scheme_id: 
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     join_data = {
-        'order': 0,
         **enrol_fields,
-        'save_user_information': 'false',
         'scheme_account': scheme_account
     }
 
     try:
-        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, permit)
+        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, scheme_account)
     except ValidationError:
         scheme_account.status = SchemeAccount.JOIN_FAILED
         scheme_account.save()
@@ -84,14 +82,20 @@ def async_registration(user_id: int, permit: 'Permit', scheme_account_id: int, r
 
     registration_data = {
         main_credential.question.type: main_credential.answer,
-        'order': 0,
         **registration_fields,
-        'save_user_information': 'false',
         'scheme_account': scheme_account
     }
     try:
-        SchemeAccountJoinMixin().handle_join_request(registration_data, user,
-                                                     scheme_account.scheme_id, permit)
+        validated_data, *_ = SchemeAccountJoinMixin.validate(
+            data=registration_data,
+            scheme_account=scheme_account,
+            user=user,
+            permit=permit,
+            scheme_id=scheme_account.scheme_id
+        )
+
+        SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
+                                                     scheme_account)
     except ValidationError:
         scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
         scheme_account.save()

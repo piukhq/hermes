@@ -764,7 +764,8 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             raise NotFound('Scheme does not exist.')
 
         scheme_account = request.data.get('scheme_account')
-        validated_data, serializer = SchemeAccountJoinMixin.validate(
+
+        validated_data, serializer, new_scheme_account = SchemeAccountJoinMixin.validate(
             data=request.data,
             scheme_account=scheme_account,
             user=request.user,
@@ -778,6 +779,6 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             user=request.user,
             scheme_id=scheme_id,
             serializer=serializer,
-            scheme_account=scheme_account)
+            scheme_account=new_scheme_account)
 
         return Response(message, status=status_code)

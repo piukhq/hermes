@@ -240,7 +240,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 
 class SchemeAccountJoinMixin:
-
     @staticmethod
     def validate(data: dict, scheme_account: 'SchemeAccount', user: 'CustomUser', permit: 'Permit',
                  scheme_id: int, serializer_class=UbiquityJoinSerializer):
@@ -255,21 +254,20 @@ class SchemeAccountJoinMixin:
         })
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
+        validated_data['scheme'] = scheme_id
+
+        if not scheme_account:
+            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, scheme_id)
 
         if 'consents' in validated_data:
             consent_data = data['consents']
             user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id,
-                                                    JourneyTypes.JOIN.value)
+            UserConsentSerializer.validate_consents(user_consents, join_scheme.id, JourneyTypes.JOIN.value)
 
-        return validated_data, serializer
+        return validated_data, serializer, scheme_account
 
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, serializer: 'Serializer',
-                            scheme_account: SchemeAccount) -> t.Tuple[dict, int, SchemeAccount]:
-        data['scheme'] = scheme_id
-
-        if not scheme_account:
-            scheme_account = self.create_join_account(data, user, scheme_id)
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
+                            serializer: 'Serializer' = UbiquityJoinSerializer) -> t.Tuple[dict, int, SchemeAccount]:
 
         try:
             payment_card_id = data['credentials'].get('payment_card_id')
