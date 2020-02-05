@@ -1190,7 +1190,7 @@ class TestSchemeAccountViews(APITestCase):
         resp_json = resp.json()
         self.assertIn('Unknown error with join', resp_json['message'])
         sae = SchemeAccountEntry.objects.get(user=self.user, scheme_account__scheme__id=scheme.id)
-        self.assertEqual(sae.scheme_account.status_name, 'Join')
+        self.assertEqual(sae.scheme_account.status_name, 'Join Failed')
         with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
             SchemeAccountCredentialAnswer.objects.get(scheme_account_id=sae.scheme_account.id)
         with self.assertRaises(UserConsent.DoesNotExist):

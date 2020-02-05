@@ -58,7 +58,7 @@ def replace_escaped_unicode(match):
 
 
 def send_data_to_atlas(response: 'HttpResponse') -> None:
-    url = f"{settings.ATLAS_URL}/ubiquity_user/save"
+    url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
@@ -548,7 +548,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 label_to_type[item['column']]: item['value']
                 for item in data['account'].get(field, [])
             }
-        except (TypeError, KeyError):
+        except (TypeError, KeyError) as e:
+            logging.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
     def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
@@ -660,6 +661,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 )
                 return scheme_account, status.HTTP_201_CREATED
 
+        newly_created = False
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
@@ -668,16 +670,27 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             )
             scheme_account.set_async_join_status()
         except SchemeAccount.DoesNotExist:
+            newly_created = True
             account_id_param = {'pk': account_id} if account_id else {}
-            scheme_account = SchemeAccount.objects.create(
+            scheme_account = SchemeAccount(
                 **account_id_param,
                 order=0,
                 scheme_id=scheme_id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
             )
+
+        SchemeAccountJoinMixin.validate(
+            data=enrol_fields,
+            scheme_account=scheme_account,
+            user=user,
+            permit=channels_permit,
+            scheme_id=scheme_id,
+        )
+
+        if newly_created:
+            scheme_account.save()
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        SchemeAccountJoinMixin.validate_join_credentials(scheme_account, user, scheme_id, enrol_fields)
         async_join.delay(scheme_account.id, user.id, channels_permit, scheme_id, enrol_fields)
         return scheme_account, status.HTTP_201_CREATED
 

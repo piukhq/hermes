@@ -574,6 +574,11 @@ class JoinSerializer(SchemeAnswerSerializer):
         raise serializers.ValidationError("{} field required".format(missing_field))
 
 
+class UbiquityJoinSerializer(JoinSerializer):
+    save_user_information = serializers.NullBooleanField(required=False)
+    order = serializers.IntegerField(required=False)
+
+
 class DeleteCredentialSerializer(serializers.Serializer):
     all = serializers.NullBooleanField(default=False)
     keep_card_number = serializers.NullBooleanField(default=False)
