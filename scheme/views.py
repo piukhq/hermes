@@ -763,6 +763,22 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
         if not self.request.channels_permit.is_scheme_available(scheme_id):
             raise NotFound('Scheme does not exist.')
 
-        message, status_code, _ = self.handle_join_request(request.data, request.user, scheme_id,
-                                                           request.channels_permit)
+        scheme_account = request.data.get('scheme_account')
+
+        validated_data, serializer, new_scheme_account = SchemeAccountJoinMixin.validate(
+            data=request.data,
+            scheme_account=scheme_account,
+            user=request.user,
+            permit=request.channels_permit,
+            scheme_id=scheme_id,
+            serializer_class=self.get_serializer_class()
+        )
+
+        message, status_code, _ = self.handle_join_request(
+            data=validated_data,
+            user=request.user,
+            scheme_id=scheme_id,
+            serializer=serializer,
+            scheme_account=new_scheme_account)
+
         return Response(message, status=status_code)

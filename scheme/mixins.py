@@ -15,18 +15,18 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 
 import analytics
+from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent)
-from scheme.serializers import (JoinSerializer, UpdateCredentialSerializer,
+from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
 from user.models import ClientApplicationBundle
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
-    from hermes.channels import Permit
     from rest_framework.serializers import Serializer
     from django.db.models import QuerySet
 
@@ -240,47 +240,34 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
 
 class SchemeAccountJoinMixin:
-
     @staticmethod
-    def validate_join_credentials(scheme_account, user, scheme_id, enrol_fields):
-        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
-        data = {
-            'order': 0,
-            **enrol_fields,
-            'save_user_information': 'false',
-            'scheme_account': scheme_account
-        }
-
-        serializer = JoinSerializer(data=data, context={
-            'scheme': join_scheme,
-            'user': user
-        })
-        serializer.is_valid(raise_exception=True)
-
-        if 'consents' in enrol_fields:
-            consent_data = enrol_fields['consents']
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.JOIN.value)
-
-    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, permit: 'Permit') \
-            -> t.Tuple[dict, int, SchemeAccount]:
-
-        scheme_account = data.get('scheme_account')
+    def validate(data: dict, scheme_account: 'SchemeAccount', user: 'CustomUser', permit: 'Permit',
+                 scheme_id: int, serializer_class=UbiquityJoinSerializer):
         join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
 
         if permit and permit.is_scheme_suspended(scheme_id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
-        serializer = JoinSerializer(data=data, context={
+        serializer = serializer_class(data=data, context={
             'scheme': join_scheme,
             'user': user
         })
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        data['scheme'] = scheme_id
+        validated_data = serializer.validated_data
+        validated_data['scheme'] = scheme_id
 
         if not scheme_account:
-            scheme_account = self.create_join_account(data, user, scheme_id)
+            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, scheme_id)
+
+        if 'consents' in validated_data:
+            consent_data = validated_data['consents']
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
+            UserConsentSerializer.validate_consents(user_consents, join_scheme.id, JourneyTypes.JOIN.value)
+
+        return validated_data, serializer, scheme_account
+
+    def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
+                            serializer: 'Serializer' = UbiquityJoinSerializer) -> t.Tuple[dict, int, SchemeAccount]:
 
         try:
             payment_card_id = data['credentials'].get('payment_card_id')
@@ -293,7 +280,7 @@ class SchemeAccountJoinMixin:
             if data['save_user_information']:
                 self.save_user_profile(data['credentials'], user)
 
-            self.post_midas_join(scheme_account, data['credentials'], join_scheme.slug, user.id)
+            self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
