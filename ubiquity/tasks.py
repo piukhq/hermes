@@ -14,6 +14,7 @@ from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from hermes.channels import Permit
+    from rest_framework.serializers import Serializer
 
 
 def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
@@ -57,22 +58,12 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 
 @shared_task
-def async_join(scheme_account_id: int, user_id: int, permit: 'Permit', scheme_id: int, enrol_fields: dict) -> None:
+def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
+               validated_data: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    try:
-        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
-            data=enrol_fields,
-            scheme_account=scheme_account,
-            user=user,
-            permit=permit,
-            scheme_id=scheme_account.scheme_id
-        )
-        SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
-    except ValidationError:
-        scheme_account.status = SchemeAccount.JOIN_FAILED
-        scheme_account.save()
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
 
 
 @shared_task

@@ -8,7 +8,7 @@ from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
-from ubiquity.tasks import async_balance, async_all_balance, async_link, async_join, async_registration
+from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 from hermes.channels import Permit
@@ -124,20 +124,6 @@ class TestTasks(TestCase):
         self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)
         self.assertFalse(mock_midas_balance.called)
         self.assertFalse(mock_analytics.called)
-
-    @patch.object(SchemeAccountJoinMixin, 'create_join_account')
-    def test_async_join_validation_failure(self, mock_create_join_account):
-        # This is just to break out of the function if the initial validation check hasn't failed
-        mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
-        scheme_account_id = self.link_entry.scheme_account.id
-        user_id = self.link_entry.user_id
-        scheme_id = self.link_scheme.id
-
-        async_join(scheme_account_id, user_id, permit, scheme_id, {})
-
-        self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN_FAILED)
 
     @patch.object(SchemeAccountJoinMixin, 'create_join_account')
     def test_async_register_validation_failure(self, mock_create_join_account):
