@@ -458,8 +458,22 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
                                    registration_fields: dict) -> SchemeAccount:
+        manual_answer = account.card_number_answer
+        main_credential = manual_answer if manual_answer else account.barcode_answer
+        registration_data = {
+            main_credential.question.type: main_credential.answer,
+            **registration_fields,
+            'scheme_account': account
+        }
+        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
+            data=registration_data,
+            scheme_account=account,
+            user=user,
+            permit=permit,
+            scheme_id=account.scheme_id
+        )
         account.set_async_join_status()
-        async_registration.delay(user.id, permit, account.id, registration_fields)
+        async_registration.delay(user.id, serializer, account.id, registration_fields)
         return account
 
     @staticmethod
@@ -492,9 +506,16 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account.delete_cached_balance()
 
         if enrol_fields:
+            validated_data, serializer,  = SchemeAccountJoinMixin.validate(
+                data=enrol_fields,
+                scheme_account=account,
+                user=self.request.user,
+                permit=request.channels_permit,
+                scheme_id=account.scheme_id
+            )
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
-            async_join.delay(account.id, request.user.id, request.channels_permit, scheme_id, enrol_fields)
+            async_join.delay(account.id, request.user.id, serializer, scheme_id, validated_data)
 
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
