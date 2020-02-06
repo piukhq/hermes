@@ -778,7 +778,8 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             data=validated_data,
             user=request.user,
             scheme_id=scheme_id,
-            serializer=serializer,
-            scheme_account=new_scheme_account)
+            scheme_account=new_scheme_account,
+            serializer=serializer
+        )
 
         return Response(message, status=status_code)

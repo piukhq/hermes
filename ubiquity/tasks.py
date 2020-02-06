@@ -4,8 +4,8 @@ import requests
 from celery import shared_task
 from django.conf import settings
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
+from payment_card.payment import PaymentError
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -13,7 +13,7 @@ from ubiquity.models import SchemeAccountEntry
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
-    from hermes.channels import Permit
+    from rest_framework.serializers import Serializer
 
 
 def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
@@ -57,46 +57,24 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 
 @shared_task
-def async_join(scheme_account_id: int, user_id: int, permit: object, scheme_id: int, enrol_fields: dict) -> None:
+def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
+               validated_data: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-    join_data = {
-        **enrol_fields,
-        'scheme_account': scheme_account
-    }
 
-    try:
-        SchemeAccountJoinMixin().handle_join_request(join_data, user, scheme_id, scheme_account)
-    except ValidationError:
-        scheme_account.status = SchemeAccount.JOIN_FAILED
-        scheme_account.save()
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
 
 
 @shared_task
-def async_registration(user_id: int, permit: 'Permit', scheme_account_id: int, registration_fields: dict) -> None:
+def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
+                       validated_data: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    manual_answer = scheme_account.card_number_answer
-    main_credential = manual_answer if manual_answer else scheme_account.barcode_answer
-
-    registration_data = {
-        main_credential.question.type: main_credential.answer,
-        **registration_fields,
-        'scheme_account': scheme_account
-    }
     try:
-        validated_data, *_ = SchemeAccountJoinMixin.validate(
-            data=registration_data,
-            scheme_account=scheme_account,
-            user=user,
-            permit=permit,
-            scheme_id=scheme_account.scheme_id
-        )
-
         SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
-                                                     scheme_account)
-    except ValidationError:
+                                                     scheme_account, serializer)
+    except PaymentError:
         scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
         scheme_account.save()
 

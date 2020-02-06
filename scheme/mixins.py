@@ -267,7 +267,7 @@ class SchemeAccountJoinMixin:
         return validated_data, serializer, scheme_account
 
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
-                            serializer: 'Serializer' = UbiquityJoinSerializer) -> t.Tuple[dict, int, SchemeAccount]:
+                            serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
 
         try:
             payment_card_id = data['credentials'].get('payment_card_id')
@@ -277,7 +277,7 @@ class SchemeAccountJoinMixin:
             self.save_consents(serializer, user, scheme_account, scheme_id, data)
 
             data['id'] = scheme_account.id
-            if data['save_user_information']:
+            if data.get('save_user_information'):
                 self.save_user_profile(data['credentials'], user)
 
             self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id)
@@ -286,7 +286,7 @@ class SchemeAccountJoinMixin:
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
             return response_dict, status.HTTP_201_CREATED, scheme_account
-        except (serializers.ValidationError, PaymentError):
+        except PaymentError:
             self.handle_failed_join(scheme_account, user)
             raise
         except Exception:
