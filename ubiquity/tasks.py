@@ -58,7 +58,8 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 
 @shared_task
-def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int, validated_data: dict) -> None:
+def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
+               validated_data: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
