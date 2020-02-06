@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from django.test import TestCase
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
+from payment_card.payment import PaymentError
 from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion, SchemeAccount
 from scheme.serializers import JoinSerializer
@@ -128,7 +128,7 @@ class TestTasks(TestCase):
     @patch('ubiquity.tasks.SchemeAccountJoinMixin')
     def test_async_register_validation_failure(self, mock_join_mixin):
         # This is just to break out of the function if the initial validation check hasn't failed
-        mock_join_mixin.side_effect = ValidationError('Serializer validation did not fail but it should have')
+        mock_join_mixin.side_effect = PaymentError('Payment error')
         card_number = SchemeCredentialQuestionFactory(
             scheme=self.link_scheme,
             type=CARD_NUMBER,
