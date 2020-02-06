@@ -14,7 +14,7 @@ from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, FIRST_NAME, LAST_NAME, PASSWORD, CARD_NUMBER
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
