@@ -458,6 +458,13 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
                                    registration_fields: dict) -> SchemeAccount:
+        validated_data, *_ = SchemeAccountJoinMixin.validate(
+            data=registration_fields,
+            scheme_account=account,
+            user=user,
+            permit=permit,
+            scheme_id=account.scheme_id
+        )
         account.set_async_join_status()
         async_registration.delay(user.id, permit, account.id, registration_fields)
         return account
