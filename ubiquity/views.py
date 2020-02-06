@@ -506,7 +506,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         account.delete_cached_balance()
 
         if enrol_fields:
-            validated_data, serializer,  = SchemeAccountJoinMixin.validate(
+            validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
                 user=self.request.user,
