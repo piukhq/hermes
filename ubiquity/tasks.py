@@ -67,27 +67,12 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
 
 
 @shared_task
-def async_registration(user_id: int, permit: 'Permit', scheme_account_id: int, registration_fields: dict) -> None:
+def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
+                       validated_data: dict) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    manual_answer = scheme_account.card_number_answer
-    main_credential = manual_answer if manual_answer else scheme_account.barcode_answer
-
-    registration_data = {
-        main_credential.question.type: main_credential.answer,
-        **registration_fields,
-        'scheme_account': scheme_account
-    }
     try:
-        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
-            data=registration_data,
-            scheme_account=scheme_account,
-            user=user,
-            permit=permit,
-            scheme_id=scheme_account.scheme_id
-        )
-
         SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
                                                      scheme_account, serializer)
     except ValidationError:
