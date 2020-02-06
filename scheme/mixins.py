@@ -286,7 +286,7 @@ class SchemeAccountJoinMixin:
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
 
             return response_dict, status.HTTP_201_CREATED, scheme_account
-        except (serializers.ValidationError, PaymentError):
+        except PaymentError:
             self.handle_failed_join(scheme_account, user)
             raise
         except Exception:

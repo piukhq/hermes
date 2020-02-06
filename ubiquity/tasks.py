@@ -62,11 +62,7 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    try:
-        SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
-    except ValidationError:
-        scheme_account.status = SchemeAccount.JOIN_FAILED
-        scheme_account.save()
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
 
 
 @shared_task

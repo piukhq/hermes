@@ -126,20 +126,6 @@ class TestTasks(TestCase):
         self.assertFalse(mock_analytics.called)
 
     @patch.object(SchemeAccountJoinMixin, 'create_join_account')
-    def test_async_join_validation_failure(self, mock_create_join_account):
-        # This is just to break out of the function if the initial validation check hasn't failed
-        mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
-        permit = Permit(self.bundle.bundle_id, client=self.bundle.client)
-        scheme_account_id = self.link_entry.scheme_account.id
-        user_id = self.link_entry.user_id
-        scheme_id = self.link_scheme.id
-
-        async_join(scheme_account_id, user_id, permit, scheme_id, {})
-
-        self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.JOIN_FAILED)
-
-    @patch.object(SchemeAccountJoinMixin, 'create_join_account')
     def test_async_register_validation_failure(self, mock_create_join_account):
         # This is just to break out of the function if the initial validation check hasn't failed
         mock_create_join_account.side_effect = ValidationError('Serializer validation did not fail but it should have')
