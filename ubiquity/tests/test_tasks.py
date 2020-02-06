@@ -8,7 +8,7 @@ from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
-from ubiquity.tasks import async_balance, async_all_balance, async_link, async_join, async_registration
+from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
 from hermes.channels import Permit
