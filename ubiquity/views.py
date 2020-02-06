@@ -679,7 +679,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
             )
 
-        SchemeAccountJoinMixin.validate(
+        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=enrol_fields,
             scheme_account=scheme_account,
             user=user,
@@ -691,7 +691,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             scheme_account.save()
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(scheme_account.id, user.id, channels_permit, scheme_id, enrol_fields)
+        async_join.delay(scheme_account.id, user.id, serializer, scheme_id, validated_data)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
