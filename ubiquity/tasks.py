@@ -13,7 +13,6 @@ from ubiquity.models import SchemeAccountEntry
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
-    from hermes.channels import Permit
     from rest_framework.serializers import Serializer
 
 

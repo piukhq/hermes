@@ -14,7 +14,7 @@ from scheme.models import SchemeBundleAssociation
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
+from scheme.credentials import BARCODE, FIRST_NAME, LAST_NAME, PASSWORD, CARD_NUMBER
 from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
@@ -57,8 +57,10 @@ class TestResources(APITestCase):
                                                                   type=LAST_NAME,
                                                                   label=LAST_NAME,
                                                                   third_party_identifier=True,
-                                                                  options=SchemeCredentialQuestion.LINK,
-                                                                  auth_field=True)
+                                                                  options=SchemeCredentialQuestion.LINK_AND_JOIN,
+                                                                  auth_field=True,
+                                                                  enrol_field=True,
+                                                                  register_field=True)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
@@ -1218,8 +1220,12 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_registration', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_patch(self, *_):
+        external_id = 'test patch user 1'
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
         sa = SchemeAccountFactory(scheme=self.scheme)
-        SchemeAccountEntryFactory(user=self.user, scheme_account=sa)
+        SchemeAccountEntryFactory(user=user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer='12345')
         SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
         expected_value = {'last_name': 'changed name'}
         payload_update = {
@@ -1233,8 +1239,10 @@ class TestResources(APITestCase):
             }
         }
         resp_update = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_update),
-                                        content_type='application/json', **self.auth_headers)
+                                        content_type='application/json', **auth_headers)
         self.assertEqual(resp_update.status_code, 200)
+        sa.status = SchemeAccount.PRE_REGISTERED_CARD
+        sa.save()
         sa.refresh_from_db()
         self.assertEqual(sa._collect_credentials()['last_name'], expected_value['last_name'])
 
@@ -1243,13 +1251,13 @@ class TestResources(APITestCase):
                 "registration_fields": [
                     {
                         "column": "last_name",
-                        "value": "changed name"
+                        "value": "new changed name"
                     }
                 ]
             }
         }
         resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
-                                          content_type='application/json', **self.auth_headers)
+                                          content_type='application/json', **auth_headers)
         self.assertEqual(resp_register.status_code, 200)
 
     def test_membership_plans(self):
