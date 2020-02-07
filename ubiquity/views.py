@@ -24,8 +24,7 @@ from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCard
 from scheme.credentials import DATE_TYPE_CREDENTIALS
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, ConsentStatus
-from scheme.serializers import UserConsentSerializer
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -476,23 +475,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         async_registration.delay(user.id, serializer, account.id, registration_fields)
         return account
 
-    @staticmethod
-    def save_new_consents(scheme_account, user, all_fields):
-        consent_list = []
-        for field in all_fields:
-            if field is not None and 'consents' in field:
-                consents = field.pop('consents')
-                if consents:
-                    consent_list.extend(consents)
-
-        consent_serializer = UserConsentSerializer(data=consent_list, many=True)
-        consent_serializer.is_valid(raise_exception=True)
-        consent_list = consent_serializer.validated_data
-        user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_list, user)
-        for user_consent in user_consents:
-            user_consent.status = ConsentStatus.SUCCESS
-            user_consent.save()
-
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
@@ -501,7 +483,6 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         if not request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')
 
-        self.save_new_consents(account, self.request.user, [auth_fields, enrol_fields, add_fields])
         account.delete_saved_balance()
         account.delete_cached_balance()
 
