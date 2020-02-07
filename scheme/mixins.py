@@ -304,8 +304,7 @@ class SchemeAccountJoinMixin:
             for user_consent in user_consents:
                 user_consent.save()
 
-            user_consents = scheme_account.collect_pending_consents()
-            data['credentials'].update(consents=user_consents)
+            data['credentials'].update(consents=consent_data)
 
     @staticmethod
     def handle_failed_join(scheme_account: SchemeAccount, user: 'CustomUser') -> None:
