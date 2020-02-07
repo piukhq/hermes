@@ -592,6 +592,8 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         # Validate all credential types
         scheme_fields = [field.type for field in self.context['scheme_account'].scheme.questions.all()]
         unknown = set(self.initial_data) - set(scheme_fields)
+        if "consents" in unknown:
+            unknown.remove("consents")
         if unknown:
             raise serializers.ValidationError(
                 "field(s) not found for scheme: {}".format(", ".join(unknown))
