@@ -184,12 +184,11 @@ class ServiceView(ModelViewSet):
         if 'email' not in consent_data:
             raise ParseError
 
-        query = {
-            'client': request.channels_permit.client,
-            'external_id' if request.channels_permit.auth_by == 'external' else 'email': request.prop_id
-        }
         try:
-            user = CustomUser.objects.get(**query)
+            if request.channels_permit.auth_by == 'bink':
+                user = request.channels_permit.user
+            else:
+                user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
         except CustomUser.DoesNotExist:
             new_user_data = {
                 'client_id': request.channels_permit.client.pk,
