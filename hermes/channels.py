@@ -16,7 +16,7 @@ class Permit:
     ACTIVE = 3
 
     def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False, ubiquity=False,
-                 user=None):
+                 user=None, auth_by='external'):
         """This class is instantiated during authentication and should be passed via request object to allow query
         filtering and channel status testing
         Each group of users belongs to a client application which belongs to one organisation.
@@ -38,6 +38,7 @@ class Permit:
         self.user = user
         self.bundle_id = bundle_id
         self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
+        self.auth_by = auth_by
 
         # This forces an active permit regardless of scheme for inter-service calls.
         self.service_allow_all = service_allow_all

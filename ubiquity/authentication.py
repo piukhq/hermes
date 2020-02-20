@@ -45,7 +45,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
             if token_type == b'bearer':
                 channels_permit, auth_user_id = self._authenticate_bearer(token, token_data, bundle_id)
             elif token_type == b'token':
-                channels_permit, auth_user_id = self._authenticate_token(token, token_data, bundle_id)
+                channels_permit, auth_user_id = self._authenticate_token(token, token_data, bundle_id, auth_by='bink')
             else:
                 raise exceptions.AuthenticationFailed(_('Unknown token.'))
 
@@ -86,10 +86,10 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         return channels_permit, auth_user_id
 
     @staticmethod
-    def _authenticate_token(token, token_data, bundle_id):
+    def _authenticate_token(token, token_data, bundle_id, auth_by):
         # This is the client server token with "token" prefix
         user = CustomUser.objects.get(id=token_data['sub'])
-        channels_permit = Permit(bundle_id, user=user, ubiquity=True)
+        channels_permit = Permit(bundle_id, user=user, ubiquity=True, auth_by=auth_by)
 
         if not user.email:
             logger.info(f"'token' type token does not have an email address")
