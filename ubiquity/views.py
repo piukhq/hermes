@@ -184,17 +184,20 @@ class ServiceView(ModelViewSet):
         if 'email' not in consent_data:
             raise ParseError
 
-        new_user_data = {
-            'client_id': request.channels_permit.client.pk,
-            'bundle_id': request.channels_permit.bundle_id,
-            'email': consent_data['email'],
-            'external_id': request.prop_id,
-            'password': str(uuid.uuid4()).lower().replace('-', 'A&')
+        query = {
+            'client': request.channels_permit.client,
+            'external_id' if request.channels_permit.auth_by == 'external' else 'email': request.prop_id
         }
-
         try:
-            user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
+            user = CustomUser.objects.get(**query)
         except CustomUser.DoesNotExist:
+            new_user_data = {
+                'client_id': request.channels_permit.client.pk,
+                'bundle_id': request.channels_permit.bundle_id,
+                'email': consent_data['email'],
+                'external_id': request.prop_id,
+                'password': str(uuid.uuid4()).lower().replace('-', 'A&')
+            }
             status_code = 201
             new_user = UbiquityRegisterSerializer(data=new_user_data)
             new_user.is_valid(raise_exception=True)
@@ -209,6 +212,10 @@ class ServiceView(ModelViewSet):
                 if hasattr(user, 'serviceconsent'):
                     user.serviceconsent.delete()
 
+                consent = self._add_consent(user, consent_data)
+
+            elif not hasattr(user, 'serviceconsent'):
+                status_code = 201
                 consent = self._add_consent(user, consent_data)
 
             else:
