@@ -41,13 +41,7 @@ CSRF_TRUSTED_ORIGINS = [
     ".bink.com",
 ]
 
-ALLOWED_HOSTS = [
-    "127.0.0.1",
-    "hermes",
-    ".bink.com",
-    ".bink-sandbox.com",
-    ".svc.cluster.local",
-]
+ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = True
 
