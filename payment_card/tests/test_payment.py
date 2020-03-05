@@ -19,8 +19,7 @@ class TestPayment(APITestCase):
         fake = Factory.create()
         self.organisation = OrganisationFactory(name=fake.text(max_nb_chars=100))
         self.client = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
-        self.bundle = ClientApplicationBundleFactory(client=self.client, bundle_id="com.test.test")
-        self.user = UserFactory(bundle=self.bundle)
+        self.user = UserFactory()
         self.scheme_account = SchemeAccountFactory()
         self.payment_card_account = PaymentCardAccountFactory()
 
