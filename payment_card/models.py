@@ -236,12 +236,13 @@ class AuthTransaction(models.Model):
 
 
 class PaymentStatus(IntEnum):
-    AUTH_PENDING = 0
-    AUTH_FAILED = 1
-    AUTHORISED = 2
-    SUCCESSFUL = 3
-    VOID_REQUIRED = 4
-    VOID_SUCCESSFUL = 5
+    PURCHASE_PENDING = 0       # Starting payment process but no purchase request has yet been made to Spreedly
+    PURCHASE_FAILED = 1        # Purchase request to Spreedly has failed
+    AUTHORISED = 2             # Purchase request to Spreedly was successful but Join is not complete
+    SUCCESSFUL = 3             # Purchase request to Spreedly was successful and Join is completed with active card
+    VOID_REQUIRED = 4          # Purchase request requires Voiding when Join fails
+    VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
+
 
 
 def _generate_tx_ref() -> str:
@@ -259,7 +260,7 @@ class PaymentAudit(models.Model):
     transaction_token = models.CharField(max_length=255, null=True)
     status = models.IntegerField(
         choices=[(status.value, status.name) for status in PaymentStatus],
-        default=PaymentStatus.AUTH_PENDING
+        default=PaymentStatus.PURCHASE_PENDING
     )
     void_attempts = models.IntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)

@@ -643,8 +643,8 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
-                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict
+                                  ) -> t.Tuple[SchemeAccount, int]:
         # fatface logic will be revisited before fatface goes live in other applications
         if Scheme.objects.get(pk=scheme_id).slug == 'fatface':
             questions = SchemeCredentialQuestion.objects.filter(
@@ -679,9 +679,7 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
             scheme_account.set_async_join_status()
         except SchemeAccount.DoesNotExist:
             newly_created = True
-            account_id_param = {'pk': account_id} if account_id else {}
             scheme_account = SchemeAccount(
-                **account_id_param,
                 order=0,
                 scheme_id=scheme_id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -818,13 +816,6 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        object_id = None
-        if self.request.channels_permit.service_allow_all:
-            try:
-                object_id = int(request.META.get('HTTP_X_OBJECT_ID'))
-            except ValueError:
-                raise ValidationError('X-object-id header must be an integer value.')
-
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
             account, status_code = self._handle_create_join_route(request.user, request.channels_permit,

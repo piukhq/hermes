@@ -374,7 +374,8 @@ SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
 # Time in seconds for the interval between retry tasks called by celery beats
 RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
 # Time in seconds for interval of checking if payments have not been updated and require voiding
-PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
+PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('PAYMENT_EXPIRY_CHECK_INTERVAL', '600')
+
 # Time in seconds of how long is required before a payment is deemed to be expired
 PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
 

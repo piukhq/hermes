@@ -2,11 +2,11 @@ import logging
 from typing import Optional
 
 import sentry_sdk
+from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.conf import settings
 from rest_framework.exceptions import APIException
-from tenacity import retry, stop_after_attempt, retry_if_exception_type, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
 
 from hermes.spreedly import Spreedly, SpreedlyError
 from hermes.tasks import RetryTaskStore
@@ -39,10 +39,10 @@ def payment_audit_log_signal_handler(sender, **kwargs):
 
 class Payment:
     """
-    Handles Payment authorisation and void with payment service provider.
+    Handles Purchase and Void with payment service provider.
 
-    Authorisation and void can be handled with the static methods available:
-    - process_payment_auth
+    Purchase and void can be handled with the static methods available:
+    - process_payment_purchase
     - process_payment_void
 
     These methods can be called without the need of directly instantiating a class instance.
@@ -53,9 +53,6 @@ class Payment:
     Payments requiring void will result in a call to void the transaction to the payment service
     provider which, if fails, will be cached using django-redis and retried periodically with celery beat.
     """
-
-    payment_auth_url = "{}/v1/gateways/{gateway_token}/authorize.json"
-    payment_void_url = "{}/v1/transactions/{transaction_token}/void.json"
 
     def __init__(self, audit_obj: PaymentAudit, amount: Optional[int] = None, currency_code: str = 'GBP',
                  payment_token: Optional[str] = None):
@@ -70,19 +67,22 @@ class Payment:
             currency_code=currency_code
         )
 
-    def _auth(self, payment_token: Optional[str] = None) -> None:
+    def _purchase(self, payment_token: Optional[str] = None) -> None:
         p_token = payment_token or self.payment_token
         if not p_token:
             raise PaymentError("No payment token provided")
 
         try:
-            self.spreedly.authorise(
+            self.spreedly.purchase(
                 payment_token=self.payment_token,
                 amount=self.amount,
-                order_id=self.audit_obj.transaction_ref,
-                gateway_token=settings.SPREEDLY_GATEWAY_TOKEN
+                order_id=self.audit_obj.transaction_ref
             )
         except SpreedlyError as e:
+            if e.args[0] == SpreedlyError.UNSUCCESSFUL_RESPONSE:
+                # Overriding the default message for PaymentError will skip retry attempts
+                # by Payment.attempt_purchase()
+                raise PaymentError(e) from e
             raise PaymentError from e
 
     def _void(self, transaction_token: Optional[str] = None) -> None:
@@ -103,43 +103,42 @@ class Payment:
         return payment_audit_objects.last()
 
     @staticmethod
-    def process_payment_auth(user_id: int, scheme_acc: SchemeAccount, payment_card_id: int,
-                             payment_amount: int) -> None:
+    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_id: int, payment_amount: int) -> None:
         """
-        Starts an audit trail and authorises a payment.
-        Any failure to authorise a payment will cause the join to fail.
+        Starts an audit trail and makes a purchase request.
+        Any failure to during the purchase request will cause the join to fail.
         """
-        payment_audit = PaymentAudit.objects.create(user_id=user_id,
-                                                    scheme_account=scheme_acc,
-                                                    payment_card_id=payment_card_id)
+        payment_audit = PaymentAudit.objects.create(
+            scheme_account=scheme_acc, payment_card_id=payment_card_id
+        )
 
         try:
-            Payment.attempt_auth(payment_audit, payment_card_id, payment_amount)
+            Payment.attempt_purchase(payment_audit, payment_card_id, payment_amount)
         except PaymentCardAccount.DoesNotExist:
-            payment_audit.status = PaymentStatus.AUTH_FAILED
+            payment_audit.status = PaymentStatus.PURCHASE_FAILED
             payment_audit.save()
             raise PaymentError("Provided Payment Card Account id does not exist")
 
     @staticmethod
     @retry(stop=stop_after_attempt(4),
-           retry=retry_if_exception_type(PaymentError),
+           retry=retry_if_exception_message(PaymentError.default_detail),
            wait=wait_exponential(min=2, max=8),
            reraise=True)
-    def attempt_auth(payment_audit: PaymentAudit, payment_card_id: int,
-                     payment_amount: int) -> None:
+    def attempt_purchase(payment_audit: PaymentAudit, payment_card_id: int,
+                         payment_amount: int) -> None:
         try:
             pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
             payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
 
-            payment._auth()
+            payment._purchase()
 
             payment_audit.transaction_token = payment.spreedly.transaction_token
             payment_audit.status = PaymentStatus.AUTHORISED
             payment_audit.save()
         except PaymentError as e:
-            payment_audit.status = PaymentStatus.AUTH_FAILED
+            payment_audit.status = PaymentStatus.PURCHASE_FAILED
             payment_audit.save()
-            logging.error(
+            logging.exception(
                 "Payment error for SchemeAccount id: {} - PaymentAudit id: {} - Error description: {}".format(
                     payment_audit.scheme_account_id,
                     payment_audit.id,

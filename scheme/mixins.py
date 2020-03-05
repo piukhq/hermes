@@ -272,7 +272,7 @@ class SchemeAccountJoinMixin:
         try:
             payment_card_id = data['credentials'].get('payment_card_id')
             if payment_card_id:
-                Payment.process_payment_auth(user.id, scheme_account, payment_card_id, payment_amount=100)
+                Payment.process_payment_purchase(scheme_account, payment_card_id, payment_amount=100)
 
             self.save_consents(serializer, user, scheme_account, scheme_id, data)
 
