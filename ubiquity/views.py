@@ -613,12 +613,12 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict,
-                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict
+                                  ) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme_id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user)
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, account_id)
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if auth_fields:

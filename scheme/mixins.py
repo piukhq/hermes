@@ -153,8 +153,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer = self.get_validated_data(data, user)
         return self.create_account_with_valid_data(serializer, user)
 
-    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser',
-                                       account_id: int = None) -> t.Tuple[SchemeAccount, dict, bool]:
+    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser'
+                                       ) -> t.Tuple[SchemeAccount, dict, bool]:
         account_created = False
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
@@ -176,14 +176,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
             raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type, account_id)
+            scheme_account, account_created = self._create_account(user, data, answer_type)
 
         data['id'] = scheme_account.id
         return scheme_account, data, account_created
 
     @staticmethod
-    def _create_account(user: 'CustomUser', data: dict, answer_type: str,
-                        account_id: int = None) -> t.Tuple[SchemeAccount, bool]:
+    def _create_account(user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
         account_created = False  # Required for /ubiquity
 
         with transaction.atomic():
@@ -202,9 +201,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account_updated = True
 
             except SchemeAccount.DoesNotExist:
-                account_id_param = {"pk": account_id} if account_id else {}
                 scheme_account = SchemeAccount.objects.create(
-                    **account_id_param,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
