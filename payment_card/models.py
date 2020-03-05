@@ -244,7 +244,6 @@ class PaymentStatus(IntEnum):
     VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
 
 
-
 def _generate_tx_ref() -> str:
     prefix = 'BNK-'
     identifier = uuid.uuid4()
