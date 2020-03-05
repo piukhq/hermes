@@ -10,8 +10,7 @@ from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
 from scheme.tests.factories import SchemeAccountFactory
-from user.tests.factories import (UserFactory, ClientApplicationBundleFactory,
-                                  ClientApplicationFactory, OrganisationFactory)
+from user.tests.factories import UserFactory, ClientApplicationFactory, OrganisationFactory
 
 
 class TestPayment(APITestCase):
