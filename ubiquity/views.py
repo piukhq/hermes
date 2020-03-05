@@ -818,11 +818,13 @@ class ListMembershipCardView(MembershipCardView):
     def create(self, request, *args, **kwargs):
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
-                                                                  scheme_id, enrol_fields, account_id=object_id)
+            account, status_code = self._handle_create_join_route(
+                request.user, request.channels_permit, scheme_id, enrol_fields
+            )
         else:
-            account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
-                                                                  add_fields, account_id=object_id)
+            account, status_code = self._handle_create_link_route(
+                request.user, scheme_id, auth_fields, add_fields
+            )
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
