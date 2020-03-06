@@ -6,6 +6,7 @@ PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionsSerializer = base_serializers.TransactionsSerializer
 
 
+# TODO: this is just to test if the version switching works, to be removed
 class ServiceConsentSerializer(base_serializers.ServiceConsentSerializer):
     def to_representation(self, instance):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
