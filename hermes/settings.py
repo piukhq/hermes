@@ -81,6 +81,7 @@ MIDDLEWARE = (
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'dictfilter.django.middleware.dictfilter_middleware',
+    'hermes.middleware.accept_version',
 )
 
 ROOT_URLCONF = 'hermes.urls'

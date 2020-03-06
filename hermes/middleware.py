@@ -3,6 +3,8 @@ from time import perf_counter, process_time
 from django.conf import settings
 from django.db import connection
 
+from ubiquity.versions import MAX_VERSION
+
 
 def accept_version(get_response):
     # One-time configuration and initialization.
@@ -11,10 +13,9 @@ def accept_version(get_response):
         # This code checks the accept header used for banking app and
         #   1)  rewrites it as application/json
         #   2)  sets request.version to parameter v=,  ver= or version=  note v= is in spec but version is more standard
-        #   3)  Adds /ubiquity to path so as it maps to document
 
         accept = request.META.get("HTTP_ACCEPT")
-        version_number = "1.0"
+        version_number = MAX_VERSION
         if accept and accept[0:25] == "application/vnd.bink+json":
             try:
                 accept, version = accept.split(";")
