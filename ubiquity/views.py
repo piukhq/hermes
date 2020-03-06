@@ -645,21 +645,19 @@ class MembershipCardView(RetrieveDeleteAccount, UpdateCredentialsMixin, SchemeAc
     @staticmethod
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
                                   account_id: int = None) -> t.Tuple[SchemeAccount, int]:
-        # fatface logic will be revisited before fatface goes live in other applications
-        if Scheme.objects.get(pk=scheme_id).slug == 'fatface':
-            questions = SchemeCredentialQuestion.objects.filter(
-                Q(manual_question=True) | Q(scan_question=True),
-                scheme_id=scheme_id,
-            )
-            lookup_question_type_set = {q.type for q in questions}.intersection(enrol_fields.keys())
-            if not lookup_question_type_set:
-                raise serializers.ValidationError("Missing primary credential")
-            lookup_question_type = lookup_question_type_set.pop()
-            lookup_answer = enrol_fields[lookup_question_type]
+        # PLR logic will be revisited before going live in other applications
+        plr_slugs = [
+            "fatface",
+            "burger-king-rewards",
+        ]
+        if Scheme.objects.get(pk=scheme_id).slug in plr_slugs:
+            # at the moment, all PLR schemes provide email as an enrol field.
+            # if this changes, we'll need to rework this code.
+            email = enrol_fields["email"]
 
             other_accounts = SchemeAccount.objects.filter(
                 scheme_id=scheme_id,
-                schemeaccountcredentialanswer__answer=lookup_answer,
+                schemeaccountcredentialanswer__answer=email,
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()

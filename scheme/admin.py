@@ -474,4 +474,12 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                 "headline_issued",
             )
         }),
+        ("Body Text", {
+            "fields": (
+                "body_text_inprogress",
+                "body_text_expired",
+                "body_text_redeemed",
+                "body_text_issued",
+            )
+        }),
     )
