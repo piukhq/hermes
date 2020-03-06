@@ -826,7 +826,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return allowed_types
 
 
-class ListMembershipCardView(VersionedSerializerMixin, MembershipCardView):
+class ListMembershipCardView(MembershipCardView):
     authentication_classes = (PropertyAuthentication,)
     response_serializer = SelectSerializer.MEMBERSHIP_CARD
     override_serializer_classes = {
