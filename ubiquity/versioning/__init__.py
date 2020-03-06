@@ -1,8 +1,12 @@
 import logging
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from ubiquity.base import serializers as base_serializers
-from ubiquity.v1_2 import serializers as v1_2_serializers
+from ubiquity.versioning.base import serializers as base_serializers
+from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
+
+if TYPE_CHECKING:
+    from rest_framework.serializers import Serializer
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +33,9 @@ class SelectSerializer(str, Enum):
     MEMBERSHIP_TRANSACTION = 'TransactionsSerializer'
 
 
-def versioned_serializer_class(version: Version, model: SelectSerializer):
+def versioned_serializer_class(version: Version, model: SelectSerializer) -> 'Serializer':
     try:
-        serializers = SERIALIZERS_CLASSES[version]
+        serializers = SERIALIZERS_CLASSES[version[:3]]
     except (KeyError, TypeError):
         logger.debug(f"Unknown version found in accept header: {version}, "
                      f"defaulting the max version: {MAX_VERSION}")

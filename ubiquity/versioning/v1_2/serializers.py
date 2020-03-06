@@ -1,4 +1,4 @@
-from ubiquity.base import serializers as base_serializers
+from ubiquity.versioning.base import serializers as base_serializers
 
 MembershipPlanSerializer = base_serializers.MembershipPlanSerializer
 MembershipCardSerializer = base_serializers.MembershipCardSerializer

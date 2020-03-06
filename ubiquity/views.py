@@ -27,18 +27,18 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
-from ubiquity.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
-                                       PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
-                                       PaymentCardSerializer,
-                                       PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                       ServiceConsentSerializer, TransactionsSerializer,
-                                       LinkMembershipCardSerializer)
+from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
+                                                  PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
+                                                  PaymentCardSerializer,
+                                                  PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
+                                                  ServiceConsentSerializer, TransactionsSerializer,
+                                                  LinkMembershipCardSerializer)
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
-from ubiquity.versions import versioned_serializer_class, SelectSerializer
+from ubiquity.versioning import versioned_serializer_class, SelectSerializer
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 

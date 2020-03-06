@@ -3,7 +3,7 @@ from time import perf_counter, process_time
 from django.conf import settings
 from django.db import connection
 
-from ubiquity.versions import MAX_VERSION
+from ubiquity.versioning import MAX_VERSION
 
 
 def accept_version(get_response):
