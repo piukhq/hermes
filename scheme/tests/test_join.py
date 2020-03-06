@@ -88,24 +88,3 @@ class TestJoinExisting(TestCase):
         entries = SchemeAccountEntry.objects.all()
         self.assertEqual(len(entries), 1)
         self.assertEqual(entries.first().user, self.old_user)
-
-    def test_join_missing_primary_credential(self):
-        """Attempting to join without giving the primary credential raises a client error"""
-        resp = self.client.post(
-            "/ubiquity/membership_cards",
-            data=json.dumps(
-                {
-                    "account": {
-                        "enrol_fields": [
-                            {"column": "First name", "value": "missing credential"},
-                            {"column": "Last name", "value": "test user"},
-                        ]
-                    },
-                    "membership_plan": self.scheme.id,
-                }
-            ),
-            content_type="application/json",
-            **self.auth_headers,
-        )
-        self.assertEqual(resp.status_code, 400)
-        self.assertEqual(resp.json()[0], "Missing primary credential")
