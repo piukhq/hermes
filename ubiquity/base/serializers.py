@@ -43,7 +43,7 @@ class MembershipTransactionsMixin:
 
     def get_transactions_data(self, user_id, mcard_id):
         resp = self._get_hades_transactions(user_id, mcard_id)
-        return TransactionsSerializer(resp, many=True).data if resp else []
+        return resp if resp else []
 
 
 class ServiceConsentSerializer(serializers.ModelSerializer):
@@ -568,9 +568,12 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
     def _get_transactions(self, instance):
-        return self.get_transactions_data(
-            self.context['request'].user.id, instance.id
-        ) if self.context.get('request') and instance.scheme.has_transactions else []
+        if self.context.get('request') and instance.scheme.has_transactions:
+            transactions = self.get_transactions_data(self.context['request'].user.id, instance.id)
+            if transactions:
+                return TransactionsSerializer(transactions, many=True).data
+
+        return []
 
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:

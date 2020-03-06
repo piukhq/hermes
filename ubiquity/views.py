@@ -1105,7 +1105,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             return Response([])
 
         response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        return Response(response)
+        return Response(self.get_versioned_serializer(response, many=True).data if response else [])
 
     @staticmethod
     def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
