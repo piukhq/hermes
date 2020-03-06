@@ -9,7 +9,6 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db.models import Q
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
