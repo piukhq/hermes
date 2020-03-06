@@ -1,6 +1,7 @@
 from time import perf_counter, process_time
-from django.db import connection
+
 from django.conf import settings
+from django.db import connection
 
 
 def accept_version(get_response):
@@ -8,7 +9,7 @@ def accept_version(get_response):
 
     def middleware(request):
         # This code checks the accept header used for banking app and
-        #   1)  rewites it as application/json
+        #   1)  rewrites it as application/json
         #   2)  sets request.version to parameter v=,  ver= or version=  note v= is in spec but version is more standard
         #   3)  Adds /ubiquity to path so as it maps to document
 

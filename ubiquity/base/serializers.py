@@ -7,7 +7,6 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-import requests
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
