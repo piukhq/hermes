@@ -26,8 +26,8 @@ class TestResources(APITestCase):
         return {'HTTP_ACCEPT': f"application/vnd.bink+json;v={version}"}
 
     def setUp(self):
-        organisation = OrganisationFactory(name='test_organisation')
-        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+        organisation = OrganisationFactory(name='test_version_organisation')
+        self.client_app = ClientApplicationFactory(organisation=organisation, name='versioning client application',
                                                    client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
         self.bundle = ClientApplicationBundleFactory(bundle_id='test.version.fake', client=self.client_app)
         external_id = 'test@user.com'
