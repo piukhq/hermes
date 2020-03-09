@@ -18,7 +18,7 @@ def accept_version(get_response):
         #   2)  sets request.version to parameter v= or version=  note v= is in spec but version is more standard
         #   3)  normalise version number to X.X format. ex: 1.1.4 -> 1.1
 
-        version_number = MAX_VERSION.value
+        version_number = MAX_VERSION
         try:
             accept, *accept_params = request.META.get("HTTP_ACCEPT").split(';')
             if accept and accept == "application/vnd.bink+json":
@@ -40,7 +40,7 @@ def accept_version(get_response):
         if version_number not in SERIALIZERS_CLASSES:
             logger.debug(f"Unknown version found in accept header: {version_number}, "
                          f"defaulting the max version: {MAX_VERSION}")
-            version_number = MAX_VERSION.value
+            version_number = MAX_VERSION
 
         request.META["HTTP_ACCEPT"] = "application/json;version={}".format(version_number)
         response = get_response(request)

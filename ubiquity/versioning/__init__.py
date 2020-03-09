@@ -17,7 +17,8 @@ class Version(str, Enum):
     v1_2 = '1.2'
 
 
-MAX_VERSION = Version.v1_2
+MAX_VERSION = Version.v1_2.value
+
 SERIALIZERS_CLASSES = {
     Version.v1_0: base_serializers,
     Version.v1_1: base_serializers,
