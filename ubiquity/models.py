@@ -21,11 +21,18 @@ class PaymentCardAccountEntry(models.Model):
 
 
 class PaymentCardSchemeEntry(models.Model):
+    VOP_STATUS = (
+        (0, 'undefined'),
+        (1, 'activating'),
+        (2, 'deactivating'),
+        (3, 'activated')
+    )
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Membership Card Account")
     active_link = models.BooleanField(default=True)
+    vop_link = models.IntegerField(choices=VOP_STATUS, default=0, help_text='The status of VOP card activation')
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")

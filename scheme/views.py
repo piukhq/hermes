@@ -40,6 +40,7 @@ from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
+from hermes.visa_offers_platform import vop_check_payment
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -372,19 +373,23 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-
         scheme_account_id = int(kwargs['pk'])
         journey = request.data.get('journey')
+
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in SchemeAccount.STATUSES]:
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
-
+        previous_status = scheme_account.status
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
 
+        # todo VOP process vop here
+
         if new_status_code is SchemeAccount.ACTIVE:
+            if previous_status is not SchemeAccount.ACTIVE:
+                vop_check_payment(scheme_account)
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)

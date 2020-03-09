@@ -25,6 +25,7 @@ from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
+from hermes.visa_offers_platform import vop_check_payment
 
 
 class Category(models.Model):
@@ -549,9 +550,15 @@ class SchemeAccount(models.Model):
                 self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
+                previous_state = self.status
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
+
+                # TODO VOP Membership pending to active test here
+
+                if previous_state is not SchemeAccount.Active and self.status is SchemeAccount.ACTIVE:
+                    vop_check_payment(self)
 
                 if settings.ENABLE_DAEDALUS_MESSAGING:
                     settings.TO_DAEDALUS.send(

@@ -134,3 +134,8 @@ def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: s
         f'{date_type}_date': date
     }
     _send_metrics_to_atlas('PATCH', scheme_slug, payload)
+
+
+@shared_task
+def visa_enrol(cards):
+    pass

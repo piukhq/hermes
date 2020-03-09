@@ -21,6 +21,7 @@ from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
+from hermes.visa_offers_platform import vop_check_schemeaccount
 
 
 class ListPaymentCard(generics.ListAPIView):
@@ -327,6 +328,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
+
+        # todo VOP put code here vop_check_schemeaccount
+
         id = request.data.get('id', None)
         token = request.data.get('token', None)
 
