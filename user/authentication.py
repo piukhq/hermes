@@ -39,7 +39,7 @@ class JwtAuthentication(BaseAuthentication):
 
     @staticmethod
     def check_token(auth):
-        if len(auth) == 1:
+        if len(auth) <= 1:
             msg = _('Invalid token header. No credentials provided.')
             raise exceptions.AuthenticationFailed(msg)
         elif len(auth) > 2:
