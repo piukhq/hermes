@@ -5,6 +5,7 @@ from ubiquity.versioning.base import serializers as base_serializers
 if TYPE_CHECKING:
     from scheme.models import Scheme, SchemeAccount
 
+ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionsSerializer = base_serializers.TransactionsSerializer
 
@@ -15,10 +16,10 @@ class MembershipPlanSerializer(base_serializers.MembershipPlanSerializer):
         plan = super().to_representation(instance)
 
         # TODO: modify this to return actual fees once they have been implemented
-        plan['fees'] = [{"amount": 1.1, "type": "enrolment"}]
+        # plan['fees'] = [{"amount": 1.1, "type": "enrolment"}]
 
         # TODO: modify this to return actual dynamic content once it has been implemented
-        plan['content'] = [{"column": "content column", "value": "content value"}]
+        # plan['content'] = [{"column": "placeholder column", "value": "placeholder value"}]
 
         return plan
 
@@ -28,10 +29,10 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
         card = super().to_representation(instance)
 
         # TODO: modify this to return actual fields once they have been implemented
-        if 'vouchers' in card:
-            card['vouchers'].update({
-                "body_text": "example body text",
-                "terms_and_conditions_url": "https://www.bink.com"
-            })
+        # if 'vouchers' in card:
+        #     card['vouchers'].update({
+        #         "body_text": "placeholder body text",
+        #         "terms_and_conditions_url": "https://www.bink.com"
+        #     })
 
         return card

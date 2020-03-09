@@ -34,11 +34,6 @@ class SelectSerializer(str, Enum):
 
 
 def versioned_serializer_class(version: Version, model: SelectSerializer) -> 'Serializer':
-    try:
-        serializers = SERIALIZERS_CLASSES[version[:3]]
-    except (KeyError, TypeError):
-        logger.debug(f"Unknown version found in accept header: {version}, "
-                     f"defaulting the max version: {MAX_VERSION}")
-        serializers = SERIALIZERS_CLASSES[MAX_VERSION]
-
+    # we normalise version number in the accept_version middleware, if somehow we get the wrong version here it's a bug
+    serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)

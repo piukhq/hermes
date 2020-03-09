@@ -118,12 +118,12 @@ class AutoLinkOnCreationMixin:
 
 class PaymentCardCreationMixin:
     @staticmethod
-    def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> dict:
+    def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> PaymentCardAccount:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
         pcard.consents = serializer.validated_data
         pcard.save()
-        return PaymentCardSerializer(pcard).data
+        return pcard
 
     @staticmethod
     def _update_payment_card_consent(consent_data: dict, pcard_pk: int) -> None:

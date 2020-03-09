@@ -1,9 +1,12 @@
+import logging
 from time import perf_counter, process_time
 
 from django.conf import settings
 from django.db import connection
 
-from ubiquity.versioning import MAX_VERSION
+from ubiquity.versioning import MAX_VERSION, SERIALIZERS_CLASSES
+
+logger = logging.getLogger(__name__)
 
 
 def accept_version(get_response):
@@ -12,19 +15,36 @@ def accept_version(get_response):
     def middleware(request):
         # This code checks the accept header used for banking app and
         #   1)  rewrites it as application/json
-        #   2)  sets request.version to parameter v=,  ver= or version=  note v= is in spec but version is more standard
+        #   2)  sets request.version to parameter v= or version=  note v= is in spec but version is more standard
+        #   3)  normalise version number to X.X format. ex: 1.1.4 -> 1.1
 
-        accept = request.META.get("HTTP_ACCEPT")
-        version_number = MAX_VERSION
-        if accept and accept[0:25] == "application/vnd.bink+json":
-            try:
-                accept, version = accept.split(";")
-                if version[0:1] == "v":  # allow any parameter starting with v eg v= , ver=, version=
-                    _, version_number = version.split("=")
-            except ValueError:
-                pass
-            request.META["HTTP_ACCEPT"] = "application/json;version={}".format(version_number)
+        version_number = MAX_VERSION.value
+        try:
+            accept, *accept_params = request.META.get("HTTP_ACCEPT").split(';')
+            if accept and accept == "application/vnd.bink+json":
+                accept_dict = {}
+                for param in accept_params:
+                    key, value = param.split('=', 1)
+                    accept_dict.update({key: value})
+
+                if 'v' in accept_dict:
+                    version_number = accept_dict['v'][:3]
+
+                elif 'version' in accept_dict:
+                    version_number = accept_dict['version'][:3]
+
+        except (ValueError, AttributeError):
+            logger.debug(f"Unknown version format in accept header, "
+                         f"defaulting the max version: {MAX_VERSION}")
+
+        if version_number not in SERIALIZERS_CLASSES:
+            logger.debug(f"Unknown version found in accept header: {version_number}, "
+                         f"defaulting the max version: {MAX_VERSION}")
+            version_number = MAX_VERSION.value
+
+        request.META["HTTP_ACCEPT"] = "application/json;version={}".format(version_number)
         response = get_response(request)
+        response['X-API-Version'] = version_number
         return response
 
     return middleware

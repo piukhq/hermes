@@ -7,7 +7,7 @@ from scheme.models import SchemeBundleAssociation
 from common.models import Image
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
 from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
-from ubiquity.serializers import MembershipTransactionsMixin
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
