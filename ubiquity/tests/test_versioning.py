@@ -29,7 +29,7 @@ class TestResources(APITestCase):
         organisation = OrganisationFactory(name='test_organisation')
         self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
                                                    client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-        self.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=self.client_app)
+        self.bundle = ClientApplicationBundleFactory(bundle_id='test.version.fake', client=self.client_app)
         external_id = 'test@user.com'
         self.user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         self.scheme = SchemeFactory()
