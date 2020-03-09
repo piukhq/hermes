@@ -54,18 +54,27 @@ class TestResources(APITestCase):
                                                                         status=SchemeBundleAssociation.ACTIVE)
         SchemeBalanceDetailsFactory(scheme_id=self.scheme)
         auth_header = self._get_auth_header(self.user)
-        self.headers_v1_1 = {**auth_header, **self._get_version_header('1.1')}
+        self.headers_v1_1 = {**auth_header, **self._get_version_header('1.1.4')}
         self.headers_v1_2 = {**auth_header, **self._get_version_header('1.2')}
+        self.resp_wrong_ver = {**auth_header, **self._get_version_header('-3')}
+        self.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': f"application/vnd.bink+jso"}
         self.headers_no_ver = auth_header
+
+    def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format):
+        self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
+        self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
+        self.assertEqual(resp_no_ver.get('X-API-Version'), '1.2')
+        self.assertEqual(resp_wrong_ver.get('X-API-Version'), '1.2')
+        self.assertEqual(resp_wrong_format.get('X-API-Version'), '1.2')
 
     def test_membership_plan_versioning(self):
         resp_v1_1 = self.client.get(reverse('membership-plans'), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse('membership-plans'), **self.headers_v1_2)
         resp_no_ver = self.client.get(reverse('membership-plans'), **self.headers_no_ver)
+        resp_wrong_ver = self.client.get(reverse('membership-plans'), **self.resp_wrong_ver)
+        resp_wrong_format = self.client.get(reverse('membership-plans'), **self.resp_wrong_format)
 
-        self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
-        self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
-        self.assertEqual(resp_no_ver.get('X-API-Version'), '1.2')
+        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -74,7 +83,7 @@ class TestResources(APITestCase):
         resp_v1_1 = self.client.get(reverse('membership-cards'), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse('membership-cards'), **self.headers_v1_2)
         resp_no_ver = self.client.get(reverse('membership-cards'), **self.headers_no_ver)
+        resp_wrong_ver = self.client.get(reverse('membership-cards'), **self.resp_wrong_ver)
+        resp_wrong_format = self.client.get(reverse('membership-cards'), **self.resp_wrong_format)
 
-        self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
-        self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
-        self.assertEqual(resp_no_ver.get('X-API-Version'), '1.2')
+        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format)
