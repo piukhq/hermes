@@ -384,7 +384,7 @@ class TestInternalService(TestCase):
         ).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_transactions, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
@@ -432,7 +432,7 @@ class TestInternalService(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_service_get_all_scheme_accounts(self, mock_get_transactions, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
