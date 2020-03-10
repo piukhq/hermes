@@ -7,7 +7,10 @@ import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
+from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
+from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
+from hermes.channel_vault import get_pcard_hash_secret, get_key
 from payment_card.models import Issuer, PaymentCard
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
@@ -168,6 +171,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
                                                    add_type=False)
 
     def to_representation(self, instance):
+
+        # TODO: fix status
         status = 'active' if instance.consents else 'pending'
         return {
             "id": instance.id,
@@ -221,20 +226,67 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_payment_card(obj):
-        first_6 = str(obj['first_six_digits'])
-        slug = 'other'
-        match_to_first_6 = {
-            'range': lambda match: match.value[0] <= int(first_6[:match.len]) <= match.value[1],
-            'equal': lambda match: first_6[:match.len] == match.value
-        }
-
-        for provider, values in settings.BIN_TO_PROVIDER.items():
-            for bin_match in values:
-                if match_to_first_6[bin_match.type](bin_match):
-                    slug = provider
-                    break
-
+        slug = bin_to_provider(str(obj['first_six_digits']))
         return PaymentCard.objects.values('id').get(slug=slug)['id']
+
+
+class PaymentCardTranslationSerializerV1_2(serializers.Serializer):
+    pan_start = serializers.SerializerMethodField()
+    pan_end = serializers.SerializerMethodField()
+    issuer = serializers.SerializerMethodField()
+    payment_card = serializers.SerializerMethodField()
+    name_on_card = serializers.CharField()
+    token = serializers.CharField()
+    fingerprint = serializers.CharField()
+    expiry_year = serializers.SerializerMethodField()
+    expiry_month = serializers.SerializerMethodField()
+    country = serializers.CharField(required=False, default='UK')
+    order = serializers.IntegerField(required=False, default=0)
+    currency_code = serializers.CharField(required=False, default='GBP')
+    hash = serializers.SerializerMethodField()
+
+    @staticmethod
+    def get_issuer(_):
+        return Issuer.objects.values('id').get(name='Barclays')['id']
+
+    def get_payment_card(self, obj):
+        pan_start = self.context.get('decrypted_pan_start')
+        if not pan_start:
+            pan_start = int(self._decrypt_val(obj['first_six_digits']))
+            self.context['decrypted_pan_start'] = pan_start
+        slug = bin_to_provider(pan_start)
+        return PaymentCard.objects.values('id').get(slug=slug)['id']
+
+    def get_pan_start(self, obj):
+        # pan_start stored in context so it is only decrypted once as it is also used
+        # in get_payment_card
+        pan_start = self.context.get('decrypted_pan_start')
+        if not pan_start:
+            pan_start = self._decrypt_val(obj['first_six_digits'])
+            self.context['decrypted_pan_start'] = pan_start
+        return pan_start
+
+    def get_pan_end(self, obj):
+        return self._decrypt_val(obj['last_four_digits'])
+
+    def get_expiry_year(self, obj):
+        return self._decrypt_val(obj['year'])
+
+    def get_expiry_month(self, obj):
+        return self._decrypt_val(obj['month'])
+
+    def get_hash(self, obj):
+        hash1 = self._decrypt_val(obj["hash"])
+        hash2 = BLAKE2sHash().new(obj=hash1, key=get_pcard_hash_secret())
+        return hash2
+
+    def _decrypt_val(self, val):
+        if not self.context.get('rsa'):
+            self.context['rsa'] = RSACipher()
+
+        key = get_key(bundle_id=self.context['bundle_id'], key_type='private_key')
+        rsa = self.context['rsa']
+        return rsa.decrypt(val, priv_key=key)
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):

@@ -436,3 +436,18 @@ if ENABLE_DAEDALUS_MESSAGING:
     )
 else:
     TO_DAEDALUS = None
+
+# Hashicorp vault settings for secrets retrieval
+VAULT_URL = env_var('VAULT_URL', 'http://localhost:8200')
+VAULT_TOKEN = env_var('VAULT_TOKEN', 'myroot')
+
+
+# SET Signing secrets for JWT authentication
+# For deployment set LOCAL_CHANNEL_SECRETS to False and set up Vault envs
+# For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
+# and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
+# (Do not commit your channels json which might contain real secrets or edit example_channels.json)
+LOCAL_CHANNEL_SECRETS = env_var('LOCAL_CHANNEL_SECRETS', "True")
+LOCAL_SECRETS_PATH = env_var('LOCAL_SECRETS_PATH', "example_channels.json")
+CHANNEL_VAULT_PATH = env_var('CHANNEL_VAULT_PATH', '/channels')
+PCARD_HASH_SECRET_PATH = env_var('PCARD_HASH_SECRET_PATH', '/data/pcard_hash_secret')
