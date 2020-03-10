@@ -145,8 +145,6 @@ REST_FRAMEWORK = {
     'VERSION_PARAM': 'v'
 }
 
-# from rest_framework.versioning import AcceptHeaderVersioning
-
 WSGI_APPLICATION = 'hermes.wsgi.application'
 
 APPEND_SLASH = False
