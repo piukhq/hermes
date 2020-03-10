@@ -16,14 +16,19 @@ def accept_version(get_response):
 
         try:
             accept, accept_params = request.META.get("HTTP_ACCEPT").split(';', 1)
-            if accept and accept == "application/vnd.bink+json":
+            if accept == "application/vnd.bink+json":
                 request.META["HTTP_ACCEPT"] = f"application/json;{accept_params}"
 
-        except ValueError:
+        except (ValueError, AttributeError):
             pass
 
         response = get_response(request)
-        response['X-API-Version'] = getattr(response.renderer_context['request'], 'api_version', settings.MAX_VERSION)
+
+        try:
+            response['X-API-Version'] = response.renderer_context['request'].api_version
+        except AttributeError:
+            response['X-API-Version'] = settings.MAX_VERSION
+
         return response
 
     return middleware

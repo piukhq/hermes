@@ -22,9 +22,10 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from ubiquity.versioning import versioned_serializer_class, SelectSerializer, MAX_VERSION
-from ubiquity.views import MembershipTransactionView, MembershipCardView
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
+from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
+    PaymentCardSerializer
+from ubiquity.views import MembershipTransactionView, MembershipCardView
 from user.models import ClientApplication, Organisation
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
@@ -32,11 +33,6 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
 
 class RequestMock:
     channels_permit = None
-
-
-MembershipCardSerializer = versioned_serializer_class(MAX_VERSION, SelectSerializer.MEMBERSHIP_CARD)
-MembershipPlanSerializer = versioned_serializer_class(MAX_VERSION, SelectSerializer.MEMBERSHIP_PLAN)
-PaymentCardSerializer = versioned_serializer_class(MAX_VERSION, SelectSerializer.PAYMENT_CARD)
 
 
 class TestResources(APITestCase):
