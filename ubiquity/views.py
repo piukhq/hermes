@@ -41,6 +41,7 @@ from ubiquity.versioning.base.serializers import (MembershipCardSerializer, Memb
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
                                                   TransactionsSerializer, LinkMembershipCardSerializer)
+
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
