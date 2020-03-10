@@ -73,12 +73,12 @@ def send_data_to_atlas(response: 'HttpResponse') -> None:
 
 class VersionedSerializerMixin:
     def get_versioned_serializer(self, *args, **kwargs):
-        serializer_class = versioned_serializer_class(self.request.version, self.response_serializer)
+        serializer_class = versioned_serializer_class(self.request, self.response_serializer)
         kwargs['context'] = self.get_serializer_context()
         return serializer_class(*args, **kwargs)
 
     def get_versioned_serializer_class(self):
-        return versioned_serializer_class(self.request.version, self.response_serializer)
+        return versioned_serializer_class(self.request, self.response_serializer)
 
 
 class AutoLinkOnCreationMixin:

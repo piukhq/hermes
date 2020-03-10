@@ -4,8 +4,6 @@ from time import perf_counter, process_time
 from django.conf import settings
 from django.db import connection
 
-from ubiquity.versioning import MAX_VERSION, SERIALIZERS_CLASSES
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,36 +13,17 @@ def accept_version(get_response):
     def middleware(request):
         # This code checks the accept header used for banking app and
         #   1)  rewrites it as application/json
-        #   2)  sets request.version to parameter v= or version=  note v= is in spec but version is more standard
-        #   3)  normalise version number to X.X format. ex: 1.1.4 -> 1.1
 
-        version_number = MAX_VERSION
         try:
-            accept, *accept_params = request.META.get("HTTP_ACCEPT").split(';')
+            accept, accept_params = request.META.get("HTTP_ACCEPT").split(';', 1)
             if accept and accept == "application/vnd.bink+json":
-                accept_dict = {}
-                for param in accept_params:
-                    key, value = param.split('=', 1)
-                    accept_dict.update({key: value})
+                request.META["HTTP_ACCEPT"] = f"application/json;{accept_params}"
 
-                if 'v' in accept_dict:
-                    version_number = accept_dict['v'][:3]
+        except ValueError:
+            pass
 
-                elif 'version' in accept_dict:
-                    version_number = accept_dict['version'][:3]
-
-        except (ValueError, AttributeError):
-            logger.debug(f"Unknown version format in accept header, "
-                         f"defaulting the max version: {MAX_VERSION}")
-
-        if version_number not in SERIALIZERS_CLASSES:
-            logger.debug(f"Unknown version found in accept header: {version_number}, "
-                         f"defaulting the max version: {MAX_VERSION}")
-            version_number = MAX_VERSION
-
-        request.META["HTTP_ACCEPT"] = "application/json;version={}".format(version_number)
         response = get_response(request)
-        response['X-API-Version'] = version_number
+        response['X-API-Version'] = getattr(response.renderer_context['request'], 'api_version', settings.MAX_VERSION)
         return response
 
     return middleware
