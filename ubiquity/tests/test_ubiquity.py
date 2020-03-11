@@ -10,21 +10,21 @@ from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
-from scheme.models import SchemeBundleAssociation
-
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
-from scheme.models import SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
+from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
+    JourneyTypes
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.serializers import (MembershipCardSerializer, MembershipPlanSerializer, MembershipTransactionsMixin,
-                                  PaymentCardSerializer)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
+from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
+    PaymentCardSerializer
 from ubiquity.views import MembershipTransactionView, MembershipCardView
 from user.models import ClientApplication, Organisation
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
@@ -135,7 +135,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_midas_balance, *_):
         mock_get_midas_balance.return_value = self.scheme_account.balances
@@ -157,7 +157,7 @@ class TestResources(APITestCase):
         self.scheme.test_scheme = False
         self.scheme.save()
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_all_membership_cards(self, *_):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
@@ -186,7 +186,7 @@ class TestResources(APITestCase):
         self.scheme.test_scheme = False
         self.scheme.save()
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_list_membership_cards_hides_join_cards(self, *_):
         join_scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN)
@@ -236,7 +236,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_membership_card_creation_with_id(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
@@ -290,7 +290,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_membership_card_creation_with_id_fails_when_not_internal_user(self, mock_date, mock_hades,
@@ -454,7 +454,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_status_mapping_active(self, *_):
@@ -463,7 +463,7 @@ class TestResources(APITestCase):
         self.assertEqual(data['status']['state'], 'authorised')
         self.assertEqual(data['status']['reason_codes'], ['X300'])
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_status_mapping_user_error(self, *_):
@@ -481,7 +481,7 @@ class TestResources(APITestCase):
         self.assertEqual(data['status']['state'], 'failed')
         self.assertEqual(data['status']['reason_codes'], ['X303'])
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_status_mapping_system_error(self, *_):
@@ -505,7 +505,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_membership_card_creation(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
@@ -597,7 +597,7 @@ class TestResources(APITestCase):
         )
         self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_update(self, *_):
@@ -645,7 +645,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_membership_card_delete(self, mock_date, *_):
@@ -686,7 +686,7 @@ class TestResources(APITestCase):
                                  **self.auth_headers)
         self.assertEqual(resp2.status_code, 201)
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_cards_linking(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
@@ -776,7 +776,7 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_card_rule_filtering(self, *_):
         resp_payment = self.client.get(reverse('payment-card', args=[self.payment_card_account.id]),
@@ -797,7 +797,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp_payment.status_code, 404)
         self.assertEqual(resp_membership.status_code, 404)
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_card_rule_filtering_suspended(self, *_):
         """
@@ -824,7 +824,7 @@ class TestResources(APITestCase):
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     def test_card_creation_filter(self, *_):
         self.bundle.issuer.add(IssuerFactory())
         self.scheme_bundle_association.status = SchemeBundleAssociation.INACTIVE
@@ -959,7 +959,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     def test_composite_membership_card_get(self, _):
         resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
                                **self.auth_headers)
@@ -969,7 +969,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_composite_membership_card_post(self, mock_date, *_):
@@ -1005,7 +1005,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_and_composite_post(self, *_):
@@ -1069,7 +1069,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_missing_membership_plan_error(self, *_):
@@ -1098,7 +1098,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_manual_question(self, *_):
@@ -1138,7 +1138,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_scan_question(self, *_):
@@ -1177,7 +1177,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_membership_card_put_with_previous_balance(self, *_):
@@ -1215,7 +1215,7 @@ class TestResources(APITestCase):
         self.assertFalse(scheme_account.balances)
 
     @patch('scheme.mixins.analytics', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch('ubiquity.views.async_registration', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -1317,7 +1317,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_balance(self, mock_get_midas_balance, *_):
@@ -1337,7 +1337,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.json()['balances'][0]['value'], 100)
         self.assertTrue(expected_keys.issubset(set(resp.json()['balances'][0].keys())))
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
@@ -1366,7 +1366,7 @@ class TestResources(APITestCase):
     @patch('analytics.api.post_event')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_existing_membership_card_creation_fail(self, mock_date, *_):
@@ -1427,7 +1427,7 @@ class TestResources(APITestCase):
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_auto_link(self, *_):
         external_id = 'test auto link'
@@ -1542,7 +1542,7 @@ class TestMembershipCardCredentials(APITestCase):
         token = GenerateJWToken(client.organisation.name, client.secret, self.bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')

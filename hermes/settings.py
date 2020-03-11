@@ -14,14 +14,14 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 from collections import namedtuple
+from enum import Enum
 
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-from hermes.version import __version__
-from environment import env_var, read_env
 from daedalus_messaging.broker import MessagingService
-
+from environment import env_var, read_env
+from hermes.version import __version__
 
 read_env()
 
@@ -121,6 +121,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+class Version(str, Enum):
+    v1_0 = '1.0'
+    v1_1 = '1.1'
+    v1_2 = '1.2'
+
+
+DEFAULT_API_VERSION = env_var('DEFAULT_API_VERSION', max(Version).value)
+
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -131,7 +140,9 @@ REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
     ),
-    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning'
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning',
+    'DEFAULT_VERSION': DEFAULT_API_VERSION,
+    'VERSION_PARAM': 'v'
 }
 
 WSGI_APPLICATION = 'hermes.wsgi.application'
@@ -419,11 +430,11 @@ ENABLE_DAEDALUS_MESSAGING = env_var("ENABLE_DAEDALUS_MESSAGING", False)
 
 if ENABLE_DAEDALUS_MESSAGING:
     TO_DAEDALUS = MessagingService(
-        user=env_var("RABBIT_USER", "guest"),               # eg 'guest'
-        password=env_var("RABBIT_PASSWORD", "guest"),       # eg 'guest'
-        queue_name=env_var("TO_QUEUE", "to_daedalus"),      # eg 'to_daedalus'
-        host=env_var("RABBIT_HOST", "127.0.0.1"),           # eg '127.0.0.1'
-        port=env_var("RABBIT_PORT", "5672")                 # eg '5672'
+        user=env_var("RABBIT_USER", "guest"),  # eg 'guest'
+        password=env_var("RABBIT_PASSWORD", "guest"),  # eg 'guest'
+        queue_name=env_var("TO_QUEUE", "to_daedalus"),  # eg 'to_daedalus'
+        host=env_var("RABBIT_HOST", "127.0.0.1"),  # eg '127.0.0.1'
+        port=env_var("RABBIT_PORT", "5672")  # eg '5672'
     )
 else:
     TO_DAEDALUS = None
