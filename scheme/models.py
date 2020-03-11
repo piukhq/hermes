@@ -64,6 +64,24 @@ BARCODE_TYPES = (
 )
 
 
+class SchemeContent(models.Model):
+    column = models.CharField(max_length=50)
+    value = models.TextField()
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.column
+
+
+class SchemeFee(models.Model):
+    fee_type = models.CharField(max_length=50)
+    amount = models.DecimalField(max_digits=6, decimal_places=2)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.fee_type
+
+
 class Scheme(models.Model):
     PLL = 1
     BASIC = 2

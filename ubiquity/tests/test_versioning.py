@@ -76,6 +76,15 @@ class TestResources(APITestCase):
 
         self._check_versioned_response(resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format)
 
+    def test_membership_plan_versioned_content(self):
+        resp_v1_1 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_1)
+        resp_v1_2 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_2)
+
+        self.assertNotIn('fees', resp_v1_1.json()['account'])
+        self.assertIn('fees', resp_v1_2.json()['account'])
+        self.assertNotIn('content', resp_v1_1.json())
+        self.assertIn('content', resp_v1_2.json())
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')

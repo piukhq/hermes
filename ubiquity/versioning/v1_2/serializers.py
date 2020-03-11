@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING
 
+from rest_framework import serializers
+
+from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
 
 if TYPE_CHECKING:
@@ -10,17 +13,26 @@ PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionsSerializer = base_serializers.TransactionsSerializer
 
 
+class MembershipPlanContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchemeContent
+        exclude = ('id', 'scheme')
+
+
+class MembershipPlanFeeSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='fee_type')
+
+    class Meta:
+        model = SchemeFee
+        exclude = ('id', 'scheme', 'fee_type')
+
+
 class MembershipPlanSerializer(base_serializers.MembershipPlanSerializer):
 
     def to_representation(self, instance: 'Scheme') -> dict:
         plan = super().to_representation(instance)
-
-        # TODO: modify this to return actual fees once they have been implemented
-        # plan['fees'] = [{"amount": 1.1, "type": "enrolment"}]
-
-        # TODO: modify this to return actual dynamic content once it has been implemented
-        # plan['content'] = [{"column": "placeholder column", "value": "placeholder value"}]
-
+        plan['account']['fees'] = MembershipPlanFeeSerializer(instance.schemefee_set.all(), many=True).data
+        plan['content'] = MembershipPlanContentSerializer(instance.schemecontent_set.all(), many=True).data
         return plan
 
 
