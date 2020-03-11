@@ -2,7 +2,7 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from hermes.settings import Version, MAX_VERSION
+from hermes.settings import Version, DEFAULT_API_VERSION
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
@@ -38,9 +38,9 @@ def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> '
         else:
             message = f"Unknown version format in accept header, "
 
-        logger.debug(message + f"defaulting the max version: {MAX_VERSION}")
-        version = MAX_VERSION
-        serializers = SERIALIZERS_CLASSES[MAX_VERSION]
+        logger.debug(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
+        version = DEFAULT_API_VERSION
+        serializers = SERIALIZERS_CLASSES[DEFAULT_API_VERSION]
 
     setattr(request, 'api_version', version)
     return getattr(serializers, model)

@@ -128,7 +128,7 @@ class Version(str, Enum):
     v1_2 = '1.2'
 
 
-MAX_VERSION = Version.v1_2.value
+DEFAULT_API_VERSION = env_var('DEFAULT_API_VERSION', Version.v1_2.value)
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
@@ -141,7 +141,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
     ),
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning',
-    'DEFAULT_VERSION': MAX_VERSION,
+    'DEFAULT_VERSION': DEFAULT_API_VERSION,
     'VERSION_PARAM': 'v'
 }
 

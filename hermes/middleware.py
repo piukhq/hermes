@@ -11,9 +11,6 @@ def accept_version(get_response):
     # One-time configuration and initialization.
 
     def middleware(request):
-        # This code checks the accept header used for banking app and
-        #   1)  rewrites it as application/json
-
         try:
             accept, accept_params = request.META.get("HTTP_ACCEPT").split(';', 1)
             if accept == "application/vnd.bink+json":
@@ -27,7 +24,7 @@ def accept_version(get_response):
         try:
             response['X-API-Version'] = response.renderer_context['request'].api_version
         except AttributeError:
-            response['X-API-Version'] = settings.MAX_VERSION
+            pass
 
         return response
 
