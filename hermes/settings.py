@@ -128,7 +128,7 @@ class Version(str, Enum):
     v1_2 = '1.2'
 
 
-DEFAULT_API_VERSION = env_var('DEFAULT_API_VERSION', Version.v1_2.value)
+DEFAULT_API_VERSION = env_var('DEFAULT_API_VERSION', max(v for v in Version).value)
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
