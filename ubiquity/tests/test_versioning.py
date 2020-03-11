@@ -65,7 +65,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
         self.assertEqual(resp_no_ver.get('X-API-Version'), '1.2')
         self.assertEqual(resp_wrong_ver.get('X-API-Version'), '1.2')
-        self.assertEqual(resp_wrong_format.get('X-API-Version'), '1.2')
+        self.assertIsNone(resp_wrong_format.get('X-API-Version'))
 
     def test_membership_plan_versioning(self):
         resp_v1_1 = self.client.get(reverse('membership-plans'), **self.headers_v1_1)
