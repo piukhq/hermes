@@ -35,18 +35,21 @@ from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, Sch
 
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
-from ubiquity.versioning import versioned_serializer_class, SelectSerializer
+from ubiquity.versioning import versioned_serializer_class, SelectSerializer, serializer_by_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
                                                   PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
                                                   ServiceConsentSerializer, TransactionsSerializer,
-                                                  LinkMembershipCardSerializer, PaymentCardTranslationSerializerV1_2)
+                                                  LinkMembershipCardSerializer)
+from ubiquity.versioning.v1_2.serializers import PaymentCardTranslationSerializer
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
     from django.http import HttpResponse
+    from rest_framework.serializers import Serializer
+    from hermes.settings import Version
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
@@ -75,6 +78,12 @@ def send_data_to_atlas(response: 'HttpResponse') -> None:
 
 
 class VersionedSerializerMixin:
+
+    @staticmethod
+    def get_serializer_by_version(serializer: SelectSerializer, version: 'Version', *args, **kwargs) -> 'Serializer':
+        serializer_class = serializer_by_version(serializer, version=version)
+        return serializer_class(*args, **kwargs)
+
     def get_versioned_serializer(self, *args, **kwargs):
         serializer_class = versioned_serializer_class(self.request, self.response_serializer)
         kwargs['context'] = self.get_serializer_context()
@@ -168,11 +177,12 @@ class PaymentCardCreationMixin:
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    @staticmethod
-    def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int], bundle_id: str = None
-                               ) -> t.Tuple[dict, dict]:
+    def _collect_creation_data(self, request_data: dict, allowed_issuers: t.List[int], version: 'Version',
+                               bundle_id: str = None) -> t.Tuple[dict, dict]:
         try:
-            pcard_data = PaymentCardTranslationSerializerV1_2(
+            pcard_data = VersionedSerializerMixin.get_serializer_by_version(
+                SelectSerializer.PAYMENT_CARD_TRANSLATION,
+                version,
                 request_data['card'],
                 context={'bundle_id': bundle_id}
             ).data
@@ -314,6 +324,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
             allowed_issuers=request.allowed_issuers,
+            version=request.version,
             bundle_id=request.channels_permit.bundle_id
         )
         if pcard_data['fingerprint'] != account.fingerprint:
@@ -376,6 +387,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
             allowed_issuers=request.allowed_issuers,
+            version=request.version,
             bundle_id=request.channels_permit.bundle_id
         )
 
