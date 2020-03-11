@@ -159,8 +159,7 @@ class ListCreatePaymentCardAccount(APIView):
             # get the latest new_acc from the same client if it exists
             same_client_old_accounts = old_accounts.filter(user_set__client=user.client.pk)
             old_account = same_client_old_accounts.first() or old_accounts.first()
-            new_acc.status = PaymentCardAccount.ACTIVE
-            new_acc.save()
+
             return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_account, user)
 
         new_acc.save()

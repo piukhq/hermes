@@ -24,7 +24,7 @@ def enrol_new_payment_card(account):
 
 
 def enrol_existing_payment_card(account):
-    provider = account.payment_card.name
+    provider = account.payment_card.system
 
     if provider in [PaymentCard.VISA, PaymentCard.AMEX]:
         enrol_new_payment_card(account)
@@ -34,6 +34,8 @@ def enrol_existing_payment_card(account):
                       json=_generate_card_json(account),
                       headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                'Content-Type': 'application/json'})
+    else:
+        raise ValueError(f"Provider {provider} not found to enrol existing card")
 
 
 def delete_payment_card(account):
