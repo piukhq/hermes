@@ -9,7 +9,7 @@ from hermes.channels import Permit
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
-from ubiquity.serializers import MembershipTransactionsMixin
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import Organisation, ClientApplication, ClientApplicationBundle
@@ -384,7 +384,7 @@ class TestInternalService(TestCase):
         ).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_transactions, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
@@ -432,7 +432,7 @@ class TestInternalService(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
 
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_service_get_all_scheme_accounts(self, mock_get_transactions, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances

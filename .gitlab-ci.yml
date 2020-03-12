@@ -9,6 +9,10 @@ tests:
   stage: tests
   image: olympus.azurecr.io/python:3.7
   script:
+    - mkdir -p /root/.ssh
+    - echo $DEPLOY_KEY | base64 -d > /root/.ssh/id_rsa
+    - chmod 600 /root/.ssh/id_rsa
+    - ssh-keyscan git.bink.com > /root/.ssh/known_hosts
     - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - coverage run --source='.' manage.py test -v 2
@@ -38,7 +42,7 @@ build-develop:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:latest" .
+    - docker build --pull -t "$CI_REGISTRY/hermes:latest" --build-arg "DEPLOY_KEY=$DEPLOY_KEY" .
     - docker push "$CI_REGISTRY/hermes:latest"
   only:
     - develop
@@ -51,7 +55,7 @@ build-master:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" .
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --build-arg "DEPLOY_KEY=$DEPLOY_KEY" .
     - docker push "$CI_REGISTRY/hermes:$CI_COMMIT_TAG"
   only:
     - tags
