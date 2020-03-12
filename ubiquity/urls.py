@@ -21,13 +21,35 @@ link_payment = {"patch": "update_payment", "delete": "destroy_payment"}
 link_membership = {"patch": "update_membership", "delete": "destroy_membership"}
 
 urlpatterns = [
-    re_path(r"^/service/?$", ServiceView.as_view(service_view), name="service"),
-    re_path(r"^/payment_cards/?$", ListPaymentCardView.as_view(cards_plural), name="payment-cards"),
-    re_path(r"^/payment_card/(?P<pk>[0-9]+)?$", PaymentCardView.as_view(cards_singular), name="payment-card"),
-    re_path(r"^/membership_cards/?$", ListMembershipCardView.as_view(cards_plural), name="membership-cards"),
-    re_path(r"^/membership_card/(?P<pk>[0-9]+)?$", MembershipCardView.as_view(cards_singular), name="membership-card"),
     re_path(
-        r"^/membership_transactions/?$", MembershipTransactionView.as_view({"get": "list"}), name="user-transactions"
+        r"^/service/?$",
+        ServiceView.as_view(service_view),
+        name="service"
+    ),
+    re_path(
+        r"^/payment_cards/?$",
+        ListPaymentCardView.as_view(cards_plural),
+        name="payment-cards"
+    ),
+    re_path(
+        r"^/payment_card/(?P<pk>[0-9]+)?$",
+        PaymentCardView.as_view(cards_singular),
+        name="payment-card"
+    ),
+    re_path(
+        r"^/membership_cards/?$",
+        ListMembershipCardView.as_view(cards_plural),
+        name="membership-cards"
+    ),
+    re_path(
+        r"^/membership_card/(?P<pk>[0-9]+)?$",
+        MembershipCardView.as_view(cards_singular),
+        name="membership-card"
+    ),
+    re_path(
+        r"^/membership_transactions/?$",
+        MembershipTransactionView.as_view({"get": "list"}),
+        name="user-transactions"
     ),
     re_path(
         r"^/membership_transaction/(?P<transaction_id>[0-9]+)?$",
@@ -50,7 +72,9 @@ urlpatterns = [
         name="membership-plans",
     ),
     re_path(
-        r"^/membership_plan/(?P<pk>[0-9]+)$", MembershipPlanView.as_view({"get": "retrieve"}), name="membership-plan"
+        r"^/membership_plan/(?P<pk>[0-9]+)$",
+        MembershipPlanView.as_view({"get": "retrieve"}),
+        name="membership-plan"
     ),
     re_path(
         r"^/payment_card/(?P<pcard_id>\d+)/membership_cards/?$",

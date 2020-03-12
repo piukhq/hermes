@@ -23,7 +23,6 @@ from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, S
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
-from user.models import ClientApplicationBundle
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
@@ -165,16 +164,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'is_deleted': False
             }
             scheme_account = SchemeAccount.objects.filter(**query).distinct().get()
+            return scheme_account, data, account_created
 
-            if user.client_id == settings.ALLOWED_CLIENT_ID:
-                return scheme_account, data, account_created
-
-            internal_service_client = ClientApplicationBundle.objects.get(
-                bundle_id=settings.INTERNAL_SERVICE_BUNDLE).client.client_id
-            if user.client_id == internal_service_client:
-                return scheme_account, data, account_created
-
-            raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
             scheme_account, account_created = self._create_account(user, data, answer_type, account_id)
 

@@ -65,6 +65,24 @@ BARCODE_TYPES = (
 )
 
 
+class SchemeContent(models.Model):
+    column = models.CharField(max_length=50)
+    value = models.TextField()
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.column
+
+
+class SchemeFee(models.Model):
+    fee_type = models.CharField(max_length=50)
+    amount = models.DecimalField(max_digits=6, decimal_places=2)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+
+    def __str__(self):
+        return self.fee_type
+
+
 class Scheme(models.Model):
     PLL = 1
     BASIC = 2
@@ -673,20 +691,24 @@ class SchemeAccount(models.Model):
             earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
         )
 
-        if "issue_date" in voucher_fields:
-            issue_date = arrow.get(voucher_fields["issue_date"])
+        issue_date = arrow.get(voucher_fields["issue_date"]) if "issue_date" in voucher_fields else None
+
+        if "expiry_date" in voucher_fields:
+            expiry_date = arrow.get(voucher_fields["expiry_date"])
+        elif issue_date is not None:
             expiry_date = issue_date.shift(months=+voucher_scheme.expiry_months)
         else:
-            issue_date = None
+            expiry_date = None
 
         if "redeem_date" in voucher_fields:
             state = vouchers.VoucherState.REDEEMED
-        elif issue_date is not None and expiry_date <= arrow.utcnow():
-            state = vouchers.VoucherState.EXPIRED
-        elif "target_value" in voucher_fields:
-            state = vouchers.VoucherState.IN_PROGRESS
+        elif issue_date is not None:
+            if expiry_date <= arrow.utcnow():
+                state = vouchers.VoucherState.EXPIRED
+            else:
+                state = vouchers.VoucherState.ISSUED
         else:
-            state = vouchers.VoucherState.ISSUED
+            state = vouchers.VoucherState.IN_PROGRESS
 
         headline_template = voucher_scheme.get_headline(state)
         headline = vouchers.apply_template(
@@ -695,6 +717,8 @@ class SchemeAccount(models.Model):
             earn_value=voucher_fields.get("value", 0),
             earn_target_value=voucher_fields.get("target_value", 0),
         )
+
+        body_text = voucher_scheme.get_body_text(state)
 
         voucher = {
             "state": vouchers.voucher_state_names[state],
@@ -715,7 +739,9 @@ class SchemeAccount(models.Model):
             },
             "barcode_type": voucher_scheme.barcode_type,
             "headline": headline,
+            "body_text": body_text,
             "subtext": voucher_scheme.subtext,
+            "terms_and_conditions_url": voucher_scheme.terms_and_conditions_url,
         }
 
         if issue_date is not None:
@@ -723,9 +749,6 @@ class SchemeAccount(models.Model):
                 "date_issued": issue_date.timestamp,
                 "expiry_date": expiry_date.timestamp,
             })
-
-        if "redeem_date" in voucher_fields:
-            voucher["date_redeemed"] = arrow.get(voucher_fields["redeem_date"]).timestamp
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
@@ -1069,10 +1092,12 @@ class ThirdPartyConsentLink(models.Model):
 class VoucherScheme(models.Model):
     EARNTYPE_JOIN = "join"
     EARNTYPE_ACCUMULATOR = "accumulator"
+    EARNTYPE_STAMPS = "stamps"
 
     EARN_TYPES = (
         (EARNTYPE_JOIN, "Join"),
         (EARNTYPE_ACCUMULATOR, "Accumulator"),
+        (EARNTYPE_STAMPS, "Stamps"),
     )
 
     BURNTYPE_VOUCHER = "voucher"
@@ -1105,7 +1130,12 @@ class VoucherScheme(models.Model):
     headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
     headline_issued = models.CharField(max_length=250, verbose_name="Issued")
 
-    subtext = models.CharField(max_length=250)
+    body_text_inprogress = models.TextField(null=False, blank=True, verbose_name="In Progress")
+    body_text_expired = models.TextField(null=False, blank=True, verbose_name="Expired")
+    body_text_redeemed = models.TextField(null=False, blank=True, verbose_name="Redeemed")
+    body_text_issued = models.TextField(null=False, blank=True, verbose_name="Issued")
+    subtext = models.CharField(max_length=250, null=False, blank=True)
+    terms_and_conditions_url = models.URLField(null=False, blank=True)
 
     expiry_months = models.IntegerField()
 
@@ -1121,9 +1151,18 @@ class VoucherScheme(models.Model):
             vouchers.VoucherState.REDEEMED: self.headline_redeemed,
         }[state]
 
+    def get_body_text(self, state: vouchers.VoucherState):
+        return {
+            vouchers.VoucherState.ISSUED: self.body_text_issued,
+            vouchers.VoucherState.IN_PROGRESS: self.body_text_inprogress,
+            vouchers.VoucherState.EXPIRED: self.body_text_expired,
+            vouchers.VoucherState.REDEEMED: self.body_text_redeemed,
+        }[state]
+
     @staticmethod
     def earn_type_from_voucher_type(voucher_type: vouchers.VoucherType):
         return {
             vouchers.VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
             vouchers.VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
+            vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]

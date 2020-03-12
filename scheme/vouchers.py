@@ -8,6 +8,7 @@ import enum
 class VoucherType(enum.Enum):
     JOIN = 0
     ACCUMULATOR = 1
+    STAMPS = 2
 
 
 @enum.unique
@@ -18,7 +19,7 @@ class VoucherState(enum.Enum):
     REDEEMED = 3
 
 
-voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator"}
+voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
 
 voucher_state_names = {
     VoucherState.ISSUED: "issued",

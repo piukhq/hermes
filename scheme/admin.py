@@ -9,7 +9,7 @@ from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme)
+                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee)
 from ubiquity.models import SchemeAccountEntry
 from django.contrib import messages
 
@@ -70,6 +70,16 @@ class CredentialQuestionInline(admin.StackedInline):
     extra = 0
 
 
+class SchemeContentInline(admin.StackedInline):
+    model = SchemeContent
+    extra = 0
+
+
+class SchemeFeeInline(admin.StackedInline):
+    model = SchemeFee
+    extra = 0
+
+
 class SchemeBalanceDetailsInline(admin.StackedInline):
     model = SchemeBalanceDetails
     extra = 0
@@ -114,7 +124,10 @@ class SchemeDetailsInline(admin.StackedInline):
 
 @admin.register(Scheme)
 class SchemeAdmin(admin.ModelAdmin):
-    inlines = (SchemeDetailsInline, SchemeBalanceDetailsInline, CredentialQuestionInline, ControlInline)
+    inlines = (
+        SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
+        CredentialQuestionInline,
+    )
     exclude = []
     list_display = ('name', 'id', 'category', 'company',)
 
@@ -472,6 +485,14 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                 "headline_expired",
                 "headline_redeemed",
                 "headline_issued",
+            )
+        }),
+        ("Body Text", {
+            "fields": (
+                "body_text_inprogress",
+                "body_text_expired",
+                "body_text_redeemed",
+                "body_text_issued",
             )
         }),
     )
