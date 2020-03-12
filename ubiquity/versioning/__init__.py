@@ -27,20 +27,28 @@ class SelectSerializer(str, Enum):
     MEMBERSHIP_TRANSACTION = 'TransactionsSerializer'
 
 
-def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer':
-    try:
-        version = "{}.{}".format(*request.version.split('.')[:2])
-        serializers = SERIALIZERS_CLASSES[version]
+def get_api_version(request: 'Request') -> Version:
+    if hasattr(request, 'api_version'):
+        return request.api_version
 
-    except (IndexError, KeyError) as e:
-        if e.__class__ is KeyError:
-            message = f"Unknown version found in accept header: {version}, "
+    try:
+        ver = "{}.{}".format(*request.version.split('.')[:2])
+        ver = Version(ver).value
+
+    except (IndexError, ValueError) as e:
+        if e.__class__ is ValueError:
+            message = f"Unknown version found in accept header: {ver}, "
         else:
             message = f"Unknown version format in accept header, "
 
         logger.debug(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
-        version = DEFAULT_API_VERSION
-        serializers = SERIALIZERS_CLASSES[DEFAULT_API_VERSION]
+        ver = DEFAULT_API_VERSION
 
-    setattr(request, 'api_version', version)
+    setattr(request, 'api_version', ver)
+    return ver
+
+
+def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer':
+    version = get_api_version(request)
+    serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)
