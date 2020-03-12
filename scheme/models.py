@@ -25,7 +25,7 @@ from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
-from hermes.visa_offers_platform import vop_check_payment
+#from hermes.visa_offers_platform import vop_check_payment
 
 
 class Category(models.Model):

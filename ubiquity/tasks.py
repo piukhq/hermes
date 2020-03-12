@@ -137,5 +137,8 @@ def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: s
 
 
 @shared_task
-def visa_enrol(cards):
-    pass
+def visa_enrol(data):
+    requests.post(settings.METIS_URL + '/visa/activate/',
+                  json=data,
+                  headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                           'Content-Type': 'application/json'})
