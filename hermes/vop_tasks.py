@@ -24,7 +24,5 @@ def send_activation(entry, data, activated_state):
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
     if rep.status_code == 201:
-        reply = rep.json()
-        if reply.get('status') == 'activated':
-            entry.vop_link = activated_state
-            entry.save()
+        entry.vop_link = activated_state
+        entry.save()
