@@ -39,10 +39,8 @@ from ubiquity.versioning import versioned_serializer_class, SelectSerializer, se
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
-                                                  PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                                  ServiceConsentSerializer, TransactionsSerializer,
-                                                  LinkMembershipCardSerializer)
-from ubiquity.versioning.v1_2.serializers import PaymentCardTranslationSerializer
+                                                  PaymentCardUpdateSerializer, ServiceConsentSerializer,
+                                                  TransactionsSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -1024,7 +1022,13 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializer
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         try:
-            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
+            pcard_data = VersionedSerializerMixin.get_serializer_by_version(
+                SelectSerializer.PAYMENT_CARD_TRANSLATION,
+                request.version,
+                request.data['card'],
+                context={'bundle_id': request.channels_permit.bundle_id}
+            ).data
+
             if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
