@@ -35,7 +35,7 @@ from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, Sch
 
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
-from ubiquity.versioning import versioned_serializer_class, SelectSerializer, serializer_by_version
+from ubiquity.versioning import versioned_serializer_class, SelectSerializer, serializer_by_version, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
@@ -322,7 +322,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
             allowed_issuers=request.allowed_issuers,
-            version=request.version,
+            version=get_api_version(request),
             bundle_id=request.channels_permit.bundle_id
         )
         if pcard_data['fingerprint'] != account.fingerprint:
@@ -385,7 +385,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
             allowed_issuers=request.allowed_issuers,
-            version=request.version,
+            version=get_api_version(request),
             bundle_id=request.channels_permit.bundle_id
         )
 
@@ -1020,7 +1020,7 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializer
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(
                 SelectSerializer.PAYMENT_CARD_TRANSLATION,
-                request.version,
+                get_api_version(request),
                 request.data['card'],
                 context={'bundle_id': request.channels_permit.bundle_id}
             ).data
