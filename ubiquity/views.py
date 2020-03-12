@@ -578,7 +578,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 for item in data['account'].get(field, [])
             }
         except (TypeError, KeyError) as e:
-            logging.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
+            logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
     def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:

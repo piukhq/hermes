@@ -301,7 +301,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_SUCCESSFUL)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertEqual(audit.transaction_token, None)
+        self.assertEqual(audit.transaction_token, '')
 
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_does_not_call_void_without_audit(self, mock_void):
@@ -325,7 +325,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_REQUIRED)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertNotEqual(audit.transaction_token, None)
+        self.assertNotEqual(audit.transaction_token, '')
         self.assertTrue(mock_set_task.called)
         for arg in ['payment_card.tasks', 'retry_payment_void_task', {'scheme_acc_id': self.scheme_account.id}]:
             self.assertIn(arg, list(mock_set_task.call_args_list)[0][0])

@@ -1,4 +1,5 @@
 import json
+import logging
 import socket
 import typing as t
 import uuid
@@ -29,6 +30,9 @@ if t.TYPE_CHECKING:
     from user.models import CustomUser
     from rest_framework.serializers import Serializer
     from django.db.models import QuerySet
+
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLinkMixin(object):
@@ -286,7 +290,8 @@ class SchemeAccountJoinMixin:
         except PaymentError:
             self.handle_failed_join(scheme_account, user)
             raise
-        except Exception:
+        except Exception as e:
+            logger.exception(repr(e))
             self.handle_failed_join(scheme_account, user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK, scheme_account
 

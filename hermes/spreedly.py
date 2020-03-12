@@ -22,7 +22,7 @@ class Spreedly:
 
         self.purchase_resp = None
         self.void_resp = None
-        self.transaction_token = None
+        self.transaction_token = ''
 
     def purchase(self, payment_token: str, amount: int, order_id: str,
                  gateway_token: str = settings.SPREEDLY_GATEWAY_TOKEN) -> None:
@@ -46,8 +46,7 @@ class Spreedly:
             self.purchase_resp = resp.json()
             if not self.purchase_resp["transaction"]["succeeded"]:
                 message = (
-                    f'Payment error - Spreedly message: {self.purchase_resp["transaction"]["message"]} '
-                    f'- response: {self.purchase_resp["transaction"]["response"]}'
+                    f'Payment error - Spreedly response: {self.purchase_resp["transaction"]["response"]}'
                 )
                 logging.exception(message)
                 raise SpreedlyError(SpreedlyError.UNSUCCESSFUL_RESPONSE)

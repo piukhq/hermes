@@ -172,7 +172,7 @@ class Payment:
         try:
             payment_audit.void_attempts += 1
             Payment(audit_obj=payment_audit)._void(transaction_token=payment_audit.transaction_token)
-            payment_audit.transaction_token = None
+            payment_audit.transaction_token = ''
             payment_audit.status = PaymentStatus.VOID_SUCCESSFUL
             payment_audit.save()
         except PaymentError as e:
@@ -196,6 +196,6 @@ class Payment:
             return
 
         if payment_audit.status != PaymentStatus.SUCCESSFUL:
-            payment_audit.transaction_token = None
+            payment_audit.transaction_token = ''
             payment_audit.status = PaymentStatus.SUCCESSFUL
             payment_audit.save()
