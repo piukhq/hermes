@@ -599,11 +599,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             for item in fields:
                 credential_type = label_to_type[item['column']]['type']
-
-                """
-                Sensitive field decryption
-                """
-
                 if label_to_type[item['column']]['answer_type'] == AnswerTypeChoices.SENSITIVE.value:
                     try:
                         key = get_key(
@@ -794,7 +789,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
-        except (KeyError, Exception) as e:
+        except KeyError as e:
+            logger.exception(e)
             raise ParseError()
 
         if fields['enrol_fields']:
