@@ -389,9 +389,6 @@ PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
 # Time in seconds of how long is required before a payment is deemed to be expired
 PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
 
-# client_id of ClientApplication used by Barclays in django admin
-ALLOWED_CLIENT_ID = env_var('ALLOWED_CLIENT_ID', '2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-
 ATLAS_URL = env_var('ATLAS_URL')
 ROLLBACK_TRANSACTIONS_URL = 'http://test.url' if TESTING else env_var('ROLLBACK_TRANSACTIONS_URL', None)
 
