@@ -40,7 +40,7 @@ from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
-from hermes.visa_offers_platform import vop_check_payment
+from hermes.vop_tasks import vop_enroll
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -385,8 +385,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
 
-        # todo VOP process vop here
-
         if new_status_code is SchemeAccount.ACTIVE:
             if previous_status is not SchemeAccount.ACTIVE:
                 vop_check_payment(scheme_account)
@@ -406,6 +404,15 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'id': scheme_account.id,
             'status': new_status_code
         })
+
+    def vop_check_payment(self, scheme_account):
+        entries = PaymentCardSchemeEntry.objects.filter(
+            scheme_account=scheme_account,
+            payment_card_account__payment_card__slug="visa",
+            vop_link=PaymentCardSchemeEntry.UNDEFINED
+        )
+
+        vop_enroll(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:

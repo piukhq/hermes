@@ -25,7 +25,8 @@ from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
-#from hermes.visa_offers_platform import vop_check_payment
+from ubiquity.models import PaymentCardSchemeEntry
+from hermes.vop_tasks import vop_enroll
 
 
 class Category(models.Model):
@@ -573,25 +574,27 @@ class SchemeAccount(models.Model):
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
 
-                # TODO VOP Membership pending to active test here
+                if previous_state is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
+                    self.vop_check()
 
-                if previous_state is not SchemeAccount.Active and self.status is SchemeAccount.ACTIVE:
-                    vop_check_payment(self)
-
-                if settings.ENABLE_DAEDALUS_MESSAGING:
-                    settings.TO_DAEDALUS.send(
-                        {"type": 'membership_card_update',
-                         "model": 'schemeaccount',
-                         "id": str(self.id),
-                         "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                         "rep": repr(self)},
-                        headers={'X-content-type': 'application/json'}
-                    )
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         self._received_balance_checks(old_status)
         return points
+
+    def vop_check(self):
+        """ This method finds all the visa payment cards linked to this scheme account with undefined VOP status
+        """
+
+        entries = PaymentCardSchemeEntry.objects.filter(
+            scheme_account=self,
+            payment_card_account__payment_card__slug="visa",
+            vop_link=PaymentCardSchemeEntry.UNDEFINED
+        )
+
+        if entries:
+            vop_enroll(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
 
     def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
