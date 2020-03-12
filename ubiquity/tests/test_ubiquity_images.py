@@ -7,7 +7,7 @@ from scheme.models import SchemeBundleAssociation
 from common.models import Image
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
 from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
-from ubiquity.serializers import MembershipTransactionsMixin
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
@@ -71,7 +71,7 @@ class TestPaymentCardAccountImages(APITestCase):
         self.assertIsInstance(json[0]['images'], list)
 
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('ubiquity.serializers.async_balance', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     def test_images_in_membership_card_response(self, mock_get_midas_balance, _):
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
