@@ -79,6 +79,7 @@ class TestResources(APITestCase):
                                                                          payment_card_account=self.payment_card_account)
 
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
+        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
 
         self.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
@@ -227,48 +228,8 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
-
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
-    def test_payment_card_creation_with_id(self, *_):
-        external_id = "daedalus-updater@bink.com"
-        bink_org = Organisation.objects.get(name="Loyalty Angels")
-        client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
-        UserFactory(external_id=external_id, client=client_app, is_active=True)
-
-        token = GenerateJWToken(client_app.organisation.name, client_app.secret, settings.INTERNAL_SERVICE_BUNDLE,
-                                external_id).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
-
-        payload = {
-            "card": {
-                "last_four_digits": 5234,
-                "currency_code": "GBP",
-                "first_six_digits": 423456,
-                "name_on_card": "test user 2",
-                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxz",
-                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effz",
-                "year": 22,
-                "month": 3,
-                "order": 1
-            },
-            "account": {
-                "consents": [
-                    {
-                        "timestamp": 1517549941,
-                        "type": 0
-                    }
-                ]
-            }
-        }
-        provided_id = 150000000
-
-        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **auth_headers)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.json()['id'], provided_id)
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
@@ -297,7 +258,8 @@ class TestResources(APITestCase):
         provided_id = 150000000
 
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **self.auth_headers)
+                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id,
+                                **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
         self.assertNotEqual(resp.json()['id'], provided_id)
 
@@ -328,7 +290,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(correct_payload),
-                               content_type='application/json', **self.auth_headers)
+                               content_type='application/json', **self.auth_headers, **self.version_header)
         pca.refresh_from_db()
 
         self.assertEqual(resp.status_code, 200)
@@ -357,7 +319,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(wrong_payload),
-                               content_type='application/json', **self.auth_headers)
+                               content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
 
@@ -757,8 +719,9 @@ class TestResources(APITestCase):
                 ]
             }
         }
+
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertIn('issuer not allowed', resp.json()['detail'])
 
         payload = {
@@ -773,7 +736,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
-                                **self.auth_headers)
+                                **self.auth_headers, accept='Application/json;v=1.1')
         self.assertIn('membership plan not allowed', resp.json()['detail'])
 
     @httpretty.activate
@@ -862,7 +825,7 @@ class TestResources(APITestCase):
         ]
 
         resp = self.client.post(reverse('composite-payment-cards', args=[new_sa.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
