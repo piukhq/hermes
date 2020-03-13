@@ -18,6 +18,7 @@ def vop_enroll(entries, set_status, activated_state):
 
         send_activation.delay(entry, data, activated_state)
 
+
 @shared_task
 def send_activation(entry, data, activated_state):
     rep = requests.post(settings.METIS_URL + '/visa/activate/',

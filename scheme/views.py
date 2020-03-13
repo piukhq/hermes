@@ -20,8 +20,9 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from payment_card.payment import Payment
+from hermes.vop_tasks import vop_enroll
 from payment_card.models import PaymentCardAccount
+from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -40,7 +41,6 @@ from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
-from hermes.vop_tasks import vop_enroll
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -387,7 +387,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if new_status_code is SchemeAccount.ACTIVE:
             if previous_status is not SchemeAccount.ACTIVE:
-                vop_check_payment(scheme_account)
+                self.vop_check_payment(scheme_account)
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
