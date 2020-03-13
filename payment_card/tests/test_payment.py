@@ -203,6 +203,7 @@ class TestPayment(APITestCase):
         Payment.process_payment_purchase(
             scheme_acc=self.scheme_account,
             payment_card_id=self.payment_card_account.id,
+            user_id=self.user.id,
             payment_amount=200
         )
 
@@ -226,6 +227,7 @@ class TestPayment(APITestCase):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=invalid_p_card_id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
@@ -247,6 +249,7 @@ class TestPayment(APITestCase):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
@@ -266,6 +269,7 @@ class TestPayment(APITestCase):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
@@ -280,6 +284,7 @@ class TestPayment(APITestCase):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
