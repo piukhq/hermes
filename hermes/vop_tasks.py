@@ -3,7 +3,7 @@ from celery import shared_task
 from django.conf import settings
 
 
-def vop_enroll(entries, set_status, activated_state):
+def vop_activate(entries, set_status, activated_state):
     for entry in entries:
         entry.vop_link = set_status
         entry.save()

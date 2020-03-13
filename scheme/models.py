@@ -26,7 +26,7 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encyption import AESCipher
 from scheme import vouchers
 from ubiquity.models import PaymentCardSchemeEntry
-from hermes.vop_tasks import vop_enroll
+from hermes.vop_tasks import vop_activate
 
 
 class Category(models.Model):
@@ -594,7 +594,7 @@ class SchemeAccount(models.Model):
         )
 
         if entries:
-            vop_enroll(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
+            vop_activate(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
 
     def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:

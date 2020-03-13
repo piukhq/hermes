@@ -20,7 +20,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from hermes.vop_tasks import vop_enroll
+from hermes.vop_tasks import vop_activate
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
@@ -412,7 +412,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             vop_link=PaymentCardSchemeEntry.UNDEFINED
         )
 
-        vop_enroll(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
+        vop_activate(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:
