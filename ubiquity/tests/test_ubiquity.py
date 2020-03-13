@@ -26,7 +26,6 @@ from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
 from ubiquity.views import MembershipTransactionView, MembershipCardView
-from user.models import ClientApplication, Organisation
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 

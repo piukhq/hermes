@@ -95,10 +95,10 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
         return self._decrypt_val(obj['last_four_digits'])
 
     def get_expiry_year(self, obj):
-        return self._decrypt_val(obj['year'])
+        return int(self._decrypt_val(obj['year']))
 
     def get_expiry_month(self, obj):
-        return self._decrypt_val(obj['month'])
+        return int(self._decrypt_val(obj['month']))
 
     def get_hash(self, obj):
         hash1 = self._decrypt_val(obj["hash"])
