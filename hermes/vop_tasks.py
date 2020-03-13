@@ -1,4 +1,6 @@
+import requests
 from celery import shared_task
+from django.conf import settings
 
 
 def vop_enroll(entries, set_status, activated_state):
@@ -14,8 +16,7 @@ def vop_enroll(entries, set_status, activated_state):
             'scheme_account_id': entry.scheme_account.id
         }
 
-        send_activation.delay(entry, data)
-
+        send_activation.delay(entry, data, activated_state)
 
 @shared_task
 def send_activation(entry, data, activated_state):
