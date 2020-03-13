@@ -378,9 +378,9 @@ CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
 SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', '')
-SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', '')
-SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', '')
-SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
+SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', 'env_key')
+SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', 'access_secret')
+SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', 'gateway_token')
 
 # Time in seconds for the interval between retry tasks called by celery beats
 RETRY_PERIOD = env_var('RETRY_PERIOD', '900')

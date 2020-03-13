@@ -103,13 +103,14 @@ class Payment:
         return payment_audit_objects.last()
 
     @staticmethod
-    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_id: int, payment_amount: int) -> None:
+    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_id: int, user_id: int,
+                                 payment_amount: int) -> None:
         """
         Starts an audit trail and makes a purchase request.
         Any failure to during the purchase request will cause the join to fail.
         """
         payment_audit = PaymentAudit.objects.create(
-            scheme_account=scheme_acc, payment_card_id=payment_card_id
+            scheme_account=scheme_acc, payment_card_id=payment_card_id, user_id=user_id
         )
 
         try:
