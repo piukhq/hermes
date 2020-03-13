@@ -41,7 +41,7 @@ class Spreedly:
                 auth=(self.environment_key, self.access_secret),
             )
             if not resp.ok:
-                raise SpreedlyError("Error response received from Spreedly")
+                raise SpreedlyError(f"Error response received from Spreedly - status code: {resp.status_code}")
 
             self.purchase_resp = resp.json()
             if not self.purchase_resp["transaction"]["succeeded"]:
@@ -64,6 +64,9 @@ class Spreedly:
                 self.payment_void_url.format(self.base_url, transaction_token=transaction_token),
                 auth=(self.environment_key, self.access_secret),
             )
+            
+            if not resp.ok:
+                raise SpreedlyError(f"Error response received from Spreedly - status code: {resp.status_code}")
 
             self.void_resp = resp.json()
             if not self.void_resp["transaction"]["succeeded"]:
