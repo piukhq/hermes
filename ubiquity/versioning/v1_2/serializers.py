@@ -34,7 +34,7 @@ class MembershipPlanSerializer(base_serializers.MembershipPlanSerializer):
         plan['account']['fees'] = MembershipPlanFeeSerializer(instance.schemefee_set.all(), many=True).data
         plan['content'] = MembershipPlanContentSerializer(instance.schemecontent_set.all(), many=True).data
 
-        has_vouchers = plan.pop('has_vouchers') if 'has_vouchers' in plan else False
+        has_vouchers = plan.pop('has_vouchers', False)
         plan['feature_set']['has_vouchers'] = has_vouchers
 
         return plan
