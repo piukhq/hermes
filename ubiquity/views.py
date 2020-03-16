@@ -578,7 +578,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 for item in data['account'].get(field, [])
             }
         except (TypeError, KeyError) as e:
-            logging.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
+            logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
     def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
@@ -634,12 +634,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict,
-                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict
+                                  ) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme_id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user)
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, account_id)
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
         if auth_fields:
@@ -664,8 +664,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict,
-                                  account_id: int = None) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict
+                                  ) -> t.Tuple[SchemeAccount, int]:
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
             "fatface",
@@ -698,9 +698,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account.set_async_join_status()
         except SchemeAccount.DoesNotExist:
             newly_created = True
-            account_id_param = {'pk': account_id} if account_id else {}
             scheme_account = SchemeAccount(
-                **account_id_param,
                 order=0,
                 scheme_id=scheme_id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -838,20 +836,15 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        object_id = None
-        if self.request.channels_permit.service_allow_all:
-            try:
-                object_id = int(request.META.get('HTTP_X_OBJECT_ID'))
-            except ValueError:
-                raise ValidationError('X-object-id header must be an integer value.')
-
         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         if enrol_fields:
-            account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
-                                                                  scheme_id, enrol_fields, account_id=object_id)
+            account, status_code = self._handle_create_join_route(
+                request.user, request.channels_permit, scheme_id, enrol_fields
+            )
         else:
-            account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
-                                                                  add_fields, account_id=object_id)
+            account, status_code = self._handle_create_link_route(
+                request.user, scheme_id, auth_fields, add_fields
+            )
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)

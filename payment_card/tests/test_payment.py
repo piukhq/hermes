@@ -1,27 +1,29 @@
 from unittest.mock import patch, MagicMock
 
 import requests
+from faker import Factory
 from rest_framework.test import APITestCase
 
+from hermes.spreedly import SpreedlyError
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
-from user.tests.factories import UserFactory
+from user.tests.factories import UserFactory, ClientApplicationFactory, OrganisationFactory
 
 
 class TestPayment(APITestCase):
     def setUp(self):
+        fake = Factory.create()
+        self.organisation = OrganisationFactory(name=fake.text(max_nb_chars=100))
+        self.client = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
         self.user = UserFactory()
         self.scheme_account = SchemeAccountFactory()
         self.payment_card_account = PaymentCardAccountFactory()
-        self.p_link = PaymentCardAccountEntryFactory(payment_card_account=self.payment_card_account, user=self.user)
-        self.s_link = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
 
     @patch('requests.post', autospec=True)
-    def test_auth_success(self, mock_post):
+    def test_purchase_success(self, mock_post):
         response = {
             "transaction": {
                 "token": "abc-123",
@@ -33,36 +35,36 @@ class TestPayment(APITestCase):
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
-        payment._auth()
+        payment._purchase()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
-    def test_auth_missing_token_raises_payment_error(self, mock_post):
+    def test_purchase_missing_token_raises_payment_error(self, mock_post):
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
         payment = Payment(audit_obj=audit, amount=100)
 
         with self.assertRaises(PaymentError):
-            payment._auth()
+            payment._purchase()
 
         self.assertFalse(mock_post.called)
 
     @patch('requests.post', autospec=True)
-    def test_auth_request_exception_raises_payment_error(self, mock_post):
+    def test_purchase_request_exception_raises_payment_error(self, mock_post):
         mock_post.side_effect = requests.ConnectionError
         payment_token = 'abc'
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
         with self.assertRaises(PaymentError):
-            payment._auth()
+            payment._purchase()
 
         self.assertTrue(mock_post.called)
 
     @patch('requests.post', autospec=True)
-    def test_auth_unexpected_response_raises_payment_error(self, mock_post):
+    def test_purchase_unexpected_response_raises_payment_error(self, mock_post):
         response = {
             "transaction": {
                 "token": "abc-123",
@@ -75,14 +77,14 @@ class TestPayment(APITestCase):
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
         with self.assertRaises(PaymentError):
-            payment._auth()
+            payment._purchase()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
-    def test_auth_unsuccessful_response_raises_payment_error(self, mock_post):
+    def test_purchase_unsuccessful_response_raises_payment_error(self, mock_post):
         response = {
             "transaction": {
                 "token": "abc-123",
@@ -96,10 +98,10 @@ class TestPayment(APITestCase):
         payment = Payment(audit_obj=audit, payment_token=payment_token, amount=100)
 
         with self.assertRaises(PaymentError):
-            payment._auth()
+            payment._purchase()
 
         self.assertTrue(mock_post.called)
-        self.assertEqual(payment.spreedly.auth_resp, response)
+        self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
     @patch('requests.post', autospec=True)
@@ -189,8 +191,8 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_post.called)
 
     @patch('payment_card.payment.Payment', autospec=True)
-    def test_process_payment_auth_success(self, mock_payment_class):
-        mock_payment_class.attempt_auth = Payment.attempt_auth
+    def test_process_payment_purchase_success(self, mock_payment_class):
+        mock_payment_class.attempt_purchase = Payment.attempt_purchase
         mock_spreedly = MagicMock()
         mock_spreedly.transaction_token = 'abc'
         mock_payment_class.return_value.spreedly = mock_spreedly
@@ -198,81 +200,96 @@ class TestPayment(APITestCase):
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
-        Payment.process_payment_auth(
-            user_id=self.user.id,
+        Payment.process_payment_purchase(
             scheme_acc=self.scheme_account,
             payment_card_id=self.payment_card_account.id,
+            user_id=self.user.id,
             payment_amount=200
         )
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(1, audit_obj_count)
 
-        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
+        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account)
 
         self.assertTrue(mock_payment_class.called)
         self.assertEqual('abc', audit_obj.transaction_token)
         self.assertEqual(audit_obj.status, PaymentStatus.AUTHORISED)
 
-    @patch('payment_card.payment.Payment._auth', autospec=True)
-    def test_process_payment_auth_invalid_p_card_id_raises_payment_error(self, mock_auth_call):
+    @patch('payment_card.payment.Payment._purchase', autospec=True)
+    def test_process_payment_purchase_invalid_p_card_id_raises_payment_error(self, mock_purchase_call):
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
         invalid_p_card_id = 99999999999999999
 
         with self.assertRaises(PaymentError):
-            Payment.process_payment_auth(
-                user_id=self.user.id,
+            Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=invalid_p_card_id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(1, audit_obj_count)
 
-        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
+        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account)
 
-        self.assertFalse(mock_auth_call.return_value._auth.called)
-        self.assertEqual(audit_obj.status, PaymentStatus.AUTH_FAILED)
+        self.assertFalse(mock_purchase_call.return_value._purchase.called)
+        self.assertEqual(audit_obj.status, PaymentStatus.PURCHASE_FAILED)
 
-    @patch('payment_card.payment.Payment._auth', autospec=True)
-    def test_process_payment_auth_sets_correct_status_for_failures(self, mock_auth_call):
-        mock_auth_call.side_effect = PaymentError
+    @patch('payment_card.payment.Payment._purchase', autospec=True)
+    def test_process_payment_purchase_sets_correct_status_for_failures(self, mock_purchase_call):
+        mock_purchase_call.side_effect = PaymentError
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
         with self.assertRaises(PaymentError):
-            Payment.process_payment_auth(
-                user_id=self.user.id,
+            Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(1, audit_obj_count)
 
-        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account, user_id=self.user.id)
+        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account)
 
-        self.assertTrue(mock_auth_call.called)
-        self.assertEqual(audit_obj.status, PaymentStatus.AUTH_FAILED)
+        self.assertTrue(mock_purchase_call.called)
+        self.assertEqual(audit_obj.status, PaymentStatus.PURCHASE_FAILED)
 
-    @patch('payment_card.payment.Payment._auth', autospec=True)
-    def test_process_payment_auth_retries_on_system_failures(self, mock_auth_call):
-        mock_auth_call.side_effect = PaymentError
+    @patch('payment_card.payment.Payment._purchase', autospec=True)
+    def test_process_payment_purchase_retries_on_system_failures(self, mock_purchase_call):
+        mock_purchase_call.side_effect = PaymentError
 
         with self.assertRaises(PaymentError):
-            Payment.process_payment_auth(
-                user_id=self.user.id,
+            Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
                 payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
                 payment_amount=200
             )
 
-        self.assertTrue(mock_auth_call.called)
-        self.assertEqual(mock_auth_call.call_count, 4)
+        self.assertTrue(mock_purchase_call.called)
+        self.assertEqual(mock_purchase_call.call_count, 4)
+
+    @patch('payment_card.payment.Payment._purchase', autospec=True)
+    def test_process_payment_purchase_does_not_retry_on_spreedly_error_response(self, mock_purchase_call):
+        mock_purchase_call.side_effect = PaymentError(SpreedlyError.UNSUCCESSFUL_RESPONSE)
+
+        with self.assertRaises(PaymentError):
+            Payment.process_payment_purchase(
+                scheme_acc=self.scheme_account,
+                payment_card_id=self.payment_card_account.id,
+                user_id=self.user.id,
+                payment_amount=200
+            )
+
+        self.assertTrue(mock_purchase_call.called)
+        self.assertEqual(mock_purchase_call.call_count, 1)
 
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_success(self, mock_void):
@@ -289,7 +306,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_SUCCESSFUL)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertEqual(audit.transaction_token, None)
+        self.assertEqual(audit.transaction_token, '')
 
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_does_not_call_void_without_audit(self, mock_void):
@@ -313,7 +330,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertEqual(audit.status, PaymentStatus.VOID_REQUIRED)
         self.assertEqual(audit.void_attempts, 1)
-        self.assertNotEqual(audit.transaction_token, None)
+        self.assertNotEqual(audit.transaction_token, '')
         self.assertTrue(mock_set_task.called)
         for arg in ['payment_card.tasks', 'retry_payment_void_task', {'scheme_acc_id': self.scheme_account.id}]:
             self.assertIn(arg, list(mock_set_task.call_args_list)[0][0])

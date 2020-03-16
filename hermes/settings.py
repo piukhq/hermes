@@ -379,14 +379,15 @@ CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
 SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', '')
-SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', '')
-SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', '')
-SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', '')
+SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', 'env_key')
+SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', 'access_secret')
+SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', 'gateway_token')
 
 # Time in seconds for the interval between retry tasks called by celery beats
 RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
 # Time in seconds for interval of checking if payments have not been updated and require voiding
-PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('RETRY_PERIOD', '600')
+PAYMENT_EXPIRY_CHECK_INTERVAL = env_var('PAYMENT_EXPIRY_CHECK_INTERVAL', '600')
+
 # Time in seconds of how long is required before a payment is deemed to be expired
 PAYMENT_EXPIRY_TIME = env_var('PAYMENT_EXPIRY_TIME', '120')
 
