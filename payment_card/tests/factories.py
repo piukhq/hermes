@@ -19,6 +19,8 @@ class IssuerFactory(factory.DjangoModelFactory):
         model = models.Issuer
         django_get_or_create = ('name',)
 
+    name = fake.word()
+
 
 class PaymentCardFactory(factory.DjangoModelFactory):
     class Meta:

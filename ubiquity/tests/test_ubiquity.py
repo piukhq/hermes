@@ -1499,7 +1499,7 @@ class TestResourcesV1_2(APITestCase):
                             "column": self.question_2.label,
                             "value": question_answer2,
                         }
-                ],
+                    ],
                     "authorise_fields": [
                         {
                             "column": self.question_1.label,
@@ -1547,7 +1547,7 @@ class TestResourcesV1_2(APITestCase):
                             "column": self.question_2.label,
                             "value": question_answer2,
                         }
-                ],
+                    ],
                     "authorise_fields": [
                         {
                             "column": self.question_1.label,
