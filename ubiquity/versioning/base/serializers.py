@@ -562,7 +562,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         filtered_images = {
             image.image_type_code: image
             for image in images
-            if image.image_type_code in [image.HERO, image.ICON] or (
+            if image.image_type_code in [image.HERO, image.ICON, image.ALT_HERO] or (
                     image.image_type_code == image.TIER and image.reward_tier == tier)
         }
 
