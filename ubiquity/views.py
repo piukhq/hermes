@@ -21,6 +21,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 import analytics
 from hermes.channel_vault import get_key
 from hermes.channels import Permit
+from hermes.settings import Version
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS
@@ -48,7 +49,6 @@ from user.serializers import UbiquityRegisterSerializer
 if t.TYPE_CHECKING:
     from django.http import HttpResponse
     from rest_framework.serializers import Serializer
-    from hermes.settings import Version
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
@@ -600,22 +600,28 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             for item in fields:
                 credential_type = label_to_type[item['column']]['type']
-                if label_to_type[item['column']]['answer_type'] == AnswerTypeChoices.SENSITIVE.value:
-                    try:
-                        key = get_key(
-                            bundle_id=self.request.channels_permit.bundle_id,
-                            key_type="private_key"
-                        )
-                        field_content[credential_type] = RSACipher().decrypt(item['value'], priv_key=key)
-                    except ValueError:
-                        logger.warning(f"Failed to decrypt sensitive field {credential_type}")
-                        field_content[credential_type] = item['value']
-                else:
-                    field_content[credential_type] = item['value']
+                answer_type = label_to_type[item['column']]['answer_type']
+                self._decrypt_sensitive_fields(field_content, credential_type, answer_type, item)
             return field_content
-        except (TypeError, KeyError) as e:
+        except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
+
+    def _decrypt_sensitive_fields(self, field_content, credential_type, answer_type, item):
+        api_version = get_api_version(self.request)
+        if (api_version >= Version.v1_2
+                and answer_type == AnswerTypeChoices.SENSITIVE.value):
+            try:
+                key = get_key(
+                    bundle_id=self.request.channels_permit.bundle_id,
+                    key_type="private_key"
+                )
+                field_content[credential_type] = RSACipher().decrypt(item['value'], priv_key=key)
+            except ValueError:
+                logger.warning(f'Failed to decrypt sensitive field "{credential_type}"')
+                raise
+        else:
+            field_content[credential_type] = item['value']
 
     def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
         data = self.request.data

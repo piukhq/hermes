@@ -127,6 +127,24 @@ class Version(str, Enum):
     v1_1 = '1.1'
     v1_2 = '1.2'
 
+    def __gt__(self, other):
+        major, minor = map(int, self.value.split('.'))
+        other_major, other_minor = map(int, other.value.split('.'))
+
+        if major == other_major:
+            return minor > other_minor
+        else:
+            return major > other_major
+
+    def __lt__(self, other):
+        major, minor = map(int, self.value.split('.'))
+        other_major, other_minor = map(int, other.value.split('.'))
+
+        if major == other_major:
+            return minor < other_minor
+        else:
+            return major < other_major
+
 
 DEFAULT_API_VERSION = env_var('DEFAULT_API_VERSION', max(Version).value)
 

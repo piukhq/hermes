@@ -17,6 +17,7 @@ fake.seed(12345)
 class IssuerFactory(factory.DjangoModelFactory):
     class Meta:
         model = models.Issuer
+        django_get_or_create = ('name',)
 
 
 class PaymentCardFactory(factory.DjangoModelFactory):
