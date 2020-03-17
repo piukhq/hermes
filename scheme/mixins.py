@@ -1,4 +1,5 @@
 import json
+import logging
 import socket
 import typing as t
 import uuid
@@ -23,12 +24,14 @@ from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, S
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
-from user.models import ClientApplicationBundle
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
     from rest_framework.serializers import Serializer
     from django.db.models import QuerySet
+
+
+logger = logging.getLogger(__name__)
 
 
 class BaseLinkMixin(object):
@@ -153,8 +156,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer = self.get_validated_data(data, user)
         return self.create_account_with_valid_data(serializer, user)
 
-    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser',
-                                       account_id: int = None) -> t.Tuple[SchemeAccount, dict, bool]:
+    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser'
+                                       ) -> t.Tuple[SchemeAccount, dict, bool]:
         account_created = False
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
@@ -165,25 +168,16 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 'is_deleted': False
             }
             scheme_account = SchemeAccount.objects.filter(**query).distinct().get()
+            return scheme_account, data, account_created
 
-            if user.client_id == settings.ALLOWED_CLIENT_ID:
-                return scheme_account, data, account_created
-
-            internal_service_client = ClientApplicationBundle.objects.get(
-                bundle_id=settings.INTERNAL_SERVICE_BUNDLE).client.client_id
-            if user.client_id == internal_service_client:
-                return scheme_account, data, account_created
-
-            raise ValidationError('Scheme Account already exists in another wallet.')
         except SchemeAccount.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type, account_id)
+            scheme_account, account_created = self._create_account(user, data, answer_type)
 
         data['id'] = scheme_account.id
         return scheme_account, data, account_created
 
     @staticmethod
-    def _create_account(user: 'CustomUser', data: dict, answer_type: str,
-                        account_id: int = None) -> t.Tuple[SchemeAccount, bool]:
+    def _create_account(user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
         account_created = False  # Required for /ubiquity
 
         with transaction.atomic():
@@ -202,9 +196,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account_updated = True
 
             except SchemeAccount.DoesNotExist:
-                account_id_param = {"pk": account_id} if account_id else {}
                 scheme_account = SchemeAccount.objects.create(
-                    **account_id_param,
                     scheme_id=data['scheme'],
                     order=data['order'],
                     status=SchemeAccount.WALLET_ONLY
@@ -272,7 +264,7 @@ class SchemeAccountJoinMixin:
         try:
             payment_card_id = data['credentials'].get('payment_card_id')
             if payment_card_id:
-                Payment.process_payment_auth(user.id, scheme_account, payment_card_id, payment_amount=100)
+                Payment.process_payment_purchase(scheme_account, payment_card_id, user.id, payment_amount=100)
 
             self.save_consents(serializer, user, scheme_account, scheme_id, data)
 
@@ -289,7 +281,8 @@ class SchemeAccountJoinMixin:
         except PaymentError:
             self.handle_failed_join(scheme_account, user)
             raise
-        except Exception:
+        except Exception as e:
+            logger.exception(repr(e))
             self.handle_failed_join(scheme_account, user)
             return {'message': 'Unknown error with join'}, status.HTTP_200_OK, scheme_account
 

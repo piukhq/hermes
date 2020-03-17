@@ -18,7 +18,9 @@ def retry_payment_void_task(transaction_data: dict) -> (bool, str):
         scheme_acc = SchemeAccount.objects.get(pk=transaction_data['scheme_acc_id'])
         payment_audit = Payment.get_payment_audit(scheme_acc)
         if not payment_audit:
-            err_msg = "scheme_account_id: {} - No Payment Audit found".format(transaction_data['scheme_acc_id'])
+            err_msg = (
+                f"scheme_account_id: {transaction_data['scheme_acc_id']} - No Payment Audit requiring voiding found"
+            )
             logging.error(err_msg)
             # returns done as True to stop further retries
             done = True
@@ -38,7 +40,7 @@ def expired_payment_void_task() -> None:
     statuses = (PaymentStatus.AUTHORISED, PaymentStatus.VOID_REQUIRED)
     payment_audits = PaymentAudit.objects.filter(
         status__in=statuses,
-        created_on__lt=time_now.replace(seconds=-int(settings.PAYMENT_EXPIRY_TIME)).datetime
+        created_on__lt=time_now.shift(seconds=-int(settings.PAYMENT_EXPIRY_TIME)).datetime
     )
     task_store = RetryTaskStore()
     tasks_in_queue = task_store.storage.lrange(task_store.task_list, 0, task_store.length)
