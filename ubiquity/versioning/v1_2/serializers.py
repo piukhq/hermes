@@ -5,7 +5,6 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from hermes.channel_vault import get_pcard_hash_secret, get_key
-from hermes.settings import VAULT_TOKEN, VAULT_URL
 from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
