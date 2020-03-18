@@ -5,8 +5,8 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from hermes.channel_vault import get_pcard_hash_secret, get_key
-from payment_card.models import Issuer, PaymentCard
-
+from hermes.settings import VAULT_TOKEN, VAULT_URL
+from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
 
@@ -59,29 +59,17 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
         return card
 
 
-class PaymentCardTranslationSerializer(serializers.Serializer):
+class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSerializer):
     pan_start = serializers.SerializerMethodField()
     pan_end = serializers.SerializerMethodField()
-    issuer = serializers.SerializerMethodField()
-    payment_card = serializers.SerializerMethodField()
-    name_on_card = serializers.CharField()
-    token = serializers.CharField()
-    fingerprint = serializers.CharField()
     expiry_year = serializers.SerializerMethodField()
     expiry_month = serializers.SerializerMethodField()
-    country = serializers.CharField(required=False, default='UK')
-    order = serializers.IntegerField(required=False, default=0)
-    currency_code = serializers.CharField(required=False, default='GBP')
     hash = serializers.SerializerMethodField()
-
-    @staticmethod
-    def get_issuer(_):
-        return Issuer.objects.values('id').get(name='Barclays')['id']
 
     def get_payment_card(self, obj):
         pan_start = self.context.get('decrypted_pan_start')
         if not pan_start:
-            pan_start = int(self._decrypt_val(obj['first_six_digits']))
+            pan_start = self._decrypt_val(obj['first_six_digits'])
             self.context['decrypted_pan_start'] = pan_start
         slug = bin_to_provider(pan_start)
         return PaymentCard.objects.values('id').get(slug=slug)['id']

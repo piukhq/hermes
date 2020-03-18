@@ -33,7 +33,6 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
-
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, serializer_by_version, get_api_version
@@ -42,7 +41,6 @@ from ubiquity.versioning.base.serializers import (MembershipCardSerializer, Memb
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
                                                   TransactionsSerializer, LinkMembershipCardSerializer)
-
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -163,8 +161,15 @@ class PaymentCardCreationMixin:
         if user in card.user_set.all():
             return True, card, status.HTTP_200_OK
 
+        self._add_hash(data.get('hash'), card)
         self._link_account_to_new_user(card, user)
         return True, card, status.HTTP_201_CREATED
+
+    @staticmethod
+    def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
+        if new_hash and not card.hash:
+            card.hash = new_hash
+            card.save()
 
     @staticmethod
     def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:

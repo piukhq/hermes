@@ -49,7 +49,7 @@ def get_api_version(request: 'Request') -> Version:
     return ver
 
 
-def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer':
+def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer()':
     version = get_api_version(request)
     serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)

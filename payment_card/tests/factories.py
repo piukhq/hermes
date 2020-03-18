@@ -46,8 +46,8 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     start_year = fake.month()
     expiry_month = fake.month()
     expiry_year = fake.month()
-    pan_start = 111111
-    pan_end = 2222
+    pan_start = '111111'
+    pan_end = '2222'
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)
