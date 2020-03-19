@@ -8,7 +8,9 @@ from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
 
-from payment_card.models import Issuer, PaymentCard
+from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
+
+from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
 from scheme.models import (
@@ -168,7 +170,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
                                                    add_type=False)
 
     def to_representation(self, instance):
-        status = 'active' if instance.consents else 'pending'
+        status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
         return {
             "id": instance.id,
             "membership_cards": self.get_membership_cards(instance),
@@ -219,21 +221,8 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
     def get_issuer(_):
         return Issuer.objects.values('id').get(name='Barclays')['id']
 
-    @staticmethod
-    def get_payment_card(obj):
-        first_6 = str(obj['first_six_digits'])
-        slug = 'other'
-        match_to_first_6 = {
-            'range': lambda match: match.value[0] <= int(first_6[:match.len]) <= match.value[1],
-            'equal': lambda match: first_6[:match.len] == match.value
-        }
-
-        for provider, values in settings.BIN_TO_PROVIDER.items():
-            for bin_match in values:
-                if match_to_first_6[bin_match.type](bin_match):
-                    slug = provider
-                    break
-
+    def get_payment_card(self, obj):
+        slug = bin_to_provider(str(obj['first_six_digits']))
         return PaymentCard.objects.values('id').get(slug=slug)['id']
 
 

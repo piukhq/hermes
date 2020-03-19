@@ -9,12 +9,14 @@ from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+from shared_config_storage.credentials.encryption import RSACipher
+from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
-    JourneyTypes
+    JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
@@ -22,11 +24,11 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.tests.test_serializers import mock_bundle_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
 from ubiquity.views import MembershipTransactionView, MembershipCardView
-from user.models import ClientApplication, Organisation
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -79,6 +81,7 @@ class TestResources(APITestCase):
                                                                          payment_card_account=self.payment_card_account)
 
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
+        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
 
         self.put_scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
@@ -227,48 +230,8 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
-
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
-    def test_payment_card_creation_with_id(self, *_):
-        external_id = "daedalus-updater@bink.com"
-        bink_org = Organisation.objects.get(name="Loyalty Angels")
-        client_app = ClientApplication.objects.get(organisation=bink_org, name="Daedalus")
-        UserFactory(external_id=external_id, client=client_app, is_active=True)
-
-        token = GenerateJWToken(client_app.organisation.name, client_app.secret, settings.INTERNAL_SERVICE_BUNDLE,
-                                external_id).get_token()
-        auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
-
-        payload = {
-            "card": {
-                "last_four_digits": 5234,
-                "currency_code": "GBP",
-                "first_six_digits": 423456,
-                "name_on_card": "test user 2",
-                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxz",
-                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effz",
-                "year": 22,
-                "month": 3,
-                "order": 1
-            },
-            "account": {
-                "consents": [
-                    {
-                        "timestamp": 1517549941,
-                        "type": 0
-                    }
-                ]
-            }
-        }
-        provided_id = 150000000
-
-        resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **auth_headers)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.json()['id'], provided_id)
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
@@ -297,7 +260,8 @@ class TestResources(APITestCase):
         provided_id = 150000000
 
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id, **self.auth_headers)
+                                content_type='application/json', HTTP_X_OBJECT_ID=provided_id,
+                                **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
         self.assertNotEqual(resp.json()['id'], provided_id)
 
@@ -328,7 +292,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(correct_payload),
-                               content_type='application/json', **self.auth_headers)
+                               content_type='application/json', **self.auth_headers, **self.version_header)
         pca.refresh_from_db()
 
         self.assertEqual(resp.status_code, 200)
@@ -357,7 +321,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.put(reverse('payment-card', args=[pca.id]), data=json.dumps(wrong_payload),
-                               content_type='application/json', **self.auth_headers)
+                               content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 400)
         self.assertEqual(resp.json()['detail'], 'cannot override fingerprint.')
 
@@ -757,8 +721,9 @@ class TestResources(APITestCase):
                 ]
             }
         }
+
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertIn('issuer not allowed', resp.json()['detail'])
 
         payload = {
@@ -773,7 +738,7 @@ class TestResources(APITestCase):
             }
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
-                                **self.auth_headers)
+                                **self.auth_headers, accept='Application/json;v=1.1')
         self.assertIn('membership plan not allowed', resp.json()['detail'])
 
     @httpretty.activate
@@ -862,7 +827,7 @@ class TestResources(APITestCase):
         ]
 
         resp = self.client.post(reverse('composite-payment-cards', args=[new_sa.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
+                                content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(expected_links, resp.json()['membership_cards'])
 
@@ -1471,3 +1436,130 @@ class TestMembershipCardCredentials(APITestCase):
         resp = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
                                  content_type='application/json', **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+
+
+class TestResourcesV1_2(APITestCase):
+    def _get_auth_header(self, user):
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                user.external_id).get_token()
+        return 'Bearer {}'.format(token)
+
+    def setUp(self) -> None:
+        self.rsa = RSACipher()
+        self.bundle_id = 'com.barclays.test'
+        self.pub_key = mock_bundle_secrets[self.bundle_id]['public_key']
+
+        organisation = OrganisationFactory(name='test_organisation')
+        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+        self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
+        self.scheme = SchemeFactory()
+
+        self.question_1 = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
+            label=PASSWORD, options=SchemeCredentialQuestion.LINK
+        )
+        self.question_2 = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
+            label=USER_NAME
+        )
+
+        external_id = 'test@user.com'
+        self.user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+
+        # Need to add an active association since it was assumed no setting was enabled
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
+
+        self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
+        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
+
+    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
+    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link,
+                                        mock_load_secrets, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        password = 'Password1'
+        question_answer2 = 'some other answer'
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": self.question_2.label,
+                            "value": question_answer2,
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": self.question_1.label,
+                            "value": self.rsa.encrypt(password, pub_key=self.pub_key),
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers, **self.version_header)
+        self.assertEqual(resp.status_code, 201)
+
+        scheme_acc = SchemeAccount.objects.get(pk=resp.data['id'])
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
+
+        self.assertTrue(mock_hades.called)
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
+
+    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
+    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_date, mock_hades, mock_async_balance,
+                                                                mock_async_link, mock_load_secrets, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        password = 'Password1'
+        question_answer2 = 'some other answer'
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": self.question_2.label,
+                            "value": question_answer2,
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": self.question_1.label,
+                            "value": password,
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers, **self.version_header)
+        self.assertEqual(resp.status_code, 400)
+
+        self.assertFalse(mock_hades.called)
+        self.assertFalse(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
