@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1f8b1205628a7ee0acdf8d5034056befaa01646bfc8c59c91afe2b9beda68665"
+            "sha256": "c7a059e947d4b5a378638ea200f312ed0f9e70d84ce8af5787ece87bb2b35536"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -60,11 +60,11 @@
         },
         "celery": {
             "hashes": [
-                "sha256:3c5fcd6bfcf9a6323cb742cfc121d1790d50cfeddf300ba723cfa0b356413f07",
-                "sha256:a650525303ee866fb0c62c82f68681fcc2183eebbfafae552c27d30125fe518b"
+                "sha256:108a0bf9018a871620936c33a3ee9f6336a89f8ef0a0f567a9001f4aa361415f",
+                "sha256:5b4b37e276033fe47575107a2775469f0b721646a08c96ec2c61531e4fe45f2a"
             ],
             "index": "pypi",
-            "version": "==4.4.1"
+            "version": "==4.4.2"
         },
         "certifi": {
             "hashes": [
@@ -236,10 +236,10 @@
         },
         "faker": {
             "hashes": [
-                "sha256:440d68fe0e46c1658b1975b2497abe0c24a7f772e3892253f31e713ffcc48965",
-                "sha256:ee24608768549c2c69e593e9d7a3b53c9498ae735534243ec8390cae5d529f8b"
+                "sha256:2d3f866ef25e1a5af80e7b0ceeacc3c92dec5d0fdbad3e2cb6adf6e60b22188f",
+                "sha256:b89aa33837498498e15c709eb40c31386408a901a53c7a5e12a425737a767976"
             ],
-            "version": "==4.0.1"
+            "version": "==4.0.2"
         },
         "hashids": {
             "hashes": [
@@ -452,6 +452,10 @@
             ],
             "index": "pypi",
             "version": "==0.14.2"
+        },
+        "shared-config-storage": {
+            "git": "ssh://git@git.bink.com/libs/shared-config-storage.git",
+            "ref": "c5332b6f4bda79795fa78929c8187454cfc4fcd8"
         },
         "six": {
             "hashes": [
