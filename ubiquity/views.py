@@ -304,6 +304,19 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             user_filter=True
         )
 
+    # def get_object(self, lookup_url_kwarg='pk'):
+    #     queryset = self.filter_queryset(self.get_queryset())
+    #     assert lookup_url_kwarg in self.kwargs, (
+    #         'Expected view %s to be called with a URL keyword argument '
+    #         'named "%s". Fix your URL conf, or set the `.lookup_field` '
+    #         'attribute on the view correctly.' %
+    #         (self.__class__.__name__, lookup_url_kwarg)
+    #     )
+    #     filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
+    #     obj = get_object_or_404(queryset, **filter_kwargs)
+    #     self.check_object_permissions(self.request, obj)
+    #     return obj
+
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
@@ -351,7 +364,6 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        self.lookup_field = 'hash' if kwargs.get('hash') is not None else 'pk'
         payment_card_account = self.get_object()
         p_card_users = {
             user['id'] for user in

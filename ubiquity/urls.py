@@ -38,9 +38,14 @@ urlpatterns = [
         name="payment-card"
     ),
     re_path(
-        r"^/payment_card/(hash-)?(id-)?(?(1)(?P<hash>\w+))(?(2)(?P<pk>[0-9]+))/?$",
+        r"^/payment_card/id-(?P<pk>[0-9]+)/?$",
         PaymentCardView.as_view(delete_only),
-        name="payment-card"
+        name="payment-card-id"
+    ),
+    re_path(
+        r"^/payment_card/hash-(?P<hash>\w+)/?$",
+        PaymentCardView.as_view(delete_only, lookup_field='hash'),
+        name="payment-card-hash"
     ),
     re_path(
         r"^/membership_cards/?$",
