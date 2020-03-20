@@ -10,6 +10,7 @@ from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
 from scheme.tests.factories import SchemeAccountFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory
 from user.tests.factories import UserFactory, ClientApplicationFactory, OrganisationFactory
 
 
@@ -21,6 +22,7 @@ class TestPayment(APITestCase):
         self.user = UserFactory()
         self.scheme_account = SchemeAccountFactory()
         self.payment_card_account = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=self.payment_card_account)
 
     @patch('requests.post', autospec=True)
     def test_purchase_success(self, mock_post):
@@ -228,6 +230,28 @@ class TestPayment(APITestCase):
                 scheme_acc=self.scheme_account,
                 payment_card_id=invalid_p_card_id,
                 user_id=self.user.id,
+                payment_amount=200
+            )
+
+        audit_obj_count = PaymentAudit.objects.count()
+        self.assertEqual(1, audit_obj_count)
+
+        audit_obj = PaymentAudit.objects.get(scheme_account=self.scheme_account)
+
+        self.assertFalse(mock_purchase_call.return_value._purchase.called)
+        self.assertEqual(audit_obj.status, PaymentStatus.PURCHASE_FAILED)
+
+    @patch('payment_card.payment.Payment._purchase', autospec=True)
+    def test_process_payment_purchase_p_card_id_not_associated_with_service(self, mock_purchase_call):
+        audit_obj_count = PaymentAudit.objects.count()
+        self.assertEqual(0, audit_obj_count)
+        invalid_user = UserFactory()
+
+        with self.assertRaises(PaymentError):
+            Payment.process_payment_purchase(
+                scheme_acc=self.scheme_account,
+                payment_card_id=self.payment_card_account.id,
+                user_id=invalid_user.id,
                 payment_amount=200
             )
 

@@ -114,11 +114,12 @@ class Payment:
         )
 
         try:
-            Payment.attempt_purchase(payment_audit, payment_card_id, payment_amount)
+            Payment.attempt_purchase(payment_audit, payment_card_id, user_id, payment_amount)
         except PaymentCardAccount.DoesNotExist:
             payment_audit.status = PaymentStatus.PURCHASE_FAILED
             payment_audit.save()
-            raise PaymentError("Provided Payment Card Account id does not exist")
+            raise PaymentError(f"Provided Payment Card Account id: {payment_card_id} does not exist, "
+                               f"or it does not belong to this service: {user_id}")
 
     @staticmethod
     @retry(stop=stop_after_attempt(4),
@@ -126,9 +127,9 @@ class Payment:
            wait=wait_exponential(min=2, max=8),
            reraise=True)
     def attempt_purchase(payment_audit: PaymentAudit, payment_card_id: int,
-                         payment_amount: int) -> None:
+                         user_id: int, payment_amount: int) -> None:
         try:
-            pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id)
+            pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id, user_set__id=user_id)
             payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
 
             payment._purchase()
