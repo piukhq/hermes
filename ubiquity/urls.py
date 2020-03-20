@@ -19,6 +19,7 @@ cards_plural = {"get": "list", "post": "create"}
 cards_singular = {"get": "retrieve", "delete": "destroy", "patch": "update", "put": "replace"}
 link_payment = {"patch": "update_payment", "delete": "destroy_payment"}
 link_membership = {"patch": "update_membership", "delete": "destroy_membership"}
+delete_only = {"delete": "destroy"}
 
 urlpatterns = [
     re_path(
@@ -32,8 +33,13 @@ urlpatterns = [
         name="payment-cards"
     ),
     re_path(
-        r"^/payment_card/(?P<pk>[0-9]+)?$",
+        r"^/payment_card/(?P<pk>[0-9]+)/?$",
         PaymentCardView.as_view(cards_singular),
+        name="payment-card"
+    ),
+    re_path(
+        r"^/payment_card/(hash-)?(id-)?(?(1)(?P<hash>\w+))(?(2)(?P<pk>[0-9]+))/?$",
+        PaymentCardView.as_view(delete_only),
         name="payment-card"
     ),
     re_path(

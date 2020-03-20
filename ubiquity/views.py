@@ -351,6 +351,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
+        self.lookup_field = 'hash' if kwargs.get('hash') is not None else 'pk'
         payment_card_account = self.get_object()
         p_card_users = {
             user['id'] for user in
