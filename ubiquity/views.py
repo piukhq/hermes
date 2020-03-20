@@ -15,9 +15,13 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from shared_config_storage.credentials.encryption import RSACipher
+from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
+from hermes.channel_vault import get_key
 from hermes.channels import Permit
+from hermes.settings import Version
 from payment_card.models import PaymentCardAccount
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS
@@ -31,18 +35,18 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
-from ubiquity.versioning import versioned_serializer_class, SelectSerializer
+from ubiquity.versioning import versioned_serializer_class, SelectSerializer, serializer_by_version, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
-                                                  PaymentCardTranslationSerializer, PaymentCardUpdateSerializer,
-                                                  ServiceConsentSerializer, TransactionsSerializer,
-                                                  LinkMembershipCardSerializer)
+                                                  PaymentCardUpdateSerializer, ServiceConsentSerializer,
+                                                  TransactionsSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
     from django.http import HttpResponse
+    from rest_framework.serializers import Serializer
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
@@ -71,6 +75,12 @@ def send_data_to_atlas(response: 'HttpResponse') -> None:
 
 
 class VersionedSerializerMixin:
+
+    @staticmethod
+    def get_serializer_by_version(serializer: SelectSerializer, version: 'Version', *args, **kwargs) -> 'Serializer':
+        serializer_class = serializer_by_version(serializer, version=version)
+        return serializer_class(*args, **kwargs)
+
     def get_versioned_serializer(self, *args, **kwargs):
         serializer_class = versioned_serializer_class(self.request, self.response_serializer)
         kwargs['context'] = self.get_serializer_context()
@@ -120,6 +130,7 @@ class PaymentCardCreationMixin:
     def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> PaymentCardAccount:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
+        pcard.refresh_from_db()
         pcard.consents = serializer.validated_data
         pcard.save()
         return pcard
@@ -150,8 +161,15 @@ class PaymentCardCreationMixin:
         if user in card.user_set.all():
             return True, card, status.HTTP_200_OK
 
+        self._add_hash(data.get('hash'), card)
         self._link_account_to_new_user(card, user)
         return True, card, status.HTTP_201_CREATED
+
+    @staticmethod
+    def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
+        if new_hash and not card.hash:
+            card.hash = new_hash
+            card.save()
 
     @staticmethod
     def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
@@ -163,16 +181,21 @@ class PaymentCardCreationMixin:
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    @staticmethod
-    def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int]) -> t.Tuple[dict, dict]:
+    def _collect_creation_data(self, request_data: dict, allowed_issuers: t.List[int], version: 'Version',
+                               bundle_id: str = None) -> t.Tuple[dict, dict]:
         try:
-            pcard_data = PaymentCardTranslationSerializer(request_data['card']).data
+            pcard_data = VersionedSerializerMixin.get_serializer_by_version(
+                SelectSerializer.PAYMENT_CARD_TRANSLATION,
+                version,
+                request_data['card'],
+                context={'bundle_id': bundle_id}
+            ).data
             if allowed_issuers and int(pcard_data['issuer']) not in allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
             consent = request_data['account']['consents']
-        except (KeyError, ValueError):
-            raise ParseError
+        except (KeyError, ValueError) as e:
+            raise ParseError from e
 
         return pcard_data, consent
 
@@ -302,7 +325,12 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        pcard_data, consent = self._collect_creation_data(request.data, request.allowed_issuers)
+        pcard_data, consent = self._collect_creation_data(
+            request_data=request.data,
+            allowed_issuers=request.allowed_issuers,
+            version=get_api_version(request),
+            bundle_id=request.channels_permit.bundle_id
+        )
         if pcard_data['fingerprint'] != account.fingerprint:
             raise ParseError('cannot override fingerprint.')
 
@@ -360,12 +388,12 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        pcard_data, consent = self._collect_creation_data(request.data, request.allowed_issuers)
-        if self.request.channels_permit.service_allow_all:
-            try:
-                pcard_data['id'] = int(request.META.get('HTTP_X_OBJECT_ID'))
-            except ValueError:
-                raise ValidationError('X-object-id header must be an integer value.')
+        pcard_data, consent = self._collect_creation_data(
+            request_data=request.data,
+            allowed_issuers=request.allowed_issuers,
+            version=get_api_version(request),
+            bundle_id=request.channels_permit.bundle_id
+        )
 
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
@@ -570,24 +598,43 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         self.response_serializer = SelectSerializer.MEMBERSHIP_PLAN
         return Response(self.get_versioned_serializer(mcard.scheme, context=context).data)
 
-    @staticmethod
-    def _collect_field_content(field, data, label_to_type):
+    def _collect_field_content(self, fields_type, data, label_to_type):
         try:
-            return {
-                label_to_type[item['column']]: item['value']
-                for item in data['account'].get(field, [])
-            }
-        except (TypeError, KeyError) as e:
+            fields = data['account'].get(fields_type, [])
+            field_content = {}
+
+            for item in fields:
+                credential_type = label_to_type[item['column']]['type']
+                answer_type = label_to_type[item['column']]['answer_type']
+                self._decrypt_sensitive_fields(field_content, credential_type, answer_type, item)
+            return field_content
+        except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
+
+    def _decrypt_sensitive_fields(self, field_content, credential_type, answer_type, item):
+        api_version = get_api_version(self.request)
+        if (api_version >= Version.v1_2
+                and answer_type == AnswerTypeChoices.SENSITIVE.value):
+            try:
+                key = get_key(
+                    bundle_id=self.request.channels_permit.bundle_id,
+                    key_type="private_key"
+                )
+                field_content[credential_type] = RSACipher().decrypt(item['value'], priv_key=key)
+            except ValueError:
+                logger.warning(f'Failed to decrypt sensitive field "{credential_type}"')
+                raise
+        else:
+            field_content[credential_type] = item['value']
 
     def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
         data = self.request.data
         label_to_type = scheme.get_question_type_dict()
         out_fields = {}
-        for field_name in self.create_update_fields:
-            out_fields[field_name] = self._extract_consent_data(scheme, field_name, data)
-            out_fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
+        for fields_type in self.create_update_fields:
+            out_fields[fields_type] = self._extract_consent_data(scheme, fields_type, data)
+            out_fields[fields_type].update(self._collect_field_content(fields_type, data, label_to_type))
 
         if not out_fields or out_fields['enrol_fields']:
             raise ParseError
@@ -754,7 +801,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
-        except KeyError:
+        except KeyError as e:
+            logger.exception(e)
             raise ParseError()
 
         if fields['enrol_fields']:
@@ -982,7 +1030,13 @@ class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializer
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         try:
-            pcard_data = PaymentCardTranslationSerializer(request.data['card']).data
+            pcard_data = VersionedSerializerMixin.get_serializer_by_version(
+                SelectSerializer.PAYMENT_CARD_TRANSLATION,
+                get_api_version(request),
+                request.data['card'],
+                context={'bundle_id': request.channels_permit.bundle_id}
+            ).data
+
             if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 

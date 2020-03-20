@@ -168,6 +168,7 @@ class PaymentCardAccount(models.Model):
     fingerprint = models.CharField(max_length=100)
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
+    hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()

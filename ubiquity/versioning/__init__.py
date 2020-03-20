@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 
 from hermes.settings import Version, DEFAULT_API_VERSION
 from ubiquity.versioning.base import serializers as base_serializers
@@ -25,6 +25,7 @@ class SelectSerializer(str, Enum):
     MEMBERSHIP_CARD = 'MembershipCardSerializer'
     PAYMENT_CARD = 'PaymentCardSerializer'
     MEMBERSHIP_TRANSACTION = 'TransactionsSerializer'
+    PAYMENT_CARD_TRANSLATION = 'PaymentCardTranslationSerializer'
 
 
 def get_api_version(request: 'Request') -> Version:
@@ -41,14 +42,26 @@ def get_api_version(request: 'Request') -> Version:
         else:
             message = f"Unknown version format in accept header, "
 
-        logger.debug(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
+        logger.warning(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
         ver = DEFAULT_API_VERSION
 
     setattr(request, 'api_version', ver)
     return ver
 
 
-def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer':
+def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer()':
     version = get_api_version(request)
     serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)
+
+
+def serializer_by_version(serializer: SelectSerializer, version: Version = None) -> Type['Serializer']:
+    try:
+        versioned_serializers = SERIALIZERS_CLASSES[version]
+    except KeyError:
+        logger.warning(
+            f"No {serializer} for this version {version} - defaulting to latest version {DEFAULT_API_VERSION}"
+        )
+        versioned_serializers = SERIALIZERS_CLASSES[DEFAULT_API_VERSION]
+
+    return getattr(versioned_serializers, serializer)

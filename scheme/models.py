@@ -186,7 +186,10 @@ class Scheme(models.Model):
 
     def get_question_type_dict(self):
         return {
-            question.label: question.type
+            question.label: {
+                "type": question.type,
+                "answer_type": question.answer_type
+            }
             for question in self.questions.all()
         }
 
