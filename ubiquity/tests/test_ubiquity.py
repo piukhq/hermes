@@ -14,7 +14,7 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -63,6 +63,9 @@ class TestResources(APITestCase):
                                                                   auth_field=True,
                                                                   enrol_field=True,
                                                                   register_field=True)
+        self.jwp_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=PAYMENT_CARD_HASH,
+                                                            label=PAYMENT_CARD_HASH, enrol_field=True,
+                                                            options=SchemeCredentialQuestion.OPTIONAL_JOIN)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
@@ -467,6 +470,37 @@ class TestResources(APITestCase):
             }]
         )
         self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
+
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_join', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_membership_card_jwp_fails_with_bad_payment_card(self, *_):
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "enrol_fields": [
+                    {
+                        "column": LAST_NAME,
+                        "value": "last name"
+                    },
+                    {
+                        "column": PAYMENT_CARD_HASH,
+                        "value": "nonexistenthash"
+                    }
+                ]
+            }
+        }
+        resp = self.client.post(reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        error_message = resp.json()["detail"]
+        self.assertEqual(error_message, "Provided payment card could not be found or is not related to this user")
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
