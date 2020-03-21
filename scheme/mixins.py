@@ -17,7 +17,6 @@ from rest_framework.generics import get_object_or_404
 
 import analytics
 from hermes.channels import Permit
-from payment_card.models import PaymentCardAccount
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import PAYMENT_CARD_HASH
 from scheme.encyption import AESCipher

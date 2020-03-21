@@ -5,7 +5,7 @@ import sentry_sdk
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from rest_framework.exceptions import APIException, ParseError
+from rest_framework.exceptions import APIException
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
 
 from hermes.spreedly import Spreedly, SpreedlyError
