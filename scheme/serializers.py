@@ -204,7 +204,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     regular_restaurant = serializers.CharField(max_length=250, required=False)
     merchant_identifier = serializers.CharField(max_length=250, required=False)
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
-    payment_card_id = serializers.IntegerField(required=False)
+    payment_card_hash = serializers.CharField(max_length=250, required=False)
 
 
 class LinkSchemeSerializer(SchemeAnswerSerializer):
