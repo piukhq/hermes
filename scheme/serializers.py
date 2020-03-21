@@ -560,9 +560,6 @@ class JoinSerializer(SchemeAnswerSerializer):
             question_type = question.type
             if question_type in request_join_question_types:
                 data['credentials'][question_type] = str(data[question_type])
-
-                if question_type == 'payment_card_id':
-                    data['credentials'][question_type] = data[question_type]
             else:
                 if question.required:
                     self.raise_missing_field_error(question_type)

@@ -5,7 +5,7 @@ import sentry_sdk
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ParseError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
 
 from hermes.spreedly import Spreedly, SpreedlyError
@@ -35,6 +35,15 @@ def payment_audit_log_signal_handler(sender, **kwargs):
         payment_audit_instance.pk,
         PaymentStatus(payment_audit_instance.status).name
     ))
+
+
+def get_nominated_pcard(pcard_hash: str, user_id: int):
+    try:
+        return PaymentCardAccount.objects.get(hash=pcard_hash, user_set__id=user_id)
+    except PaymentCardAccount.DoesNotExist:
+        logging.error(f"Provided payment card account hash: {pcard_hash} does not exist, "
+                      f"or it does not belong to this service: {user_id} when attempting join with pay")
+        raise
 
 
 class Payment:
@@ -103,33 +112,32 @@ class Payment:
         return payment_audit_objects.last()
 
     @staticmethod
-    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_id: int, user_id: int,
+    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_hash: str, user_id: int,
                                  payment_amount: int) -> None:
         """
         Starts an audit trail and makes a purchase request.
         Any failure to during the purchase request will cause the join to fail.
         """
         payment_audit = PaymentAudit.objects.create(
-            scheme_account=scheme_acc, payment_card_id=payment_card_id, user_id=user_id
+            scheme_account=scheme_acc, payment_card_hash=payment_card_hash, user_id=user_id
         )
 
         try:
-            Payment.attempt_purchase(payment_audit, payment_card_id, user_id, payment_amount)
+            Payment.attempt_purchase(payment_audit, payment_card_hash, user_id, payment_amount)
         except PaymentCardAccount.DoesNotExist:
             payment_audit.status = PaymentStatus.PURCHASE_FAILED
             payment_audit.save()
-            raise PaymentError(f"Provided Payment Card Account id: {payment_card_id} does not exist, "
-                               f"or it does not belong to this service: {user_id}")
+            raise
 
     @staticmethod
     @retry(stop=stop_after_attempt(4),
            retry=retry_if_exception_message(PaymentError.default_detail),
            wait=wait_exponential(min=2, max=8),
            reraise=True)
-    def attempt_purchase(payment_audit: PaymentAudit, payment_card_id: int,
+    def attempt_purchase(payment_audit: PaymentAudit, payment_card_hash: str,
                          user_id: int, payment_amount: int) -> None:
         try:
-            pcard_account = PaymentCardAccount.objects.get(pk=payment_card_id, user_set__id=user_id)
+            pcard_account = get_nominated_pcard(payment_card_hash, user_id)
             payment = Payment(audit_obj=payment_audit, amount=payment_amount, payment_token=pcard_account.psp_token)
 
             payment._purchase()
