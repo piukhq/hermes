@@ -41,7 +41,7 @@ def get_nominated_pcard(pcard_hash: str, user_id: int):
     try:
         return PaymentCardAccount.objects.get(hash=pcard_hash, user_set__id=user_id)
     except PaymentCardAccount.DoesNotExist:
-        logging.error(f"Provided payment card account hash: {pcard_hash} does not exist, "
+        logging.error(f"Provided payment card account hash: {pcard_hash} does not exist "
                       f"or it does not belong to this service: {user_id} when attempting join with pay")
         raise
 
