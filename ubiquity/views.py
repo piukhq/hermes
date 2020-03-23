@@ -23,8 +23,9 @@ from hermes.channel_vault import get_key
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card.models import PaymentCardAccount
+from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from scheme.credentials import DATE_TYPE_CREDENTIALS
+from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
@@ -72,6 +73,16 @@ def send_data_to_atlas(response: 'HttpResponse') -> None:
         'ubiquity_join_date': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
     }
     request("POST", url=url, headers=headers, json=data)
+
+
+def check_join_with_pay(enrol_fields: dict, user_id: int):
+    payment_card_hash = enrol_fields.get(PAYMENT_CARD_HASH)
+    if payment_card_hash:
+        try:
+            get_nominated_pcard(payment_card_hash, user_id)
+        except PaymentCardAccount.DoesNotExist as e:
+            raise ParseError(detail="Provided payment card could not be found "
+                                    "or is not related to this user") from e
 
 
 class VersionedSerializerMixin:
@@ -513,6 +524,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
                                    registration_fields: dict) -> SchemeAccount:
+        check_join_with_pay(registration_fields, user.id)
         manual_answer = account.card_number_answer
         main_credential = manual_answer if manual_answer else account.barcode_answer
         registration_data = {
@@ -539,6 +551,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if not request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')
 
+        # This check needs to be done before balance is deleted
+        user_id = request.user.id
+        if enrol_fields:
+            check_join_with_pay(enrol_fields, user_id)
+
         account.delete_saved_balance()
         account.delete_cached_balance()
 
@@ -546,13 +563,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
-                user=self.request.user,
+                user=user_id,
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
-            async_join.delay(account.id, request.user.id, serializer, scheme_id, validated_data)
+            async_join.delay(account.id, user_id, serializer, scheme_id, validated_data)
 
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
@@ -715,6 +732,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
+        check_join_with_pay(enrol_fields, user.id)
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
             "fatface",

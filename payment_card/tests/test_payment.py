@@ -6,7 +6,7 @@ from rest_framework.test import APITestCase
 
 from hermes.spreedly import SpreedlyError
 from hermes.tasks import RetryTaskStore
-from payment_card.models import PaymentAudit, PaymentStatus
+from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
 from scheme.tests.factories import SchemeAccountFactory
@@ -21,7 +21,7 @@ class TestPayment(APITestCase):
         self.client = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
         self.user = UserFactory()
         self.scheme_account = SchemeAccountFactory()
-        self.payment_card_account = PaymentCardAccountFactory()
+        self.payment_card_account = PaymentCardAccountFactory(hash="testhash")
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=self.payment_card_account)
 
     @patch('requests.post', autospec=True)
@@ -204,7 +204,7 @@ class TestPayment(APITestCase):
 
         Payment.process_payment_purchase(
             scheme_acc=self.scheme_account,
-            payment_card_id=self.payment_card_account.id,
+            payment_card_hash=self.payment_card_account.hash,
             user_id=self.user.id,
             payment_amount=200
         )
@@ -223,12 +223,12 @@ class TestPayment(APITestCase):
         audit_obj_count = PaymentAudit.objects.count()
         self.assertEqual(0, audit_obj_count)
 
-        invalid_p_card_id = 99999999999999999
+        invalid_p_card_hash = "badhash"
 
-        with self.assertRaises(PaymentError):
+        with self.assertRaises(PaymentCardAccount.DoesNotExist):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
-                payment_card_id=invalid_p_card_id,
+                payment_card_hash=invalid_p_card_hash,
                 user_id=self.user.id,
                 payment_amount=200
             )
@@ -247,10 +247,10 @@ class TestPayment(APITestCase):
         self.assertEqual(0, audit_obj_count)
         invalid_user = UserFactory()
 
-        with self.assertRaises(PaymentError):
+        with self.assertRaises(PaymentCardAccount.DoesNotExist):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
-                payment_card_id=self.payment_card_account.id,
+                payment_card_hash=self.payment_card_account.hash,
                 user_id=invalid_user.id,
                 payment_amount=200
             )
@@ -272,7 +272,7 @@ class TestPayment(APITestCase):
         with self.assertRaises(PaymentError):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
-                payment_card_id=self.payment_card_account.id,
+                payment_card_hash=self.payment_card_account.hash,
                 user_id=self.user.id,
                 payment_amount=200
             )
@@ -292,7 +292,7 @@ class TestPayment(APITestCase):
         with self.assertRaises(PaymentError):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
-                payment_card_id=self.payment_card_account.id,
+                payment_card_hash=self.payment_card_account.hash,
                 user_id=self.user.id,
                 payment_amount=200
             )
@@ -307,7 +307,7 @@ class TestPayment(APITestCase):
         with self.assertRaises(PaymentError):
             Payment.process_payment_purchase(
                 scheme_acc=self.scheme_account,
-                payment_card_id=self.payment_card_account.id,
+                payment_card_hash=self.payment_card_account.hash,
                 user_id=self.user.id,
                 payment_amount=200
             )
