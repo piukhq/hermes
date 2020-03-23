@@ -692,8 +692,10 @@ class TestResources(APITestCase):
         self.assertTrue(pca.is_deleted)
 
     @patch('requests.delete')
-    def test_payment_card_delete_by_hash(self, _):
-        pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key=get_pcard_hash_secret()))
+    @patch('ubiquity.views.get_pcard_hash_secret')
+    def test_payment_card_delete_by_hash(self, hash_secret, _):
+        hash_secret.return_value = 'test-secret'
+        pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
         PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
         resp = self.client.delete(reverse('payment-card-hash', args=['testhash']), **self.auth_headers)
         pca.refresh_from_db()
