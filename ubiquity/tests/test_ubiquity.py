@@ -681,6 +681,24 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 
+    @patch('requests.delete')
+    def test_payment_card_delete_by_id(self, _):
+        pca = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
+        resp = self.client.delete(reverse('payment-card-id', args=[pca.id]), **self.auth_headers)
+        pca.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(pca.is_deleted)
+
+    @patch('requests.delete')
+    def test_payment_card_delete_by_hash(self, _):
+        pca = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
+        resp = self.client.delete(reverse('payment-card-hash', args=[pca.hash]), **self.auth_headers)
+        pca.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(pca.is_deleted)
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_card_rule_filtering(self, *_):

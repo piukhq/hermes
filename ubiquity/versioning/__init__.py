@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING
 
 from hermes.settings import Version, DEFAULT_API_VERSION
 from ubiquity.versioning.base import serializers as base_serializers
@@ -49,19 +49,6 @@ def get_api_version(request: 'Request') -> Version:
     return ver
 
 
-def versioned_serializer_class(request: 'Request', model: SelectSerializer) -> 'Serializer()':
-    version = get_api_version(request)
+def versioned_serializer_class(version: Version, model: SelectSerializer) -> 'Serializer()':
     serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)
-
-
-def serializer_by_version(serializer: SelectSerializer, version: Version = None) -> Type['Serializer']:
-    try:
-        versioned_serializers = SERIALIZERS_CLASSES[version]
-    except KeyError:
-        logger.warning(
-            f"No {serializer} for this version {version} - defaulting to latest version {DEFAULT_API_VERSION}"
-        )
-        versioned_serializers = SERIALIZERS_CLASSES[DEFAULT_API_VERSION]
-
-    return getattr(versioned_serializers, serializer)
