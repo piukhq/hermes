@@ -15,13 +15,14 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from shared_config_storage.credentials.encryption import RSACipher
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key
+from hermes.channel_vault import get_key, get_pcard_hash_secret
 from hermes.channels import Permit
 from hermes.settings import Version
+from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
@@ -315,6 +316,11 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             user_filter=True
         )
 
+    def get_hashed_object(self):
+        if self.kwargs.get('hash'):
+            self.kwargs['hash'] = BLAKE2sHash().new(obj=self.kwargs['hash'], key=get_pcard_hash_secret())
+        return super(PaymentCardView, self).get_object()
+
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
@@ -362,18 +368,23 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        payment_card_account = self.get_object()
+        payment_card_account = self.get_hashed_object()
         p_card_users = {
             user['id'] for user in
             payment_card_account.user_set.values('id').exclude(id=request.user.id)
         }
 
-        query = {
-            'scheme_account__user_set__id__in': p_card_users
-        }
+        PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).exclude(
+            scheme_account__user_set__id__in=p_card_users).delete()
+        PaymentCardAccountEntry.objects.get(payment_card_account=payment_card_account, user__id=request.user.id).delete()
 
-        PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).exclude(**query).delete()
-        super().delete(request, *args, **kwargs)
+        if payment_card_account.user_set.count() < 1:
+            payment_card_account.is_deleted = True
+            payment_card_account.save()
+            PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).delete()
+
+            metis.delete_payment_card(payment_card_account)
+
         return Response({}, status=status.HTTP_200_OK)
 
 
