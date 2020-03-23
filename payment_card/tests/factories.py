@@ -1,10 +1,9 @@
-import string
 import uuid
 from datetime import datetime
 
 import factory
 from django.utils import timezone
-from factory.fuzzy import FuzzyAttribute, FuzzyText
+from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 
 from payment_card import models
@@ -52,7 +51,6 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)
-    hash = FuzzyText(length=64, chars=string.hexdigits)
 
 
 class PaymentCardImageFactory(factory.DjangoModelFactory):

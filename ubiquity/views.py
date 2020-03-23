@@ -374,9 +374,14 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             payment_card_account.user_set.values('id').exclude(id=request.user.id)
         }
 
-        PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).exclude(
-            scheme_account__user_set__id__in=p_card_users).delete()
-        PaymentCardAccountEntry.objects.get(payment_card_account=payment_card_account, user__id=request.user.id).delete()
+        PaymentCardSchemeEntry.objects.filter(
+            payment_card_account=payment_card_account
+        ).exclude(
+            scheme_account__user_set__id__in=p_card_users
+        ).delete()
+        PaymentCardAccountEntry.objects.get(
+            payment_card_account=payment_card_account, user__id=request.user.id
+        ).delete()
 
         if payment_card_account.user_set.count() < 1:
             payment_card_account.is_deleted = True
