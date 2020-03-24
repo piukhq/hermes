@@ -139,6 +139,7 @@ class TestVouchers(TestCase):
         now = arrow.utcnow().timestamp
         voucher_fields = {
             "issue_date": now,
+            "redeem_date": now,
             "expiry_date": now + 1000,
             "code": "abc123",
             "type": vouchers.VoucherType.ACCUMULATOR.value,
@@ -168,17 +169,18 @@ class TestVouchers(TestCase):
                 },
                 "code": "abc123",
                 "date_issued": now,
+                "date_redeemed": now,
                 "expiry_date": now + 1000,
-                "headline": "£5.00 voucher earned",
+                "headline": vs.headline_redeemed,
                 "body_text": "voucher body",
                 "subtext": "",
-                "state": "issued",
+                "state": "redeemed",
                 "barcode_type": vs.barcode_type,
                 "terms_and_conditions_url": "https://example.com",
             },
         )
 
-    def test_make_voucher_sans_expiry_date(self):
+    def test_make_voucher_sans_expiry_and_redeem_dates(self):
         now = arrow.utcnow().timestamp
         voucher_fields = {
             "issue_date": now,

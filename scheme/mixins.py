@@ -18,6 +18,7 @@ from rest_framework.generics import get_object_or_404
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
+from scheme.credentials import PAYMENT_CARD_HASH
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent)
@@ -262,9 +263,9 @@ class SchemeAccountJoinMixin:
                             serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
 
         try:
-            payment_card_id = data['credentials'].get('payment_card_id')
-            if payment_card_id:
-                Payment.process_payment_purchase(scheme_account, payment_card_id, user.id, payment_amount=100)
+            payment_card_hash = data['credentials'].get(PAYMENT_CARD_HASH)
+            if payment_card_hash:
+                Payment.process_payment_purchase(scheme_account, payment_card_hash, user.id, payment_amount=100)
 
             self.save_consents(serializer, user, scheme_account, scheme_id, data)
 

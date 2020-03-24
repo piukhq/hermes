@@ -23,7 +23,7 @@ COUNTY = 'county'
 COUNTRY = 'country'
 REGULAR_RESTAURANT = 'regular_restaurant'
 MERCHANT_IDENTIFIER = 'merchant_identifier'
-PAYMENT_CARD_ID = 'payment_card_id'
+PAYMENT_CARD_HASH = 'payment_card_hash'
 
 CREDENTIAL_TYPES = (
     (USER_NAME, 'user name'),
@@ -51,7 +51,7 @@ CREDENTIAL_TYPES = (
     (COUNTRY, 'country'),
     (REGULAR_RESTAURANT, 'regular restaurant'),
     (MERCHANT_IDENTIFIER, 'merchant identifier'),
-    (PAYMENT_CARD_ID, 'payment_card_id'),
+    (PAYMENT_CARD_HASH, 'payment_card_hash'),
 )
 
 DATE_TYPE_CREDENTIALS = (

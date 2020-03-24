@@ -45,7 +45,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
                    ('issuer__name', titled_filter('issuer')),
                    'is_deleted',)
     readonly_fields = ('token', 'psp_token', 'PLL_consent', 'user_email')
-    search_fields = ['pan_start', 'pan_end', 'token', 'paymentcardaccountentry__user__email']
+    search_fields = ['pan_start', 'pan_end', 'token', 'paymentcardaccountentry__user__email', 'hash']
     exclude = ('consent',)
     list_per_page = 10
 
@@ -149,10 +149,10 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
 class PaymentAuditAdmin(admin.ModelAdmin):
     list_display = ('scheme_account', 'user_id', 'transaction_ref', 'transaction_token', 'status', 'created_on',
                     'modified_on',)
-    search_fields = ('scheme_account__id', 'user_id', 'scheme_account__scheme__name' 'transaction_ref',
-                     'transaction_token', 'status',)
+    search_fields = ('scheme_account__id', 'user_id', 'scheme_account__scheme__name', 'transaction_ref',
+                     'transaction_token', 'status', 'payment_card_hash', 'payment_card_id',)
     readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
-                       'void_attempts', 'status', 'payment_card_id')
+                       'void_attempts', 'status', 'payment_card_hash', 'payment_card_id',)
 
 
 admin.site.register(models.Issuer)

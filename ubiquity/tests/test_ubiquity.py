@@ -9,19 +9,19 @@ from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
-from shared_config_storage.credentials.encryption import RSACipher
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_bundle_secrets
@@ -63,6 +63,9 @@ class TestResources(APITestCase):
                                                                   auth_field=True,
                                                                   enrol_field=True,
                                                                   register_field=True)
+        self.jwp_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=PAYMENT_CARD_HASH,
+                                                            label=PAYMENT_CARD_HASH, enrol_field=True,
+                                                            options=SchemeCredentialQuestion.OPTIONAL_JOIN)
         self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
         self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
                                                                    scheme_account=self.scheme_account)
@@ -468,6 +471,39 @@ class TestResources(APITestCase):
         )
         self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
 
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_join', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    @patch('payment_card.payment.get_pcard_hash_secret', autospec=True)
+    def test_membership_card_jwp_fails_with_bad_payment_card(self, mock_get_hash_secret, *_):
+        mock_get_hash_secret.return_value = "testsecret"
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "enrol_fields": [
+                    {
+                        "column": LAST_NAME,
+                        "value": "last name"
+                    },
+                    {
+                        "column": PAYMENT_CARD_HASH,
+                        "value": "nonexistenthash"
+                    }
+                ]
+            }
+        }
+        resp = self.client.post(reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        error_message = resp.json()["detail"]
+        self.assertEqual(error_message, "Provided payment card could not be found or is not related to this user")
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -646,6 +682,26 @@ class TestResources(APITestCase):
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
+
+    @patch('requests.delete')
+    def test_payment_card_delete_by_id(self, _):
+        pca = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
+        resp = self.client.delete(reverse('payment-card-id', args=[pca.id]), **self.auth_headers)
+        pca.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(pca.is_deleted)
+
+    @patch('requests.delete')
+    @patch('ubiquity.views.get_pcard_hash_secret')
+    def test_payment_card_delete_by_hash(self, hash_secret, _):
+        hash_secret.return_value = 'test-secret'
+        pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
+        PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
+        resp = self.client.delete(reverse('payment-card-hash', args=['testhash']), **self.auth_headers)
+        pca.refresh_from_db()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(pca.is_deleted)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')

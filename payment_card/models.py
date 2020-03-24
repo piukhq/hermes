@@ -255,7 +255,8 @@ def _generate_tx_ref() -> str:
 class PaymentAudit(models.Model):
     user_id = models.CharField(max_length=255)
     scheme_account = models.ForeignKey(SchemeAccount, null=True, on_delete=models.SET_NULL)
-    payment_card_id = models.CharField(max_length=255)
+    payment_card_hash = models.CharField(max_length=255)
+    payment_card_id = models.IntegerField(null=True, blank=True)
     transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
     transaction_token = models.CharField(max_length=255, blank=True, default='')
     status = models.IntegerField(

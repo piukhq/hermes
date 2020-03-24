@@ -1,4 +1,5 @@
 from django.template import Template, Context
+import arrow
 
 import enum
 
@@ -59,3 +60,28 @@ def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_v
     context["earn_target_remaining"] = max(earn_target_value - earn_value, 0)
 
     return template.render(context)
+
+
+def get_expiry_date(voucher_scheme, voucher_fields, issue_date):
+    if "expiry_date" in voucher_fields:
+        expiry_date = arrow.get(voucher_fields["expiry_date"])
+    elif issue_date is not None:
+        expiry_date = issue_date.shift(months=+voucher_scheme.expiry_months)
+    else:
+        expiry_date = None
+
+    return expiry_date
+
+
+def guess_voucher_state(issue_date, redeem_date, expiry_date):
+    if redeem_date is not None:
+        state = VoucherState.REDEEMED
+    elif issue_date is not None:
+        if expiry_date <= arrow.utcnow():
+            state = VoucherState.EXPIRED
+        else:
+            state = VoucherState.ISSUED
+    else:
+        state = VoucherState.IN_PROGRESS
+
+    return state

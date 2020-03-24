@@ -668,6 +668,7 @@ class SchemeAccount(models.Model):
         Vouchers come from Midas with the following fields:
         * issue_date: int, optional
         * redeem_date: int, optional
+        * expiry_date: int, optional
         * code: str, optional
         * type: int, required
         * value: Decimal, optional
@@ -688,23 +689,10 @@ class SchemeAccount(models.Model):
         )
 
         issue_date = arrow.get(voucher_fields["issue_date"]) if "issue_date" in voucher_fields else None
+        redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
-        if "expiry_date" in voucher_fields:
-            expiry_date = arrow.get(voucher_fields["expiry_date"])
-        elif issue_date is not None:
-            expiry_date = issue_date.shift(months=+voucher_scheme.expiry_months)
-        else:
-            expiry_date = None
-
-        if "redeem_date" in voucher_fields:
-            state = vouchers.VoucherState.REDEEMED
-        elif issue_date is not None:
-            if expiry_date <= arrow.utcnow():
-                state = vouchers.VoucherState.EXPIRED
-            else:
-                state = vouchers.VoucherState.ISSUED
-        else:
-            state = vouchers.VoucherState.IN_PROGRESS
+        expiry_date = vouchers.get_expiry_date(voucher_scheme, voucher_fields, issue_date)
+        state = vouchers.guess_voucher_state(issue_date, redeem_date, expiry_date)
 
         headline_template = voucher_scheme.get_headline(state)
         headline = vouchers.apply_template(
@@ -745,6 +733,9 @@ class SchemeAccount(models.Model):
                 "date_issued": issue_date.timestamp,
                 "expiry_date": expiry_date.timestamp,
             })
+
+        if redeem_date is not None:
+            voucher["date_redeemed"] = redeem_date.timestamp
 
         if "code" in voucher_fields:
             voucher["code"] = voucher_fields["code"]
