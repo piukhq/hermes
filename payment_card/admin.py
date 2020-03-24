@@ -150,9 +150,9 @@ class PaymentAuditAdmin(admin.ModelAdmin):
     list_display = ('scheme_account', 'user_id', 'transaction_ref', 'transaction_token', 'status', 'created_on',
                     'modified_on',)
     search_fields = ('scheme_account__id', 'user_id', 'scheme_account__scheme__name', 'transaction_ref',
-                     'transaction_token', 'status',)
+                     'transaction_token', 'status', 'payment_card_hash', 'payment_card_id',)
     readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
-                       'void_attempts', 'status', 'payment_card_hash')
+                       'void_attempts', 'status', 'payment_card_hash', 'payment_card_id',)
 
 
 admin.site.register(models.Issuer)
