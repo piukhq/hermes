@@ -9,7 +9,7 @@ from django.conf import settings
 from django.test import RequestFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
-from shared_config_storage.credentials.encryption import RSACipher
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from payment_card.models import PaymentCardAccount
@@ -21,7 +21,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
-from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_bundle_secrets
@@ -693,10 +693,12 @@ class TestResources(APITestCase):
         self.assertTrue(pca.is_deleted)
 
     @patch('requests.delete')
-    def test_payment_card_delete_by_hash(self, _):
-        pca = PaymentCardAccountFactory()
-        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
-        resp = self.client.delete(reverse('payment-card-hash', args=[pca.hash]), **self.auth_headers)
+    @patch('ubiquity.views.get_pcard_hash_secret')
+    def test_payment_card_delete_by_hash(self, hash_secret, _):
+        hash_secret.return_value = 'test-secret'
+        pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
+        PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
+        resp = self.client.delete(reverse('payment-card-hash', args=['testhash']), **self.auth_headers)
         pca.refresh_from_db()
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(pca.is_deleted)
