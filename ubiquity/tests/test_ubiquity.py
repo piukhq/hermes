@@ -480,7 +480,9 @@ class TestResources(APITestCase):
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_membership_card_jwp_fails_with_bad_payment_card(self, *_):
+    @patch('payment_card.payment.get_pcard_hash_secret', autospec=True)
+    def test_membership_card_jwp_fails_with_bad_payment_card(self, mock_get_hash_secret, *_):
+        mock_get_hash_secret.return_value = "testsecret"
         payload = {
             "membership_plan": self.scheme.id,
             "account": {
