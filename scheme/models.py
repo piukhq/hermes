@@ -918,7 +918,7 @@ class SchemeCredentialQuestion(models.Model):
         (1, 'sensitive'),
         (2, 'choice'),
         (3, 'boolean'),
-        (4, 'payment_card_id'),
+        (4, 'payment_card_hash'),
     )
 
     scheme = models.ForeignKey('Scheme', related_name='questions', on_delete=models.PROTECT)
