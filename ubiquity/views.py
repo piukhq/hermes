@@ -209,6 +209,7 @@ class PaymentCardCreationMixin:
 
             consent = request_data['account']['consents']
         except (KeyError, ValueError) as e:
+            logger.debug(f"error creating payment card: {repr(e)}")
             raise ParseError from e
 
         return pcard_data, consent
