@@ -330,7 +330,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
         PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
         PaymentCardAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
-        PaymentCardAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
+        PaymentCardAccountEntry.objects.filter(user_id=user.id, payment_card_account_id__in=cards_to_unlink).delete()
 
 
 class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
