@@ -21,7 +21,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
 from ubiquity.censor_empty_fields import remove_empty
-from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry
+from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_bundle_secrets
@@ -1352,6 +1352,40 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(mock_async_all_balance.called)
         self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
+
+    @patch('ubiquity.views.metis', autospec=True)
+    def test_delete_service(self, _):
+        user = UserFactory(external_id='test@delete.user', client=self.client_app, email='test@delete.user')
+        ServiceConsentFactory(user=user)
+        pcard_delete = PaymentCardAccountFactory()
+        pcard_unlink = PaymentCardAccountFactory()
+        mcard_delete = SchemeAccountFactory()
+        mcard_unlink = SchemeAccountFactory()
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
+
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_delete.id)
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_unlink.id)
+        PaymentCardAccountEntry.objects.create(user_id=self.user.id, payment_card_account_id=pcard_unlink.id)
+
+        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_delete.id)
+        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_unlink.id)
+        SchemeAccountEntry.objects.create(user_id=self.user.id, scheme_account_id=mcard_unlink.id)
+
+        response = self.client.delete(reverse('service'), **auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+        pcard_unlink.refresh_from_db()
+        pcard_delete.refresh_from_db()
+        mcard_unlink.refresh_from_db()
+        mcard_delete.refresh_from_db()
+
+        self.assertTrue(pcard_delete.is_deleted)
+        self.assertTrue(mcard_delete.is_deleted)
+        self.assertFalse(pcard_unlink.is_deleted)
+        self.assertFalse(mcard_unlink.is_deleted)
+
+        non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
+        self.assertEqual(non_deleted_links, 0)
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
