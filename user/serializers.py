@@ -239,6 +239,10 @@ class TwitterRegisterSerializer(serializers.Serializer):
     access_token = serializers.CharField(max_length=120)
 
 
+class AppleRegisterSerializer(serializers.Serializer):
+    authorization_code = serializers.CharField(max_length=120)
+
+
 class ResponseAuthSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=600)
     api_key = serializers.CharField()
