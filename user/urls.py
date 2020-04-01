@@ -5,6 +5,7 @@ urlpatterns = [
     re_path(r"authenticate/?$", views.Authenticate.as_view(), name="authenticate_user"),
     re_path(r"auth/facebook/?$", views.FaceBookLogin.as_view(), name="authenticate_facebook_user"),
     re_path(r"auth/twitter/?$", views.TwitterLogin.as_view(), name="authenticate_twitter_user"),
+    re_path(r"auth/apple/?$", views.AppleLogin.as_view(), name="authenticate_apple_user"),
     re_path(r"^auth/verify_token/?$", views.VerifyToken.as_view(), name="verify_token"),
     re_path(r"^v2_register/?$", views.NewRegister.as_view(), name="new_register_user"),
     re_path(r"^register/?$", views.NewRegister.as_view(), name="register_user"),

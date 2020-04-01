@@ -1,3 +1,6 @@
+import logging
+import jwt
+
 import analytics
 import requests
 from django.conf import settings
@@ -29,8 +32,11 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer)
+                              UserSettingSerializer, AppleRegisterSerializer)
 from django.core.exceptions import MultipleObjectsReturned
+
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -316,6 +322,26 @@ class TwitterLogin(CreateAPIView):
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
 
 
+class AppleLogin(GenericAPIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+
+    serializer_class = AppleRegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        Login using an Apple account.
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
+        logger.debug(
+            f"Apple Sign In - request data: {request.data}"
+        )
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return apple_login(code=serializer.validated_data["code"])
+
+
 class Renew(APIView):
 
     def post(self, request, *args, **kwargs):
@@ -407,6 +433,39 @@ def twitter_login(access_token, access_token_secret):
     if not email:
         email = None
     return social_response(profile['id_str'], email, 'twitter')
+
+
+def apple_login(code):
+    url = "https://appleid.apple.com/auth/token"
+    grant_type = "authorization_code"
+    params = {
+        "client_id": settings.APPLE_CLIENT_ID,
+        "client_secret": settings.APPLE_CLIENT_SECRET,
+        "code": code,
+        "grant_type": grant_type
+    }
+
+    logger.debug(
+        f'Request to "{url}" - body: {params}'
+    )
+    resp = requests.post(url, json=params)
+
+    if not resp.ok:
+        logger.error(
+            f"Apple Sign In failed - response: {resp.json()}"
+        )
+
+    resp.raise_for_status()
+
+    id_token = resp.json()["id_token"]
+    user_info = jwt.decode(id_token, verify=False)
+
+    logger.info(f"Successful Apple Sign In")
+    return social_response(
+        social_id=user_info["sub"],
+        email=user_info["email"],
+        service="apple"
+    )
 
 
 def social_response(social_id, email, service):

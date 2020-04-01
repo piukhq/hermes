@@ -244,13 +244,17 @@ TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyA
 TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
+APPLE_CLIENT_ID = env_var('APPLE_CLIENT_ID', 'com.bink.wallet.siwa')
+APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET')
+
+
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
-MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'INFO')
-UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'INFO')
+MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'DEBUG')
+UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'DEBUG')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
