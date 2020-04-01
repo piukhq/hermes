@@ -5,7 +5,6 @@ from celery import shared_task
 from django.conf import settings
 from rest_framework import serializers
 
-from payment_card.payment import PaymentError
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -71,12 +70,8 @@ def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    try:
-        SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
-                                                     scheme_account, serializer)
-    except PaymentError:
-        scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
-        scheme_account.save()
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
+                                                 scheme_account, serializer)
 
 
 @shared_task
