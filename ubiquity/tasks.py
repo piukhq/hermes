@@ -5,7 +5,6 @@ from celery import shared_task
 from django.conf import settings
 from rest_framework import serializers
 
-from payment_card.payment import PaymentError
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
