@@ -339,7 +339,7 @@ class AppleLogin(GenericAPIView):
         )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return apple_login(code=serializer.validated_data["code"])
+        return apple_login(code=serializer.validated_data["authorization_code"])
 
 
 class Renew(APIView):

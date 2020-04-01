@@ -240,11 +240,7 @@ class TwitterRegisterSerializer(serializers.Serializer):
 
 
 class AppleRegisterSerializer(serializers.Serializer):
-    code = serializers.CharField(max_length=120)
-    id_token = serializers.CharField(max_length=120)
-    state = serializers.CharField(max_length=120, required=False)
-    user = serializers.JSONField(required=False)
-    error = serializers.CharField(max_length=120, required=False)
+    authorization_code = serializers.CharField(max_length=120)
 
 
 class ResponseAuthSerializer(serializers.Serializer):

@@ -893,12 +893,8 @@ class TestAppleLogin(APITestCase):
     def test_apple_login_view(self, apple_login_mock):
         apple_login_mock.return_value = HttpResponse()
 
-        user = json.dumps({"email": "some@email.com"})
         params = {
-            "code": "abcde1234",
-            "id_token": "id_token",
-            "state": "",
-            "user": user
+            "authorization_code": "abcde1234",
         }
         self.client.post('/users/auth/apple', params)
         self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
