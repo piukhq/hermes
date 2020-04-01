@@ -278,6 +278,10 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         response = self.get_serializer_by_request(request.user.serviceconsent).data
         request.user.serviceconsent.delete()
+
+        self._delete_membership_cards(request.user)
+        self._delete_payment_cards(request.user)
+
         request.user.is_active = False
         request.user.save()
 
@@ -298,6 +302,35 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             raise ParseError
 
         return consent
+
+    @staticmethod
+    def _delete_membership_cards(user: CustomUser) -> None:
+        cards_to_delete = []
+        cards_to_unlink = []
+        for card in user.scheme_account_set.all():
+            if card.user_set.count() == 1:
+                cards_to_delete.append(card.id)
+
+            cards_to_unlink.append(card.id)
+
+        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
+        SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
+
+    @staticmethod
+    def _delete_payment_cards(user: CustomUser) -> None:
+        cards_to_delete = []
+        cards_to_unlink = []
+        for card in user.payment_card_account_set.all():
+            if card.user_set.count() == 1:
+                cards_to_delete.append(card.id)
+                metis.delete_payment_card(card)
+
+            cards_to_unlink.append(card.id)
+
+        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        PaymentCardAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
+        PaymentCardAccountEntry.objects.filter(user_id=user.id, payment_card_account_id__in=cards_to_unlink).delete()
 
 
 class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
