@@ -12,7 +12,7 @@ from rest_framework import generics, serializers as rest_framework_serializers, 
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from hermes.vop_tasks import vop_activate
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -345,6 +345,16 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
+
+            if new_status_code == payment_card_account.ACTIVE and payment_card_account.payment_card.slug == "visa":
+                entries = PaymentCardSchemeEntry.objects.filter(
+                    payment_card_accoun=self,
+                    scheme_account__status=SchemeAccount.ACTIVE,
+                    vop_link=PaymentCardSchemeEntry.UNDEFINED
+                )
+
+                if entries:
+                    vop_activate(entries)
 
         return Response({
             'id': payment_card_account.id,

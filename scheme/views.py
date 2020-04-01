@@ -20,7 +20,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from hermes.vop_tasks import vop_activate
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
@@ -41,6 +40,7 @@ from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
+from hermes.vop_tasks import vop_check_scheme
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -387,7 +387,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if new_status_code is SchemeAccount.ACTIVE:
             if previous_status is not SchemeAccount.ACTIVE:
-                self.vop_check_payment(scheme_account)
+                vop_check_scheme(scheme_account)
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
@@ -404,15 +404,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             'id': scheme_account.id,
             'status': new_status_code
         })
-
-    def vop_check_payment(self, scheme_account):
-        entries = PaymentCardSchemeEntry.objects.filter(
-            scheme_account=scheme_account,
-            payment_card_account__payment_card__slug="visa",
-            vop_link=PaymentCardSchemeEntry.UNDEFINED
-        )
-
-        vop_activate(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:

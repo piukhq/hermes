@@ -25,8 +25,9 @@ from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
+
 from ubiquity.models import PaymentCardSchemeEntry
-from hermes.vop_tasks import vop_activate
+from hermes.vop_tasks import vop_check_scheme
 
 
 class Category(models.Model):
@@ -587,17 +588,7 @@ class SchemeAccount(models.Model):
         return points
 
     def vop_check(self):
-        """ This method finds all the visa payment cards linked to this scheme account with undefined VOP status
-        """
-
-        entries = PaymentCardSchemeEntry.objects.filter(
-            scheme_account=self,
-            payment_card_account__payment_card__slug="visa",
-            vop_link=PaymentCardSchemeEntry.UNDEFINED
-        )
-
-        if entries:
-            vop_activate(entries, PaymentCardSchemeEntry.ACTIVATING, PaymentCardSchemeEntry.ACTIVATED)
+        vop_check_scheme(self)
 
     def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
