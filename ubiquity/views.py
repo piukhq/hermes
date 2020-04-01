@@ -557,7 +557,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_id=account.scheme_id
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, registration_fields)
+        async_registration.delay(user.id, serializer, account.id, validated_data)
         return account
 
     @censor_and_decorate

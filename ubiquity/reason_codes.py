@@ -52,7 +52,8 @@ CURRENT_STATUS_CODES = (
     (537, "Service connection error"),
     (538, "A system error occurred during join"),
     (900, "Join"),
-    (901, 'Join Failed'),
+    (901, 'Enrol Failed'),
+    (902, 'Registration Failed'),
 )
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
@@ -92,6 +93,7 @@ reason_code_translation = {
     538: None,
     900: 'X201',
     901: 'X201',
+    902: 'X105',
 }
 
 # status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
@@ -131,4 +133,5 @@ ubiquity_status_translation = {
     538: 'failed',
     900: 'failed',
     901: 'failed',
+    902: 'failed',
 }
