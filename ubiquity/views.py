@@ -36,7 +36,7 @@ from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
-    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
+    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete, async_add_field_only_link
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -776,6 +776,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             else:
                 auth_fields = auth_fields or {}
                 self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+        else:
+            scheme_account.set_pending()
+            async_add_field_only_link.delay(scheme_account.id)
 
         return scheme_account, return_status
 
