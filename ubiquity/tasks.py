@@ -3,6 +3,7 @@ import typing as t
 import requests
 from celery import shared_task
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
 from payment_card.payment import PaymentError
@@ -38,6 +39,16 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
 def async_balance(instance_id: int) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.get_cached_balance()
+
+
+@shared_task
+def async_add_field_only_link(instance_id: int) -> None:
+    scheme_account = SchemeAccount.objects.get(id=instance_id)
+    scheme_account.get_cached_balance()
+
+    if scheme_account.status == SchemeAccount.ACTIVE:
+        scheme_account.link_date = timezone.now()
+        scheme_account.save(update_fields=['link_date'])
 
 
 @shared_task
