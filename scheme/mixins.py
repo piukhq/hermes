@@ -319,7 +319,10 @@ class SchemeAccountJoinMixin:
 
         Payment.process_payment_void(scheme_account)
 
-        scheme_account.status = SchemeAccount.JOIN_FAILED
+        if card_number:
+            scheme_account.status = SchemeAccount.REGISTRATION_FAILED
+        else:
+            scheme_account.status = SchemeAccount.ENROL_FAILED
         scheme_account.save()
         sentry_sdk.capture_exception()
 

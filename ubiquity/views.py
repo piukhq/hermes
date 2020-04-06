@@ -36,7 +36,7 @@ from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
-    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
+    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete, async_add_field_only_link
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -278,6 +278,10 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         response = self.get_serializer_by_request(request.user.serviceconsent).data
         request.user.serviceconsent.delete()
+
+        self._delete_membership_cards(request.user)
+        self._delete_payment_cards(request.user)
+
         request.user.is_active = False
         request.user.save()
 
@@ -298,6 +302,35 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             raise ParseError
 
         return consent
+
+    @staticmethod
+    def _delete_membership_cards(user: CustomUser) -> None:
+        cards_to_delete = []
+        cards_to_unlink = []
+        for card in user.scheme_account_set.all():
+            if card.user_set.count() == 1:
+                cards_to_delete.append(card.id)
+
+            cards_to_unlink.append(card.id)
+
+        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
+        SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
+
+    @staticmethod
+    def _delete_payment_cards(user: CustomUser) -> None:
+        cards_to_delete = []
+        cards_to_unlink = []
+        for card in user.payment_card_account_set.all():
+            if card.user_set.count() == 1:
+                cards_to_delete.append(card.id)
+                metis.delete_payment_card(card)
+
+            cards_to_unlink.append(card.id)
+
+        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        PaymentCardAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
+        PaymentCardAccountEntry.objects.filter(user_id=user.id, payment_card_account_id__in=cards_to_unlink).delete()
 
 
 class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
@@ -557,7 +590,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_id=account.scheme_id
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, registration_fields)
+        async_registration.delay(user.id, serializer, account.id, validated_data)
         return account
 
     @censor_and_decorate
@@ -743,6 +776,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             else:
                 auth_fields = auth_fields or {}
                 self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+        else:
+            scheme_account.set_pending()
+            async_add_field_only_link.delay(scheme_account.id)
 
         return scheme_account, return_status
 

@@ -18,7 +18,7 @@ from user.tests.factories import (UserFactory, UserProfileFactory, fake, Setting
                                   MarketingCodeFactory)
 from unittest import mock
 
-from user.views import facebook_login, twitter_login, social_login
+from user.views import facebook_login, twitter_login, social_login, apple_login
 from hermes import settings
 
 
@@ -886,6 +886,41 @@ class TestFacebookLogin(APITestCase):
         response = facebook_login('Ju76xER1A5', "app_email")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], "app_email")
+
+
+class TestAppleLogin(APITestCase):
+    @mock.patch('user.views.apple_login', autospec=True)
+    def test_apple_login_view(self, apple_login_mock):
+        apple_login_mock.return_value = HttpResponse()
+
+        params = {
+            "authorization_code": "abcde1234",
+        }
+        self.client.post('/users/auth/apple', params)
+        self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
+
+    @httpretty.activate
+    def test_apple_login(self):
+        email = "some@email.com"
+        code = "abcde1234"
+
+        response = {
+            "id_token": (
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NT"
+                "Y3ODkwIiwiZW1haWwiOiJzb21lQGVtYWlsLmNvbSIsImlhdCI6MTUxN"
+                "jIzOTAyMn0.dA31ZtECZWBE5b6nE_nWfTl1Wxnz7ywD0vhffzMcLZE"
+            )
+        }
+        httpretty.register_uri(
+            httpretty.POST,
+            "https://appleid.apple.com/auth/token",
+            body=json.dumps(response),
+            content_type="application/json"
+        )
+
+        response = apple_login(code)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['email'], email)
 
 
 class TestSocialLogin(APITestCase):

@@ -167,6 +167,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
+    apple = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True, on_delete=models.SET_NULL)
     salt = models.CharField(max_length=8)

@@ -1,9 +1,9 @@
 from unittest.mock import patch
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework import serializers
 
-from payment_card.payment import PaymentError
 from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion, SchemeAccount
 from scheme.serializers import JoinSerializer
@@ -125,10 +125,11 @@ class TestTasks(TestCase):
         self.assertFalse(mock_midas_balance.called)
         self.assertFalse(mock_analytics.called)
 
-    @patch('ubiquity.tasks.SchemeAccountJoinMixin')
-    def test_async_register_validation_failure(self, mock_join_mixin):
-        # This is just to break out of the function if the initial validation check hasn't failed
-        mock_join_mixin.side_effect = PaymentError('Payment error')
+    @patch("analytics.api.update_scheme_account_attribute")
+    @patch("scheme.mixins.SchemeAccountJoinMixin.post_midas_join")
+    @patch("scheme.mixins.SchemeAccountJoinMixin.save_consents")
+    def test_async_register_validation_failure(self, mock_save_consents, *_):
+        mock_save_consents.side_effect = ValidationError("invalid consents")
         card_number = SchemeCredentialQuestionFactory(
             scheme=self.link_scheme,
             type=CARD_NUMBER,
@@ -139,13 +140,13 @@ class TestTasks(TestCase):
         SchemeCredentialAnswerFactory(
             scheme_account=self.link_entry.scheme_account,
             question=card_number,
-            answer='1234567'
+            answer="1234567"
         )
 
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
 
-        async_registration(user_id, JoinSerializer, scheme_account_id, {})
+        async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}})
 
         self.link_entry.scheme_account.refresh_from_db()
-        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
+        self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)

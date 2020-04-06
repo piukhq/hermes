@@ -3,9 +3,9 @@ import typing as t
 import requests
 from celery import shared_task
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
-from payment_card.payment import PaymentError
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -41,6 +41,16 @@ def async_balance(instance_id: int) -> None:
 
 
 @shared_task
+def async_add_field_only_link(instance_id: int) -> None:
+    scheme_account = SchemeAccount.objects.get(id=instance_id)
+    scheme_account.get_cached_balance()
+
+    if scheme_account.status == SchemeAccount.ACTIVE:
+        scheme_account.link_date = timezone.now()
+        scheme_account.save(update_fields=['link_date'])
+
+
+@shared_task
 def async_all_balance(user_id: int, channels_permit) -> None:
     query = {
         'user': user_id,
@@ -71,12 +81,8 @@ def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    try:
-        SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
-                                                     scheme_account, serializer)
-    except PaymentError:
-        scheme_account.status = SchemeAccount.PRE_REGISTERED_CARD
-        scheme_account.save()
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
+                                                 scheme_account, serializer)
 
 
 @shared_task
