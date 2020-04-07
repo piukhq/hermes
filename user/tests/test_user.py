@@ -898,6 +898,7 @@ class TestAppleLogin(APITestCase):
         }
         self.client.post('/users/auth/apple', params)
         self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
+        self.assertEqual(apple_login_mock.call_args[1]['redirect_uri'], "http://testserver/users/auth/apple")
 
     @httpretty.activate
     def test_apple_login(self):
@@ -918,7 +919,7 @@ class TestAppleLogin(APITestCase):
             content_type="application/json"
         )
 
-        response = apple_login(code)
+        response = apple_login(code, "http://testserver")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['email'], email)
 

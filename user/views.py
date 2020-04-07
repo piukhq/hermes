@@ -1,5 +1,6 @@
 import logging
 import jwt
+from rest_framework.reverse import reverse
 
 import analytics
 import requests
@@ -339,7 +340,11 @@ class AppleLogin(GenericAPIView):
         )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return apple_login(code=serializer.validated_data["authorization_code"])
+
+        return apple_login(
+            code=serializer.validated_data["authorization_code"],
+            redirect_uri=request.build_absolute_uri(reverse("authenticate_apple_user"))
+        )
 
 
 class Renew(APIView):
@@ -435,14 +440,15 @@ def twitter_login(access_token, access_token_secret):
     return social_response(profile['id_str'], email, 'twitter')
 
 
-def apple_login(code):
+def apple_login(code, redirect_uri):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
     params = {
         "client_id": settings.APPLE_CLIENT_ID,
         "client_secret": settings.APPLE_CLIENT_SECRET,
         "code": code,
-        "grant_type": grant_type
+        "grant_type": grant_type,
+        "redirect_uri": redirect_uri
     }
 
     logger.debug(
