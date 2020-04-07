@@ -255,6 +255,7 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
+ROOT_LOG_LEVEL = env_var('ROOT_LOG_LEVEL', 'WARNING')
 MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'DEBUG')
 UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'DEBUG')
 QUERY_LOG_LEVEL = env_var('QUERY_LOG_LEVEL', 'CRITICAL')
@@ -280,7 +281,7 @@ LOGGING = {
     },
     'loggers': {
         '': {
-            'level': 'WARNING',
+            'level': ROOT_LOG_LEVEL,
             'handlers': ['console'],
         },
         'django.db.backends': {
