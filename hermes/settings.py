@@ -255,6 +255,7 @@ LOCAL = env_var('HERMES_LOCAL', False)
 
 MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'DEBUG')
 UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'DEBUG')
+QUERY_LOG_LEVEL = env_var('QUERY_LOG_LEVEL', 'CRITICAL')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -270,11 +271,21 @@ LOGGING = {
             'formatter': 'verbose',
         },
     },
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue'
+        },
+    },
     'loggers': {
         'ubiquity': {
             'level': UBIQUITY_LOG_LEVEL,
             'handlers': ['console'],
             'propagate': False,
+        },
+        'django.db.backends': {
+            'filters': ['require_debug_true'],
+            'level': QUERY_LOG_LEVEL,
+            'handlers': ['console'],
         },
     },
 }
