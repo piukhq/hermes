@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount
@@ -45,6 +46,7 @@ class RegisterSerializer(serializers.Serializer):
     external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
+
         email = validated_data['email']
         password = validated_data['password']
         external_id = validated_data.get('external_id')
@@ -92,11 +94,11 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
 
 class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
 
-    def validate(self, data):
-        data = super().validate(data)
-        if CustomUser.objects.filter(client_id=data['client_id'], external_id=data['external_id']).exists():
-            raise serializers.ValidationError("That user already exists")
-        return data
+    # def validate(self, data):
+    #     data = super().validate(data)
+    #     if CustomUser.objects.filter(client_id=data['client_id'], external_id=data['external_id']).exists():
+    #         raise serializers.ValidationError("That user already exists")
+    #     return data
 
     def validate_email(self, email):
         return email
