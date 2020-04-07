@@ -283,11 +283,6 @@ LOGGING = {
             'level': 'WARNING',
             'handlers': ['console'],
         },
-        'ubiquity': {
-            'level': UBIQUITY_LOG_LEVEL,
-            'handlers': ['console'],
-            'propagate': False,
-        },
         'django.db.backends': {
             'filters': ['require_debug_true'],
             'level': QUERY_LOG_LEVEL,
@@ -299,6 +294,12 @@ LOGGING = {
                 'handlers': ['console'],
                 'propagate': False,
             } for app in LOCAL_APPS
+        },
+        # Place any custom loggers per app below this to override above
+        'ubiquity': {
+            'level': UBIQUITY_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
         },
     },
 }
