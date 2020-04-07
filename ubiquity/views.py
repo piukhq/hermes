@@ -248,11 +248,10 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 'client_id': request.channels_permit.client.pk,
                 'bundle_id': request.channels_permit.bundle_id,
                 'email': consent_data['email'],
-                'external_id': request.prop_id,
-                'password': 'Placeholder!!1'
+                'external_id': request.prop_id
             }
             status_code = 201
-            new_user = UbiquityRegisterSerializer(data=new_user_data)
+            new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
 
             user = new_user.save()

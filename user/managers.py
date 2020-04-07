@@ -1,4 +1,3 @@
-import arrow
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 
@@ -10,9 +9,6 @@ class CustomUserManager(BaseUserManager):
         """
         if email:
             email = self.normalize_email(email)
-
-        if extra_fields.get('external_id') and raw_password == 'Placeholder!!1':
-            raw_password = None
 
         password = make_password(raw_password)
         user = self.model(email=email, is_staff=is_staff, is_active=True, is_superuser=is_superuser, password=password,
