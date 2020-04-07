@@ -46,6 +46,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
+LOCAL_APPS = (
+    'user',
+    'scheme',
+    'payment_card',
+    'order',
+    'ubiquity',
+    'daedalus_messaging',
+)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -57,17 +65,11 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'rest_framework',
     'corsheaders',
-    'user',
-    'scheme',
-    'payment_card',
-    'order',
     'colorful',
     'mail_templated',
     'anymail',
     'storages',
-    'ubiquity',
-    'daedalus_messaging',
-)
+) + LOCAL_APPS
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
@@ -253,6 +255,7 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
+ROOT_LOG_LEVEL = env_var('ROOT_LOG_LEVEL', 'WARNING')
 MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'DEBUG')
 UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'DEBUG')
 QUERY_LOG_LEVEL = env_var('QUERY_LOG_LEVEL', 'CRITICAL')
@@ -277,15 +280,27 @@ LOGGING = {
         },
     },
     'loggers': {
-        'ubiquity': {
-            'level': UBIQUITY_LOG_LEVEL,
+        '': {
+            'level': ROOT_LOG_LEVEL,
             'handlers': ['console'],
-            'propagate': False,
         },
         'django.db.backends': {
             'filters': ['require_debug_true'],
             'level': QUERY_LOG_LEVEL,
             'handlers': ['console'],
+        },
+        **{
+            app: {
+                'level': MASTER_LOG_LEVEL,
+                'handlers': ['console'],
+                'propagate': False,
+            } for app in LOCAL_APPS
+        },
+        # Place any custom loggers per app below this to override above
+        'ubiquity': {
+            'level': UBIQUITY_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
         },
     },
 }
