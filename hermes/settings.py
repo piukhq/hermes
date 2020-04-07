@@ -288,6 +288,7 @@ LOGGING = {
             'filters': ['require_debug_true'],
             'level': QUERY_LOG_LEVEL,
             'handlers': ['console'],
+            'propagate': False,
         },
         **{
             app: {
