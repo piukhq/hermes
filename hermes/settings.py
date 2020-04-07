@@ -46,6 +46,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
+LOCAL_APPS = (
+    'user',
+    'scheme',
+    'payment_card',
+    'order',
+    'ubiquity',
+    'daedalus_messaging',
+)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -57,17 +65,11 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'rest_framework',
     'corsheaders',
-    'user',
-    'scheme',
-    'payment_card',
-    'order',
     'colorful',
     'mail_templated',
     'anymail',
     'storages',
-    'ubiquity',
-    'daedalus_messaging',
-)
+) + LOCAL_APPS
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
@@ -277,6 +279,10 @@ LOGGING = {
         },
     },
     'loggers': {
+        '': {
+            'level': 'WARNING',
+            'handlers': ['console'],
+        },
         'ubiquity': {
             'level': UBIQUITY_LOG_LEVEL,
             'handlers': ['console'],
@@ -286,6 +292,13 @@ LOGGING = {
             'filters': ['require_debug_true'],
             'level': QUERY_LOG_LEVEL,
             'handlers': ['console'],
+        },
+        **{
+            app: {
+                'level': MASTER_LOG_LEVEL,
+                'handlers': ['console'],
+                'propagate': False,
+            } for app in LOCAL_APPS
         },
     },
 }
