@@ -134,9 +134,48 @@ class AutoLinkOnCreationMixin:
             ])
 
     @staticmethod
-    def auto_link_to_membership_cards(user: CustomUser, account: PaymentCardAccount) -> None:
-        # not in spec for now but preparing for later
-        ...
+    def auto_link_to_membership_cards(user: CustomUser, account: PaymentCardAccount, just_created: Bool= False) -> None:
+
+        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
+        wallet_schemes = SchemeAccount.objects.values('id', 'scheme_id').filter(
+            user_set=user, scheme_accounts__scheme__tier=scheme.PLL
+        )
+
+        # Get Membership Cards in other wallets which are linked to this Payment Card.
+        already_linked_ids = []
+
+        if not just_created:
+            already_linked_ids = [
+                entry['scheme_account_id']
+                for entry in
+                PaymentCardSchemeEntry.objects.values('scheme_account_id').filter(
+                    payment_card_account_id=account.id,
+                    scheme_account__user_set
+                )
+            ]
+
+        # Ensure that we find only one membership card for each plan.  If there are many cards with the same plan
+        # the preference will be to choose a membership card previously linked to the payment card in another wallet
+        # (so cards pulled across plans will be consistent) or where that cannot be a deciding factor the oldest
+        # lowest id card will be chosen.
+
+        cards_by_scheme_ids = {}
+
+        for wallet_scheme in wallet_schemes:
+            new_id = wallet_scheme['id']
+            previous_scheme_id = cards_by_scheme_ids.get(wallet_scheme['scheme_id'])
+            if previous_scheme_id:
+                if (previous_scheme_id in already_linked_ids and new_id not in already_linked_ids) or\
+                        previous_scheme_id < new_id:
+                    new_id = previous_scheme_id
+            cards_by_scheme_ids['scheme_id'] = new_id
+
+        if account and cards_by_scheme_ids:
+            PaymentCardSchemeEntry.objects.bulk_create([
+                PaymentCardSchemeEntry(scheme_account_id=mcard_id, payment_card_account_id=account.id)
+                for plan_id, mcard_id in cards_by_scheme_ids.items()
+            ])
+
 
 
 class PaymentCardCreationMixin:
@@ -463,12 +502,14 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             return Response(self.get_serializer(pcard).data, status=status_code)
 
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
-        if status_code == status.HTTP_201_CREATED:
-            pcard = self._create_payment_card_consent(consent, pcard)
-            return Response(self.get_serializer_by_request(pcard).data, status=status_code)
+
+        just_created = status_code == status.HTTP_201_CREATED
 
         if is_auto_link(request):
-            self.auto_link_to_membership_cards(request.user, pcard)
+            self.auto_link_to_membership_cards(request.user, pcard, just_created)
+
+        if just_created:
+            pcard = self._create_payment_card_consent(consent, pcard)
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
