@@ -46,6 +46,14 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
+LOCAL_APPS = (
+    'user',
+    'scheme',
+    'payment_card',
+    'order',
+    'ubiquity',
+    'daedalus_messaging',
+)
 
 INSTALLED_APPS = (
     'django.contrib.auth',
@@ -57,17 +65,11 @@ INSTALLED_APPS = (
     'django.contrib.admin',
     'rest_framework',
     'corsheaders',
-    'user',
-    'scheme',
-    'payment_card',
-    'order',
     'colorful',
     'mail_templated',
     'anymail',
     'storages',
-    'ubiquity',
-    'daedalus_messaging',
-)
+) + LOCAL_APPS
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
@@ -245,7 +247,9 @@ TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFb
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
 APPLE_CLIENT_ID = env_var('APPLE_CLIENT_ID', 'com.bink.wallet.siwa')
-APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET')
+APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET', '')
+APPLE_KEY_ID = env_var('APPLE_KEY_ID', '6H3RLHRVGC')
+APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
 
 
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
@@ -253,8 +257,10 @@ DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
 LOCAL = env_var('HERMES_LOCAL', False)
 
+ROOT_LOG_LEVEL = env_var('ROOT_LOG_LEVEL', 'WARNING')
 MASTER_LOG_LEVEL = env_var('MASTER_LOG_LEVEL', 'DEBUG')
 UBIQUITY_LOG_LEVEL = env_var('UBIQUITY_LOG_LEVEL', 'DEBUG')
+QUERY_LOG_LEVEL = env_var('QUERY_LOG_LEVEL', 'CRITICAL')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -270,7 +276,30 @@ LOGGING = {
             'formatter': 'verbose',
         },
     },
+    'filters': {
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue'
+        },
+    },
     'loggers': {
+        '': {
+            'level': ROOT_LOG_LEVEL,
+            'handlers': ['console'],
+        },
+        'django.db.backends': {
+            'filters': ['require_debug_true'],
+            'level': QUERY_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
+        },
+        **{
+            app: {
+                'level': MASTER_LOG_LEVEL,
+                'handlers': ['console'],
+                'propagate': False,
+            } for app in LOCAL_APPS
+        },
+        # Place any custom loggers per app below this to override above
         'ubiquity': {
             'level': UBIQUITY_LOG_LEVEL,
             'handlers': ['console'],
