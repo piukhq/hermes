@@ -451,19 +451,19 @@ def generate_apple_client_secret():
     }
     claims = {
         "iss": settings.APPLE_TEAM_ID,
-        "aud": 'https://appleid.apple.com',
+        "aud": "https://appleid.apple.com",
         "sub": settings.APPLE_CLIENT_ID,
         "iat": time_now,
         "exp": time_now + 86400 * 180,
     }
 
-    key = base64.b64decode(settings.APPLE_CLIENT_SECRET).decode('utf-8')
+    key = base64.b64decode(settings.APPLE_CLIENT_SECRET).decode("utf-8")
     client_secret = jwt.encode(
         payload=claims,
         key=key,
         headers=headers,
-        algorithm='ES256',
-    ).decode('utf-8')
+        algorithm="ES256",
+    ).decode("utf-8")
 
     return client_secret
 
@@ -471,7 +471,7 @@ def generate_apple_client_secret():
 def apple_login(code, redirect_uri):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
-    headers = {'content-type': "application/x-www-form-urlencoded"}
+    headers = {"content-type": "application/x-www-form-urlencoded"}
     params = {
         "client_id": settings.APPLE_CLIENT_ID,
         "client_secret": generate_apple_client_secret(),

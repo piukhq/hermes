@@ -962,8 +962,6 @@ class TestAppleLogin(APITestCase):
         self.assertEqual(jwt_data["aud"], aud)
 
 
-
-
 class TestSocialLogin(APITestCase):
     def test_social_login_exists(self):
         facebook_id = 'O7bz6vG60Y'
