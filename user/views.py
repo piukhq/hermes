@@ -1,9 +1,7 @@
 import base64
-import logging
 from datetime import datetime
-
 import jwt
-from rest_framework.reverse import reverse
+import logging
 
 import analytics
 import requests
