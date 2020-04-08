@@ -4,6 +4,7 @@ omit = *migrations*
        *templates*
        payment_card/admin.py
        ubiquity/admin.py
+       ubiquity/cache_decorators
        user/admin.py
        scheme/admin.py
        common/admin.py

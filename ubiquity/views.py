@@ -33,7 +33,7 @@ from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, Third
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
-from ubiquity.cache_decorators import cache_membership_plans
+from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
@@ -1164,7 +1164,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
 
         return self.request.channels_permit.scheme_query(queryset)
 
-    @cache_membership_plans
+    @CacheApiRequest('m_plans', settings.REDIS_MCARDS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
