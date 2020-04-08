@@ -2,7 +2,7 @@ from json import loads, dumps
 
 from django.conf import settings
 from django.http import JsonResponse
-from redis import ConnectionPool, Redis
+from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
