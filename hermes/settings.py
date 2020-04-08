@@ -22,6 +22,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
+from redis import ConnectionPool as Redis_ConnectionPool
 
 read_env()
 
@@ -370,6 +371,11 @@ REDIS_HOST = env_var('REDIS_HOST', 'localhost')
 REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
 REDIS_PORT = env_var('REDIS_PORT', 6379)
 REDIS_DB = env_var('REDIS_DB', 1)
+REDIS_API_CACHE_DB = env_var('REDIS_API_CACHE_DB', 2)
+REDIS_MCARDS_CACHE_EXPIRY = int(env_var('REDIS_MCARDS_CACHE_EXPIRY', 60*24))  # 60*24  # 24 hrs in seconds
+
+REDIS_API_CACHE_POOL = Redis_ConnectionPool(host=REDIS_HOST, port=REDIS_PORT,
+                                            password=REDIS_PASSWORD, db=REDIS_API_CACHE_DB)
 
 cache_options = {
     'redis': {
