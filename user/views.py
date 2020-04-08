@@ -336,9 +336,6 @@ class AppleLogin(GenericAPIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        logger.debug(
-            f"Apple Sign In - request data: {request.data}"
-        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -474,9 +471,6 @@ def apple_login(code):
         "grant_type": grant_type
     }
 
-    logger.debug(
-        f'Request to "{url}" - body: {params}'
-    )
     resp = requests.post(url, data=params, headers=headers)
 
     if not resp.ok:
