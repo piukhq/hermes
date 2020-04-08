@@ -280,7 +280,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             response = self.get_serializer_by_request(request.user.serviceconsent).data
             request.user.serviceconsent.delete()
         except ServiceConsent.DoesNotExist:
-            raise NotAcceptable("This user is not registered to use bink services.")
+            raise NotAcceptable("This user does not have a consent and can not be deleted from this endpoint.")
 
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
