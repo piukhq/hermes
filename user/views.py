@@ -344,10 +344,7 @@ class AppleLogin(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        return apple_login(
-            code=serializer.validated_data["authorization_code"],
-            redirect_uri=request.build_absolute_uri(reverse("authenticate_apple_user"))
-        )
+        return apple_login(code=serializer.validated_data["authorization_code"])
 
 
 class Renew(APIView):
@@ -468,7 +465,7 @@ def generate_apple_client_secret():
     return client_secret
 
 
-def apple_login(code, redirect_uri):
+def apple_login(code):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
     headers = {"content-type": "application/x-www-form-urlencoded"}
@@ -476,8 +473,7 @@ def apple_login(code, redirect_uri):
         "client_id": settings.APPLE_APP_ID,
         "client_secret": generate_apple_client_secret(),
         "code": code,
-        "grant_type": grant_type,
-        "redirect_uri": redirect_uri
+        "grant_type": grant_type
     }
 
     logger.debug(
