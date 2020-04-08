@@ -452,7 +452,7 @@ def generate_apple_client_secret():
     claims = {
         "iss": settings.APPLE_TEAM_ID,
         "aud": "https://appleid.apple.com",
-        "sub": settings.APPLE_CLIENT_ID,
+        "sub": settings.APPLE_APP_ID,
         "iat": time_now,
         "exp": time_now + 86400 * 180,
     }
@@ -473,7 +473,7 @@ def apple_login(code, redirect_uri):
     grant_type = "authorization_code"
     headers = {"content-type": "application/x-www-form-urlencoded"}
     params = {
-        "client_id": settings.APPLE_CLIENT_ID,
+        "client_id": settings.APPLE_APP_ID,
         "client_secret": generate_apple_client_secret(),
         "code": code,
         "grant_type": grant_type,

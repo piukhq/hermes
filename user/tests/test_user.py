@@ -958,7 +958,7 @@ class TestAppleLogin(APITestCase):
             self.assertIn(claim, jwt_data)
 
         self.assertEqual(jwt_data["iss"], settings.APPLE_TEAM_ID)
-        self.assertEqual(jwt_data["sub"], settings.APPLE_CLIENT_ID)
+        self.assertEqual(jwt_data["sub"], settings.APPLE_APP_ID)
         self.assertEqual(jwt_data["aud"], aud)
 
 

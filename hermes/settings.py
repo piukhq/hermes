@@ -247,7 +247,7 @@ TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyA
 TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
-APPLE_CLIENT_ID = env_var('APPLE_CLIENT_ID', 'com.bink.wallet.siwa')
+APPLE_APP_ID = env_var('APPLE_APP_ID', 'com.bink.wallet')
 APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET', '')
 APPLE_KEY_ID = env_var('APPLE_KEY_ID', '6H3RLHRVGC')
 APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
