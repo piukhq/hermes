@@ -900,7 +900,6 @@ class TestAppleLogin(APITestCase):
         }
         self.client.post('/users/auth/apple', params)
         self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
-        self.assertEqual(apple_login_mock.call_args[1]['redirect_uri'], "http://testserver/users/auth/apple")
 
     @mock.patch("user.views.generate_apple_client_secret")
     @httpretty.activate
@@ -923,7 +922,7 @@ class TestAppleLogin(APITestCase):
             content_type="application/json"
         )
 
-        response = apple_login(code, "http://testserver")
+        response = apple_login(code)
 
         self.assertTrue(mock_gen_secret.called)
         self.assertEqual(response.status_code, 201)
@@ -958,7 +957,7 @@ class TestAppleLogin(APITestCase):
             self.assertIn(claim, jwt_data)
 
         self.assertEqual(jwt_data["iss"], settings.APPLE_TEAM_ID)
-        self.assertEqual(jwt_data["sub"], settings.APPLE_CLIENT_ID)
+        self.assertEqual(jwt_data["sub"], settings.APPLE_APP_ID)
         self.assertEqual(jwt_data["aud"], aud)
 
 
