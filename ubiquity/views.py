@@ -34,7 +34,7 @@ from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
     send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete, async_add_field_only_link
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
@@ -276,8 +276,11 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        response = self.get_serializer_by_request(request.user.serviceconsent).data
-        request.user.serviceconsent.delete()
+        try:
+            response = self.get_serializer_by_request(request.user.serviceconsent).data
+            request.user.serviceconsent.delete()
+        except ServiceConsent.DoesNotExist:
+            raise NotFound
 
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
