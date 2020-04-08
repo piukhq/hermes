@@ -11,7 +11,7 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from requests import request
 from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError, ValidationError, NotAcceptable
+from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -280,7 +280,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             response = self.get_serializer_by_request(request.user.serviceconsent).data
             request.user.serviceconsent.delete()
         except ServiceConsent.DoesNotExist:
-            raise NotAcceptable("This user does not have a consent and can not be deleted from this endpoint.")
+            raise NotFound
 
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
