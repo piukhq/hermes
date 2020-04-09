@@ -32,12 +32,13 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
-from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
+from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
-    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete, async_add_field_only_link
+from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
+                            send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
+                            async_add_field_only_link)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -223,8 +224,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_active:
-            raise NotFound
         async_all_balance.delay(request.user.id, self.request.channels_permit)
         return Response(
             self.get_serializer_by_request(request.user.serviceconsent).data
@@ -256,17 +255,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             user = new_user.save()
             consent = self._add_consent(user, consent_data)
         else:
-            if not user.is_active:
-                status_code = 201
-                user.is_active = True
-                user.save()
-
-                if hasattr(user, 'serviceconsent'):
-                    user.serviceconsent.delete()
-
-                consent = self._add_consent(user, consent_data)
-
-            elif not hasattr(user, 'serviceconsent'):
+            if not hasattr(user, 'serviceconsent'):
                 status_code = 201
                 consent = self._add_consent(user, consent_data)
 

@@ -612,7 +612,7 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], 'Login credentials incorrect.')
 
-    def test_local_login_disable(self):
+    def test_local_login_deleted_user(self):
         self.user.is_active = False
         self.user.save()
         data = {
@@ -624,7 +624,7 @@ class TestAuthenticationViews(APITestCase):
         response = self.client.post(reverse('login'), data=data)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
+        self.assertEqual(response.data["message"], "Login credentials incorrect.")
 
     def test_login_with_client_and_bundle(self):
         client = Client()

@@ -82,7 +82,7 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
     def validate(self, data):
         data = super().validate(data)
         email = CustomUser.objects.normalize_email(data['email'])
-        if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email, is_active=True).exists():
+        if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
             raise serializers.ValidationError("That user already exists")
         return data
 

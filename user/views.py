@@ -1,33 +1,33 @@
 import base64
-from datetime import datetime
-import jwt
 import logging
+from datetime import datetime
 
-import analytics
+import jwt
 import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import ugettext_lazy as _
-from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
-                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
+from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import mixins
+from rest_framework import mixins, exceptions
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
-from rest_framework import exceptions
+
+import analytics
+from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -35,8 +35,6 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
                               UserSettingSerializer, AppleRegisterSerializer)
-from django.core.exceptions import MultipleObjectsReturned
-
 
 logger = logging.getLogger(__name__)
 
@@ -245,8 +243,6 @@ class Login(GenericAPIView):
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
-        if not user.is_active:
-            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
