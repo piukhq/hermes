@@ -245,8 +245,6 @@ class Login(GenericAPIView):
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
-        if not user.is_active:
-            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,

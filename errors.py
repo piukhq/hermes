@@ -21,8 +21,6 @@ REGISTRATION_FAILED = "REGISTRATION_FAILED"
 errors = {
     INCORRECT_CREDENTIALS: {"code": 403,
                             "message": "Login credentials incorrect."},
-    SUSPENDED_ACCOUNT: {"code": 403,
-                        "message": "The account associated with this email address is suspended."},
     FACEBOOK_BAD_TOKEN: {"code": 403,
                          "message": "Cannot get facebook user token"},
     FACEBOOK_CANT_VALIDATE: {"code": 403,
