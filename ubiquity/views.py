@@ -223,8 +223,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_active:
-            raise NotFound
         async_all_balance.delay(request.user.id, self.request.channels_permit)
         return Response(
             self.get_serializer_by_request(request.user.serviceconsent).data
@@ -256,17 +254,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             user = new_user.save()
             consent = self._add_consent(user, consent_data)
         else:
-            if not user.is_active:
-                status_code = 201
-                user.is_active = True
-                user.save()
-
-                if hasattr(user, 'serviceconsent'):
-                    user.serviceconsent.delete()
-
-                consent = self._add_consent(user, consent_data)
-
-            elif not hasattr(user, 'serviceconsent'):
+            if not hasattr(user, 'serviceconsent'):
                 status_code = 201
                 consent = self._add_consent(user, consent_data)
 
