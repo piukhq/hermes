@@ -32,12 +32,13 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
-from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
+from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
-    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete, async_add_field_only_link
+from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
+                            send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
+                            async_add_field_only_link)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
