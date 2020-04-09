@@ -1,9 +1,7 @@
 import base64
-import logging
 from datetime import datetime
-
 import jwt
-from rest_framework.reverse import reverse
+import logging
 
 import analytics
 import requests
@@ -338,16 +336,10 @@ class AppleLogin(GenericAPIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        logger.debug(
-            f"Apple Sign In - request data: {request.data}"
-        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        return apple_login(
-            code=serializer.validated_data["authorization_code"],
-            redirect_uri=request.build_absolute_uri(reverse("authenticate_apple_user"))
-        )
+        return apple_login(code=serializer.validated_data["authorization_code"])
 
 
 class Renew(APIView):
@@ -452,7 +444,7 @@ def generate_apple_client_secret():
     claims = {
         "iss": settings.APPLE_TEAM_ID,
         "aud": "https://appleid.apple.com",
-        "sub": settings.APPLE_CLIENT_ID,
+        "sub": settings.APPLE_APP_ID,
         "iat": time_now,
         "exp": time_now + 86400 * 180,
     }
@@ -468,21 +460,17 @@ def generate_apple_client_secret():
     return client_secret
 
 
-def apple_login(code, redirect_uri):
+def apple_login(code):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
     headers = {"content-type": "application/x-www-form-urlencoded"}
     params = {
-        "client_id": settings.APPLE_CLIENT_ID,
+        "client_id": settings.APPLE_APP_ID,
         "client_secret": generate_apple_client_secret(),
         "code": code,
-        "grant_type": grant_type,
-        "redirect_uri": redirect_uri
+        "grant_type": grant_type
     }
 
-    logger.debug(
-        f'Request to "{url}" - body: {params}'
-    )
     resp = requests.post(url, data=params, headers=headers)
 
     if not resp.ok:
