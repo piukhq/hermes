@@ -1,9 +1,11 @@
 from json import loads, dumps
 
 from django.conf import settings
-from django.http import JsonResponse
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
+from rest_framework.response import Response
+
+from ubiquity.versioning import get_api_version
 
 r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
 
@@ -70,11 +72,12 @@ class CacheApiRequest(object):
 
         def wrapped_f(request, *args, **kwargs):
             req = request.request
-            key = f"{self.key_slug}:{req.version}:{self.key_func(req)}"
+            version = get_api_version(req)
+            key = f"{self.key_slug}:{version}:{self.key_func(req)}"
             cache = ApiCache(key, self.expiry)
             if cache.available:
-                response = JsonResponse(cache.data, safe=False)
-                response['X-API-Version'] = req.version
+                response = Response(cache.data)
+                response['X-API-Version'] = version
             else:
                 response = func(request, *args, **kwargs)
                 if response.status_code == 200:
