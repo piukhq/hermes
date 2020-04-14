@@ -45,8 +45,9 @@ class RegisterSerializer(serializers.Serializer):
     external_id = serializers.CharField(required=False, max_length=255)
 
     def create(self, validated_data):
+
         email = validated_data['email']
-        password = validated_data['password']
+        password = validated_data.get('password', None)
         external_id = validated_data.get('external_id')
         client_id = validated_data.get('client_id')
 
@@ -91,12 +92,14 @@ class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
 
 
 class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
+    password = serializers.CharField(write_only=True, required=False)
 
-    def validate(self, data):
-        data = super().validate(data)
-        if CustomUser.objects.filter(client_id=data['client_id'], external_id=data['external_id']).exists():
-            raise serializers.ValidationError("That user already exists")
-        return data
+    def validate_password(self, value):
+        if self.context.get('bearer_registration', False):
+            return None
+
+        validate_pass(value)
+        return value
 
     def validate_email(self, email):
         return email

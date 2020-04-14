@@ -7,7 +7,6 @@ import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from rest_framework import serializers
-
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -19,7 +18,6 @@ from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
-from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
@@ -56,16 +54,6 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         write_only_fields = ('user',)
 
     timestamp = serializers.IntegerField()
-
-    @staticmethod
-    def validate_user(user):
-        if not isinstance(user, CustomUser):
-            try:
-                user = CustomUser.objects.get(pk=user)
-            except CustomUser.DoesNotExist:
-                raise serializers.ValidationError("User {} not found.".format(user))
-
-        return user
 
     @staticmethod
     def validate_timestamp(timestamp):
