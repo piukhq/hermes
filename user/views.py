@@ -3,33 +3,31 @@ import logging
 from datetime import datetime
 
 import jwt
-from rest_framework.reverse import reverse
-
-import analytics
 import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import ugettext_lazy as _
-from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
-                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
+from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import mixins
+from rest_framework import mixins, exceptions
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
-from rest_framework import exceptions
+
+import analytics
+from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -37,8 +35,6 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
                               UserSettingSerializer, AppleRegisterSerializer)
-from django.core.exceptions import MultipleObjectsReturned
-
 
 logger = logging.getLogger(__name__)
 
@@ -247,8 +243,6 @@ class Login(GenericAPIView):
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
-        if not user.is_active:
-            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
@@ -338,16 +332,10 @@ class AppleLogin(GenericAPIView):
         ---
         response_serializer: ResponseAuthSerializer
         """
-        logger.debug(
-            f"Apple Sign In - request data: {request.data}"
-        )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        return apple_login(
-            code=serializer.validated_data["authorization_code"],
-            redirect_uri=request.build_absolute_uri(reverse("authenticate_apple_user"))
-        )
+        return apple_login(code=serializer.validated_data["authorization_code"])
 
 
 class Renew(APIView):
@@ -452,7 +440,7 @@ def generate_apple_client_secret():
     claims = {
         "iss": settings.APPLE_TEAM_ID,
         "aud": "https://appleid.apple.com",
-        "sub": settings.APPLE_CLIENT_ID,
+        "sub": settings.APPLE_APP_ID,
         "iat": time_now,
         "exp": time_now + 86400 * 180,
     }
@@ -468,21 +456,17 @@ def generate_apple_client_secret():
     return client_secret
 
 
-def apple_login(code, redirect_uri):
+def apple_login(code):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
     headers = {"content-type": "application/x-www-form-urlencoded"}
     params = {
-        "client_id": settings.APPLE_CLIENT_ID,
+        "client_id": settings.APPLE_APP_ID,
         "client_secret": generate_apple_client_secret(),
         "code": code,
-        "grant_type": grant_type,
-        "redirect_uri": redirect_uri
+        "grant_type": grant_type
     }
 
-    logger.debug(
-        f'Request to "{url}" - body: {params}'
-    )
     resp = requests.post(url, data=params, headers=headers)
 
     if not resp.ok:

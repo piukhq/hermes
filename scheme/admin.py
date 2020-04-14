@@ -1,9 +1,14 @@
 import re
+
+from django.conf import settings
 from django.contrib import admin
+from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
+from redis import Redis
+
 from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
@@ -11,9 +16,10 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
                            ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee)
 from ubiquity.models import SchemeAccountEntry
-from django.contrib import messages
 
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
+
+r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
 
 
 def check_active_scheme(scheme):
@@ -138,6 +144,13 @@ class SchemeAdmin(admin.ModelAdmin):
         if obj:  # editing an existing object
             return self.readonly_fields + ('slug',)
         return self.readonly_fields
+
+    def save_model(self, request, obj, form, change):
+        # Delete all m_plans key slug cache
+        for key in r.scan_iter("m_plans:*"):
+            # delete the key
+            r.delete(key)
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(SchemeImage)

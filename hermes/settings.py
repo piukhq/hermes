@@ -22,6 +22,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
+from redis import ConnectionPool as Redis_ConnectionPool
 
 read_env()
 
@@ -246,7 +247,7 @@ TWITTER_CONSUMER_KEY = env_var('TWITTER_CONSUMER_KEY', 'XhCHpBxJg4YdM5raN2z2GoyA
 TWITTER_CONSUMER_SECRET = env_var('TWITTER_CONSUMER_SECRET', 'aLnsRBVGrDxdy0oOFbA7pQtjJgzPhrCyLfrcjANkCMqktlV3m5')
 TWITTER_CALLBACK_URL = env_var('TWITTER_CALLBACK_URL', 'http://local.chingweb.chingrewards.com:8000/')
 
-APPLE_CLIENT_ID = env_var('APPLE_CLIENT_ID', 'com.bink.wallet.siwa')
+APPLE_APP_ID = env_var('APPLE_APP_ID', 'com.bink.wallet')
 APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET', '')
 APPLE_KEY_ID = env_var('APPLE_KEY_ID', '6H3RLHRVGC')
 APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
@@ -370,6 +371,11 @@ REDIS_HOST = env_var('REDIS_HOST', 'localhost')
 REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
 REDIS_PORT = env_var('REDIS_PORT', 6379)
 REDIS_DB = env_var('REDIS_DB', 1)
+REDIS_API_CACHE_DB = env_var('REDIS_API_CACHE_DB', 2)
+REDIS_MCARDS_CACHE_EXPIRY = int(env_var('REDIS_MCARDS_CACHE_EXPIRY', 60*60*24))  # 60*60*24  # 24 hrs in seconds
+
+REDIS_API_CACHE_POOL = Redis_ConnectionPool(host=REDIS_HOST, port=REDIS_PORT,
+                                            password=REDIS_PASSWORD, db=REDIS_API_CACHE_DB)
 
 cache_options = {
     'redis': {

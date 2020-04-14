@@ -1,12 +1,14 @@
+import logging
 import time
 
 import jwt
-import logging
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import NotFound
+from rest_framework.generics import get_object_or_404
+
 from hermes.channels import Permit
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
@@ -32,7 +34,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         else:
             try:
                 channels_permit.user = CustomUser.objects.get(
-                    external_id=auth_user_id, client=channels_permit.bundle.client, is_active=True)
+                    external_id=auth_user_id, client=channels_permit.bundle.client)
             except CustomUser.DoesNotExist:
                 raise no_user_error
 
@@ -88,7 +90,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
     @staticmethod
     def _authenticate_token(token, token_data, bundle_id, auth_by):
         # This is the client server token with "token" prefix
-        user = CustomUser.objects.get(id=token_data['sub'])
+        user = get_object_or_404(CustomUser.objects, id=token_data['sub'])
         channels_permit = Permit(bundle_id, user=user, ubiquity=True, auth_by=auth_by)
 
         if not user.email:
