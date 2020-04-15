@@ -1,7 +1,6 @@
 import logging
 import re
 import typing as t
-import uuid
 from pathlib import Path
 
 import arrow
