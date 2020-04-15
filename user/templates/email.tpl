@@ -1041,12 +1041,12 @@ face="arial, sans-serif"><br>If
                                                           with us
                                                           immediately </font><a
 moz-do-not-send="true"
-href="mailto:helpme@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Requested"
+href="mailto:support@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Requested"
 target="_blank" style="mso-line-height-rule:
                                                           exactly;-ms-text-size-adjust:
 100%;-webkit-text-size-adjust: 100%;color: #00b9ff;font-weight:
                                                           normal;text-decoration:
-                                                          underline;">helpme@bink.com</a>.</div>
+                                                          underline;">support@bink.com</a>.</div>
                                                       </td>
                                                     </tr>
                                                   </tbody>
