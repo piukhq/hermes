@@ -1,7 +1,6 @@
 import logging
 import re
 import typing as t
-import uuid
 from pathlib import Path
 
 import arrow
@@ -98,7 +97,9 @@ class VersionedSerializerMixin:
     def get_serializer_by_request(self, *args, **kwargs):
         version = get_api_version(self.request)
         serializer_class = versioned_serializer_class(version, self.response_serializer)
-        kwargs['context'] = self.get_serializer_context()
+        context = kwargs.get('context', {})
+        context.update(self.get_serializer_context())
+        kwargs['context'] = context
         return serializer_class(*args, **kwargs)
 
     def get_serializer_class_by_request(self):
@@ -246,13 +247,14 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 'client_id': request.channels_permit.client.pk,
                 'bundle_id': request.channels_permit.bundle_id,
                 'email': consent_data['email'],
-                'external_id': request.prop_id,
-                'password': str(uuid.uuid4()).lower().replace('-', 'A&')
+                'external_id': request.prop_id
             }
             status_code = 201
-            new_user = UbiquityRegisterSerializer(data=new_user_data)
+            new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
+
             user = new_user.save()
+
             consent = self._add_consent(user, consent_data)
         else:
             if not hasattr(user, 'serviceconsent'):
@@ -286,7 +288,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
         try:
-            consent = self.get_serializer_by_request(data={'user': user.pk, **consent_data})
+            consent = self.get_serializer_by_request(data={'user': user.id, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:

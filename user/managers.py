@@ -1,16 +1,20 @@
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import BaseUserManager
 
 
 class CustomUserManager(BaseUserManager):
 
-    def _create_user(self, email, password, is_staff, is_superuser, **extra_fields):
+    def _create_user(self, email, raw_password, is_staff, is_superuser, **extra_fields):
         """
         Creates and saves a User with the given username, email and password.
         """
         if email:
             email = self.normalize_email(email)
-        user = self.model(email=email, is_staff=is_staff, is_active=True, is_superuser=is_superuser, **extra_fields)
-        user.set_password(password)
+
+        password = make_password(raw_password)
+        user = self.model(email=email, is_staff=is_staff, is_active=True, is_superuser=is_superuser, password=password,
+                          **extra_fields)
+        user._password = raw_password
         user.generate_salt()
         user.save(using=self._db)
         return user
