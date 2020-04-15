@@ -41,7 +41,7 @@ class ApiCache:
             pass
 
 
-def membership_plan_key(req):
+def membership_plan_key(req, kwargs=None):
     """
     This function generates a key part based on bundle_id string and user type
     ideal for membership plan decorators
@@ -50,7 +50,11 @@ def membership_plan_key(req):
     """
     user = getattr(req, 'user')
     user_tester = '1' if user and user.is_tester else '0'
-    return f'{req.channels_permit.bundle_id}:{user_tester}'
+    pk = kwargs.get('pk', "")
+    pk_part = ""
+    if pk:
+        pk_part = f':{pk}'
+    return f'{pk_part}:{req.channels_permit.bundle_id}:{user_tester}'
 
 
 class CacheApiRequest(object):
@@ -73,7 +77,7 @@ class CacheApiRequest(object):
         def wrapped_f(request, *args, **kwargs):
             req = request.request
             version = get_api_version(req)
-            key = f"{self.key_slug}:{version}:{self.key_func(req)}"
+            key = f"{self.key_slug}{self.key_func(req, kwargs)}:{version}"
             cache = ApiCache(key, self.expiry)
             if cache.available:
                 response = Response(cache.data)
