@@ -54,6 +54,7 @@ class CustomUserModelForm(forms.ModelForm):
 
 @admin.register(CustomUser)
 class CustomUserDetail(UserAdmin):
+    model = CustomUser.all_objects
 
     def first_name(self, obj):
         return obj.profile.first_name

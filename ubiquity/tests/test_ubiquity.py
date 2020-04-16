@@ -37,6 +37,26 @@ class RequestMock:
     channels_permit = None
 
 
+class MockApiCache:
+    key = None
+    expire = None
+    available_called = None
+
+    def __init__(self, key, expire):
+        MockApiCache.key = key
+        MockApiCache.data = None
+        MockApiCache.expire = expire
+        MockApiCache.available_called = False
+
+    @property
+    def available(self):
+        MockApiCache.available_called = True
+        return False
+
+    def save(self, data):
+        MockApiCache.data = data
+
+
 class TestResources(APITestCase):
 
     def _get_auth_header(self, user):
@@ -1188,10 +1208,18 @@ class TestResources(APITestCase):
                                           content_type='application/json', **auth_headers)
         self.assertEqual(resp_register.status_code, 200)
 
+    @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):
+        MockApiCache.available_called = False
+        MockApiCache.expire = 0
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(isinstance(resp.json(), list))
+        self.assertTrue(MockApiCache.available_called)
+        self.assertEqual(MockApiCache.key, 'm_plans:test.auth.fake:0:1.2')
+        self.assertEqual(MockApiCache.expire, 60*60*24)
+        self.assertListEqual(MockApiCache.data, resp.json())
+
         schemes_number = len(resp.json())
 
         self.scheme.test_scheme = True
@@ -1209,12 +1237,19 @@ class TestResources(APITestCase):
         self.user.is_tester = False
         self.user.save()
 
+    @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plan(self):
         mock_request_context = MagicMock()
         mock_request_context.user = self.user
-
+        MockApiCache.available_called = False
+        MockApiCache.expire = 0
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
+        self.assertTrue(MockApiCache.available_called)
+        self.assertEqual(MockApiCache.key, f'm_plans:{self.scheme.id}:test.auth.fake:0:1.2')
+        self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
+        self.assertDictEqual(MockApiCache.data, resp.json())
+
         self.assertEqual(
             remove_empty(MembershipPlanSerializer(self.scheme, context={'request': mock_request_context}).data),
             resp.json()

@@ -1,7 +1,6 @@
 import logging
 import re
 import typing as t
-import uuid
 from pathlib import Path
 
 import arrow
@@ -32,11 +31,13 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
+from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.tasks import async_link, async_all_balance, async_join, async_registration, async_balance, \
-    send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
+                            send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
+                            async_add_field_only_link)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -96,7 +97,9 @@ class VersionedSerializerMixin:
     def get_serializer_by_request(self, *args, **kwargs):
         version = get_api_version(self.request)
         serializer_class = versioned_serializer_class(version, self.response_serializer)
-        kwargs['context'] = self.get_serializer_context()
+        context = kwargs.get('context', {})
+        context.update(self.get_serializer_context())
+        kwargs['context'] = context
         return serializer_class(*args, **kwargs)
 
     def get_serializer_class_by_request(self):
@@ -261,8 +264,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
-        if not request.user.is_active:
-            raise NotFound
         async_all_balance.delay(request.user.id, self.request.channels_permit)
         return Response(
             self.get_serializer_by_request(request.user.serviceconsent).data
@@ -285,26 +286,17 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 'client_id': request.channels_permit.client.pk,
                 'bundle_id': request.channels_permit.bundle_id,
                 'email': consent_data['email'],
-                'external_id': request.prop_id,
-                'password': str(uuid.uuid4()).lower().replace('-', 'A&')
+                'external_id': request.prop_id
             }
             status_code = 201
-            new_user = UbiquityRegisterSerializer(data=new_user_data)
+            new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
+
             user = new_user.save()
+
             consent = self._add_consent(user, consent_data)
         else:
-            if not user.is_active:
-                status_code = 201
-                user.is_active = True
-                user.save()
-
-                if hasattr(user, 'serviceconsent'):
-                    user.serviceconsent.delete()
-
-                consent = self._add_consent(user, consent_data)
-
-            elif not hasattr(user, 'serviceconsent'):
+            if not hasattr(user, 'serviceconsent'):
                 status_code = 201
                 consent = self._add_consent(user, consent_data)
 
@@ -315,8 +307,11 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        response = self.get_serializer_by_request(request.user.serviceconsent).data
-        request.user.serviceconsent.delete()
+        try:
+            response = self.get_serializer_by_request(request.user.serviceconsent).data
+            request.user.serviceconsent.delete()
+        except ServiceConsent.DoesNotExist:
+            raise NotFound
 
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
@@ -332,7 +327,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
         try:
-            consent = self.get_serializer_by_request(data={'user': user.pk, **consent_data})
+            consent = self.get_serializer_by_request(data={'user': user.id, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
@@ -817,6 +812,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             else:
                 auth_fields = auth_fields or {}
                 self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+        else:
+            scheme_account.set_pending()
+            async_add_field_only_link.delay(scheme_account.id)
 
         return scheme_account, return_status
 
@@ -1182,6 +1180,7 @@ class MembershipPlanView(VersionedSerializerMixin, ModelViewSet):
 
         return self.request.channels_permit.scheme_query(queryset)
 
+    @CacheApiRequest('m_plans', settings.REDIS_MCARDS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
@@ -1201,6 +1200,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
 
         return self.request.channels_permit.scheme_query(queryset)
 
+    @CacheApiRequest('m_plans', settings.REDIS_MCARDS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()

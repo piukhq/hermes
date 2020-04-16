@@ -1,7 +1,9 @@
+import base64
 import json
 import time
 import arrow
 import httpretty as httpretty
+import jwt
 from rest_framework.utils.serializer_helpers import ReturnList
 from rest_framework.test import APITestCase
 
@@ -18,7 +20,7 @@ from user.tests.factories import (UserFactory, UserProfileFactory, fake, Setting
                                   MarketingCodeFactory)
 from unittest import mock
 
-from user.views import facebook_login, twitter_login, social_login
+from user.views import facebook_login, twitter_login, social_login, apple_login, generate_apple_client_secret
 from hermes import settings
 
 
@@ -610,7 +612,7 @@ class TestAuthenticationViews(APITestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], 'Login credentials incorrect.')
 
-    def test_local_login_disable(self):
+    def test_local_login_deleted_user(self):
         self.user.is_active = False
         self.user.save()
         data = {
@@ -622,7 +624,7 @@ class TestAuthenticationViews(APITestCase):
         response = self.client.post(reverse('login'), data=data)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["message"], "The account associated with this email address is suspended.")
+        self.assertEqual(response.data["message"], "Login credentials incorrect.")
 
     def test_login_with_client_and_bundle(self):
         client = Client()
@@ -886,6 +888,77 @@ class TestFacebookLogin(APITestCase):
         response = facebook_login('Ju76xER1A5', "app_email")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['email'], "app_email")
+
+
+class TestAppleLogin(APITestCase):
+    @mock.patch('user.views.apple_login', autospec=True)
+    def test_apple_login_view(self, apple_login_mock):
+        apple_login_mock.return_value = HttpResponse()
+
+        params = {
+            "authorization_code": "abcde1234",
+        }
+        self.client.post('/users/auth/apple', params)
+        self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
+
+    @mock.patch("user.views.generate_apple_client_secret")
+    @httpretty.activate
+    def test_apple_login(self, mock_gen_secret):
+        mock_gen_secret.return_value = "client_secret"
+        email = "some@email.com"
+        code = "abcde1234"
+
+        response = {
+            "id_token": (
+                "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NT"
+                "Y3ODkwIiwiZW1haWwiOiJzb21lQGVtYWlsLmNvbSIsImlhdCI6MTUxN"
+                "jIzOTAyMn0.dA31ZtECZWBE5b6nE_nWfTl1Wxnz7ywD0vhffzMcLZE"
+            )
+        }
+        httpretty.register_uri(
+            httpretty.POST,
+            "https://appleid.apple.com/auth/token",
+            body=json.dumps(response),
+            content_type="application/json"
+        )
+
+        response = apple_login(code)
+
+        self.assertTrue(mock_gen_secret.called)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['email'], email)
+
+    def test_generate_apple_client_secret(self):
+        pub_key = (
+            "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE"
+            "XRt3X4Gm9LHC0t5oVI8Tp9kCgsLU\neGtsjUC39MeyPEE/ZOyOAR2SeMQsYSI9A8"
+            "Tcsf6xIYgai3i2Xgo/EYXaDg==\n-----END PUBLIC KEY-----\n"
+        )
+        priv_key = (
+            b"-----BEGIN EC PRIVATE KEY-----\nMHcCAQEEIPkGhe/9syBtN5kXuerODEX"
+            b"72gh9SIlSguJ0dZZ7JnqDoAoGCCqGSM49\nAwEHoUQDQgAEXRt3X4Gm9LHC0t5o"
+            b"VI8Tp9kCgsLUeGtsjUC39MeyPEE/ZOyOAR2S\neMQsYSI9A8Tcsf6xIYgai3i2X"
+            b"go/EYXaDg==\n-----END EC PRIVATE KEY-----\n"
+        )
+        aud = 'https://appleid.apple.com'
+        encoded_key = base64.b64encode(priv_key).decode("utf-8")
+
+        with self.settings(APPLE_CLIENT_SECRET=encoded_key):
+            client_secret = generate_apple_client_secret()
+
+        jwt_data = jwt.decode(
+            client_secret,
+            pub_key,
+            algorithms=["ES256"],
+            audience=aud
+        )
+
+        for claim in ["iss", "aud", "sub", "iat", "exp"]:
+            self.assertIn(claim, jwt_data)
+
+        self.assertEqual(jwt_data["iss"], settings.APPLE_TEAM_ID)
+        self.assertEqual(jwt_data["sub"], settings.APPLE_APP_ID)
+        self.assertEqual(jwt_data["aud"], aud)
 
 
 class TestSocialLogin(APITestCase):

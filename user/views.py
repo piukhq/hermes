@@ -1,36 +1,42 @@
-import analytics
+import base64
+import logging
+from datetime import datetime
+
+import jwt
 import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, MultipleObjectsReturned
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import ugettext_lazy as _
-from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
-                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, SUSPENDED_ACCOUNT, error_response)
+from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import mixins
+from rest_framework import mixins, exceptions
+from rest_framework.authentication import SessionAuthentication
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
-from rest_framework.authentication import SessionAuthentication
 from rest_framework.mixins import UpdateModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.status import (HTTP_200_OK, HTTP_204_NO_CONTENT,
                                    HTTP_400_BAD_REQUEST)
 from rest_framework.views import APIView
-from rest_framework import exceptions
+
+import analytics
+from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
+                    INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer)
-from django.core.exceptions import MultipleObjectsReturned
+                              UserSettingSerializer, AppleRegisterSerializer)
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -237,8 +243,6 @@ class Login(GenericAPIView):
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
-        if not user.is_active:
-            return error_response(SUSPENDED_ACCOUNT)
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
@@ -314,6 +318,24 @@ class TwitterLogin(CreateAPIView):
         response_serializer: ResponseAuthSerializer
         """
         return twitter_login(request.data['access_token'], request.data['access_token_secret'])
+
+
+class AppleLogin(GenericAPIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+
+    serializer_class = AppleRegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        Login using an Apple account.
+        ---
+        response_serializer: ResponseAuthSerializer
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        return apple_login(code=serializer.validated_data["authorization_code"])
 
 
 class Renew(APIView):
@@ -407,6 +429,62 @@ def twitter_login(access_token, access_token_secret):
     if not email:
         email = None
     return social_response(profile['id_str'], email, 'twitter')
+
+
+def generate_apple_client_secret():
+    time_now = datetime.utcnow().timestamp()
+
+    headers = {
+        "kid": settings.APPLE_KEY_ID
+    }
+    claims = {
+        "iss": settings.APPLE_TEAM_ID,
+        "aud": "https://appleid.apple.com",
+        "sub": settings.APPLE_APP_ID,
+        "iat": time_now,
+        "exp": time_now + 86400 * 180,
+    }
+
+    key = base64.b64decode(settings.APPLE_CLIENT_SECRET).decode("utf-8")
+    client_secret = jwt.encode(
+        payload=claims,
+        key=key,
+        headers=headers,
+        algorithm="ES256",
+    ).decode("utf-8")
+
+    return client_secret
+
+
+def apple_login(code):
+    url = "https://appleid.apple.com/auth/token"
+    grant_type = "authorization_code"
+    headers = {"content-type": "application/x-www-form-urlencoded"}
+    params = {
+        "client_id": settings.APPLE_APP_ID,
+        "client_secret": generate_apple_client_secret(),
+        "code": code,
+        "grant_type": grant_type
+    }
+
+    resp = requests.post(url, data=params, headers=headers)
+
+    if not resp.ok:
+        logger.error(
+            f"Apple Sign In failed - response: {resp.json()}"
+        )
+
+    resp.raise_for_status()
+
+    id_token = resp.json()["id_token"]
+    user_info = jwt.decode(id_token, verify=False)
+
+    logger.info(f"Successful Apple Sign In")
+    return social_response(
+        social_id=user_info["sub"],
+        email=user_info["email"],
+        service="apple"
+    )
 
 
 def social_response(social_id, email, service):

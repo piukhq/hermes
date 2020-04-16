@@ -10,7 +10,6 @@ http://www.iana.org/assignments/http-status-codes/http-status-codes.xhtml
 from rest_framework.response import Response
 
 INCORRECT_CREDENTIALS = "INCORRECT_CREDENTIALS"
-SUSPENDED_ACCOUNT = "SUSPENDED_ACCOUNT"
 FACEBOOK_BAD_TOKEN = "FACEBOOK_BAD_TOKEN"
 FACEBOOK_CANT_VALIDATE = "FACEBOOK_CANT_VALIDATE"
 FACEBOOK_INVALID_USER = "FACEBOOK_INVALID_USER"
@@ -21,8 +20,6 @@ REGISTRATION_FAILED = "REGISTRATION_FAILED"
 errors = {
     INCORRECT_CREDENTIALS: {"code": 403,
                             "message": "Login credentials incorrect."},
-    SUSPENDED_ACCOUNT: {"code": 403,
-                        "message": "The account associated with this email address is suspended."},
     FACEBOOK_BAD_TOKEN: {"code": 403,
                          "message": "Cannot get facebook user token"},
     FACEBOOK_CANT_VALIDATE: {"code": 403,
