@@ -1139,7 +1139,7 @@ class MembershipPlanView(VersionedSerializerMixin, ModelViewSet):
 
         return self.request.channels_permit.scheme_query(queryset)
 
-    @CacheApiRequest('m_plans', settings.REDIS_MCARDS_CACHE_EXPIRY, membership_plan_key)
+    @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
@@ -1159,7 +1159,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
 
         return self.request.channels_permit.scheme_query(queryset)
 
-    @CacheApiRequest('m_plans', settings.REDIS_MCARDS_CACHE_EXPIRY, membership_plan_key)
+    @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         self.serializer_class = self.get_serializer_class_by_request()
