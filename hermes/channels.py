@@ -1,11 +1,12 @@
-from user.models import ClientApplicationBundle
-from scheme.models import SchemeBundleAssociation
-from rest_framework import exceptions
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
-from django.db.models import Q
-from django.conf import settings
 import logging
 
+from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.db.models import Q
+from rest_framework import exceptions
+
+from scheme.models import SchemeBundleAssociation
+from user.models import ClientApplicationBundle
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class Permit:
         self.client = client
         self.user = user
         self.bundle_id = bundle_id
-        self.ubiquity = ubiquity     # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
+        self.ubiquity = ubiquity  # Used to invoke special logic for Ubiquity e.g. making suspended same as inactive
         self.auth_by = auth_by
 
         # This forces an active permit regardless of scheme for inter-service calls.
@@ -71,8 +72,9 @@ class Permit:
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
         try:
-            self.looked_up_bundle = ClientApplicationBundle \
-                .objects.get(bundle_id=self.bundle_id, client__organisation__name=organisation_name)
+            self.looked_up_bundle = ClientApplicationBundle.objects.select_related('client').get(
+                bundle_id=self.bundle_id, client__organisation__name=organisation_name
+            )
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError
@@ -117,7 +119,8 @@ class Permit:
                 raise exceptions.AuthenticationFailed('Invalid Token')
         return self.looked_up_bundle
 
-    def scheme_suspended(self, relation=''):
+    @staticmethod
+    def scheme_suspended(relation=''):
         return {f'{relation}schemebundleassociation__status': SchemeBundleAssociation.SUSPENDED}
 
     def scheme_query(self, query, allow=None):
@@ -194,8 +197,9 @@ class Permit:
         # Scheme status will only be looked up when required and only once per request per scheme
         if scheme_id in self.found_schemes_status:
             return self.found_schemes_status[scheme_id]
-        status_list = SchemeBundleAssociation.\
-            objects.filter(bundle__bundle_id=self.bundle_id, scheme_id=scheme_id).values('status')
+        status_list = SchemeBundleAssociation.objects.filter(
+            bundle__bundle_id=self.bundle_id, scheme_id=scheme_id
+        ).values('status')
         if len(status_list) > 1:
             logger.error(f"Channels id ='{self.bundle_id}' has "
                          f"multiple entries for scheme id '{scheme_id}'")

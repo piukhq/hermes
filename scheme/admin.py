@@ -146,9 +146,8 @@ class SchemeAdmin(admin.ModelAdmin):
         return self.readonly_fields
 
     def save_model(self, request, obj, form, change):
-        # Delete all m_plans key slug cache
+        # Delete all caches for m_plan key slug including all by id ones
         for key in r.scan_iter("m_plans:*"):
-            # delete the key
             r.delete(key)
         super().save_model(request, obj, form, change)
 
