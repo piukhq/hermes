@@ -406,7 +406,6 @@ class TestResources(APITestCase):
                                 content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
 
-
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_with_id_fails_when_not_internal_user(self, *_):
