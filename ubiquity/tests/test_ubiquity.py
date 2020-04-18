@@ -57,6 +57,156 @@ class MockApiCache:
         MockApiCache.data = data
 
 
+class TestPaymentAutoLink(APITestCase):
+
+    def _get_auth_token(self, user):
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                user.external_id).get_token()
+        return 'Bearer {}'.format(token)
+
+    def _get_auth_headers(self, user):
+        return {'HTTP_AUTHORIZATION': f'{self._get_auth_token(user)}'}
+
+    def setUp(self):
+        organisation = OrganisationFactory(name='test_organisation')
+        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+        self.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=self.client_app)
+
+        self.issuer = IssuerFactory(name='Barclays')
+        self.payment_card = PaymentCardFactory(slug='visa', system='visa')
+
+        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+
+        self.payload = {
+            "card": {
+                "last_four_digits": 5234,
+                "currency_code": "GBP",
+                "first_six_digits": 423456,
+                "name_on_card": "test user 2",
+                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
+                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
+                "year": 22,
+                "month": 3,
+                "order": 1
+            },
+            "account": {
+                "consents": [
+                    {
+                        "timestamp": 1517549941,
+                        "type": 0
+                    }
+                ]
+            }
+        }
+
+        # senario 1 mcards 1 cards 1 mplan
+
+        external_id1 = 'test@user.com'
+        self.user1 = UserFactory(external_id=external_id1, client=self.client_app, email=external_id1)
+
+        self.scheme1 = SchemeFactory()
+        self.scheme_account_c1_p1 = SchemeAccountFactory(scheme=self.scheme1)
+        self.scheme_account_entry1 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c1_p1,
+                                                               user=self.user1)
+        self.scheme_bundle_association_p1 = SchemeBundleAssociationFactory(scheme=self.scheme1, bundle=self.bundle,
+                                                                           status=SchemeBundleAssociation.ACTIVE)
+
+        # senario 2 mcards 2 cards different mplan
+
+        external_id2 = 'test2@user.com'
+        self.user2 = UserFactory(external_id=external_id2, client=self.client_app, email=external_id2)
+        self.scheme2 = SchemeFactory()
+        self.scheme_account_c1_p2 = SchemeAccountFactory(scheme=self.scheme2)
+        self.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c1_p2,
+                                                               user=self.user2)
+        self.scheme_bundle_association_p2 = SchemeBundleAssociationFactory(scheme=self.scheme2, bundle=self.bundle,
+                                                                           status=SchemeBundleAssociation.ACTIVE)
+
+        self.scheme3 = SchemeFactory()
+        self.scheme_bundle_association_p3 = SchemeBundleAssociationFactory(scheme=self.scheme3, bundle=self.bundle,
+                                                                           status=SchemeBundleAssociation.ACTIVE)
+        self.scheme_account_c2_p3 = SchemeAccountFactory(scheme=self.scheme3)
+        self.scheme_account_entry3 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c2_p3,
+                                                               user=self.user2)
+
+        # senario 3 mcards of same mplan
+
+        external_id3 = 'test3@user.com'
+        self.user3 = UserFactory(external_id=external_id3, client=self.client_app, email=external_id3)
+        self.scheme4 = SchemeFactory()
+        self.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(scheme=self.scheme4, bundle=self.bundle,
+                                                                           status=SchemeBundleAssociation.ACTIVE)
+        self.scheme_account_c1_p4 = SchemeAccountFactory(scheme=self.scheme4)
+        self.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c1_p4,
+                                                               user=self.user3)
+        self.scheme_account_c2_p4 = SchemeAccountFactory(scheme=self.scheme4)
+        self.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c2_p4,
+                                                               user=self.user3)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_creation_auto_link(self, *_):
+        # seanario 1 1 membership cards 1 plans - user 1
+
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
+                                content_type='application/json', **self._get_auth_headers(self.user1),
+                                **self.version_header)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(resp.data['membership_cards']), 1)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(linked), 1)
+
+        # Repeat auto link to ensure nothing extra is added and 200 returned
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
+                                content_type='application/json', **self._get_auth_headers(self.user1),
+                                **self.version_header)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data['membership_cards']), 1)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(linked), 1)
+
+        # Add another membership card
+        scheme2 = SchemeFactory()
+        SchemeBundleAssociationFactory(scheme=scheme2, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
+        scheme_account2 = SchemeAccountFactory(scheme=scheme2)
+        SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user1)
+
+        # Try to add again and see if auto links
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
+                                content_type='application/json', **self._get_auth_headers(self.user1),
+                                **self.version_header)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data['membership_cards']), 2)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(linked), 2)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_auto_link_2_cards_different_plans(self, *_):
+        # senario 2 2 membership cards 2 plans - user 2
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
+                                content_type='application/json', **self._get_auth_headers(self.user2),
+                                **self.version_header)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(resp.data['membership_cards']), 2)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(linked), 2)
+
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_auto_link_2_cards_same_plan(self, *_):
+        # senario 3 2 membership cards 1 plans - user 3
+
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
+                                content_type='application/json', **self._get_auth_headers(self.user3),
+                                **self.version_header)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(resp.data['membership_cards']), 1)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(linked), 1)
+
+
 class TestResources(APITestCase):
 
     def _get_auth_header(self, user):
@@ -255,6 +405,7 @@ class TestResources(APITestCase):
         resp = self.client.post(reverse('payment-cards'), data=json.dumps(payload),
                                 content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
+
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
