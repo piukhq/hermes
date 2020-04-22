@@ -137,9 +137,51 @@ class AutoLinkOnCreationMixin:
             ])
 
     @staticmethod
-    def auto_link_to_membership_cards(user: CustomUser, account: PaymentCardAccount) -> None:
-        # not in spec for now but preparing for later
-        ...
+    def auto_link_to_membership_cards(user: CustomUser,
+                                      account: PaymentCardAccount,
+                                      just_created: bool = False) -> None:
+
+        # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
+        wallet_scheme_accounts = SchemeAccount.objects.values('id', 'scheme_id').filter(
+            user_set=user, scheme__tier=Scheme.PLL
+        )
+
+        # Get Membership Card Plans (scheme id) use all wallets which are linked to this Payment Card.
+        already_linked_scheme_ids = []
+
+        if not just_created:
+            already_linked_scheme_ids = [
+                entry['scheme_account__scheme_id']
+                for entry in
+                PaymentCardSchemeEntry.objects.values('scheme_account__scheme_id').filter(
+                    payment_card_account_id=account.id)
+            ]
+
+        # Golden rule is that a payment card can only be linked to one membership plan via any relevant membership card
+        # because in matching a payment card transaction the linked account must only be credited once ie only one
+        # link must be set. If there are many cards in a wallet with the same plan and not previously linked
+        # the preference will be to choose the oldest ie the lowest id.
+        # Once a link is set it is never changed for an older card or for a card in another wallet.
+
+        cards_by_scheme_ids = {}
+
+        for wsa in wallet_scheme_accounts:
+            scheme_account_id = wsa['id']
+            scheme_id = wsa['scheme_id']
+            if scheme_id not in already_linked_scheme_ids:
+                # we have a potential new link to a scheme account which does not have a previously linked plan
+                if cards_by_scheme_ids.get(scheme_id):
+                    # however, this scheme account which is a link candidate so we must choose the oldest (lowest id)
+                    if cards_by_scheme_ids[scheme_id] > scheme_account_id:
+                        cards_by_scheme_ids[scheme_id] = scheme_account_id
+                else:
+                    cards_by_scheme_ids[scheme_id] = scheme_account_id
+
+        if account and cards_by_scheme_ids:
+            PaymentCardSchemeEntry.objects.bulk_create([
+                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=account.id)
+                for scheme_account_id in cards_by_scheme_ids.values()
+            ])
 
 
 class PaymentCardCreationMixin:
@@ -164,7 +206,7 @@ class PaymentCardCreationMixin:
         PaymentCardAccount.objects.filter(pk=pcard_pk).update(consents=consents)
 
     def payment_card_already_exists(self, data: dict, user: CustomUser) \
-            -> t.Tuple[bool, t.Optional[SchemeAccount], t.Optional[int]]:
+            -> t.Tuple[bool, t.Optional[PaymentCardAccount], t.Optional[int]]:
         query = {
             'fingerprint': data['fingerprint'],
             'expiry_month': data['expiry_month'],
@@ -453,17 +495,22 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             bundle_id=request.channels_permit.bundle_id
         )
 
+        auto_link = is_auto_link(request)
         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
         if exists:
+            if auto_link:
+                self.auto_link_to_membership_cards(request.user, pcard, False)
             return Response(self.get_serializer(pcard).data, status=status_code)
 
         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
-        if status_code == status.HTTP_201_CREATED:
-            pcard = self._create_payment_card_consent(consent, pcard)
-            return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
-        if is_auto_link(request):
-            self.auto_link_to_membership_cards(request.user, pcard)
+        just_created = status_code == status.HTTP_201_CREATED
+
+        if auto_link:
+            self.auto_link_to_membership_cards(request.user, pcard, just_created)
+
+        if just_created:
+            pcard = self._create_payment_card_consent(consent, pcard)
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
