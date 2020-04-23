@@ -1199,7 +1199,8 @@ class TestResources(APITestCase):
         expected_links = [
             {
                 'id': new_sa.id,
-                'active_link': True
+                'active_link': True,
+                'vop_link': 0
             }
         ]
 
@@ -1244,7 +1245,8 @@ class TestResources(APITestCase):
         }
         expected_links = {
             'id': new_pca.id,
-            'active_link': True
+            'active_link': True,
+            'vop_link': 0
         }
 
         resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
@@ -1278,7 +1280,8 @@ class TestResources(APITestCase):
         }
         expected_links = {
             'id': new_pca.id,
-            'active_link': True
+            'active_link': True,
+            'vop_link': 0
         }
 
         resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
