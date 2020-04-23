@@ -26,6 +26,9 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encyption import AESCipher
 from scheme import vouchers
 
+from ubiquity.models import PaymentCardSchemeEntry
+from hermes.vop_tasks import vop_check_scheme
+
 
 class Category(models.Model):
     name = models.CharField(max_length=200)
@@ -573,24 +576,22 @@ class SchemeAccount(models.Model):
                 self.status = SchemeAccount.UNKNOWN_ERROR
             if response.status_code == 200:
                 points = response.json()
+                previous_state = self.status
                 self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
                 points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
                 points['is_stale'] = False
 
-                if settings.ENABLE_DAEDALUS_MESSAGING:
-                    settings.TO_DAEDALUS.send(
-                        {"type": 'membership_card_update',
-                         "model": 'schemeaccount',
-                         "id": str(self.id),
-                         "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                         "rep": repr(self)},
-                        headers={'X-content-type': 'application/json'}
-                    )
+                if previous_state is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
+                    self.vop_check()
+
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
         self._received_balance_checks(old_status)
         return points
+
+    def vop_check(self):
+        vop_check_scheme(self)
 
     def _received_balance_checks(self, old_status):
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:

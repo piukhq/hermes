@@ -74,6 +74,7 @@ INSTALLED_APPS = (
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
+    'hermes.middleware.query_debug',
     'hermes.middleware.timed_request',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',

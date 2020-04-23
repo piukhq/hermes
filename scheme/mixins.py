@@ -26,6 +26,7 @@ from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializ
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
 
+
 if t.TYPE_CHECKING:
     from user.models import CustomUser
     from rest_framework.serializers import Serializer
@@ -91,6 +92,9 @@ class BaseLinkMixin(object):
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
+
+            scheme_account.vop_check()
+
         else:
             user_consents = scheme_account.collect_pending_consents()
             for user_consent in user_consents:
