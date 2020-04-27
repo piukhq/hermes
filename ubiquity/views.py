@@ -18,9 +18,8 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key, get_pcard_hash_secret
 from hermes.channels import Permit
-from hermes.settings import Version
+from hermes.settings import Version, CHANNEL_VAULT
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
@@ -389,7 +388,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     def get_hashed_object(self):
         if self.kwargs.get('hash'):
-            self.kwargs['hash'] = BLAKE2sHash().new(obj=self.kwargs['hash'], key=get_pcard_hash_secret())
+            self.kwargs['hash'] = BLAKE2sHash().new(obj=self.kwargs['hash'], key=CHANNEL_VAULT.get_pcard_hash_secret())
         return super(PaymentCardView, self).get_object()
 
     @censor_and_decorate
@@ -728,7 +727,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if (api_version >= Version.v1_2
                 and answer_type == AnswerTypeChoices.SENSITIVE.value):
             try:
-                key = get_key(
+                key = CHANNEL_VAULT.get_key(
                     bundle_id=self.request.channels_permit.bundle_id,
                     key_type="private_key"
                 )
