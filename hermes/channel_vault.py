@@ -3,6 +3,7 @@ import logging
 
 import requests
 from Crypto.PublicKey import RSA
+from django.conf import settings
 from rest_framework import exceptions
 from shared_config_storage.vault.secrets import VaultError, read_vault
 
@@ -10,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class ChannelVault:
-    _bundle_secrets = {}
+    bundle_secrets = {}
     loaded = False
 
-    def __init__(self, **config):
+    def __init__(self, config):
         try:
             self.LOCAL_CHANNEL_SECRETS = config['LOCAL_CHANNEL_SECRETS']
             self.LOCAL_SECRETS_PATH = config['LOCAL_SECRETS_PATH']
@@ -21,11 +22,12 @@ class ChannelVault:
             self.CHANNEL_VAULT_PATH = config['CHANNEL_VAULT_PATH']
             self.VAULT_TOKEN = config['VAULT_TOKEN']
             self.PCARD_HASH_SECRET_PATH = config['PCARD_HASH_SECRET_PATH']
+            if config['TESTING'] is False:
+                self._load_bundle_secrets()
+
         except KeyError as e:
             logger.exception(f"Failed to initialize ChannelVault - Vault Exception {e}")
             raise VaultError(f'Failed to initialize ChannelVault - Exception {e}') from e
-
-        self._load_bundle_secrets()
 
     def _load_bundle_secrets(self) -> None:
         """
@@ -39,7 +41,7 @@ class ChannelVault:
         if self.LOCAL_CHANNEL_SECRETS:
             logger.info(f"JWT bundle secrets - from local file {self.LOCAL_SECRETS_PATH}")
             with open(self.LOCAL_SECRETS_PATH) as fp:
-                _bundle_secrets = json.load(fp)
+                self.bundle_secrets = json.load(fp)
 
         else:
             logger.info(
@@ -54,9 +56,9 @@ class ChannelVault:
                 raise VaultError(f'JWT bundle secrets - Exception {e}') from e
 
             for bundle_id, secret in record.items():
-                self._bundle_secrets[bundle_id] = secret
+                self.bundle_secrets[bundle_id] = secret
                 if 'private_key' in secret:
-                    self._bundle_secrets[bundle_id]['rsa_key'] = RSA.import_key(secret['private_key'])
+                    self.bundle_secrets[bundle_id]['rsa_key'] = RSA.import_key(secret['private_key'])
 
             logger.info(f"Payment Card hash secret - from vault at {self.VAULT_URL}")
             try:
@@ -64,9 +66,9 @@ class ChannelVault:
             except requests.RequestException as e:
                 logger.exception(f"Payment Card hash secret - Vault Exception {e}")
                 raise VaultError(f'Payment Card hash secret - Exception {e}') from e
-            self._bundle_secrets["pcard_hash_secret"] = hash_secret['data']['salt']
+            self.bundle_secrets["pcard_hash_secret"] = hash_secret['data']['salt']
 
-        logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in self._bundle_secrets]}")
+        logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in self.bundle_secrets]}")
         self.loaded = True
 
     def get_jwt_secret(self, bundle_id):

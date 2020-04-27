@@ -22,7 +22,6 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
-from hermes.channel_vault import ChannelVault
 from hermes.version import __version__
 
 read_env()
@@ -494,7 +493,7 @@ if ENABLE_DAEDALUS_MESSAGING:
 else:
     TO_DAEDALUS = None
 
-CHANNEL_VAULT = ChannelVault(
+VAULT_CONFIG = dict(
     # Hashicorp vault settings for secrets retrieval
     VAULT_URL=env_var('VAULT_URL', 'http://localhost:8200'),
     VAULT_TOKEN=env_var('VAULT_TOKEN', 'myroot'),
@@ -507,5 +506,7 @@ CHANNEL_VAULT = ChannelVault(
     LOCAL_CHANNEL_SECRETS=env_var('LOCAL_CHANNEL_SECRETS', "False"),
     LOCAL_SECRETS_PATH=env_var('LOCAL_SECRETS_PATH', "example_channels.json"),
     CHANNEL_VAULT_PATH=env_var('CHANNEL_VAULT_PATH', '/channels'),
-    PCARD_HASH_SECRET_PATH=env_var('PCARD_HASH_SECRET_PATH', '/data/pcard_hash_secret')
+    PCARD_HASH_SECRET_PATH=env_var('PCARD_HASH_SECRET_PATH', '/data/pcard_hash_secret'),
+
+    TESTING=TESTING
 )
