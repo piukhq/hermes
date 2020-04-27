@@ -4,7 +4,7 @@ from rest_framework import serializers
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from hermes.settings import CHANNEL_VAULT
+from hermes.channel_vault import get_pcard_hash_secret, get_key
 from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
@@ -93,13 +93,13 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
 
     def get_hash(self, obj):
         hash1 = self._decrypt_val(obj["hash"])
-        hash2 = BLAKE2sHash().new(obj=hash1, key=CHANNEL_VAULT.get_pcard_hash_secret())
+        hash2 = BLAKE2sHash().new(obj=hash1, key=get_pcard_hash_secret())
         return hash2
 
     def _decrypt_val(self, val):
         if not self.context.get('rsa'):
             self.context['rsa'] = RSACipher()
 
-        key = CHANNEL_VAULT.get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
+        key = get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
         rsa = self.context['rsa']
         return rsa.decrypt(val, rsa_key=key)

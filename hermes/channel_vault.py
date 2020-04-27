@@ -71,20 +71,26 @@ class ChannelVault:
         logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in self.bundle_secrets]}")
         self.loaded = True
 
-    def get_jwt_secret(self, bundle_id):
-        try:
-            return self._bundle_secrets[bundle_id]['jwt_secret']
-        except KeyError as e:
-            raise exceptions.AuthenticationFailed(f"JWT is invalid: {e}") from e
 
-    def get_pcard_hash_secret(self):
-        try:
-            return self._bundle_secrets["pcard_hash_secret"]
-        except KeyError as e:
-            raise VaultError("Unable to locate pcard_hash_secret in vault") from e
+channel_vault = ChannelVault(settings.VAULT_CONFIG)
 
-    def get_key(self, bundle_id, key_type: str):
-        try:
-            return self._bundle_secrets[bundle_id][key_type]
-        except KeyError as e:
-            raise VaultError(f"Unable to locate {key_type} in vault for bundle {bundle_id}") from e
+
+def get_jwt_secret(bundle_id):
+    try:
+        return channel_vault.bundle_secrets[bundle_id]['jwt_secret']
+    except KeyError as e:
+        raise exceptions.AuthenticationFailed(f"JWT is invalid: {e}") from e
+
+
+def get_pcard_hash_secret():
+    try:
+        return channel_vault.bundle_secrets["pcard_hash_secret"]
+    except KeyError as e:
+        raise VaultError("Unable to locate pcard_hash_secret in vault") from e
+
+
+def get_key(bundle_id, key_type: str):
+    try:
+        return channel_vault.bundle_secrets[bundle_id][key_type]
+    except KeyError as e:
+        raise VaultError(f"Unable to locate {key_type} in vault for bundle {bundle_id}") from e
