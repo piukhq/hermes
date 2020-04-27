@@ -18,7 +18,7 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key, get_pcard_hash_secret
+from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
@@ -389,7 +389,10 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     def get_hashed_object(self):
         if self.kwargs.get('hash'):
-            self.kwargs['hash'] = BLAKE2sHash().new(obj=self.kwargs['hash'], key=get_pcard_hash_secret())
+            self.kwargs['hash'] = BLAKE2sHash().new(
+                obj=self.kwargs['hash'],
+                key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+            )
         return super(PaymentCardView, self).get_object()
 
     @censor_and_decorate

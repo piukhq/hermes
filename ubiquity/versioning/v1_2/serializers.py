@@ -4,7 +4,7 @@ from rest_framework import serializers
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from hermes.channel_vault import get_pcard_hash_secret, get_key
+from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
@@ -93,7 +93,10 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
 
     def get_hash(self, obj):
         hash1 = self._decrypt_val(obj["hash"])
-        hash2 = BLAKE2sHash().new(obj=hash1, key=get_pcard_hash_secret())
+        hash2 = BLAKE2sHash().new(
+            obj=hash1,
+            key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+        )
         return hash2
 
     def _decrypt_val(self, val):
