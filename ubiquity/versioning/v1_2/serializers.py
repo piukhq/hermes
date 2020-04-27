@@ -100,6 +100,6 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         if not self.context.get('rsa'):
             self.context['rsa'] = RSACipher()
 
-        key = CHANNEL_VAULT.get_key(bundle_id=self.context['bundle_id'], key_type='private_key')
+        key = CHANNEL_VAULT.get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
         rsa = self.context['rsa']
-        return rsa.decrypt(val, priv_key=key)
+        return rsa.decrypt(val, rsa_key=key)
