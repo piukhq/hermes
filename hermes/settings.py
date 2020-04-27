@@ -14,7 +14,6 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 from collections import namedtuple
-from dataclasses import dataclass
 from enum import Enum
 
 import sentry_sdk
@@ -23,7 +22,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
-from hermes.channel_vault import init_bundle_secrets, ChannelVault
+from hermes.channel_vault import ChannelVault
 from hermes.version import __version__
 
 read_env()

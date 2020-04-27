@@ -66,7 +66,7 @@ class ChannelVault:
                 raise VaultError(f'Payment Card hash secret - Exception {e}') from e
             self._bundle_secrets["pcard_hash_secret"] = hash_secret['data']['salt']
 
-        logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in _bundle_secrets]}")
+        logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in self._bundle_secrets]}")
         self.loaded = True
 
     def get_jwt_secret(self, bundle_id):
