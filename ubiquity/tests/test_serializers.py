@@ -3,6 +3,7 @@ from unittest.mock import patch
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
+from hermes.channel_vault import SecretKeyName
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
@@ -63,7 +64,9 @@ mock_bundle_secrets = {
                        'ZdImMqxMxp2s5GIseW2sC5YLJmBh5X0iTB3QVhOnYBri/X2NBlJE2IfbU8947BHan/2+mTG63Lxeph3WQt8'
                        'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com')
     },
-    'pcard_hash_secret': 'secret'
+    'secret_keys': {
+        SecretKeyName.PCARD_HASH_SECRET: 'secret'
+    }
 }
 
 
@@ -82,8 +85,8 @@ class TestSerializersV1_2(APITestCase):
     def tearDownClass(cls):
         pass
 
-    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch('hermes.channel_vault._all_secrets', mock_bundle_secrets)
+    @patch('hermes.channel_vault.load_secrets')
     def test_payment_card_translation_serializer(self, mock_load_secrets):
 
         serializer = PaymentCardTranslationSerializerV1_2
@@ -99,7 +102,10 @@ class TestSerializersV1_2(APITestCase):
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
         }
 
-        hash2 = BLAKE2sHash().new(obj=hash1, key=mock_bundle_secrets['pcard_hash_secret'])
+        hash2 = BLAKE2sHash().new(
+            obj=hash1,
+            key=mock_bundle_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET]
+        )
 
         expected_data = {
             'fingerprint': 'testfingerprint00068',

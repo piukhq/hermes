@@ -22,10 +22,21 @@ class SecretKeyName(str, Enum):
 
 def load_secrets():
     """
-    On startup retrieves security credential values from channel secrets storage vault.
-    The returned record from read vault returns all data for every bundle from which jwt_secret is extracted
+    Retrieves security credential values from channel and secret_keys storage vaults.
 
-    data is passed into _bundle_secrets which is used as a cache for API authentication by bundle
+    Data is passed into _all_secrets which is used as a cache.
+
+    secrets contained in _all_secrets is separated by bundle-specific secrets and general secret keys.
+
+    Example:
+        _all_secrets = {
+            "bundle_secrets": {
+                "com.bink.wallet": {"key": "value"}
+            },
+            "secret_keys": {
+                "PCARD_HASH_SECRET": "some secret"
+            }
+        }
 
     """
     global _all_secrets
@@ -37,22 +48,20 @@ def load_secrets():
             _all_secrets = json.load(fp)
 
     else:
-        logger.info(
-            f"JWT bundle secrets - from vault at {settings.VAULT_URL}  secrets: {settings.CHANNEL_VAULT_PATH}"
-        )
-
         try:
-            record = read_vault(settings.CHANNEL_VAULT_PATH, settings.VAULT_URL, settings.VAULT_TOKEN)
+            logger.info(
+                f"JWT bundle secrets - from vault at {settings.VAULT_URL}  secrets: {settings.CHANNEL_VAULT_PATH}"
+            )
+            bundle_secrets = read_vault(settings.CHANNEL_VAULT_PATH, settings.VAULT_URL, settings.VAULT_TOKEN)
+            logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in _all_secrets]}")
         except requests.RequestException as e:
             err_msg = f"JWT bundle secrets - Vault Exception {e}"
             logger.exception(err_msg)
             raise VaultError(err_msg) from e
-        bundle_secrets = {bundle_id: secret for bundle_id, secret in record.items()}
-        logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in _all_secrets]}")
 
-        logger.info(f"Loading secret keys from vault at {settings.VAULT_URL}")
         try:
-            secret_keys = read_vault(settings.SECRET_KEYS_PATH, settings.VAULT_URL, settings.VAULT_TOKEN)
+            logger.info(f"Loading secret keys from vault at {settings.VAULT_URL}")
+            secret_keys = read_vault(settings.SECRET_KEYS_VAULT_PATH, settings.VAULT_URL, settings.VAULT_TOKEN)
         except requests.RequestException as e:
             err_msg = f"Secret keys - Vault Exception {e}"
             logger.exception(err_msg)

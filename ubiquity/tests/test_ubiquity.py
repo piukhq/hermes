@@ -801,7 +801,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch('payment_card.payment.get_pcard_hash_secret', autospec=True)
+    @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_membership_card_jwp_fails_with_bad_payment_card(self, mock_get_hash_secret, *_):
         mock_get_hash_secret.return_value = "testsecret"
         payload = {
@@ -821,6 +821,8 @@ class TestResources(APITestCase):
         }
         resp = self.client.post(reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
                                 **self.auth_headers)
+
+        self.assertTrue(mock_get_hash_secret.called)
         self.assertEqual(resp.status_code, 400)
         error_message = resp.json()["detail"]
         self.assertEqual(error_message, "Provided payment card could not be found or is not related to this user")
@@ -1014,13 +1016,15 @@ class TestResources(APITestCase):
         self.assertTrue(pca.is_deleted)
 
     @patch('requests.delete')
-    @patch('ubiquity.views.get_pcard_hash_secret')
+    @patch('ubiquity.views.get_secret_key')
     def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'
         pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
         PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
         resp = self.client.delete(reverse('payment-card-hash', args=['testhash']), **self.auth_headers)
         pca.refresh_from_db()
+
+        self.assertTrue(hash_secret.called)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(pca.is_deleted)
 
@@ -1900,8 +1904,8 @@ class TestResourcesV1_2(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
         self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
-    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch('hermes.channel_vault._all_secrets', mock_bundle_secrets)
+    @patch('hermes.channel_vault.load_secrets')
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1944,12 +1948,13 @@ class TestResourcesV1_2(APITestCase):
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
 
+        self.assertTrue(mock_load_secrets.called)
         self.assertTrue(mock_hades.called)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch('hermes.channel_vault._all_secrets', mock_bundle_secrets)
+    @patch('hermes.channel_vault.load_secrets')
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1986,6 +1991,7 @@ class TestResourcesV1_2(APITestCase):
                                 **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 400)
 
+        self.assertTrue(mock_load_secrets.called)
         self.assertFalse(mock_hades.called)
         self.assertFalse(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
