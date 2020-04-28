@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
+from hermes.channel_vault import channel_vault
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
@@ -1522,7 +1523,7 @@ class TestResources(APITestCase):
         self.assertTrue(isinstance(resp.json(), list))
         self.assertTrue(MockApiCache.available_called)
         self.assertEqual(MockApiCache.key, 'm_plans:test.auth.fake:0:1.2')
-        self.assertEqual(MockApiCache.expire, 60*60*24)
+        self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
         self.assertListEqual(MockApiCache.data, resp.json())
 
         schemes_number = len(resp.json())
@@ -1904,8 +1905,7 @@ class TestResourcesV1_2(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
         self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
-    @patch('hermes.channel_vault._all_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_secrets')
+    @patch.object(channel_vault, 'all_secrets', mock_bundle_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1951,8 +1951,7 @@ class TestResourcesV1_2(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch('hermes.channel_vault._all_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_secrets')
+    @patch.object(channel_vault, 'all_secrets', mock_bundle_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')

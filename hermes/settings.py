@@ -17,12 +17,12 @@ from collections import namedtuple
 from enum import Enum
 
 import sentry_sdk
+from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
-from redis import ConnectionPool as Redis_ConnectionPool
 
 read_env()
 
@@ -252,7 +252,6 @@ APPLE_CLIENT_SECRET = env_var('APPLE_CLIENT_SECRET', '')
 APPLE_KEY_ID = env_var('APPLE_KEY_ID', '6H3RLHRVGC')
 APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
 
-
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
@@ -372,7 +371,7 @@ REDIS_PASSWORD = env_var('REDIS_PASSWORD', '')
 REDIS_PORT = env_var('REDIS_PORT', 6379)
 REDIS_DB = env_var('REDIS_DB', 1)
 REDIS_API_CACHE_DB = env_var('REDIS_API_CACHE_DB', 2)
-REDIS_MPLANS_CACHE_EXPIRY = int(env_var('REDIS_MPLANS_CACHE_EXPIRY', 60*60*24))  # 60*60*24  # 24 hrs in seconds
+REDIS_MPLANS_CACHE_EXPIRY = int(env_var('REDIS_MPLANS_CACHE_EXPIRY', 60 * 60 * 24))  # 60*60*24  # 24 hrs in seconds
 
 REDIS_API_CACHE_POOL = Redis_ConnectionPool(host=REDIS_HOST, port=REDIS_PORT,
                                             password=REDIS_PASSWORD, db=REDIS_API_CACHE_DB)
@@ -491,17 +490,20 @@ if ENABLE_DAEDALUS_MESSAGING:
 else:
     TO_DAEDALUS = None
 
-# Hashicorp vault settings for secrets retrieval
-VAULT_URL = env_var('VAULT_URL', 'http://localhost:8200')
-VAULT_TOKEN = env_var('VAULT_TOKEN', 'myroot')
+VAULT_CONFIG = dict(
+    # Hashicorp vault settings for secrets retrieval
+    VAULT_URL=env_var('VAULT_URL', 'http://localhost:8200'),
+    VAULT_TOKEN=env_var('VAULT_TOKEN', 'myroot'),
 
+    # SET Signing secrets for JWT authentication
+    # For deployment set LOCAL_CHANNEL_SECRETS to False and set up Vault envs
+    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
+    # and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
+    # (Do not commit your channels json which might contain real secrets or edit example_channels.json)
+    LOCAL_CHANNEL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", "False"),
+    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_channels.json"),
+    CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
+    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
 
-# SET Signing secrets for JWT authentication
-# For deployment set LOCAL_CHANNEL_SECRETS to False and set up Vault envs
-# For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
-# and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
-# (Do not commit your channels json which might contain real secrets or edit example_channels.json)
-LOCAL_CHANNEL_SECRETS = env_var("LOCAL_CHANNEL_SECRETS", "False")
-LOCAL_SECRETS_PATH = env_var("LOCAL_SECRETS_PATH", "example_channels.json")
-CHANNEL_VAULT_PATH = env_var("CHANNEL_VAULT_PATH", "/channels")
-SECRET_KEYS_VAULT_PATH = env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys")
+    TESTING=TESTING
+)

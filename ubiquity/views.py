@@ -733,9 +733,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             try:
                 key = get_key(
                     bundle_id=self.request.channels_permit.bundle_id,
-                    key_type="private_key"
+                    key_type="rsa_key"
                 )
-                field_content[credential_type] = RSACipher().decrypt(item['value'], priv_key=key)
+                field_content[credential_type] = RSACipher().decrypt(item['value'], rsa_key=key)
             except ValueError:
                 logger.warning(f'Failed to decrypt sensitive field "{credential_type}"')
                 raise
