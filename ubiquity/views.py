@@ -8,6 +8,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
@@ -22,6 +23,7 @@ from hermes.channel_vault import get_key, get_pcard_hash_secret
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
+from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
@@ -205,24 +207,39 @@ class PaymentCardCreationMixin:
 
         PaymentCardAccount.objects.filter(pk=pcard_pk).update(consents=consents)
 
-    def payment_card_already_exists(self, data: dict, user: CustomUser) \
-            -> t.Tuple[bool, t.Optional[PaymentCardAccount], t.Optional[int]]:
-        query = {
-            'fingerprint': data['fingerprint'],
-            'expiry_month': data['expiry_month'],
-            'expiry_year': data['expiry_year'],
-        }
+    @staticmethod
+    def payment_card_already_exists(
+            data: dict, user: CustomUser
+    ) -> t.Tuple[t.Optional[PaymentCardAccount], t.Optional[PaymentCardRoutes]]:
         try:
-            card = PaymentCardAccount.objects.get(**query)
+            card = PaymentCardAccount.all_objects.prefetch_related('user_set').get(fingerprint=data['fingerprint'])
         except PaymentCardAccount.DoesNotExist:
-            return False, None, None
+            return None, PaymentCardRoutes.NEW_CARD
+        except PaymentCardAccount.MultipleObjectsReturned:
+            # the old payment card creation logic would allow duplicated cards with the same fingerprint.
+            # this query will fetch all the cards with the requested fingerprint and get the first one
+            # ordering them by cards that belong to the requesting user and that are not deleted first.
+            card = PaymentCardAccount.all_objects.filter(
+                fingerprint=data['fingerprint']
+            ).annotate(
+                belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id))
+            ).order_by(
+                'belongs_to_this_user', 'is_deleted'
+            ).prefetch_related('user_set').first()
 
-        if user in card.user_set.all():
-            return True, card, status.HTTP_200_OK
+        if card.is_deleted is True:
+            return card, PaymentCardRoutes.IS_DELETED
+        elif user in card.user_set.all():
+            return card, PaymentCardRoutes.ALREADY_IN_WALLET
+        else:
+            return card, PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
 
-        self._add_hash(data.get('hash'), card)
-        self._link_account_to_new_user(card, user)
-        return True, card, status.HTTP_201_CREATED
+    def _add_existing_payment_card_account(self, data: dict, account: PaymentCardAccount, user: CustomUser) -> None:
+        if account.expiry_month == data['expiry_month'] and account.expiry_year == data['expiry_year']:
+            self._add_hash(data.get('hash'), account)
+            self._link_account_to_new_user(account, user)
+        else:
+            raise ValidationError('This payment card already exists, but the provided credentials do not match.')
 
     @staticmethod
     def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
@@ -496,23 +513,21 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
         )
 
         auto_link = is_auto_link(request)
-        exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
-        if exists:
-            if auto_link:
-                self.auto_link_to_membership_cards(request.user, pcard, False)
-            return Response(self.get_serializer(pcard).data, status=status_code)
+        just_created = False
+        pcard, route = self.payment_card_already_exists(pcard_data, request.user)
 
-        message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
+        if route is PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
+            self._add_existing_payment_card_account(pcard_data, pcard, request.user)
 
-        just_created = status_code == status.HTTP_201_CREATED
+        elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.IS_DELETED]:
+            message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
+            self._create_payment_card_consent(consent, pcard)
+            just_created = True
 
         if auto_link:
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
 
-        if just_created:
-            pcard = self._create_payment_card_consent(consent, pcard)
-
-        return Response(self.get_serializer_by_request(pcard).data, status=status_code)
+        return Response(self.get_serializer_by_request(pcard).data, status=route.value)
 
 
 class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, UpdateCredentialsMixin, BaseLinkMixin,
