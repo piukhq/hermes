@@ -5,6 +5,7 @@ from faker import Factory
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
+from hermes.channel_vault import SecretKeyName, channel_vault
 from hermes.spreedly import SpreedlyError, Spreedly
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
@@ -18,6 +19,17 @@ TEST_HASH = "testhash"
 TEST_SECRET = "secret"
 TEST_SPREEDLY_ENVIRONMENT_KEY = "test_env_key"
 TEST_SPREEDLY_ACCESS_SECRET = "test_access_secret"
+
+mock_secrets = {
+    "bundle_secrets": {},
+    "secret_keys": {
+        SecretKeyName.PCARD_HASH_SECRET: "secret",
+        SecretKeyName.SPREEDLY_ENVIRONMENT_KEY: "test_env_key",
+        SecretKeyName.SPREEDLY_ACCESS_SECRET: "test_access_secret",
+        SecretKeyName.SPREEDLY_GATEWAY_TOKEN: "test_gateway"
+    }
+}
+
 
 class TestPayment(APITestCase):
     def setUp(self):
@@ -35,6 +47,7 @@ class TestPayment(APITestCase):
             TEST_SPREEDLY_ACCESS_SECRET
         )
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_purchase_success(self, mock_post):
         response = {
@@ -54,6 +67,7 @@ class TestPayment(APITestCase):
         self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_purchase_missing_token_raises_payment_error(self, mock_post):
         audit = PaymentAuditFactory(scheme_account=self.scheme_account)
@@ -64,6 +78,7 @@ class TestPayment(APITestCase):
 
         self.assertFalse(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_purchase_request_exception_raises_payment_error(self, mock_post):
         mock_post.side_effect = requests.ConnectionError
@@ -76,6 +91,7 @@ class TestPayment(APITestCase):
 
         self.assertTrue(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_purchase_unexpected_response_raises_payment_error(self, mock_post):
         response = {
@@ -96,6 +112,7 @@ class TestPayment(APITestCase):
         self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_purchase_unsuccessful_response_raises_payment_error(self, mock_post):
         response = {
@@ -117,6 +134,7 @@ class TestPayment(APITestCase):
         self.assertEqual(payment.spreedly.purchase_resp, response)
         self.assertNotEqual(payment.spreedly.transaction_token, response['transaction']['token'])
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_void_success(self, mock_post):
         response = {
@@ -134,6 +152,7 @@ class TestPayment(APITestCase):
 
         self.assertTrue(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_void_missing_transaction_token_raises_payment_error(self, mock_post):
         response = {
@@ -152,6 +171,7 @@ class TestPayment(APITestCase):
 
         self.assertFalse(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_void_request_exception_raises_payment_error(self, mock_post):
         mock_post.side_effect = requests.RequestException
@@ -166,6 +186,7 @@ class TestPayment(APITestCase):
 
         self.assertTrue(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_void_unexpected_response_raises_payment_error(self, mock_post):
         response = {
@@ -184,6 +205,7 @@ class TestPayment(APITestCase):
 
         self.assertTrue(mock_post.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('requests.post', autospec=True)
     def test_void_failure_response_raises_payment_error(self, mock_post):
         response = {
@@ -353,6 +375,7 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_purchase_call.called)
         self.assertEqual(mock_purchase_call.call_count, 1)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_success(self, mock_void):
         audit = PaymentAuditFactory(
@@ -375,6 +398,7 @@ class TestPayment(APITestCase):
         Payment.process_payment_void(self.scheme_account)
         self.assertFalse(mock_void.called)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch.object(RetryTaskStore, 'set_task', autospec=True)
     @patch.object(Payment, '_void', autospec=True)
     def test_process_payment_void_error_sets_retry_task(self, mock_void, mock_set_task):
@@ -410,6 +434,7 @@ class TestPayment(APITestCase):
             audit.refresh_from_db()
             self.assertEqual(audit.status, PaymentStatus.SUCCESSFUL)
 
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('payment_card.payment.sentry_sdk.capture_message')
     @patch.object(Payment, '_void', autospec=True)
     def test_payment_audit_signal_raises_sentry_message_after_too_many_retries(self, mock_void, mock_capture_message):

@@ -120,7 +120,7 @@ def get_jwt_secret(bundle_id):
 
 def get_key(bundle_id, key_type: str):
     try:
-        return channel_vault.bundle_secrets[key_type]
+        return channel_vault.bundle_secrets[bundle_id][key_type]
     except KeyError as e:
         raise VaultError(f"Unable to locate {key_type} in vault for bundle {bundle_id}") from e
 

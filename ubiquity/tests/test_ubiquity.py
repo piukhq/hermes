@@ -25,7 +25,7 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from ubiquity.tests.test_serializers import mock_bundle_secrets
+from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
@@ -1878,7 +1878,7 @@ class TestResourcesV1_2(APITestCase):
     def setUp(self) -> None:
         self.rsa = RSACipher()
         self.bundle_id = 'com.barclays.test'
-        self.pub_key = mock_bundle_secrets[self.bundle_id]['public_key']
+        self.pub_key = mock_secrets["bundle_secrets"][self.bundle_id]['public_key']
 
         organisation = OrganisationFactory(name='test_organisation')
         self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
@@ -1905,7 +1905,7 @@ class TestResourcesV1_2(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
         self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
-    @patch.object(channel_vault, 'all_secrets', mock_bundle_secrets)
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1951,7 +1951,7 @@ class TestResourcesV1_2(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch.object(channel_vault, 'all_secrets', mock_bundle_secrets)
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')

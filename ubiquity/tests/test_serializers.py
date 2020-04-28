@@ -1,3 +1,4 @@
+import typing as t
 from unittest.mock import patch
 
 from Crypto.PublicKey import RSA
@@ -53,20 +54,22 @@ private_key = ('-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5
                '0wW/oHwHlCZQVHCxU6B56Qt/SApfWk97GLMBi9tCDawHuBdivBcNM4xtGpog33HeuQ\nZtWRYsDZBz7bAA'
                'AADXRlc3RAYmluay5jb20BAgMEBQ==\n-----END OPENSSH PRIVATE KEY-----')
 
-mock_bundle_secrets = {
-    'com.barclays.test': {
-        'private_key': private_key,
-        'public_key': (
-            'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxpFyx98B+I22D3Q3iew1qL5p5vDfXSzc6Tg5Fbz9JQEy'
-            'QGGePGhaLF1w6PnQDwnJp2sgpaHEgUqxVfm8lxhMajuL/9z+fAeXTweG1Puk8XNg4zu9peX5v+1pxDthk/l'
-            'WUa16bjnwnjoX2IoZkZCb72pX5FcZuv4EwJhv2lqcwlgg9SUN/wc6nQCoFkdd/1vTVhNKetloABXAq5NTAZ'
-            '3/yqzoL0hDGLM2Jz0qO6uDl2xVDCq2ZmEHwH3Zg9YtnkNEwXldVybGxTVB1j0tsZM+p/tNdyD2Z/zloodKQ'
-            '/oG+qmkbkvYBKfH85B8BExRpuCqRokt9mDqQW7mfeGDCY7YYXvNSSpipWztHMrrWryfKHeIzoBSA49NeHXS'
-            '3rew3SwwX7MOWVwkPrZk8s5sCNLqRsARV1jW+nLw16t4pOtPlb5cAzdVgmszBR3fGjcqCcp7xb6VbxCjZ9Z'
-            'hUDz3w+gfyN1lYkkNiBUHw7RkJbr6Li5dzTeXENFKQxClAidsGy/BLd99z2JRUmWgaxvXTylAIf+DAVVHQ6'
-            'ZdImMqxMxp2s5GIseW2sC5YLJmBh5X0iTB3QVhOnYBri/X2NBlJE2IfbU8947BHan/2+mTG63Lxeph3WQt8'
-            'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com'),
-        'rsa_key': RSA.import_key(private_key)
+mock_secrets = {
+    'bundle_secrets': {
+        'com.barclays.test': {
+            'private_key': private_key,
+            'public_key': (
+                'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxpFyx98B+I22D3Q3iew1qL5p5vDfXSzc6Tg5Fbz9JQEy'
+                'QGGePGhaLF1w6PnQDwnJp2sgpaHEgUqxVfm8lxhMajuL/9z+fAeXTweG1Puk8XNg4zu9peX5v+1pxDthk/l'
+                'WUa16bjnwnjoX2IoZkZCb72pX5FcZuv4EwJhv2lqcwlgg9SUN/wc6nQCoFkdd/1vTVhNKetloABXAq5NTAZ'
+                '3/yqzoL0hDGLM2Jz0qO6uDl2xVDCq2ZmEHwH3Zg9YtnkNEwXldVybGxTVB1j0tsZM+p/tNdyD2Z/zloodKQ'
+                '/oG+qmkbkvYBKfH85B8BExRpuCqRokt9mDqQW7mfeGDCY7YYXvNSSpipWztHMrrWryfKHeIzoBSA49NeHXS'
+                '3rew3SwwX7MOWVwkPrZk8s5sCNLqRsARV1jW+nLw16t4pOtPlb5cAzdVgmszBR3fGjcqCcp7xb6VbxCjZ9Z'
+                'hUDz3w+gfyN1lYkkNiBUHw7RkJbr6Li5dzTeXENFKQxClAidsGy/BLd99z2JRUmWgaxvXTylAIf+DAVVHQ6'
+                'ZdImMqxMxp2s5GIseW2sC5YLJmBh5X0iTB3QVhOnYBri/X2NBlJE2IfbU8947BHan/2+mTG63Lxeph3WQt8'
+                'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com'),
+            'rsa_key': RSA.import_key(private_key)
+        }
     },
     'secret_keys': {
         SecretKeyName.PCARD_HASH_SECRET: 'secret'
@@ -80,7 +83,7 @@ class TestSerializersV1_2(APITestCase):
     def setUpClass(cls) -> None:
         cls.bundle_id = 'com.barclays.test'
         cls.rsa = RSACipher()
-        cls.pub_key = mock_bundle_secrets[cls.bundle_id]['public_key']
+        cls.pub_key = mock_secrets["bundle_secrets"][cls.bundle_id]['public_key']
 
         IssuerFactory(name='Barclays')
         PaymentCardFactory(slug='mastercard')
@@ -89,7 +92,7 @@ class TestSerializersV1_2(APITestCase):
     def tearDownClass(cls):
         pass
 
-    @patch.object(channel_vault, 'all_secrets', mock_bundle_secrets)
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
         hash1 = 'hash1'
@@ -106,7 +109,7 @@ class TestSerializersV1_2(APITestCase):
 
         hash2 = BLAKE2sHash().new(
             obj=hash1,
-            key=mock_bundle_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET]
+            key=t.cast(str, mock_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET])
         )
 
         expected_data = {
