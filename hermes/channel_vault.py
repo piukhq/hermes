@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 import typing as t
 from enum import Enum
 
@@ -32,7 +33,8 @@ class ChannelVault:
             self.CHANNEL_VAULT_PATH = config['CHANNEL_VAULT_PATH']
             self.VAULT_TOKEN = config['VAULT_TOKEN']
             self.SECRET_KEYS_VAULT_PATH = config['SECRET_KEYS_VAULT_PATH']
-            if config['TESTING'] is False:
+
+            if config['TESTING'] is False and 'migrate' not in sys.argv:
                 self._load_secrets()
 
         except KeyError as e:
