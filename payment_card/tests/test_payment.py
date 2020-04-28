@@ -5,7 +5,7 @@ from faker import Factory
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
-from hermes.spreedly import SpreedlyError
+from hermes.spreedly import SpreedlyError, Spreedly
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
 from payment_card.payment import Payment, PaymentError
@@ -16,7 +16,8 @@ from user.tests.factories import UserFactory, ClientApplicationFactory, Organisa
 
 TEST_HASH = "testhash"
 TEST_SECRET = "secret"
-
+TEST_SPREEDLY_ENVIRONMENT_KEY = "test_env_key"
+TEST_SPREEDLY_ACCESS_SECRET = "test_access_secret"
 
 class TestPayment(APITestCase):
     def setUp(self):
@@ -28,6 +29,11 @@ class TestPayment(APITestCase):
         test_hash = BLAKE2sHash().new(obj=TEST_HASH, key=TEST_SECRET)
         self.payment_card_account = PaymentCardAccountFactory(hash=test_hash)
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=self.payment_card_account)
+
+        self.spreedly = Spreedly(
+            TEST_SPREEDLY_ENVIRONMENT_KEY,
+            TEST_SPREEDLY_ACCESS_SECRET
+        )
 
     @patch('requests.post', autospec=True)
     def test_purchase_success(self, mock_post):

@@ -22,11 +22,9 @@ class SecretKeyName(str, Enum):
 
 def load_secrets():
     """
-    Retrieves security credential values from channel and secret_keys storage vaults.
-
-    Data is passed into _all_secrets which is used as a cache.
-
-    secrets contained in _all_secrets is separated by bundle-specific secrets and general secret keys.
+    Retrieves security credential values from channel and secret_keys storage vaults and stored
+    in _all_secrets which is used as a cache.
+    Secrets contained in _all_secrets is separated by bundle-specific secrets and general secret keys.
 
     Example:
         _all_secrets = {
@@ -103,4 +101,3 @@ def get_secret_key(secret: str):
         err_msg = f"{e} not found in vault"
         logger.exception(err_msg)
         raise VaultError(err_msg)
-

@@ -1915,8 +1915,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link,
-                                        mock_load_secrets, *_):
+    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1948,7 +1947,6 @@ class TestResourcesV1_2(APITestCase):
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
 
-        self.assertTrue(mock_load_secrets.called)
         self.assertTrue(mock_hades.called)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
@@ -1965,7 +1963,7 @@ class TestResourcesV1_2(APITestCase):
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_date, mock_hades, mock_async_balance,
-                                                                mock_async_link, mock_load_secrets, *_):
+                                                                mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1991,7 +1989,6 @@ class TestResourcesV1_2(APITestCase):
                                 **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 400)
 
-        self.assertTrue(mock_load_secrets.called)
         self.assertFalse(mock_hades.called)
         self.assertFalse(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
