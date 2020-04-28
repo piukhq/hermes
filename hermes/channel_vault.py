@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 
 import requests
 from Crypto.PublicKey import RSA
@@ -22,7 +23,7 @@ class ChannelVault:
             self.CHANNEL_VAULT_PATH = config['CHANNEL_VAULT_PATH']
             self.VAULT_TOKEN = config['VAULT_TOKEN']
             self.PCARD_HASH_SECRET_PATH = config['PCARD_HASH_SECRET_PATH']
-            if config['TESTING'] is False:
+            if config['TESTING'] is False and 'migrate' not in sys.argv:
                 self._load_bundle_secrets()
 
         except KeyError as e:
