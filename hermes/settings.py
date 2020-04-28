@@ -56,7 +56,7 @@ LOCAL_APPS = (
     'daedalus_messaging',
 )
 
-INSTALLED_APPS = LOCAL_APPS + (
+INSTALLED_APPS = (
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -70,7 +70,7 @@ INSTALLED_APPS = LOCAL_APPS + (
     'mail_templated',
     'anymail',
     'storages',
-)
+) + LOCAL_APPS
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
