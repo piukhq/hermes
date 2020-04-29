@@ -210,34 +210,31 @@ class PaymentCardCreationMixin:
     @staticmethod
     def payment_card_already_exists(data: dict, user: CustomUser) -> t.Tuple[
         t.Optional[PaymentCardAccount],
-        PaymentCardRoutes
+        PaymentCardRoutes,
+        int
     ]:
-
+        status_code = status.HTTP_201_CREATED
         card = PaymentCardAccount.all_objects.filter(
             fingerprint=data['fingerprint']
         ).annotate(
             belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id))
         ).order_by(
-            '-belongs_to_this_user', '-is_deleted'
-        ).prefetch_related('user_set').first()
+            '-belongs_to_this_user', '-is_deleted', '-created'
+        ).first()
 
         if card is None:
             route = PaymentCardRoutes.NEW_CARD
-        elif card.is_deleted is True:
+        elif card.is_deleted:
             route = PaymentCardRoutes.DELETED_CARD
         elif card.belongs_to_this_user:
             route = PaymentCardRoutes.ALREADY_IN_WALLET
-        else:
+            status_code = status.HTTP_200_OK
+        elif card.expiry_month == data['expiry_month'] and card.expiry_year == data['expiry_year']:
             route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
-
-        return card, route
-
-    def _add_existing_payment_card_account(self, data: dict, account: PaymentCardAccount, user: CustomUser) -> None:
-        if account.expiry_month == data['expiry_month'] and account.expiry_year == data['expiry_year']:
-            self._add_hash(data.get('hash'), account)
-            self._link_account_to_new_user(account, user)
         else:
-            raise ValidationError('This payment card already exists, but the provided credentials do not match.')
+            route = PaymentCardRoutes.NEW_CARD
+
+        return card, route, status_code
 
     @staticmethod
     def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
@@ -255,7 +252,8 @@ class PaymentCardCreationMixin:
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _collect_creation_data(self, request_data: dict, allowed_issuers: t.List[int], version: 'Version',
+    @staticmethod
+    def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int], version: 'Version',
                                bundle_id: str = None) -> t.Tuple[dict, dict]:
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(
@@ -515,20 +513,21 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
 
         auto_link = is_auto_link(request)
         just_created = False
-        pcard, route = self.payment_card_already_exists(pcard_data, request.user)
+        pcard, route, status_code = self.payment_card_already_exists(pcard_data, request.user)
 
-        if route is PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
-            self._add_existing_payment_card_account(pcard_data, pcard, request.user)
+        if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
+            self._add_hash(pcard_data.get('hash'), pcard)
+            self._link_account_to_new_user(pcard, request.user)
 
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
-            message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
+            pcard = self.create_payment_card_account(pcard_data, request.user, pcard)
             self._create_payment_card_consent(consent, pcard)
             just_created = True
 
         if auto_link:
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
 
-        return Response(self.get_serializer_by_request(pcard).data, status=route.value)
+        return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
 
 class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, UpdateCredentialsMixin, BaseLinkMixin,
