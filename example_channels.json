@@ -2,7 +2,12 @@
     "bundle_secrets": {
         "com.barclays.test": "local jwt signing secret for com.barclays.test",
         "com.bink.daedalus": "local jwt signing for com.bink.daedalus",
-        "com.bink.wallet": "local jwt signing for com.bink.wallet",
+        "com.bink.wallet": "local jwt signing for com.bink.wallet"
     },
-    "secret_keys": {}
+    "secret_keys": {
+        "PCARD_HASH_SECRET": "hash_secret",
+        "SPREEDLY_ACCESS_SECRET": "access_secret",
+        "SPREEDLY_ENVIRONMENT_KEY": "env_key",
+        "SPREEDLY_GATEWAY_TOKEN": "gateway_token"
+    }
 }
