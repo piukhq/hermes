@@ -12,6 +12,7 @@ from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
+from hermes.channel_vault import channel_vault
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
@@ -24,7 +25,7 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from ubiquity.tests.test_serializers import mock_bundle_secrets
+from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
@@ -801,7 +802,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    @patch('payment_card.payment.get_pcard_hash_secret', autospec=True)
+    @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_membership_card_jwp_fails_with_bad_payment_card(self, mock_get_hash_secret, *_):
         mock_get_hash_secret.return_value = "testsecret"
         payload = {
@@ -821,6 +822,8 @@ class TestResources(APITestCase):
         }
         resp = self.client.post(reverse("membership-cards"), data=json.dumps(payload), content_type="application/json",
                                 **self.auth_headers)
+
+        self.assertTrue(mock_get_hash_secret.called)
         self.assertEqual(resp.status_code, 400)
         error_message = resp.json()["detail"]
         self.assertEqual(error_message, "Provided payment card could not be found or is not related to this user")
@@ -1014,13 +1017,15 @@ class TestResources(APITestCase):
         self.assertTrue(pca.is_deleted)
 
     @patch('requests.delete')
-    @patch('ubiquity.views.get_pcard_hash_secret')
+    @patch('ubiquity.views.get_secret_key')
     def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'
         pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
         PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
         resp = self.client.delete(reverse('payment-card-hash', args=['testhash']), **self.auth_headers)
         pca.refresh_from_db()
+
+        self.assertTrue(hash_secret.called)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(pca.is_deleted)
 
@@ -1518,7 +1523,7 @@ class TestResources(APITestCase):
         self.assertTrue(isinstance(resp.json(), list))
         self.assertTrue(MockApiCache.available_called)
         self.assertEqual(MockApiCache.key, 'm_plans:test.auth.fake:0:1.2')
-        self.assertEqual(MockApiCache.expire, 60*60*24)
+        self.assertEqual(MockApiCache.expire, 60 * 60 * 24)
         self.assertListEqual(MockApiCache.data, resp.json())
 
         schemes_number = len(resp.json())
@@ -1873,7 +1878,7 @@ class TestResourcesV1_2(APITestCase):
     def setUp(self) -> None:
         self.rsa = RSACipher()
         self.bundle_id = 'com.barclays.test'
-        self.pub_key = mock_bundle_secrets[self.bundle_id]['public_key']
+        self.pub_key = mock_secrets["bundle_secrets"][self.bundle_id]['public_key']
 
         organisation = OrganisationFactory(name='test_organisation')
         self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
@@ -1900,8 +1905,7 @@ class TestResourcesV1_2(APITestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
         self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
-    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1911,8 +1915,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link,
-                                        mock_load_secrets, *_):
+    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1948,8 +1951,7 @@ class TestResourcesV1_2(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch('hermes.channel_vault._bundle_secrets', mock_bundle_secrets)
-    @patch('hermes.channel_vault.load_bundle_secrets')
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1960,7 +1962,7 @@ class TestResourcesV1_2(APITestCase):
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
     def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_date, mock_hades, mock_async_balance,
-                                                                mock_async_link, mock_load_secrets, *_):
+                                                                mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
