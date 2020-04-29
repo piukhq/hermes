@@ -434,9 +434,6 @@ CELERY_ACCEPT_CONTENT = ['pickle', 'json']
 CELERY_RESULT_SERIALIZER = 'pickle'
 
 SPREEDLY_BASE_URL = env_var('SPREEDLY_BASE_URL', '')
-SPREEDLY_ENVIRONMENT_KEY = env_var('SPREEDLY_ENVIRONMENT_KEY', 'env_key')
-SPREEDLY_ACCESS_SECRET = env_var('SPREEDLY_ACCESS_SECRET', 'access_secret')
-SPREEDLY_GATEWAY_TOKEN = env_var('SPREEDLY_GATEWAY_TOKEN', 'gateway_token')
 
 # Time in seconds for the interval between retry tasks called by celery beats
 RETRY_PERIOD = env_var('RETRY_PERIOD', '900')
@@ -503,10 +500,10 @@ VAULT_CONFIG = dict(
     # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
     # and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
     # (Do not commit your channels json which might contain real secrets or edit example_channels.json)
-    LOCAL_CHANNEL_SECRETS=env_var('LOCAL_CHANNEL_SECRETS', "False"),
-    LOCAL_SECRETS_PATH=env_var('LOCAL_SECRETS_PATH', "example_channels.json"),
-    CHANNEL_VAULT_PATH=env_var('CHANNEL_VAULT_PATH', '/channels'),
-    PCARD_HASH_SECRET_PATH=env_var('PCARD_HASH_SECRET_PATH', '/data/pcard_hash_secret'),
+    LOCAL_CHANNEL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", "False"),
+    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_channels.json"),
+    CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
+    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
 
     TESTING=TESTING
 )

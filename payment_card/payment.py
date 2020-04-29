@@ -2,14 +2,13 @@ import logging
 from typing import Optional
 
 import sentry_sdk
-from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.exceptions import APIException
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
 
-from hermes.channel_vault import get_pcard_hash_secret
+from hermes.channel_vault import get_secret_key, SecretKeyName
 from hermes.spreedly import Spreedly, SpreedlyError
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
@@ -40,7 +39,10 @@ def payment_audit_log_signal_handler(sender, **kwargs):
 
 
 def get_nominated_pcard(pcard_hash: str, user_id: int):
-    hashed_pcard_hash = BLAKE2sHash().new(obj=pcard_hash, key=get_pcard_hash_secret())
+    hashed_pcard_hash = BLAKE2sHash().new(
+        obj=pcard_hash,
+        key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+    )
     try:
         return PaymentCardAccount.objects.get(hash=hashed_pcard_hash, user_set__id=user_id)
     except PaymentCardAccount.DoesNotExist:
@@ -76,8 +78,8 @@ class Payment:
         self.payment_token = payment_token
 
         self.spreedly = Spreedly(
-            settings.SPREEDLY_ENVIRONMENT_KEY,
-            settings.SPREEDLY_ACCESS_SECRET,
+            get_secret_key(SecretKeyName.SPREEDLY_ENVIRONMENT_KEY),
+            get_secret_key(SecretKeyName.SPREEDLY_ACCESS_SECRET),
             currency_code=currency_code
         )
 
@@ -123,7 +125,10 @@ class Payment:
         Starts an audit trail and makes a purchase request.
         Any failure to during the purchase request will cause the join to fail.
         """
-        hashed_pcard_hash = BLAKE2sHash().new(obj=payment_card_hash, key=get_pcard_hash_secret())
+        hashed_pcard_hash = BLAKE2sHash().new(
+            obj=payment_card_hash,
+            key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+        )
         payment_audit = PaymentAudit.objects.create(
             scheme_account=scheme_acc, payment_card_hash=hashed_pcard_hash, user_id=user_id
         )
