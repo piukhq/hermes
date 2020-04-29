@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "fa0f767826f6af133d62d756b59a1c7f548774a50a592efcf91b230db63cb2fc"
+            "sha256": "008e543d21737224721943c198b934f0b80301ffcd57f67a9f3dfcd02438b936"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -453,7 +453,7 @@
         },
         "shared-config-storage": {
             "git": "ssh://git@git.bink.com/libs/shared-config-storage.git",
-            "ref": "c5332b6f4bda79795fa78929c8187454cfc4fcd8"
+            "ref": "118b44aeeed698db01c07db710b52df25225fd2c"
         },
         "six": {
             "hashes": [

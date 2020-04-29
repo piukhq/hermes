@@ -37,4 +37,4 @@ PyJWT = "*"
 PyYAML = "*"
 sentry-sdk = "*"
 tenacity = "*"
-shared-config-storage = {git = "ssh://git@git.bink.com/libs/shared-config-storage.git",ref = "1.4"}
+shared-config-storage = {git = "ssh://git@git.bink.com/libs/shared-config-storage.git",ref = "1.4.5"}
