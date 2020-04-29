@@ -75,7 +75,7 @@ class ChannelVault:
         else:
             try:
                 logger.info(
-                    f"JWT bundle secrets - from vault at {settings.VAULT_URL}  secrets: {settings.CHANNEL_VAULT_PATH}"
+                    f"JWT bundle secrets - from vault at {self.VAULT_URL}  secrets: {self.CHANNEL_VAULT_PATH}"
                 )
                 bundle_secrets = read_vault(self.CHANNEL_VAULT_PATH, self.VAULT_URL, self.VAULT_TOKEN)
                 logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in bundle_secrets]}")
