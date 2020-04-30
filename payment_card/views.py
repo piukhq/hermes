@@ -152,16 +152,6 @@ class ListCreatePaymentCardAccount(APIView):
 
     @staticmethod
     def supercede_old_account(new_account, old_account, user):
-
-        # TODO: waiting on paul decision for these two todos
-        # TODO: double check that this code does not apply anymore
-        # # if the clients are the same but the users don't match, reject the card.
-        # if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
-        #         client=user.client).exists():
-        #     return {'error': 'Fingerprint is already in use by another user.',
-        #             'code': '403'}, status.HTTP_403_FORBIDDEN, None
-
-        # copy the tokens from the previous account
         new_account.token = old_account.token
         new_account.psp_token = old_account.psp_token
 
@@ -169,22 +159,11 @@ class ListCreatePaymentCardAccount(APIView):
             new_account.save()
             metis.enrol_existing_payment_card(new_account)
 
-
         else:
             new_account.status = old_account.status
             new_account.save()
 
         PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
-
-        # TODO: double check that we do not delete a card with the same fingerprint but different expiry date
-        #  as it is considered a new card
-
-        #     # delete the old account if it is on the same client.
-        #     if old_account.user_set.filter(client=user.client).exists():
-        #         old_account.is_deleted = True
-        #         old_account.save()
-        #
-        #         PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
         return new_account
 
     @staticmethod
