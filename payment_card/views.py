@@ -108,7 +108,8 @@ class ListCreatePaymentCardAccount(APIView):
     #     response_serializer: serializers.PaymentCardAccountSerializer
     #     responseMessages:
     #         - code: 400
-    #           message: Error code 400 is indicative of serializer errors. The error response will show more information.
+    #           message: Error code 400 is indicative of serializer errors.
+    #           The error response will show more information.
     #         - code: 403
     #           message: A payment card account by that fingerprint and expiry already exists.
     #     """

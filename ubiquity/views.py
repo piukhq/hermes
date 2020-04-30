@@ -1140,7 +1140,8 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 #             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
 #                                                                   add_fields)
 #         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
-#         return Response(self.get_serializer_by_request(account, context={'request': request}).data, status=status_code)
+#         return Response(self.get_serializer_by_request(
+#         account, context={'request': request}).data, status=status_code)
 
 # class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
 #                                ModelViewSet):
