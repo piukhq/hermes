@@ -1,9 +1,7 @@
 import arrow
-import requests
-
-from django.conf import settings
 
 from payment_card.models import PaymentCard
+from payment_card.tasks import async_metis_request
 
 
 def _generate_card_json(account):
@@ -17,10 +15,27 @@ def _generate_card_json(account):
 
 
 def enrol_new_payment_card(account):
-    requests.post(settings.METIS_URL + '/payment_service/payment_card',
-                  json=_generate_card_json(account),
-                  headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                           'Content-Type': 'application/json'})
+    async_metis_request.delay(
+        'POST',
+        '/payment_service/payment_card',
+        _generate_card_json(account)
+    )
+
+
+def update_payment_card(account):
+    async_metis_request.delay(
+        'POST',
+        '/payment_service/payment_card/update',
+        _generate_card_json(account)
+    )
+
+
+def delete_payment_card(account):
+    async_metis_request.delay(
+        'DELETE',
+        '/payment_service/payment_card',
+        _generate_card_json(account)
+    )
 
 
 def enrol_existing_payment_card(account):
@@ -28,17 +43,7 @@ def enrol_existing_payment_card(account):
 
     if provider in [PaymentCard.VISA, PaymentCard.AMEX]:
         enrol_new_payment_card(account)
-
     elif provider == PaymentCard.MASTERCARD:
-        requests.post(settings.METIS_URL + '/payment_service/payment_card/update',
-                      json=_generate_card_json(account),
-                      headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                               'Content-Type': 'application/json'})
+        update_payment_card(account)
     else:
         raise ValueError(f"Provider {provider} not found to enrol existing card")
-
-
-def delete_payment_card(account):
-    requests.delete(settings.METIS_URL + '/payment_service/payment_card', json=_generate_card_json(account),
-                    headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                             'Content-Type': 'application/json'})
