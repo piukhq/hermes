@@ -1105,7 +1105,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         return payment_card, membership_card
 
 
-# TODO: are these endpoints even in spec anymore?
+# TODO: these endpoints are not in spec and will be removed later on
 # class CompositeMembershipCardView(ListMembershipCardView):
 #     authentication_classes = (PropertyAuthentication,)
 #     response_serializer = SelectSerializer.MEMBERSHIP_CARD

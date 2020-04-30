@@ -99,20 +99,22 @@ class ListCreatePaymentCardAccount(APIView):
                     PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
         return Response(accounts, status=200)
 
-    def post(self, request):
-        """Add a payment card account
-        ---
-        request_serializer: serializers.PaymentCardAccountSerializer
-        response_serializer: serializers.PaymentCardAccountSerializer
-        responseMessages:
-            - code: 400
-              message: Error code 400 is indicative of serializer errors. The error response will show more information.
-            - code: 403
-              message: A payment card account by that fingerprint and expiry already exists.
-        """
-        status_code, account = self.create_payment_card_account(request.data, request.user)
-        message = serializers.PaymentCardAccountSerializer(instance=account).data
-        return Response(message, status=status_code)
+    # TODO: this will be removed later when we remove all the legacy endpoints,
+    #  for now commented out as the new payment card creation logic does not work anymore with it
+    # def post(self, request):
+    #     """Add a payment card account
+    #     ---
+    #     request_serializer: serializers.PaymentCardAccountSerializer
+    #     response_serializer: serializers.PaymentCardAccountSerializer
+    #     responseMessages:
+    #         - code: 400
+    #           message: Error code 400 is indicative of serializer errors. The error response will show more information.
+    #         - code: 403
+    #           message: A payment card account by that fingerprint and expiry already exists.
+    #     """
+    #     status_code, account = self.create_payment_card_account(request.data, request.user)
+    #     message = serializers.PaymentCardAccountSerializer(instance=account).data
+    #     return Response(message, status=status_code)
 
     def create_payment_card_account(self, data, user, old_account=None):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
