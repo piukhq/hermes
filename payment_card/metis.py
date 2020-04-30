@@ -1,5 +1,6 @@
 import arrow
 
+from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
 from payment_card.tasks import async_metis_request
 
@@ -16,7 +17,7 @@ def _generate_card_json(account):
 
 def enrol_new_payment_card(account):
     async_metis_request.delay(
-        'POST',
+        RequestMethod.POST,
         '/payment_service/payment_card',
         _generate_card_json(account)
     )
@@ -24,7 +25,7 @@ def enrol_new_payment_card(account):
 
 def update_payment_card(account):
     async_metis_request.delay(
-        'POST',
+        RequestMethod.POST,
         '/payment_service/payment_card/update',
         _generate_card_json(account)
     )
@@ -32,7 +33,7 @@ def update_payment_card(account):
 
 def delete_payment_card(account):
     async_metis_request.delay(
-        'DELETE',
+        RequestMethod.DELETE,
         '/payment_service/payment_card',
         _generate_card_json(account)
     )
