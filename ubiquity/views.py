@@ -8,6 +8,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
@@ -22,6 +23,7 @@ from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
+from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
@@ -205,24 +207,34 @@ class PaymentCardCreationMixin:
 
         PaymentCardAccount.objects.filter(pk=pcard_pk).update(consents=consents)
 
-    def payment_card_already_exists(self, data: dict, user: CustomUser) \
-            -> t.Tuple[bool, t.Optional[PaymentCardAccount], t.Optional[int]]:
-        query = {
-            'fingerprint': data['fingerprint'],
-            'expiry_month': data['expiry_month'],
-            'expiry_year': data['expiry_year'],
-        }
-        try:
-            card = PaymentCardAccount.objects.get(**query)
-        except PaymentCardAccount.DoesNotExist:
-            return False, None, None
+    @staticmethod
+    def payment_card_already_exists(data: dict, user: CustomUser) -> t.Tuple[
+        t.Optional[PaymentCardAccount],
+        PaymentCardRoutes,
+        int
+    ]:
+        status_code = status.HTTP_201_CREATED
+        card = PaymentCardAccount.all_objects.filter(
+            fingerprint=data['fingerprint']
+        ).annotate(
+            belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id))
+        ).order_by(
+            '-belongs_to_this_user', '-is_deleted', '-created'
+        ).first()
 
-        if user in card.user_set.all():
-            return True, card, status.HTTP_200_OK
+        if card is None:
+            route = PaymentCardRoutes.NEW_CARD
+        elif card.is_deleted:
+            route = PaymentCardRoutes.DELETED_CARD
+        elif card.belongs_to_this_user:
+            route = PaymentCardRoutes.ALREADY_IN_WALLET
+            status_code = status.HTTP_200_OK
+        elif card.expiry_month == data['expiry_month'] and card.expiry_year == data['expiry_year']:
+            route = PaymentCardRoutes.EXISTS_IN_OTHER_WALLET
+        else:
+            route = PaymentCardRoutes.NEW_CARD
 
-        self._add_hash(data.get('hash'), card)
-        self._link_account_to_new_user(card, user)
-        return True, card, status.HTTP_201_CREATED
+        return card, route, status_code
 
     @staticmethod
     def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
@@ -240,7 +252,8 @@ class PaymentCardCreationMixin:
         for scheme_account in account.scheme_account_set.all():
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _collect_creation_data(self, request_data: dict, allowed_issuers: t.List[int], version: 'Version',
+    @staticmethod
+    def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int], version: 'Version',
                                bundle_id: str = None) -> t.Tuple[dict, dict]:
         try:
             pcard_data = VersionedSerializerMixin.get_serializer_by_version(
@@ -499,21 +512,20 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
         )
 
         auto_link = is_auto_link(request)
-        exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
-        if exists:
-            if auto_link:
-                self.auto_link_to_membership_cards(request.user, pcard, False)
-            return Response(self.get_serializer(pcard).data, status=status_code)
+        just_created = False
+        pcard, route, status_code = self.payment_card_already_exists(pcard_data, request.user)
 
-        message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
+        if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
+            self._add_hash(pcard_data.get('hash'), pcard)
+            self._link_account_to_new_user(pcard, request.user)
 
-        just_created = status_code == status.HTTP_201_CREATED
+        elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
+            pcard = self.create_payment_card_account(pcard_data, request.user, pcard)
+            self._create_payment_card_consent(consent, pcard)
+            just_created = True
 
         if auto_link:
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
-
-        if just_created:
-            pcard = self._create_payment_card_consent(consent, pcard)
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 
@@ -1093,87 +1105,88 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         return payment_card, membership_card
 
 
-class CompositeMembershipCardView(ListMembershipCardView):
-    authentication_classes = (PropertyAuthentication,)
-    response_serializer = SelectSerializer.MEMBERSHIP_CARD
+# TODO: these endpoints are not in spec and will be removed later on
+# class CompositeMembershipCardView(ListMembershipCardView):
+#     authentication_classes = (PropertyAuthentication,)
+#     response_serializer = SelectSerializer.MEMBERSHIP_CARD
+#
+#     def get_queryset(self):
+#         query = {
+#             'payment_card_account_set__id': self.kwargs['pcard_id']
+#         }
+#
+#         if not self.request.user.is_tester:
+#             query['scheme__test_scheme'] = False
+#
+#         return self.request.channels_permit.scheme_account_query(
+#             SchemeAccount.objects.filter(**query),
+#             user_id=self.request.user.id,
+#             user_filter=True
+#         )
+#
+#     @censor_and_decorate
+#     def list(self, request, *args, **kwargs):
+#         accounts = self.filter_queryset(self.get_queryset())
+#         return Response(self.get_serializer_by_request(accounts, many=True).data)
+#
+#     @censor_and_decorate
+#     def create(self, request, *args, **kwargs):
+#         pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
+#         scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
+#         if enrol_fields:
+#             account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
+#                                                                   scheme_id, enrol_fields)
+#         else:
+#             account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
+#                                                                   add_fields)
+#         PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
+#         return Response(self.get_serializer_by_request(
+#         account, context={'request': request}).data, status=status_code)
 
-    def get_queryset(self):
-        query = {
-            'payment_card_account_set__id': self.kwargs['pcard_id']
-        }
-
-        if not self.request.user.is_tester:
-            query['scheme__test_scheme'] = False
-
-        return self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.filter(**query),
-            user_id=self.request.user.id,
-            user_filter=True
-        )
-
-    @censor_and_decorate
-    def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset())
-        return Response(self.get_serializer_by_request(accounts, many=True).data)
-
-    @censor_and_decorate
-    def create(self, request, *args, **kwargs):
-        pcard = get_object_or_404(PaymentCardAccount, pk=kwargs['pcard_id'])
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
-        if enrol_fields:
-            account, status_code = self._handle_create_join_route(request.user, request.channels_permit,
-                                                                  scheme_id, enrol_fields)
-        else:
-            account, status_code = self._handle_create_link_route(request.user, scheme_id, auth_fields,
-                                                                  add_fields)
-        PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=account)
-        return Response(self.get_serializer_by_request(account, context={'request': request}).data, status=status_code)
-
-
-class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
-                               ModelViewSet):
-    authentication_classes = (PropertyAuthentication,)
-    serializer_class = PaymentCardSerializer
-    response_serializer = SelectSerializer.PAYMENT_CARD
-
-    def get_queryset(self):
-        query = {
-            'user_set__id': self.request.user.pk,
-            'scheme_account_set__id': self.kwargs['mcard_id'],
-            'is_deleted': False
-        }
-
-        return self.request.channels_permit.scheme_payment_account_query(PaymentCardAccount.objects.filter(**query))
-
-    @censor_and_decorate
-    def create(self, request, *args, **kwargs):
-        try:
-            pcard_data = self.get_serializer_by_version(
-                SelectSerializer.PAYMENT_CARD_TRANSLATION,
-                get_api_version(request),
-                request.data['card'],
-                context={'bundle_id': request.channels_permit.bundle_id}
-            ).data
-
-            if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
-                raise ParseError('issuer not allowed for this user.')
-
-            consent = request.data['account']['consents']
-        except (KeyError, ValueError):
-            raise ParseError
-
-        exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
-        if exists:
-            return Response(self.get_serializer_by_request(pcard).data, status=status_code)
-
-        mcard = get_object_or_404(SchemeAccount, pk=kwargs['mcard_id'])
-        message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
-        if status_code == status.HTTP_201_CREATED:
-            PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
-            pcard = self._create_payment_card_consent(consent, pcard)
-            return Response(self.get_serializer_by_request(pcard).data, status=status_code)
-
-        return Response(message, status=status_code)
+# class CompositePaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
+#                                ModelViewSet):
+#     authentication_classes = (PropertyAuthentication,)
+#     serializer_class = PaymentCardSerializer
+#     response_serializer = SelectSerializer.PAYMENT_CARD
+#
+#     def get_queryset(self):
+#         query = {
+#             'user_set__id': self.request.user.pk,
+#             'scheme_account_set__id': self.kwargs['mcard_id'],
+#             'is_deleted': False
+#         }
+#
+#         return self.request.channels_permit.scheme_payment_account_query(PaymentCardAccount.objects.filter(**query))
+#
+#     @censor_and_decorate
+#     def create(self, request, *args, **kwargs):
+#         try:
+#             pcard_data = self.get_serializer_by_version(
+#                 SelectSerializer.PAYMENT_CARD_TRANSLATION,
+#                 get_api_version(request),
+#                 request.data['card'],
+#                 context={'bundle_id': request.channels_permit.bundle_id}
+#             ).data
+#
+#             if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
+#                 raise ParseError('issuer not allowed for this user.')
+#
+#             consent = request.data['account']['consents']
+#         except (KeyError, ValueError):
+#             raise ParseError
+#
+#         exists, pcard, status_code = self.payment_card_already_exists(pcard_data, request.user)
+#         if exists:
+#             return Response(self.get_serializer_by_request(pcard).data, status=status_code)
+#
+#         mcard = get_object_or_404(SchemeAccount, pk=kwargs['mcard_id'])
+#         message, status_code, pcard = self.create_payment_card_account(pcard_data, request.user)
+#         if status_code == status.HTTP_201_CREATED:
+#             PaymentCardSchemeEntry.objects.get_or_create(payment_card_account=pcard, scheme_account=mcard)
+#             pcard = self._create_payment_card_consent(consent, pcard)
+#             return Response(self.get_serializer_by_request(pcard).data, status=status_code)
+#
+#         return Response(message, status=status_code)
 
 
 class MembershipPlanView(VersionedSerializerMixin, ModelViewSet):
