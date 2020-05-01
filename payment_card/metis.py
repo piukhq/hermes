@@ -1,13 +1,10 @@
 from typing import TYPE_CHECKING
 
 import arrow
-import sentry_sdk
-from django.conf import settings
-from requests import request, HTTPError
 
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
-from payment_card.tasks import async_metis_request
+from payment_card.tasks import metis_request
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount
@@ -30,7 +27,7 @@ def enrol_new_payment_card(account: 'PaymentCardAccount', run_async: bool = True
         _generate_card_json(account)
     )
     if run_async:
-        async_metis_request.delay(*args)
+        metis_request.delay(*args)
     else:
         metis_request(*args)
 
@@ -42,7 +39,7 @@ def update_payment_card(account: 'PaymentCardAccount', run_async: bool = True) -
         _generate_card_json(account)
     )
     if run_async:
-        async_metis_request.delay(*args)
+        metis_request.delay(*args)
     else:
         metis_request(*args)
 
@@ -54,7 +51,7 @@ def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True) -
         _generate_card_json(account)
     )
     if run_async:
-        async_metis_request.delay(*args)
+        metis_request.delay(*args)
     else:
         metis_request(*args)
 
@@ -68,19 +65,3 @@ def enrol_existing_payment_card(account: 'PaymentCardAccount', run_async: bool =
         update_payment_card(account, run_async)
     else:
         raise ValueError(f"Provider {provider} not found to enrol existing card")
-
-
-def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
-    response = request(
-        method.value,
-        settings.METIS_URL + endpoint,
-        json=payload,
-        headers={
-            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-            'Content-Type': 'application/json'
-        }
-    )
-    try:
-        response.raise_for_status()
-    except HTTPError:
-        sentry_sdk.capture_exception()

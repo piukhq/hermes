@@ -61,7 +61,7 @@ def expired_payment_void_task() -> None:
 
 
 @shared_task
-def async_metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
+def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
     response = request(
         method.value,
         settings.METIS_URL + endpoint,
