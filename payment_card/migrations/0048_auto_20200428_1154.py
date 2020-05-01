@@ -15,4 +15,9 @@ class Migration(migrations.Migration):
             name='fingerprint',
             field=models.CharField(db_index=True, max_length=100),
         ),
+        migrations.AlterField(
+            model_name='paymentcardaccount',
+            name='token',
+            field=models.CharField(max_length=255),
+        )
     ]
