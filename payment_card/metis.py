@@ -29,7 +29,6 @@ def enrol_new_payment_card(account: 'PaymentCardAccount', run_async: bool = True
         '/payment_service/payment_card',
         _generate_card_json(account)
     )
-
     if run_async:
         async_metis_request.delay(*args)
     else:
