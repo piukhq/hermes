@@ -1,4 +1,5 @@
 from copy import copy
+
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 
@@ -73,8 +74,7 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(required=False)
     # psp_token = serializers.CharField(
     #     max_length=255,
-    #     write_only=True,
-    #     validators=[UniqueValidator(queryset=PaymentCardAccount.objects.filter(is_deleted=False))])
+    #     write_only=True)
     images = serializers.SerializerMethodField()
     order = serializers.IntegerField()
 
@@ -83,8 +83,8 @@ class CreatePaymentCardAccountSerializer(serializers.ModelSerializer):
     token = serializers.CharField(
         max_length=255,
         write_only=True,
-        source='psp_token',
-        validators=[UniqueValidator(queryset=models.PaymentCardAccount.objects.filter(is_deleted=False))])
+        source='psp_token'
+    )
 
     @staticmethod
     def get_images(payment_card_account):

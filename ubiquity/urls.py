@@ -1,8 +1,8 @@
 from django.urls import re_path
 
 from ubiquity.views import (
-    CompositeMembershipCardView,
-    CompositePaymentCardView,
+    # CompositeMembershipCardView,
+    # CompositePaymentCardView,
     CardLinkView,
     ListMembershipCardView,
     ListPaymentCardView,
@@ -87,16 +87,16 @@ urlpatterns = [
         MembershipPlanView.as_view({"get": "retrieve"}),
         name="membership-plan"
     ),
-    re_path(
-        r"^/payment_card/(?P<pcard_id>\d+)/membership_cards/?$",
-        CompositeMembershipCardView.as_view(cards_plural),
-        name="composite-membership-cards",
-    ),
-    re_path(
-        r"^/membership_card/(?P<mcard_id>\d+)/payment_cards/?$",
-        CompositePaymentCardView.as_view(cards_plural),
-        name="composite-payment-cards",
-    ),
+    # re_path(
+    #     r"^/payment_card/(?P<pcard_id>\d+)/membership_cards/?$",
+    #     CompositeMembershipCardView.as_view(cards_plural),
+    #     name="composite-membership-cards",
+    # ),
+    # re_path(
+    #     r"^/membership_card/(?P<mcard_id>\d+)/payment_cards/?$",
+    #     CompositePaymentCardView.as_view(cards_plural),
+    #     name="composite-payment-cards",
+    # ),
     re_path(
         r"^/payment_card/(?P<pcard_id>[0-9]+)/membership_card/(?P<mcard_id>[0-9]+)/?$",
         CardLinkView.as_view(link_membership),

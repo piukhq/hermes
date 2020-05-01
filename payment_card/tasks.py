@@ -1,12 +1,14 @@
 import json
 import logging
 
-import sentry_sdk
 import arrow
+import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from requests import request, HTTPError
 
 from hermes.tasks import RetryTaskStore
+from payment_card.enums import RequestMethod
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
 from scheme.models import SchemeAccount
@@ -56,3 +58,20 @@ def expired_payment_void_task() -> None:
         except PaymentError:
             transaction_data = {'scheme_acc_id': payment_audit.scheme_account_id}
             task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
+
+
+@shared_task
+def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
+    response = request(
+        method.value,
+        settings.METIS_URL + endpoint,
+        json=payload,
+        headers={
+            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+            'Content-Type': 'application/json'
+        }
+    )
+    try:
+        response.raise_for_status()
+    except HTTPError:
+        sentry_sdk.capture_exception()

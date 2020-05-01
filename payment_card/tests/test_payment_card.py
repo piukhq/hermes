@@ -1,5 +1,5 @@
+from unittest import mock
 
-import httpretty
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -7,7 +7,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
 import ubiquity.tests.factories
 from common.models import Image
-from payment_card.models import AuthTransaction, PaymentCardAccount
+from payment_card.models import AuthTransaction
 from payment_card.tests import factories
 from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
 from user.models import ClientApplication, Organisation
@@ -104,111 +104,6 @@ class TestPaymentCard(APITestCase):
         self.assertNotIn('token', response.data)
         self.assertEqual(response.data['status_name'], 'pending')
 
-    @httpretty.activate
-    def test_post_payment_card_account(self):
-
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
-
-        data = {'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '088012',
-                'pan_end': '9820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': "some-token",
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
-
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
-        # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertTrue(httpretty.has_request())
-        self.assertEqual(response.status_code, 201)
-        self.assertNotIn('psp_token', response.data)
-        self.assertNotIn('token', response.data)
-        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(payment_card_account.psp_token, "some-token")
-        self.assertEqual(payment_card_account.status, 0)
-        self.assertEqual(payment_card_account.pan_end, '9820')
-
-        # send again and confirm that the old one is taken over.
-        data['token'] = 'some-other-token'
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-        # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertTrue(httpretty.has_request())
-        self.assertEqual(response.status_code, 201)
-        self.assertNotIn('psp_token', response.data)
-        self.assertNotIn('token', response.data)
-        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(payment_card_account.psp_token, "some-token")
-        self.assertEqual(payment_card_account.status, 0)
-        self.assertEqual(payment_card_account.pan_end, '9820')
-
-    @httpretty.activate
-    def test_post_long_pan_end(self):
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
-
-        data = {'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '088012',
-                'pan_end': '49820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': "some-token",
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
-
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
-        # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()['pan_end'][0], 'Ensure this field has no more than 4 characters.')
-
-    @httpretty.activate
-    def test_post_barclays_payment_card_account(self):
-        # add barclays personal offer image
-        offer_image = factories.PaymentCardAccountImageFactory(description='barclays', image_type_code=6)
-
-        # add hero image
-        hero_image = factories.PaymentCardAccountImageFactory(
-            description='barclays', image_type_code=0, payment_card=self.payment_card)
-
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card', status=201)
-
-        data = {'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '543979',
-                'pan_end': '9820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': 'some-token',
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
-
-        self.assertFalse(offer_image.payment_card_accounts.exists())
-        self.assertFalse(hero_image.payment_card_accounts.exists())
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 201)
-        payment_card_account = PaymentCardAccount.objects.get(id=response.data['id'])
-        self.assertEqual(offer_image.payment_card_accounts.first(), payment_card_account)
-        self.assertEqual(hero_image.payment_card_accounts.first(), payment_card_account)
-
     def test_patch_payment_card_account(self):
         response = self.client.patch('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                      data={'pan_start': '987678'}, **self.auth_headers)
@@ -249,30 +144,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
-    def test_payment_card_account_token_unique(self):
-        data = {'issuer': self.issuer.id,
-                'status': 1,
-                'expiry_month': 4,
-                'expiry_year': 10,
-                'payment_card': self.payment_card.id,
-                'pan_start': '088012',
-                'pan_end': '9820',
-                'country': 'New Zealand',
-                'currency_code': 'GBP',
-                'name_on_card': 'Aron Stokes',
-                'token': self.payment_card_account.token,
-                'fingerprint': 'test-fingerprint',
-                'order': 0}
-        response = self.client.post('/payment_cards/accounts', data, **self.auth_headers)
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.data, {'token': ['This field must be unique.']})
-
-    @httpretty.activate
-    def test_delete_payment_card_accounts(self):
-
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
-
+    @mock.patch('payment_card.metis.metis_request', autospec=True)
+    def test_delete_payment_card_accounts(self, mock_metis):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)
 
@@ -282,7 +155,7 @@ class TestPaymentCard(APITestCase):
 
         self.assertEqual(response.status_code, 404)
         # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertTrue(httpretty.has_request())
+        self.assertTrue(mock_metis.delay.called)
 
     def test_cant_delete_other_payment_card_account(self):
         payment_card = factories.PaymentCardAccountFactory(payment_card=self.payment_card)

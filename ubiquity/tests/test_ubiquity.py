@@ -992,8 +992,8 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 1)
 
-    @patch('requests.delete')
-    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_request_delete):
+    @patch('payment_card.metis.metis_request', autospec=True)
+    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_metis):
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
                                                       scheme_account=self.scheme_account)
 
@@ -1001,13 +1001,13 @@ class TestResources(APITestCase):
                                   data="{}",
                                   content_type='application/json', **self.auth_headers)
 
-        self.assertTrue(mock_request_delete.called)
+        self.assertTrue(mock_metis.delay.called)
         self.assertEqual(resp.status_code, 200)
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 
-    @patch('requests.delete')
+    @patch('payment_card.metis.metis_request', autospec=True)
     def test_payment_card_delete_by_id(self, _):
         pca = PaymentCardAccountFactory()
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
@@ -1016,7 +1016,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(pca.is_deleted)
 
-    @patch('requests.delete')
+    @patch('payment_card.metis.metis_request', autospec=True)
     @patch('ubiquity.views.get_secret_key')
     def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'
@@ -1170,156 +1170,6 @@ class TestResources(APITestCase):
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
-
-    def test_composite_payment_card_get(self):
-        resp = self.client.get(reverse('composite-payment-cards', args=[self.scheme_account.id]),
-                               **self.auth_headers)
-        self.assertEqual(resp.status_code, 200)
-
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
-    def test_composite_payment_card_post(self, *_):
-        new_sa = SchemeAccountEntryFactory(user=self.user).scheme_account
-        payload = {
-            "card": {
-                "last_four_digits": 5234,
-                "currency_code": "GBP",
-                "first_six_digits": 423456,
-                "name_on_card": "test user 2",
-                "token": "H7FdKWKPOPhepzxS4MfUuvTDHxr",
-                "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
-                "year": 22,
-                "month": 3,
-                "order": 1
-            },
-            "account": {
-                "consents": [
-                    {
-                        "timestamp": 1517549941,
-                        "type": 0
-                    }
-                ]
-            }
-        }
-        expected_links = [
-            {
-                'id': new_sa.id,
-                'active_link': True
-            }
-        ]
-
-        resp = self.client.post(reverse('composite-payment-cards', args=[new_sa.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers, **self.version_header)
-        self.assertEqual(resp.status_code, 201)
-        self.assertEqual(expected_links, resp.json()['membership_cards'])
-
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    def test_composite_membership_card_get(self, _):
-        resp = self.client.get(reverse('composite-membership-cards', args=[self.payment_card_account.id]),
-                               **self.auth_headers)
-        self.assertEqual(resp.status_code, 200)
-
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
-    @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_composite_membership_card_post(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022657083"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test Composite"
-                    }
-                ]
-            }
-        }
-        expected_links = {
-            'id': new_pca.id,
-            'active_link': True
-        }
-
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
-        self.assertEqual(resp.status_code, 201)
-        self.assertIn(expected_links, resp.json()['payment_cards'])
-
-    @patch('scheme.mixins.analytics', autospec=True)
-    @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('ubiquity.views.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_membership_card_put_and_composite_post(self, *_):
-        new_pca = PaymentCardAccountEntryFactory(user=self.user).payment_card_account
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022657083"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test Composite"
-                    }
-                ]
-            }
-        }
-        expected_links = {
-            'id': new_pca.id,
-            'active_link': True
-        }
-
-        resp = self.client.post(reverse('composite-membership-cards', args=[new_pca.id]), data=json.dumps(payload),
-                                content_type='application/json', **self.auth_headers)
-        account_id = resp.data['id']
-        self.assertEqual(resp.status_code, 201)
-        self.assertIn(expected_links, resp.json()['payment_cards'])
-
-        payment_link = PaymentCardSchemeEntry.objects.filter(scheme_account=account_id, payment_card_account=new_pca.id)
-        self.assertEqual(1, payment_link.count())
-
-        payload_put = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "add_fields": [
-                    {
-                        "column": "barcode",
-                        "value": "1234401022699099"
-                    }
-                ],
-                "authorise_fields": [
-                    {
-                        "column": "last_name",
-                        "value": "Test Composite"
-                    }
-                ]
-            }
-        }
-        resp_put = self.client.put(reverse('membership-card', args=[account_id]), data=json.dumps(payload_put),
-                                   content_type='application/json', **self.auth_headers)
-        self.assertEqual(resp_put.status_code, 200)
-        self.assertEqual(account_id, resp_put.data['id'])
-        scheme_account = SchemeAccount.objects.get(id=account_id)
-        self.assertEqual(account_id, scheme_account.id)
-        self.assertEqual(resp_put.json()['card']['barcode'], "1234401022699099")
-        self.assertTrue(payment_link.exists())
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
