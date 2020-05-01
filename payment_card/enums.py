@@ -6,7 +6,6 @@ class PaymentCardRoutes(Enum):
     DELETED_CARD = auto()
     ALREADY_IN_WALLET = auto()
     EXISTS_IN_OTHER_WALLET = auto()
-from enum import Enum
 
 
 class RequestMethod(str, Enum):
