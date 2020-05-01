@@ -144,7 +144,7 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
-    @mock.patch('payment_card.metis.async_metis_request', autospec=True)
+    @mock.patch('payment_card.metis.metis_request', autospec=True)
     def test_delete_payment_card_accounts(self, mock_metis):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)
