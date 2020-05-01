@@ -6,3 +6,11 @@ class PaymentCardRoutes(Enum):
     DELETED_CARD = auto()
     ALREADY_IN_WALLET = auto()
     EXISTS_IN_OTHER_WALLET = auto()
+
+
+class RequestMethod(str, Enum):
+    GET = 'GET'
+    POST = 'POST'
+    PATCH = 'PATCH'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
