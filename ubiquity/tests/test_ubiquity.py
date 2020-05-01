@@ -992,8 +992,8 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 1)
 
-    @patch('requests.delete')
-    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_request_delete):
+    @patch('payment_card.metis.async_metis_request', autospec=True)
+    def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_metis):
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
                                                       scheme_account=self.scheme_account)
 
@@ -1001,13 +1001,13 @@ class TestResources(APITestCase):
                                   data="{}",
                                   content_type='application/json', **self.auth_headers)
 
-        self.assertTrue(mock_request_delete.called)
+        self.assertTrue(mock_metis.delay.called)
         self.assertEqual(resp.status_code, 200)
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 
-    @patch('requests.delete')
+    @patch('payment_card.metis.async_metis_request', autospec=True)
     def test_payment_card_delete_by_id(self, _):
         pca = PaymentCardAccountFactory()
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
@@ -1016,7 +1016,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(pca.is_deleted)
 
-    @patch('requests.delete')
+    @patch('payment_card.metis.async_metis_request', autospec=True)
     @patch('ubiquity.views.get_secret_key')
     def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'

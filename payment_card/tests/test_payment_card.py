@@ -1,4 +1,5 @@
-import httpretty
+from unittest import mock
+
 from django.conf import settings
 from django.utils import timezone
 from rest_framework.test import APITestCase
@@ -143,11 +144,8 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data[0], 'Invalid status code sent.')
 
-    @httpretty.activate
-    def test_delete_payment_card_accounts(self):
-        # Setup stub for HTTP request to METIS service within ListCreatePaymentCardAccount view.
-        httpretty.register_uri(httpretty.DELETE, settings.METIS_URL + '/payment_service/payment_card', status=204)
-
+    @mock.patch('payment_card.metis.async_metis_request', autospec=True)
+    def test_delete_payment_card_accounts(self, mock_metis):
         response = self.client.delete('/payment_cards/accounts/{0}'.format(self.payment_card_account.id),
                                       **self.auth_headers)
 
@@ -157,7 +155,7 @@ class TestPaymentCard(APITestCase):
 
         self.assertEqual(response.status_code, 404)
         # The stub is called indirectly via the View so we can only verify the stub has been called
-        self.assertTrue(httpretty.has_request())
+        self.assertTrue(mock_metis.delay.called)
 
     def test_cant_delete_other_payment_card_account(self):
         payment_card = factories.PaymentCardAccountFactory(payment_card=self.payment_card)
