@@ -183,14 +183,6 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         }
 
 
-# not used for now but will be needed
-# class ListPaymentCardSerializer(PaymentCardSerializer):
-#     @staticmethod
-#     def _get_images(instance):
-#         payment_card_images = PaymentCardImage.objects.filter(payment_card=instance.payment_card)
-#         return [image.id for image in payment_card_images]
-
-
 class PaymentCardTranslationSerializer(serializers.Serializer):
     pan_start = serializers.CharField(source='first_six_digits')
     pan_end = serializers.CharField(source='last_four_digits')
