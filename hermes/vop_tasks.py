@@ -36,7 +36,17 @@ def vop_activate(entries: Iterable[PaymentCardSchemeEntry]):
             'scheme_account_id': entry.scheme_account.id
         }
 
-        send_activation.delay(entry, data)
+
+def deactivate_delete_link(entry: PaymentCardSchemeEntry):
+    if entry.payment_card_account.payment_card.slug == "visa":
+        send_deactivation.delay(entry)
+    else:
+        entry.delete()
+
+
+def deactivate_vop_list(entries: PaymentCardSchemeEntry):
+    for entry in entries:
+        send_deactivation.delay(entry)
 
 
 @shared_task
@@ -48,3 +58,26 @@ def send_activation(entry: PaymentCardSchemeEntry, data: dict):
     if rep.status_code == 201:
         entry.vop_link = PaymentCardSchemeEntry.ACTIVATED
         entry.save()
+
+
+@shared_task
+def send_deactivation(entry: PaymentCardSchemeEntry):
+    entry.vop_link = PaymentCardSchemeEntry.DEACTIVATING
+    entry.save()
+    data = {
+        'payment_token': entry.payment_card_account.psp_token,
+        'merchant_slug': entry.scheme_account.scheme.slug,
+        'association_id': entry.id,
+        'payment_card_account_id': entry.payment_card_account.id,
+        'scheme_account_id': entry.scheme_account.id
+    }
+    retry_count = 3
+    while retry_count:
+        rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
+                            json=data,
+                            headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+                                     'Content-Type': 'application/json'})
+        retry_count -= 1
+        if rep.status_code == 201:
+            retry_count = 0
+    entry.delete()

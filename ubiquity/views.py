@@ -21,6 +21,7 @@ import analytics
 from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
+from hermes.vop_tasks import deactivate_delete_link, deactivate_vop_list
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
@@ -350,7 +351,12 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
             cards_to_unlink.append(card.id)
 
-        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        # VOP deactivate
+        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete)
+        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
+        deactivate_vop_list(vop_links)
+        links_to_remove.delete()
+
         SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
         SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
 
@@ -697,7 +703,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         query = {
             'payment_card_account__user_set__id__in': m_card_users
         }
-        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query).delete()
+
+        #VOP deactivate
+        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query)
+        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
+        deactivate_vop_list(vop_links)
+        links_to_remove.delete()
         super().delete(request, *args, **kwargs)
 
         if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
@@ -1056,8 +1067,9 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
         except PaymentCardSchemeEntry.DoesNotExist:
             raise NotFound('The link that you are trying to delete does not exist.')
-
-        link.delete()
+        # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
+        # in list with activated status - if so call deactivate and then delete link
+        deactivate_delete_link(link)
         return pcard, mcard
 
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
