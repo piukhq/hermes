@@ -704,7 +704,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             'payment_card_account__user_set__id__in': m_card_users
         }
 
-        #VOP deactivate
+        # VOP deactivate
         links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query)
         vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
         deactivate_vop_list(vop_links)

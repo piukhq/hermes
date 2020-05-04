@@ -35,6 +35,7 @@ def vop_activate(entries: Iterable[PaymentCardSchemeEntry]):
             'payment_card_account_id': entry.payment_card_account.id,
             'scheme_account_id': entry.scheme_account.id
         }
+        send_activation.delay(entry, data)
 
 
 def deactivate_delete_link(entry: PaymentCardSchemeEntry):

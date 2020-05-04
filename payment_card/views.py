@@ -323,6 +323,16 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = serializers.PaymentCardAccountStatusSerializer
 
+    def _vop_activate_check(self):
+        entries = PaymentCardSchemeEntry.objects.filter(
+            payment_card_accoun=self,
+            scheme_account__status=SchemeAccount.ACTIVE,
+            vop_link=PaymentCardSchemeEntry.UNDEFINED
+        )
+
+        if entries:
+            vop_activate(entries)
+
     def put(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
@@ -347,14 +357,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.save()
 
             if new_status_code == payment_card_account.ACTIVE and payment_card_account.payment_card.slug == "visa":
-                entries = PaymentCardSchemeEntry.objects.filter(
-                    payment_card_accoun=self,
-                    scheme_account__status=SchemeAccount.ACTIVE,
-                    vop_link=PaymentCardSchemeEntry.UNDEFINED
-                )
-
-                if entries:
-                    vop_activate(entries)
+                self._vop_activate_check()
 
         return Response({
             'id': payment_card_account.id,
