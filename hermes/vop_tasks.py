@@ -45,6 +45,7 @@ def deactivate_delete_link(entry: PaymentCardSchemeEntry):
 
 
 def deactivate_vop_list(entries: PaymentCardSchemeEntry):
+    # pass list ans send to deactivate. should we delete now? should we check for last card here
     for entry in entries:
         send_deactivation.delay(entry)
 
