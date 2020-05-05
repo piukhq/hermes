@@ -876,6 +876,8 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
+    @patch('hermes.vop_tasks.send_deactivation', autospec=True)
+    @patch('hermes.vop_tasks.send_activation', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
@@ -958,8 +960,7 @@ class TestResources(APITestCase):
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 1)
-    """
-    This test seems to be causing a failure on release not local
+
     def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self):
 
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
@@ -973,7 +974,7 @@ class TestResources(APITestCase):
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
-    """
+
     def test_payment_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
         external_id = 'test2@user.com'
         user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
