@@ -962,14 +962,14 @@ class TestResources(APITestCase):
         self.assertEqual(len(link), 1)
 
     def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self):
-
+        print("in test")
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
                                                       scheme_account=self.scheme_account)
-
+        print(f"entry created for {entry.payment_card_account.payment_card.slug}")
         resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
                                   data="{}",
                                   content_type='application/json', **self.auth_headers)
-
+        print(f"resp obtained {resp.status_code}")
         self.assertEqual(resp.status_code, 200)
 
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
