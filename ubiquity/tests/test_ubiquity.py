@@ -976,7 +976,6 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 
-
     def test_payment_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
         external_id = 'test2@user.com'
         user_2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)

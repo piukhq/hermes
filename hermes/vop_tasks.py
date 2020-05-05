@@ -47,11 +47,9 @@ def deactivate_delete_link(entry: PaymentCardSchemeEntry):
 
 def deactivate_vop_list(entries: PaymentCardSchemeEntry):
     # pass list and send to deactivate.
-    pass
-    """
     for entry in entries:
-        send_deactivation.delay(entry)
-    """
+        send_deactivation(entry)
+
 
 @shared_task
 def send_activation(entry: PaymentCardSchemeEntry, data: dict):
@@ -66,8 +64,6 @@ def send_activation(entry: PaymentCardSchemeEntry, data: dict):
 
 @shared_task
 def send_deactivation(entry: PaymentCardSchemeEntry):
-    pass
-    """
     entry.vop_link = PaymentCardSchemeEntry.DEACTIVATING
     entry.save()
     data = {
@@ -87,4 +83,3 @@ def send_deactivation(entry: PaymentCardSchemeEntry):
         if rep.status_code == 201:
             retry_count = 0
     entry.delete()
-    """
