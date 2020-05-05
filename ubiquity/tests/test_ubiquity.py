@@ -876,8 +876,6 @@ class TestResources(APITestCase):
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    # @patch('hermes.vop_tasks.send_deactivation', autospec=True)
-    @patch('hermes.vop_tasks.send_activation', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
@@ -961,18 +959,14 @@ class TestResources(APITestCase):
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 1)
 
-    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self):
-        print("in test")
+    @patch('ubiquity.views.deactivate_vop_list', autospec=True)
+    def test_membership_card_delete_removes_link_for_cards_not_shared_between_users(self, *_):
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
                                                       scheme_account=self.scheme_account)
-        print(f"entry created for {entry.payment_card_account.payment_card.slug}")
-
         resp = self.client.delete(reverse('membership-card', args=[self.scheme_account.id]),
                                   data="{}",
                                   content_type='application/json', **self.auth_headers)
-        print(f"resp obtained {resp.status_code}")
         self.assertEqual(resp.status_code, 200)
-
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
 

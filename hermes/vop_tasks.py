@@ -48,7 +48,7 @@ def deactivate_delete_link(entry: PaymentCardSchemeEntry):
 def deactivate_vop_list(entries: PaymentCardSchemeEntry):
     # pass list and send to deactivate.
     for entry in entries:
-        send_deactivation(entry)
+        send_deactivation.delay(entry)
 
 
 @shared_task
