@@ -3,6 +3,8 @@ import logging
 import requests
 from django.conf import settings
 
+from hermes.channel_vault import get_secret_key, SecretKeyName
+
 
 class SpreedlyError(Exception):
     UNSUCCESSFUL_RESPONSE = "Spreedly has responded with unsuccessful purchase"
@@ -25,7 +27,11 @@ class Spreedly:
         self.transaction_token = ''
 
     def purchase(self, payment_token: str, amount: int, order_id: str,
-                 gateway_token: str = settings.SPREEDLY_GATEWAY_TOKEN) -> None:
+                 gateway_token: str = None) -> None:
+
+        if gateway_token is None:
+            gateway_token = get_secret_key(SecretKeyName.SPREEDLY_GATEWAY_TOKEN)
+
         payload = {
             "transaction": {
                 "payment_method_token": payment_token,

@@ -25,8 +25,6 @@ from common.models import Image
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme import vouchers
-
-from ubiquity.models import PaymentCardSchemeEntry
 from hermes.vop_tasks import vop_check_scheme
 
 
