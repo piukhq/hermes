@@ -271,3 +271,29 @@ class PaymentAudit(models.Model):
         return 'PaymentAudit id: {} - User id: {} - SchemeAccount id: {}'.format(
             self.id, self.user_id, self.scheme_account_id
         )
+
+
+class PeriodicRetryStatus(IntEnum):
+    REQUIRED = 0      # Retry is required
+    PENDING = 1       # Retry has been queued but is pending
+    SUCCESSFUL = 2    # Retry was successful
+    FAILED = 3        # Retry attempt failed
+
+
+class PeriodicRetry(models.Model):
+    task_group = models.CharField(max_length=255)    # for identifying a group of tasks
+    status = models.IntegerField(
+        choices=[(status.value, status.name) for status in PeriodicRetryStatus],
+        default=PeriodicRetryStatus.REQUIRED
+    )
+    module = models.CharField(max_length=64)
+    function = models.CharField(max_length=64)
+    data = JSONField(default=dict, null=True, blank=True)
+    retry_count = models.IntegerField(default=0, null=True, blank=True)
+    max_retry_attempts = models.IntegerField(null=True, blank=True)
+
+    # Retry is done via polling which will not allow retrying at an exact time.
+    # next_retry_after indicates a minimum time before the next retry attempt.
+    next_retry_after = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+    modified_on = models.DateTimeField(auto_now=True)

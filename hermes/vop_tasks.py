@@ -1,6 +1,7 @@
 import requests
 from celery import shared_task
 from django.conf import settings
+
 from ubiquity.models import PaymentCardSchemeEntry
 from typing import Iterable
 
@@ -83,3 +84,7 @@ def send_deactivation(entry: PaymentCardSchemeEntry):
         if rep.status_code == 201:
             retry_count = 0
     entry.delete()
+
+
+def retry_request_function(arg1, arg2):
+    print("Retrying something")

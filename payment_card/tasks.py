@@ -6,8 +6,8 @@ import arrow
 from celery import shared_task
 from django.conf import settings
 
-from hermes.tasks import RetryTaskStore
-from payment_card.models import PaymentAudit, PaymentStatus
+from hermes.tasks import RetryTaskStore, RetryTaskList, PeriodicRetryHandler
+from payment_card.models import PaymentAudit, PaymentStatus, PeriodicRetry, PeriodicRetryStatus
 from payment_card.payment import Payment, PaymentError
 from scheme.models import SchemeAccount
 
@@ -56,3 +56,37 @@ def expired_payment_void_task() -> None:
         except PaymentError:
             transaction_data = {'scheme_acc_id': payment_audit.scheme_account_id}
             task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
+
+
+@shared_task
+def retry_metis_request_tasks() -> None:
+    periodic_retry_handler = PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS)
+
+    requests_to_retry = PeriodicRetry.objects.filter(
+        task_group=RetryTaskList.METIS_REQUESTS,
+        status=PeriodicRetryStatus.REQUIRED
+    )
+
+    # tasks_in_queue = task_store.storage.lrange(task_store.task_list, 0, task_store.length)
+    #
+    # ids_in_queue = []
+    # for task in tasks_in_queue:
+    #     task_data = json.loads(task)
+    #     if task_data.get("periodic_retry_id"):
+    #         ids_in_queue.append(task_data["periodic_retry_id"])
+
+    tasks_in_queue = periodic_retry_handler.get_tasks_in_queue()
+    ids_in_queue = [task["id"] for task in tasks_in_queue]
+
+    for retry_info in requests_to_retry:
+        if retry_info.id in ids_in_queue:
+            # request is already queued for a retry
+            continue
+
+        periodic_retry_handler.new(
+            module_name=retry_info.module,
+            function_name=retry_info.function,
+            data=retry_info.data
+        )
+
+    periodic_retry_handler.call_all_tasks()
