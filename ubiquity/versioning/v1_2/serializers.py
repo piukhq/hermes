@@ -1,3 +1,4 @@
+from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
 
 from rest_framework import serializers
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
 ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionsSerializer = base_serializers.TransactionsSerializer
+
+pool = ProcessPoolExecutor(max_workers=4)
 
 
 class MembershipPlanContentSerializer(serializers.ModelSerializer):
@@ -59,6 +62,7 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
 
 
 class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSerializer):
+    FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
     pan_start = serializers.SerializerMethodField()
     pan_end = serializers.SerializerMethodField()
     expiry_year = serializers.SerializerMethodField()
@@ -66,38 +70,15 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     hash = serializers.SerializerMethodField()
 
     def get_payment_card(self, obj):
-        pan_start = self.context.get('decrypted_pan_start')
-        if not pan_start:
-            pan_start = self._decrypt_val(obj['first_six_digits'])
-            self.context['decrypted_pan_start'] = pan_start
-        slug = bin_to_provider(pan_start)
+        slug = bin_to_provider(obj['first_six_digits'])
         return PaymentCard.objects.values('id').get(slug=slug)['id']
 
-    def get_pan_start(self, obj):
-        # pan_start stored in context so it is only decrypted once as it is also used
-        # in get_payment_card
-        pan_start = self.context.get('decrypted_pan_start')
-        if not pan_start:
-            pan_start = self._decrypt_val(obj['first_six_digits'])
-            self.context['decrypted_pan_start'] = pan_start
-        return pan_start
-
-    def get_pan_end(self, obj):
-        return self._decrypt_val(obj['last_four_digits'])
-
-    def get_expiry_year(self, obj):
-        return int(self._decrypt_val(obj['year']))
-
-    def get_expiry_month(self, obj):
-        return int(self._decrypt_val(obj['month']))
-
-    def get_hash(self, obj):
-        hash1 = self._decrypt_val(obj["hash"])
-        hash2 = BLAKE2sHash().new(
-            obj=hash1,
+    @staticmethod
+    def get_hash(obj):
+        return BLAKE2sHash().new(
+            obj=obj["hash"],
             key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
         )
-        return hash2
 
     def _decrypt_val(self, val):
         if not self.context.get('rsa'):
@@ -106,3 +87,19 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         key = get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
         rsa = self.context['rsa']
         return rsa.decrypt(val, rsa_key=key)
+
+    def to_representation(self, data):
+        keys = []
+        values = []
+
+        for k, v in data.items():
+            if k in self.FIELDS_TO_DECRYPT:
+                keys.append(k)
+                values.append(v)
+
+        decrypted_values = pool.map(self._decrypt_val, values)
+
+        for k in keys:
+            data[k] = next(decrypted_values)
+
+        return super().to_representation(data)
