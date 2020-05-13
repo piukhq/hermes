@@ -37,11 +37,14 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
+from ubiquity.versioning.base.serializers import TransactionsSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class SchemeAccountQuery(APIView):
@@ -476,6 +479,29 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 logging.exception('Failed to send join data to thanatos.')
                 if settings.HERMES_SENTRY_DSN:
                     sentry_sdk.capture_exception()
+
+
+class UpdateSchemeAccountTransactions(GenericAPIView):
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+    serializer_class = TransactionsSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        scheme_account_id = int(kwargs["pk"])
+        transactions = request.data["transactions"]
+
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
+        logger.info(f"Updating transactions for scheme account (id={scheme_account_id})")
+
+        validated_transactions = self.get_serializer(transactions, multiple=True)
+
+        return Response({
+            "id": scheme_account.id,
+            "transactions": transactions
+        })
 
 
 class Pagination(PageNumberPagination):

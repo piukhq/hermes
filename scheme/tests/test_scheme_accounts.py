@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
@@ -458,6 +459,30 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertFalse(mock_sentry.capture_exception.called)
         self.assertTrue(mock_post.called)
+
+
+    def test_scheme_account_update_transactions(self):
+        expected_resp = {
+            "id": self.scheme_account1.id,
+            "transactions": []
+        }
+
+        response = self.client.post(
+            reverse("update_account_transactions", kwargs={"pk": self.scheme_account1.id}),
+            data={"transactions": []},
+            format="json",
+            **self.auth_service_headers
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, expected_resp)
+
+    def test_scheme_account_update_transactions_invalid_scheme_account_returns_error(self):
+        pass
+
+    def test_scheme_account_update_transactions_invalid_transactions_returns_error(self):
+        pass
+
 
     def test_scheme_accounts_active(self):
         scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)

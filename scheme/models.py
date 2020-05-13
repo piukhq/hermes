@@ -424,6 +424,7 @@ class SchemeAccount(models.Model):
     vouchers = JSONField(default=dict, null=True, blank=True)
     card_number = models.CharField(max_length=250, blank=True, default='')
     barcode = models.CharField(max_length=250, blank=True, default='')
+    transactions = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):
