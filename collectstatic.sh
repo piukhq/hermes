@@ -6,4 +6,4 @@ chmod 600 /root/.ssh/id_rsa
 ssh-keyscan git.bink.com > /root/.ssh/known_hosts
 pip install pipenv
 pipenv install --system --deploy --ignore-pipfile
-python manage.py collectstatic --noinput
+pipenv run python manage.py collectstatic --noinput
