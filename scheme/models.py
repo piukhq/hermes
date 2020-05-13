@@ -182,6 +182,12 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
+    @property
+    def get_required_questions(self):
+        return self.questions.filter(
+            Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
+        ).values('type')
+
     def get_question_type_dict(self):
         return {
             question.label: {
@@ -415,6 +421,8 @@ class SchemeAccount(models.Model):
     # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
     vouchers = JSONField(default=dict, null=True, blank=True)
+    card_number = models.CharField(max_length=250, blank=True, default='')
+    barcode = models.CharField(max_length=250, blank=True, default='')
 
     @property
     def status_name(self):
@@ -634,6 +642,7 @@ class SchemeAccount(models.Model):
         journey = self.get_journey_type()
         balance = self.get_midas_balance(journey=journey)
         vouchers = None
+
         if balance:
             if "vouchers" in balance:
                 vouchers = self.make_vouchers_response(balance["vouchers"])
@@ -641,7 +650,14 @@ class SchemeAccount(models.Model):
 
             balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+
         return balance, vouchers
+
+    def update_barcode_and_card_number(self, needs_save):
+        self._update_card_number()
+        self._update_barcode()
+        if needs_save:
+            self.save(update_fields=['barcode', 'card_number'])
 
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -661,6 +677,7 @@ class SchemeAccount(models.Model):
             self.vouchers = vouchers
             needs_save = True
 
+        self.update_barcode_and_card_number(not needs_save)
         if needs_save:
             self.save()
 
@@ -791,24 +808,7 @@ class SchemeAccount(models.Model):
                     return None
         return barcode_answer.answer
 
-    @property
-    def card_number(self):
-        card_number_answer = self.card_number_answer
-        if card_number_answer:
-            return card_number_answer.answer
 
-        barcode = self.barcode_answer
-        if barcode and self.scheme.card_number_regex:
-            try:
-                regex_match = re.search(self.scheme.card_number_regex, barcode.answer)
-            except sre_constants.error:
-                return None
-            if regex_match:
-                try:
-                    return self.scheme.card_number_prefix + regex_match.group(1)
-                except IndexError:
-                    return None
-        return None
 
     def get_transaction_matching_user_id(self):
         bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
@@ -819,23 +819,54 @@ class SchemeAccount(models.Model):
 
         return user_id
 
-    @property
-    def barcode(self):
-        barcode_answer = self.barcode_answer
-        if barcode_answer:
-            return barcode_answer.answer
+    def _update_barcode(self):
+        barcode = self.schemeaccountcredentialanswer_set.filter(
+            question__type__in=[CARD_NUMBER, BARCODE]
+        ).values('question__type', 'answer').first()
 
-        card_number = self.card_number_answer
-        if card_number and self.scheme.barcode_regex:
+        if not barcode:
+            return None
+
+        if barcode['question__type'] == BARCODE:
+            self.barcode = barcode['answer']
+            self.save(update_fields=['barcode'])
+
+        elif barcode['question__type'] == CARD_NUMBER and self.scheme.barcode_regex:
             try:
-                regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+                regex_match = re.search(self.scheme.barcode_regex, barcode['answer'])
             except sre_constants.error:
                 return None
             if regex_match:
                 try:
-                    return self.scheme.barcode_prefix + regex_match.group(1)
+                    self.barcode = self.scheme.barcode_prefix + regex_match.group(1)
+                    self.save(update_fields=['barcode'])
                 except IndexError:
-                    return None
+                    pass
+
+        return None
+
+    def _update_card_number(self):
+        card_number = self.schemeaccountcredentialanswer_set.filter(
+            question__type__in=[CARD_NUMBER, BARCODE]
+        ).values('question__type', 'answer').first()
+
+        if not card_number:
+            return None
+
+        if card_number['question__type'] == CARD_NUMBER:
+            self.card_number = card_number['answer']
+
+        elif card_number['question__type'] == BARCODE and self.scheme.card_number_regex:
+            try:
+                regex_match = re.search(self.scheme.card_number_regex, card_number['answer'])
+            except sre_constants.error:
+                return None
+            if regex_match:
+                try:
+                    self.card_number = self.scheme.card_number_prefix + regex_match.group(1)
+                except IndexError:
+                    pass
+
         return None
 
     @property
