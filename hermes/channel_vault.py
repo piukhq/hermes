@@ -30,7 +30,6 @@ def init_vault():
 
 class ChannelVault:
     all_secrets = {}
-    loaded = False
 
     def __init__(self, config):
         try:
@@ -106,8 +105,6 @@ class ChannelVault:
 
             self.all_secrets["bundle_secrets"] = bundle_secrets
             self.all_secrets["secret_keys"] = secret_keys
-
-        self.loaded = True
 
     @staticmethod
     def _import_rsa_key(extern_key: t.Union[str, bytes]) -> RsaKey:
