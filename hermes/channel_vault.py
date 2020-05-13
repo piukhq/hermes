@@ -13,8 +13,6 @@ from shared_config_storage.vault.secrets import VaultError, read_vault
 
 logger = logging.getLogger(__name__)
 
-channel_vault = None
-
 
 class SecretKeyName(str, Enum):
     PCARD_HASH_SECRET = "PCARD_HASH_SECRET"
@@ -23,13 +21,9 @@ class SecretKeyName(str, Enum):
     SPREEDLY_GATEWAY_TOKEN = "SPREEDLY_GATEWAY_TOKEN"
 
 
-def init_vault():
-    global channel_vault
-    channel_vault = ChannelVault(settings.VAULT_CONFIG)
-
-
 class ChannelVault:
     all_secrets = {}
+    loaded = False
 
     def __init__(self, config):
         try:
@@ -106,12 +100,17 @@ class ChannelVault:
             self.all_secrets["bundle_secrets"] = bundle_secrets
             self.all_secrets["secret_keys"] = secret_keys
 
+        self.loaded = True
+
     @staticmethod
     def _import_rsa_key(extern_key: t.Union[str, bytes]) -> RsaKey:
         try:
             return RSA.import_key(extern_key)
         except (ValueError, IndexError, TypeError) as e:
             raise VaultError("Could not import private RSA key") from e
+
+
+channel_vault = ChannelVault(settings.VAULT_CONFIG)
 
 
 def get_jwt_secret(bundle_id):
