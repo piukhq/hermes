@@ -25,7 +25,7 @@ urlpatterns = [
     ),
     re_path(r"^/?$", views.SchemesList.as_view(), name="list_schemes"),
     re_path(r"^/(?P<pk>[0-9]+)$", views.RetrieveScheme.as_view(), name="retrieve_scheme"),
-    re_path(r"^/accounts/(?P<pk>[0-9]+)/link", views.LinkCredentials.as_view(), name="create_question"),
+    # re_path(r"^/accounts/(?P<pk>[0-9]+)/link", views.LinkCredentials.as_view(), name="create_question"),
     re_path(r"^/user_consent/(?P<pk>[0-9]+)$", views.UpdateUserConsent.as_view(), name="update_user_consent"),
     re_path(r"^/accounts/summary", views.SchemeAccountStatusData.as_view(), name="schemes_status_summary"),
     re_path(r"^/images/reference", views.ReferenceImages.as_view()),

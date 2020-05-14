@@ -262,6 +262,7 @@ class SchemeAccountJoinMixin:
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
                             serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
 
+        scheme_account.update_barcode_and_card_number()
         try:
             payment_card_hash = data['credentials'].get(PAYMENT_CARD_HASH)
             if payment_card_hash:
@@ -421,8 +422,7 @@ class UpdateCredentialsMixin:
 
         return {'updated': updated_credentials}
 
-    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme_id: int) -> dict:
-        scheme = get_object_or_404(Scheme, id=scheme_id)
+    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
         self._check_required_data_presence(scheme, data)
 
         if scheme_account.scheme != scheme:

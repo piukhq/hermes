@@ -14,7 +14,7 @@ from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CRED
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, UserConsent, SchemeBundleAssociation, )
-from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer, ResponseLinkSerializer
+from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory)
@@ -22,8 +22,7 @@ from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle
-from user.tests.factories import (SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory,
-                                  ClientApplicationBundleFactory)
+from user.tests.factories import (SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory)
 
 
 class TestSchemeAccountViews(APITestCase):
@@ -93,6 +92,7 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
                                                                        status=SchemeBundleAssociation.ACTIVE)
 
+        cls.scheme_account1.update_barcode_and_card_number()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
         super().setUpClass()
 
@@ -176,7 +176,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(type(response.data), ReturnDict)
         self.assertEqual(response.data['id'], self.scheme_account.id)
-        self.assertIsNone(response.data['barcode'])
+        self.assertEqual(response.data['barcode'], '')
         self.assertEqual(response.data['card_label'], self.scheme_account_answer.answer)
         self.assertNotIn('is_deleted', response.data)
         self.assertEqual(response.data['scheme']['id'], self.scheme.id)
@@ -197,31 +197,6 @@ class TestSchemeAccountViews(APITestCase):
         self.scheme.save()
         self.user.is_tester = False
         self.user.save()
-
-    @patch('analytics.api.update_attributes')
-    @patch('analytics.api._get_today_datetime')
-    def test_delete_schemes_account(self, mock_date, mock_update_attr):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        response = self.client.delete('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
-
-        self.assertEqual(
-            mock_update_attr.call_args[0][1],
-            {
-                '{0}'.format(self.scheme_account.scheme.company):
-                    'true,ACTIVE,2000/05/19,{},prev_None,current_ACTIVE'.format(
-                        self.scheme_account.scheme.slug)
-            }
-        )
-
-        deleted_scheme_account = SchemeAccount.all_objects.get(id=self.scheme_account.id)
-
-        self.assertEqual(response.status_code, 204)
-        self.assertTrue(deleted_scheme_account.is_deleted)
-
-        response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
-        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id), **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
 
     @patch('scheme.views.analytics.update_scheme_account_attribute')
     def test_service_delete_schemes_account(self, mock_update_attribute):
@@ -245,268 +220,6 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.delete('/schemes/accounts/{0}/service'.format(123456), **self.auth_service_headers)
         self.assertFalse(mock_update_attribute.called)
         self.assertEqual(response.status_code, 404)
-
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_no_consents(self, mock_get_midas_balance, mock_date):
-        link_scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
-        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=link_scheme_account)
-        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
-        data = {
-            CARD_NUMBER: "London",
-            PASSWORD: "sdfsdf",
-        }
-
-        self.assertIsNone(link_scheme_account.link_date)
-        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
-                                    data=data, **auth_headers, format='json')
-
-        self.assertEqual(response.status_code, 201)
-        link_scheme_account.refresh_from_db()
-        self.assertTrue(link_scheme_account.link_date)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
-        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-        self.assertIsNone(response.data.get('barcode'))
-
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_scheme_account_with_consents(self, mock_get_midas_balance, mock_date):
-        link_scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=BARCODE, options=SchemeCredentialQuestion.LINK)
-        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
-        link_scheme_account_entry = SchemeAccountEntryFactory(scheme_account=link_scheme_account)
-        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account_entry.user.create_token()}
-        data = {
-            BARCODE: "1234567",
-        }
-
-        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
-                                    data=data, **auth_headers, format='json')
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
-        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-        self.assertTrue(response.data.get('barcode'))
-
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_display_status(self, mock_get_midas_balance, mock_date):
-        link_scheme = SchemeFactory()
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=USER_NAME, manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=CARD_NUMBER, options=SchemeCredentialQuestion.LINK)
-        SchemeCredentialQuestionFactory(scheme=link_scheme, type=PASSWORD, options=SchemeCredentialQuestion.LINK)
-        link_scheme_account = SchemeAccountFactory(scheme=link_scheme)
-        link_scheme_account_entry = SchemeAccountEntryFactory(scheme_account=link_scheme_account)
-        SchemeCredentialAnswerFactory(question=link_scheme.manual_question, scheme_account=link_scheme_account)
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-        SchemeBundleAssociationFactory(scheme=link_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + link_scheme_account_entry.user.create_token()}
-        data = {
-            CARD_NUMBER: "London",
-            PASSWORD: "sdfsdf",
-        }
-
-        response = self.client.post('/schemes/accounts/{0}/link'.format(link_scheme_account.id),
-                                    data=data, **auth_headers, format='json')
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
-        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-
-    @patch('analytics.api.update_attributes')
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_link_schemes_account_error_displays_status(self, mock_get_balance, mock_date, mock_update_attr):
-        mappings = [
-            {'mock_response': SchemeAccount.ACTIVE, 'expected_display_status': SchemeAccount.ACTIVE},
-            {'mock_response': SchemeAccount.END_SITE_DOWN, 'expected_display_status': SchemeAccount.WALLET_ONLY},
-            {'mock_response': SchemeAccount.INVALID_CREDENTIALS, 'expected_display_status': SchemeAccount.WALLET_ONLY},
-            {'mock_response': SchemeAccount.JOIN, 'expected_display_status': SchemeAccount.JOIN}
-        ]
-
-        for item in mappings:
-            scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
-            scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-            SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
-                                          scheme_account=scheme_account)
-
-            mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-            auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
-            data = {
-                CARD_NUMBER: "1234",
-                PASSWORD: "abcd",
-            }
-
-            mock_get_balance.return_value.status_code = item['mock_response']
-            response = self.client.post('/schemes/accounts/{0}/link'.format(scheme_account.id),
-                                        data=data, **auth_headers, format='json')
-
-            self.assertEqual(response.status_code, 201)
-            scheme_account.refresh_from_db()
-            self.assertEqual(scheme_account.status, item['mock_response'])
-            self.assertEqual(response.data['display_status'], item['expected_display_status'])
-
-    @patch('analytics.api.update_attributes')
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_with_consents(self, mock_get_midas_balance, mock_date, mock_update_attr):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = {
-            'value': Decimal('10'),
-            'points': Decimal('100'),
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': Decimal('20'),
-            'is_stale': False
-        }
-
-        test_reply = True
-        test_reply2 = False
-        consent1 = ConsentFactory.create(scheme=self.scheme_account.scheme, slug=secrets.token_urlsafe())
-        consent2 = ConsentFactory.create(scheme=self.scheme_account.scheme, slug=secrets.token_urlsafe(),
-                                         required=False)
-
-        data = {
-            CARD_NUMBER: "London",
-            PASSWORD: "sdfsdf",
-            "consents": [
-                {"id": "{}".format(self.consent.id), "value": test_reply},
-                {"id": "{}".format(consent1.id), "value": test_reply},
-                {"id": "{}".format(consent2.id), "value": test_reply2}
-            ]
-        }
-
-        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                    data=data, **self.auth_headers, format='json')
-
-        set_values = UserConsent.objects.filter(scheme_account=self.scheme_account).values()
-        self.assertEqual(len(set_values), 5, "Incorrect number of consents found expected 5")
-        saved_consents = [self.consent, consent1, consent2]
-        for consent in saved_consents:
-            user_consent = UserConsent.objects.get(scheme_account=self.scheme_account, slug=consent.slug)
-            self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
-            if consent is consent2:
-                self.assertEqual(user_consent.value, test_reply2)
-            else:
-                self.assertEqual(user_consent.value, test_reply)
-
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['balance']['points'], '100.00')
-        self.assertEqual(response.data['status_name'], "Active")
-        self.assertTrue(ResponseLinkSerializer(data=response.data).is_valid())
-        self.assertIsNone(response.data.get('barcode'))
-
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_link_schemes_account_error_deletes_pending_consents(self, mock_get_midas_balance, mock_date, ):
-        error_scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.INVALID_CREDENTIALS)
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_midas_balance.return_value = None
-
-        metadata = {'journey': JourneyTypes.LINK.value}
-        success_scheme_account_user_consent = UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata,
-                                                                 status=ConsentStatus.SUCCESS)
-        SchemeAccountEntryFactory(scheme_account=error_scheme_account, user=success_scheme_account_user_consent.user)
-        UserConsentFactory(scheme_account=error_scheme_account, metadata=metadata, status=ConsentStatus.PENDING)
-
-        bundle_id = 'test_link_fake'
-
-        bundle = ClientApplicationBundleFactory(bundle_id=bundle_id, client=self.bink_client_app)
-        SchemeBundleAssociationFactory(scheme=error_scheme_account.scheme, bundle=bundle,
-                                       status=SchemeBundleAssociation.ACTIVE)
-        test_reply = True
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' +
-                                              success_scheme_account_user_consent.user.create_token(
-                                                  bundle_id=bundle_id)}
-        data = {
-            CARD_NUMBER: "London",
-            PASSWORD: "sdfsdf",
-            "consents": [
-                {"id": "{}".format(self.consent.id), "value": test_reply},
-            ]
-        }
-
-        self.assertIsNone(error_scheme_account.link_date)
-        response = self.client.post('/schemes/accounts/{0}/link'.format(error_scheme_account.id),
-                                    data=data, **auth_headers, format='json')
-
-        self.assertEqual(response.status_code, 201)
-        error_scheme_account.refresh_from_db()
-        self.assertIsNone(error_scheme_account.link_date)
-        set_values = UserConsent.objects.filter(scheme_account=error_scheme_account).values()
-        self.assertEqual(len(set_values), 1, "Incorrect number of consents found expected 1")
-        successful_consent = set_values[0]
-        self.assertEqual(successful_consent['id'], success_scheme_account_user_consent.id)
-
-    @patch('analytics.api._get_today_datetime')
-    @patch.object(SchemeAccount, '_get_balance')
-    def test_link_schemes_account_pre_registered_card_error(self, mock_get_balance, mock_date):
-        scheme_account = SchemeAccountFactory(scheme=self.scheme, status=SchemeAccount.WALLET_ONLY)
-        scheme_account_entry = SchemeAccountEntryFactory(scheme_account=scheme_account)
-        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, answer='test',
-                                      scheme_account=scheme_account)
-
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
-        mock_get_balance.return_value.status_code = SchemeAccount.PRE_REGISTERED_CARD
-        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + scheme_account_entry.user.create_token()}
-        data = {
-            CARD_NUMBER: "1234",
-            PASSWORD: "abcd",
-        }
-
-        current_credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
-        self.assertEqual(len(current_credentials), 1)
-        response = self.client.post('/schemes/accounts/{0}/link'.format(scheme_account.id),
-                                    data=data, **auth_headers, format='json')
-
-        self.assertEqual(response.status_code, 201)
-        scheme_account.refresh_from_db()
-        self.assertEqual(scheme_account.status, SchemeAccount.PRE_REGISTERED_CARD)
-        self.assertEqual(scheme_account.display_status, SchemeAccount.JOIN)
-        credentials = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_account.id)
-        self.assertEqual(len(credentials), 1)
 
     def test_list_schemes_accounts(self):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
@@ -1313,24 +1026,6 @@ class TestSchemeAccountModel(APITestCase):
         scheme_account = SchemeAccountFactory(scheme=question.scheme)
         self.assertIsNone(scheme_account.card_label)
 
-    def test_barcode_from_barcode(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
-        SchemeCredentialAnswerFactory(question=question, answer='49932498', scheme_account=scheme_account)
-        self.assertEqual(scheme_account.barcode, '49932498')
-
-    def test_barcode_from_card_number(self):
-        scheme = SchemeFactory(barcode_regex='^634004([0-9]+)', barcode_prefix='9794')
-        scheme_account = SchemeAccountFactory(scheme=scheme)
-        SchemeCredentialAnswerFactory(question=SchemeCredentialQuestionFactory(scheme=scheme, type=CARD_NUMBER),
-                                      answer='634004025035765504', scheme_account=scheme_account)
-        self.assertEqual(scheme_account.barcode, '9794025035765504')
-
-    def test_barcode_none(self):
-        question = SchemeCredentialQuestionFactory(type=BARCODE)
-        scheme_account = SchemeAccountFactory(scheme=question.scheme)
-        self.assertIsNone(scheme_account.barcode)
-
     @patch.object(SchemeAccount, 'credentials', auto_spec=True, return_value=None)
     def test_get_midas_balance_no_credentials(self, mock_credentials):
         entry = SchemeAccountEntryFactory()
@@ -1452,6 +1147,7 @@ class TestAccessTokens(APITestCase):
         # Scheme Account 3
         cls.scheme_account_entry = SchemeAccountEntryFactory()
         cls.scheme_account = cls.scheme_account_entry.scheme_account
+
         question = SchemeCredentialQuestionFactory(type=CARD_NUMBER,
                                                    scheme=cls.scheme_account.scheme,
                                                    options=SchemeCredentialQuestion.LINK)
@@ -1520,34 +1216,6 @@ class TestAccessTokens(APITestCase):
         self.scheme_account.save()
 
     @patch.object(SchemeAccount, 'get_midas_balance')
-    @patch('analytics.api._send_to_mnemosyne')
-    def test_link_credentials(self, mock_send_to_mnemosyne, mock_get_midas_balance):
-        mock_get_midas_balance.return_value = {
-            'value': '10',
-            'points': '100',
-            'points_label': '100',
-            'value_label': "$10",
-            'reward_tier': 0,
-            'balance': '20',
-            'is_stale': False
-        }
-        data = {CARD_NUMBER: "London", 'consents': []}
-        # Test Post Method
-        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                    data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 201)
-        response = self.client.post('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                    data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
-        # Test Put Method
-        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account.id),
-                                   data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        response = self.client.put('/schemes/accounts/{0}/link'.format(self.scheme_account2.id),
-                                   data=data, **self.auth_headers)
-        self.assertEqual(response.status_code, 404)
-
-    @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_scheme_accounts_credentials(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
@@ -1585,7 +1253,6 @@ class TestAccessTokens(APITestCase):
                                         scan_question=True)
 
         self.scheme_account.scheme = scheme
-
         credentials = {'barcode': '633204003025524460012345'}
         new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'barcode': '633204003025524460012345',

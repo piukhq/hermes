@@ -186,7 +186,7 @@ class Scheme(models.Model):
     def get_required_questions(self):
         return self.questions.filter(
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
-        ).values('type')
+        ).values('id', 'type')
 
     def get_question_type_dict(self):
         return {
@@ -515,28 +515,19 @@ class SchemeAccount(models.Model):
         :param credentials: dict of credentials
         :return: credentials
         """
-        manual_question = self.scheme.manual_question
-        manual_answer = None
-        if manual_question:
-            manual_answer = credentials.get(manual_question.type)
+        new_creds = {
+            question['type']: credentials.get(question['type'])
+            for question in self.scheme.get_required_questions
+        }
 
-        scan_question = self.scheme.scan_question
-        scan_answer = None
-        if scan_question:
-            scan_answer = credentials.get(scan_question.type)
+        for k, v in new_creds.items():
+            if v:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.question(k),
+                    scheme_account=self,
+                    defaults={'answer': v})
 
-        if manual_question and manual_answer:
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=self.question(manual_question.type),
-                scheme_account=self,
-                defaults={'answer': credentials[manual_question.type]})
-
-        if scan_question and scan_answer:
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=self.question(scan_question.type),
-                scheme_account=self,
-                defaults={'answer': credentials[scan_question.type]})
-
+        self.update_barcode_and_card_number(True)
         regex_credentials = [
             'card_number',
             'barcode'
@@ -546,6 +537,7 @@ class SchemeAccount(models.Model):
             if not credentials.get(question) and value:
                 credentials.update({question: value})
 
+        self.update_barcode_and_card_number(True)
         return credentials
 
     def collect_pending_consents(self):
@@ -653,9 +645,16 @@ class SchemeAccount(models.Model):
 
         return balance, vouchers
 
-    def update_barcode_and_card_number(self, needs_save):
-        self._update_card_number()
-        self._update_barcode()
+    def _get_required_question_ids(self):
+        return {
+            question.type: question.id
+            for question in self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE])
+        }
+
+    def update_barcode_and_card_number(self, needs_save=True):
+        questions_ids = self._get_required_question_ids()
+        self._update_card_number(questions_ids)
+        self._update_barcode(questions_ids)
         if needs_save:
             self.save(update_fields=['barcode', 'card_number'])
 
@@ -817,12 +816,13 @@ class SchemeAccount(models.Model):
 
         return user_id
 
-    def _update_barcode(self):
+    def _update_barcode(self, questions_ids):
         barcode = self.schemeaccountcredentialanswer_set.filter(
-            question__type__in=[CARD_NUMBER, BARCODE]
-        ).values('question__type', 'answer').first()
+            question__id__in=questions_ids.values()
+        ).values('question__type', 'answer').order_by('question__type').first()
 
         if not barcode:
+            self.barcode = ''
             return None
 
         if barcode['question__type'] == BARCODE:
@@ -841,14 +841,16 @@ class SchemeAccount(models.Model):
                 except IndexError:
                     pass
 
-        return None
+        else:
+            self.barcode = ''
 
-    def _update_card_number(self):
+    def _update_card_number(self, questions_ids):
         card_number = self.schemeaccountcredentialanswer_set.filter(
-            question__type__in=[CARD_NUMBER, BARCODE]
-        ).values('question__type', 'answer').first()
+            question__id__in=questions_ids.values()
+        ).values('question__type', 'answer').order_by('-question__type').first()
 
         if not card_number:
+            self.card_number = ''
             return None
 
         if card_number['question__type'] == CARD_NUMBER:
@@ -865,7 +867,8 @@ class SchemeAccount(models.Model):
                 except IndexError:
                     pass
 
-        return None
+        else:
+            self.card_number = ''
 
     @property
     def barcode_answer(self):

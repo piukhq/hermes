@@ -399,6 +399,8 @@ class TestResources(APITestCase):
         self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
                                                                         status=SchemeBundleAssociation.ACTIVE)
 
+        self.scheme_account.update_barcode_and_card_number()
+
         self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
         self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)

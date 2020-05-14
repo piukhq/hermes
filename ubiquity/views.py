@@ -700,6 +700,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
+        account.update_barcode_and_card_number()
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
     @censor_and_decorate
