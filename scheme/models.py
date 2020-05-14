@@ -3,11 +3,11 @@ import re
 import socket
 import sre_constants
 import uuid
-import requests
 from decimal import Decimal
 from enum import IntEnum
 
 import arrow
+import requests
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
 from django.conf import settings
@@ -22,9 +22,9 @@ from django.utils import timezone
 
 from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from common.models import Image
+from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
-from scheme import vouchers
 
 
 class Category(models.Model):
@@ -807,8 +807,6 @@ class SchemeAccount(models.Model):
                 except IndexError:
                     return None
         return barcode_answer.answer
-
-
 
     def get_transaction_matching_user_id(self):
         bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
