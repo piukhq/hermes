@@ -575,10 +575,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         serializer.is_valid(raise_exception=True)
 
         # my360 schemes should never come through this endpoint
-        if not self.current_scheme:
+        if not scheme:
             scheme = Scheme.objects.get(id=data['scheme'])
-        else:
-            scheme = self.current_scheme
 
         if scheme.url == settings.MY360_SCHEME_URL:
             metadata = {
@@ -792,13 +790,14 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         return {**out_fields['add_fields'], **out_fields['authorise_fields']}, None
 
-    def _collect_fields_and_determine_route(self) -> t.Tuple[Scheme, dict, dict, dict]:
+    def _collect_fields_and_determine_route(self) -> t.Tuple[Scheme, dict, dict, dict, list]:
 
         try:
             if not self.request.channels_permit.is_scheme_available(int(self.request.data['membership_plan'])):
                 raise ParseError('membership plan not allowed for this user.')
 
-            scheme = Scheme.objects.prefetch_related('questions').get(pk=self.request.data['membership_plan'])
+            scheme = Scheme.objects.get(pk=self.request.data['membership_plan'])
+            scheme_questions = scheme.questions.all()
             if not self.request.user.is_tester and scheme.test_scheme:
                 raise ParseError('membership plan not allowed for this user.')
 
@@ -807,8 +806,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         except (ValueError, Scheme.DoesNotExist):
             raise ParseError
 
-        add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
-        return scheme, auth_fields, enrol_fields, add_fields
+        add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(
+            self.request.data, scheme=scheme, scheme_questions=scheme_questions
+        )
+        return scheme, auth_fields, enrol_fields, add_fields, scheme_questions
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
@@ -830,13 +831,14 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-    def _handle_create_link_route(self, user: CustomUser, scheme_id: int, auth_fields: dict, add_fields: dict
+    def _handle_create_link_route(self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
 
-        data = {'scheme': scheme_id, 'order': 0, **add_fields}
-        serializer = self.get_validated_data(data, user)
+        data = {'scheme': scheme.id, 'order': 0, **add_fields}
+        serializer = self.get_validated_data(data, user, scheme=scheme)
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
+        scheme_account.update_barcode_and_card_number(self.scheme_questions)
 
         if auth_fields:
             if auth_fields.get('password'):
@@ -859,7 +861,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return scheme_account, return_status
 
     @staticmethod
-    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme_id: int, enrol_fields: dict
+    def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
         # PLR logic will be revisited before going live in other applications
@@ -867,13 +869,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             "fatface",
             "burger-king-rewards",
         ]
-        if Scheme.objects.get(pk=scheme_id).slug in plr_slugs:
+        if scheme.slug in plr_slugs:
             # at the moment, all PLR schemes provide email as an enrol field.
             # if this changes, we'll need to rework this code.
             email = enrol_fields["email"]
 
             other_accounts = SchemeAccount.objects.filter(
-                scheme_id=scheme_id,
+                scheme_id=scheme.id,
                 schemeaccountcredentialanswer__answer=email,
             )
             if other_accounts.exists():
@@ -888,7 +890,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         try:
             scheme_account = SchemeAccount.objects.get(
                 user_set__id=user.id,
-                scheme_id=scheme_id,
+                scheme_id=scheme.id,
                 status__in=SchemeAccount.JOIN_ACTION_REQUIRED
             )
             scheme_account.set_async_join_status()
@@ -896,7 +898,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             newly_created = True
             scheme_account = SchemeAccount(
                 order=0,
-                scheme_id=scheme_id,
+                scheme_id=scheme.id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
             )
 
@@ -905,14 +907,14 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account=scheme_account,
             user=user,
             permit=channels_permit,
-            scheme_id=scheme_id,
+            scheme_id=scheme.id,
         )
 
         if newly_created:
             scheme_account.save()
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(scheme_account.id, user.id, serializer, scheme_id, validated_data)
+        async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
@@ -940,15 +942,22 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             with open(settings.MANUAL_CHECK_CSV_PATH, 'a') as f:
                 f.write('\n"{}",pending'.format(email))
 
-    def _collect_credentials_answers(self, data: dict, scheme: Scheme = None) -> t.Tuple[
-        t.Optional[dict], t.Optional[dict], t.Optional[dict]
+    @staticmethod
+    def _get_manual_question(scheme_slug, scheme_questions):
+        for question in scheme_questions:
+            if question.manual_question:
+                return question.type
+
+        raise SchemeCredentialQuestion.DoesNotExist(
+            f'could not find the manual question for scheme: {scheme_slug}.'
+        )
+
+    def _collect_credentials_answers(self, data: dict, scheme: Scheme, scheme_questions: list
+                                     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]
     ]:
 
         try:
-            if not scheme:
-                scheme = get_object_or_404(Scheme, id=data['membership_plan'])
-
-            label_to_type = scheme.get_question_type_dict()
+            label_to_type = scheme.get_question_type_dict(scheme_questions)
             fields = {}
 
             for field_name in self.create_update_fields:
@@ -963,7 +972,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             return None, None, fields['enrol_fields']
 
         if not fields['add_fields'] and scheme.authorisation_required:
-            manual_question = scheme.questions.get(manual_question=True).type
+            manual_question = self._get_manual_question(scheme.slug, scheme_questions)
+
             try:
                 fields['add_fields'].update({manual_question: fields['authorise_fields'].pop(manual_question)})
             except KeyError:
@@ -978,7 +988,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if not data['account'].get(field):
             return {}
 
-        client_app = self.request.user.client
+        client_app = self.request.channels_permit.client
         data_provided = data['account'][field]
 
         consent_links = ThirdPartyConsentLink.objects.filter(scheme=scheme, client_app=client_app)
@@ -1025,6 +1035,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
 class ListMembershipCardView(MembershipCardView):
     current_scheme = None
+    scheme_questions = None
     authentication_classes = (PropertyAuthentication,)
     response_serializer = SelectSerializer.MEMBERSHIP_CARD
     override_serializer_classes = {
@@ -1039,25 +1050,25 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
-
+        scheme, auth_fields, enrol_fields, add_fields, scheme_questions = self._collect_fields_and_determine_route()
         self.current_scheme = scheme
+        self.scheme_questions = scheme_questions
+
         if enrol_fields:
             account, status_code = self._handle_create_join_route(
-                request.user, request.channels_permit, scheme.id, enrol_fields
+                request.user, request.channels_permit, scheme, enrol_fields
             )
         else:
             account, status_code = self._handle_create_link_route(
-                request.user, scheme.id, auth_fields, add_fields
+                request.user, scheme, auth_fields, add_fields
             )
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
-        if account.scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
+        if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
 
-        account.update_barcode_and_card_number(needs_save=True)
         return Response(self.get_serializer_by_request(account, context={'request': request}).data, status=status_code)
 
 

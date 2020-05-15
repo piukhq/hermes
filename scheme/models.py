@@ -188,13 +188,14 @@ class Scheme(models.Model):
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
         ).values('id', 'type')
 
-    def get_question_type_dict(self):
+    def get_question_type_dict(self, question_queryset=None):
+        queryset = question_queryset if question_queryset is not None else self.questions.all()
         return {
             question.label: {
                 "type": question.type,
                 "answer_type": question.answer_type
             }
-            for question in self.questions.all()
+            for question in queryset
         }
 
     def __str__(self):
@@ -645,18 +646,22 @@ class SchemeAccount(models.Model):
 
         return balance, vouchers
 
-    def _get_required_question_ids(self):
-        return {
-            question.type: question.id
-            for question in self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE])
-        }
+    def update_barcode_and_card_number(self, scheme_questions=None):
+        if scheme_questions is not None:
+            questions_ids = {
+                question.type: question.id
+                for question in scheme_questions
+                if question.type in [CARD_NUMBER, BARCODE]
+            }
+        else:
+            questions_ids = {
+                question['type']: question['id']
+                for question in self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE]).values('type', 'id')
+            }
 
-    def update_barcode_and_card_number(self, needs_save=True):
-        questions_ids = self._get_required_question_ids()
         self._update_card_number(questions_ids)
         self._update_barcode(questions_ids)
-        if needs_save:
-            self.save(update_fields=['barcode', 'card_number'])
+        self.save(update_fields=['barcode', 'card_number'])
 
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -676,7 +681,6 @@ class SchemeAccount(models.Model):
             self.vouchers = vouchers
             needs_save = True
 
-        self.update_barcode_and_card_number(not needs_save)
         if needs_save:
             self.save()
 

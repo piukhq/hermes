@@ -558,11 +558,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'payment_card_account__is_deleted': False
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
-        images = instance.scheme.images.all()
         exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
 
         if instance.status not in exclude_balance_statuses:
-            # instance.get_cached_balance()
             async_balance.delay(instance.id)
         try:
             reward_tier = instance.balances[0]['reward_tier']
@@ -571,6 +569,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         images = self._get_ubiquity_images(reward_tier, instance.scheme.images.all())
         balances = UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
+
+        if self.context['view'].current_scheme:
+            scheme = self.context['view'].current_scheme
+        else:
+            scheme = instance.scheme
 
         card_repr = {
             'id': instance.id,
@@ -581,8 +584,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'card': {
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
-                'barcode_type': instance.scheme.barcode_type,
-                'colour': instance.scheme.colour
+                'barcode_type': scheme.barcode_type,
+                'colour': scheme.colour
             },
             'images': images,
             'account': {
@@ -605,6 +608,10 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         scheme = self.context['view'].current_scheme
+        scheme_questions = self.context['view'].scheme_questions
+        if not scheme:
+            scheme = Scheme.objects.get(pk=data['scheme'])
+
         if scheme.id != data['scheme']:
             raise serializers.ValidationError("wrong scheme id")
 
@@ -615,17 +622,27 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
         answer_type = answer_types.pop()
         self.context['answer_type'] = answer_type
         # only allow one credential
-        if answer_type not in self.allowed_answers(scheme):
+        if answer_type not in self.allowed_answers(scheme, scheme_questions):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         return data
 
     @staticmethod
-    def allowed_answers(scheme):
-        return [
-            question['type']
-            for question in scheme.get_required_questions
-        ]
+    def allowed_answers(scheme, scheme_questions):
+        if scheme_questions:
+            return [
+                question.type
+                for question in scheme_questions
+                if any(map(
+                    lambda question_type: getattr(question, question_type),
+                    ['manual_question', 'scan_question', 'one_question_link']
+                ))
+            ]
+        else:
+            return [
+                question['type']
+                for question in scheme.get_required_questions(scheme_questions)
+            ]
 
 
 # todo adapt or remove
