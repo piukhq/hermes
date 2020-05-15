@@ -953,8 +953,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         )
 
     def _collect_credentials_answers(self, data: dict, scheme: Scheme, scheme_questions: list
-                                     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]
-    ]:
+                                     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
 
         try:
             label_to_type = scheme.get_question_type_dict(scheme_questions)

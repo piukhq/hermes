@@ -516,12 +516,12 @@ class SchemeAccount(models.Model):
         :param credentials: dict of credentials
         :return: credentials
         """
-        new_creds = {
+        new_credentials = {
             question['type']: credentials.get(question['type'])
             for question in self.scheme.get_required_questions
         }
 
-        for k, v in new_creds.items():
+        for k, v in new_credentials.items():
             if v:
                 SchemeAccountCredentialAnswer.objects.update_or_create(
                     question=self.question(k),
@@ -529,16 +529,11 @@ class SchemeAccount(models.Model):
                     defaults={'answer': v})
 
         self.update_barcode_and_card_number()
-        regex_credentials = [
-            'card_number',
-            'barcode'
-        ]
-        for question in regex_credentials:
+        for question in ['card_number', 'barcode']:
             value = getattr(self, question)
             if not credentials.get(question) and value:
                 credentials.update({question: value})
 
-        self.update_barcode_and_card_number()
         return credentials
 
     def collect_pending_consents(self):
