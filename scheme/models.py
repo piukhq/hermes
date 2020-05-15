@@ -528,7 +528,7 @@ class SchemeAccount(models.Model):
                     scheme_account=self,
                     defaults={'answer': v})
 
-        self.update_barcode_and_card_number(True)
+        self.update_barcode_and_card_number()
         regex_credentials = [
             'card_number',
             'barcode'
@@ -538,7 +538,7 @@ class SchemeAccount(models.Model):
             if not credentials.get(question) and value:
                 credentials.update({question: value})
 
-        self.update_barcode_and_card_number(True)
+        self.update_barcode_and_card_number()
         return credentials
 
     def collect_pending_consents(self):

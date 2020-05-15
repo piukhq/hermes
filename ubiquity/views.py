@@ -672,7 +672,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
+        scheme_id, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
         if not request.channels_permit.is_scheme_available(scheme_id):
             raise ParseError('membership plan not allowed for this user.')

@@ -38,6 +38,11 @@ class RequestMock:
     channels_permit = None
 
 
+class ChannelPermitMock:
+    def __init__(self, client=None):
+        self.client = client
+
+
 class MockApiCache:
     key = None
     expire = None
@@ -770,6 +775,7 @@ class TestResources(APITestCase):
         user = MagicMock()
         user.client = self.client_app
         request.user = user
+        request.channels_permit = ChannelPermitMock(self.client_app)
         view = MembershipCardView()
         view.request = request
 

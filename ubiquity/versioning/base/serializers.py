@@ -570,11 +570,12 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         images = self._get_ubiquity_images(reward_tier, instance.scheme.images.all())
         balances = UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
 
-        if self.context['view'].current_scheme:
-            scheme = self.context['view'].current_scheme
-        else:
-            scheme = instance.scheme
+        try:
+            current_scheme = self.context['view'].current_scheme
+        except (KeyError, AttributeError):
+            current_scheme = None
 
+        scheme = current_scheme if current_scheme is not None else instance.scheme
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme.id,
