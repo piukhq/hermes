@@ -527,8 +527,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def _get_transactions(self, instance):
-        if self.context.get('request') and instance.scheme.has_transactions:
+    def _get_transactions(self, instance, scheme):
+        if self.context.get('request') and scheme.has_transactions:
             transactions = self.get_transactions_data(self.context['request'].user.id, instance.id)
             if transactions:
                 return TransactionsSerializer(transactions, many=True).data
@@ -567,7 +567,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         except (ValueError, KeyError):
             reward_tier = 0
 
-        images = self._get_ubiquity_images(reward_tier, instance.scheme.images.all())
         balances = UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
 
         try:
@@ -576,11 +575,13 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
+
+        images = self._get_ubiquity_images(reward_tier, scheme.images.all())
         card_repr = {
             'id': instance.id,
-            'membership_plan': instance.scheme.id,
+            'membership_plan': instance.scheme_id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': self._get_transactions(instance),
+            'membership_transactions': self._get_transactions(instance, scheme),
             'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,
