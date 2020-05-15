@@ -187,6 +187,7 @@ class AutoLinkOnCreationMixin:
 
 
 class PaymentCardCreationMixin:
+
     @staticmethod
     def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> PaymentCardAccount:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
@@ -272,6 +273,19 @@ class PaymentCardCreationMixin:
             raise ParseError from e
 
         return pcard_data, consent
+
+
+class AllowedIssuersMixin:
+    stored_allowed_issuers = None
+
+    @property
+    def allowed_issuers(self):
+        if self.stored_allowed_issuers is None:
+            self.stored_allowed_issuers = list(
+                self.request.channels_permit.bundle.issuer.values_list('id', flat=True)
+            )
+
+        return self.stored_allowed_issuers
 
 
 class ServiceView(VersionedSerializerMixin, ModelViewSet):
@@ -385,18 +399,18 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
 
 class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
-                      AutoLinkOnCreationMixin, ModelViewSet):
+                      AutoLinkOnCreationMixin, AllowedIssuersMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
     response_serializer = SelectSerializer.PAYMENT_CARD
 
     def get_queryset(self):
         query = {}
-        if self.request.allowed_issuers:
-            query['issuer__in'] = self.request.allowed_issuers
+        if self.allowed_issuers:
+            query['issuer__in'] = self.allowed_issuers
 
         return self.request.channels_permit.payment_card_account_query(
-            self.queryset.filter(**query),
+            PaymentCardAccount.objects.filter(**query),
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -434,7 +448,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
         account = self.get_object()
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
-            allowed_issuers=request.allowed_issuers,
+            allowed_issuers=self.allowed_issuers,
             version=get_api_version(request),
             bundle_id=request.channels_permit.bundle_id
         )
@@ -482,15 +496,15 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
 
 class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
-                          AutoLinkOnCreationMixin, ModelViewSet):
+                          AutoLinkOnCreationMixin, AllowedIssuersMixin, ModelViewSet):
     authentication_classes = (PropertyAuthentication,)
     serializer_class = PaymentCardSerializer
     response_serializer = SelectSerializer.PAYMENT_CARD
 
     def get_queryset(self):
         query = {}
-        if self.request.allowed_issuers:
-            query['issuer__in'] = self.request.allowed_issuers
+        if self.allowed_issuers:
+            query['issuer__in'] = self.allowed_issuers
 
         return self.request.channels_permit.payment_card_account_query(
             PaymentCardAccount.objects.filter(**query),
@@ -507,7 +521,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
     def create(self, request, *args, **kwargs):
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
-            allowed_issuers=request.allowed_issuers,
+            allowed_issuers=self.allowed_issuers,
             version=get_api_version(request),
             bundle_id=request.channels_permit.bundle_id
         )
@@ -1182,7 +1196,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 #                 context={'bundle_id': request.channels_permit.bundle_id}
 #             ).data
 #
-#             if request.allowed_issuers and int(pcard_data['issuer']) not in request.allowed_issuers:
+#             if self.allowed_issuers and int(pcard_data['issuer']) not in self.allowed_issuers:
 #                 raise ParseError('issuer not allowed for this user.')
 #
 #             consent = request.data['account']['consents']

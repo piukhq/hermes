@@ -128,7 +128,6 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
         # non service end points.
         channels_permit, auth_user_id = self.user_authenticate(request,
                                                                exceptions.AuthenticationFailed(_('Invalid token.')))
-        setattr(request, 'allowed_issuers', [issuer.pk for issuer in channels_permit.bundle.issuer.all()])
         setattr(request, 'channels_permit', channels_permit)
         return channels_permit.user, None
 
