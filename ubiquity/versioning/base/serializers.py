@@ -283,6 +283,61 @@ class TransactionsSerializer(serializers.Serializer):
         return amounts
 
 
+class TransactionsSerializer2(serializers.Serializer):
+    """
+    A second version of the TransactionsSerializer since the original does not
+    validate input fields when deserializing.
+    """
+    scheme_info = None
+    id = serializers.IntegerField()
+    scheme_account_id = serializers.IntegerField()
+    date = serializers.DateTimeField()
+    description = serializers.CharField()
+    points = serializers.FloatField()
+
+    def to_internal_value(self, data):
+        data = super().to_internal_value(data)
+        return {
+            "id": data["id"],
+            "status": "active",
+            "timestamp": arrow.get(data["date"]).timestamp,
+            "description": data["description"],
+            "amounts": self.get_amounts(data)
+        }
+
+    def _get_scheme_info(self, mcard_id):
+        if self.scheme_info:
+            return self.scheme_info
+
+        self.scheme_info = Scheme.objects.get(schemeaccount__id=mcard_id).schemebalancedetails_set.first()
+        return self.scheme_info
+
+    def get_amounts(self, instance):
+        scheme_balances = self._get_scheme_info(instance['scheme_account_id'])
+        amounts = []
+
+        if scheme_balances.currency in ['GBP', 'EUR', 'USD']:
+            amounts.append(
+                {
+                    'currency': scheme_balances.currency,
+                    'prefix': scheme_balances.prefix,
+                    'suffix': scheme_balances.suffix,
+                    'value': float(Decimal(instance['points']).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+                }
+            )
+        else:
+            amounts.append(
+                {
+                    'currency': scheme_balances.currency,
+                    'prefix': scheme_balances.prefix,
+                    'suffix': scheme_balances.suffix,
+                    'value': int(instance['points'])
+                }
+            )
+
+        return amounts
+
+
 class ActiveCardAuditSerializer(serializers.ModelSerializer):
     class Meta:
         model = PaymentCardSchemeEntry
@@ -527,14 +582,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def _get_transactions(self, instance, scheme):
-        if self.context.get('request') and scheme.has_transactions:
-            transactions = self.get_transactions_data(self.context['request'].user.id, instance.id)
-            if transactions:
-                return TransactionsSerializer(transactions, many=True).data
-
-        return []
-
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:
         status = instance.status
@@ -581,7 +628,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'id': instance.id,
             'membership_plan': instance.scheme_id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': self._get_transactions(instance, scheme),
+            'membership_transactions': instance.transactions,
             'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,
