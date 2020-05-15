@@ -235,8 +235,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             )
 
             if 'consents' in data:
+                if hasattr(self, 'current_scheme'):
+                    scheme = self.current_scheme
+                else:
+                    scheme = scheme_account.scheme
+
                 user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
-                UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+                UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
                 for user_consent in user_consents:
                     user_consent.status = ConsentStatus.SUCCESS
                     user_consent.save()
