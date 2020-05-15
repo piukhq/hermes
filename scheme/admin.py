@@ -1,5 +1,5 @@
 import re
-
+from django.contrib.admin.actions import delete_selected
 from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
@@ -8,7 +8,7 @@ from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from redis import Redis
-
+from django.utils.functional import LazyObject
 from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
@@ -20,6 +20,42 @@ from ubiquity.models import SchemeAccountEntry
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
+
+
+def delete_membership_plans_cache():
+    # Delete all caches for m_plan key slug including all by id ones
+    for key in r.scan_iter("m_plans:*"):
+        r.delete(key)
+
+
+def replaced_delete_selected(model_admin, request, queryset):
+    if request.POST.get('post') == 'yes':
+        ret = delete_selected(model_admin, request, queryset)
+        delete_membership_plans_cache()
+        return ret
+    else:
+        return delete_selected(model_admin, request, queryset)
+
+replaced_delete_selected.short_description = "Delete Selected and reset Cache"
+
+
+class CacheResetAdmin(admin.ModelAdmin):
+    actions = [replaced_delete_selected]
+    delete_selected_confirmation_template = "admin/common/bulk_del_selected_confirmation.html"
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        delete_membership_plans_cache()
+
+    def delete_model(self, request, obj):
+        super().save_model(request, obj)
+        delete_membership_plans_cache()
 
 
 def check_active_scheme(scheme):
@@ -129,7 +165,8 @@ class SchemeDetailsInline(admin.StackedInline):
 
 
 @admin.register(Scheme)
-class SchemeAdmin(admin.ModelAdmin):
+class SchemeAdmin(CacheResetAdmin):
+
     inlines = (
         SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
         CredentialQuestionInline,
@@ -144,12 +181,6 @@ class SchemeAdmin(admin.ModelAdmin):
         if obj:  # editing an existing object
             return self.readonly_fields + ('slug',)
         return self.readonly_fields
-
-    def save_model(self, request, obj, form, change):
-        # Delete all caches for m_plan key slug including all by id ones
-        for key in r.scan_iter("m_plans:*"):
-            r.delete(key)
-        super().save_model(request, obj, form, change)
 
 
 @admin.register(SchemeImage)
