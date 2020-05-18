@@ -9,7 +9,6 @@ from hermes.channels import Permit
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
-from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import Organisation, ClientApplication, ClientApplicationBundle
