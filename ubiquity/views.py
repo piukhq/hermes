@@ -39,7 +39,7 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
-                            async_add_field_only_link)
+                            async_add_field_only_link, deleted_payment_card_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -470,28 +470,19 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        payment_card_account = self.get_hashed_object()
-        p_card_users = {
-            user['id'] for user in
-            payment_card_account.user_set.values('id').exclude(id=request.user.id)
-        }
+        query = {'user_id': request.user.id}
+        use_hash = False
+        if self.kwargs.get('hash'):
+            query['payment_card_account__hash'] = BLAKE2sHash().new(
+                obj=self.kwargs['hash'],
+                key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+            )
+            use_hash = True
+        else:
+            query['payment_card_account_id'] = kwargs['pk']
 
-        PaymentCardSchemeEntry.objects.filter(
-            payment_card_account=payment_card_account
-        ).exclude(
-            scheme_account__user_set__id__in=p_card_users
-        ).delete()
-        PaymentCardAccountEntry.objects.get(
-            payment_card_account=payment_card_account, user__id=request.user.id
-        ).delete()
-
-        if payment_card_account.user_set.count() < 1:
-            payment_card_account.is_deleted = True
-            payment_card_account.save()
-            PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).delete()
-
-            metis.delete_payment_card(payment_card_account)
-
+        get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
+        deleted_payment_card_cleanup.delay(*query.values(), use_hash)
         return Response({}, status=status.HTTP_200_OK)
 
 

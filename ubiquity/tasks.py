@@ -6,10 +6,12 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
+from payment_card import metis
+from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -140,3 +142,24 @@ def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: s
         f'{date_type}_date': date
     }
     _send_metrics_to_atlas('PATCH', scheme_slug, payload)
+
+
+@shared_task
+def deleted_payment_card_cleanup(user_id: int, payment_card_lookup: t.Tuple[int, str], use_hash: bool) -> None:
+    payment_card_account = PaymentCardAccount.objects.get(**{
+        'hash' if use_hash else 'pk': payment_card_lookup
+    })
+    p_card_users = payment_card_account.user_set.values_list('id', flat=True).exclude(id=user_id).all()
+    entries = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
+
+    if not p_card_users:
+        payment_card_account.is_deleted = True
+        payment_card_account.save()
+        metis.delete_payment_card(payment_card_account, run_async=False)
+
+    else:
+        entries = entries.exclude(
+            scheme_account__user_set__id__in=p_card_users
+        )
+
+    entries.delete()
