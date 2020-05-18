@@ -385,8 +385,7 @@ class TestInternalService(TestCase):
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_get_single_membership_card(self, mock_get_transactions, mock_get_midas_balance):
+    def test_get_single_membership_card(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
         resp = self.client.get(
             reverse('membership-card', args=[self.scheme_account_1.id]), **self.internal_service_auth_headers
@@ -394,7 +393,6 @@ class TestInternalService(TestCase):
         self.assertEqual(resp.status_code, 200)
 
         self.assertTrue(mock_get_midas_balance.delay.called)
-        self.assertTrue(mock_get_transactions.called)
 
         mock_get_midas_balance.return_value = self.scheme_account_2.balances
         resp = self.client.get(
@@ -433,8 +431,7 @@ class TestInternalService(TestCase):
         self.assertEqual(resp.status_code, 200)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_service_get_all_scheme_accounts(self, mock_get_transactions, mock_get_midas_balance):
+    def test_service_get_all_scheme_accounts(self, mock_get_midas_balance):
         mock_get_midas_balance.return_value = self.scheme_account_1.balances
         resp = self.client.get(reverse('membership-cards'), **self.internal_service_auth_headers)
         self.assertEqual(resp.status_code, 200)
@@ -445,7 +442,6 @@ class TestInternalService(TestCase):
         self.assertEqual(len(resp.json()), 1)
 
         self.assertTrue(mock_get_midas_balance.delay.called)
-        self.assertTrue(mock_get_transactions.called)
 
     def test_service_get_all_payment_card_accounts(self):
         resp = self.client.get(reverse('payment-cards'), **self.internal_service_auth_headers)
