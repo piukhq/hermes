@@ -12,9 +12,10 @@ from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
-from scheme.models import (
-    Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink, VoucherScheme)
-from scheme.serializers import CreateSchemeAccountSerializer, JoinSerializer
+from scheme.credentials import credential_types_set
+from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
+                           VoucherScheme)
+from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
@@ -452,17 +453,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
-# not used for now but will be needed
-# class ListMembershipPlanSerializer(MembershipPlanSerializer):
-#     @staticmethod
-#     def _get_ubiquity_images(instance):
-#         return [
-#             image.id
-#             for image in instance.images.all()
-#             if image.image_type_code in [image.HERO, image.ICON]
-#         ]
-
-
 class UbiquityBalanceHandler:
     point_info = None
     value_info = None
@@ -537,8 +527,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def _get_transactions(self, instance):
-        if self.context.get('request') and instance.scheme.has_transactions:
+    def _get_transactions(self, instance, scheme):
+        if self.context.get('request') and scheme.has_transactions:
             transactions = self.get_transactions_data(self.context['request'].user.id, instance.id)
             if transactions:
                 return TransactionsSerializer(transactions, many=True).data
@@ -568,35 +558,42 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'payment_card_account__is_deleted': False
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
-        images = instance.scheme.images.all()
         exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
 
         if instance.status not in exclude_balance_statuses:
-            # instance.get_cached_balance()
             async_balance.delay(instance.id)
-
         try:
             reward_tier = instance.balances[0]['reward_tier']
         except (ValueError, KeyError):
             reward_tier = 0
 
+        balances = UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
+
+        try:
+            current_scheme = self.context['view'].current_scheme
+        except (KeyError, AttributeError):
+            current_scheme = None
+
+        scheme = current_scheme if current_scheme is not None else instance.scheme
+
+        images = self._get_ubiquity_images(reward_tier, scheme.images.all())
         card_repr = {
             'id': instance.id,
-            'membership_plan': instance.scheme.id,
+            'membership_plan': instance.scheme_id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': self._get_transactions(instance),
+            'membership_transactions': self._get_transactions(instance, scheme),
             'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
-                'barcode_type': instance.scheme.barcode_type,
-                'colour': instance.scheme.colour
+                'barcode_type': scheme.barcode_type,
+                'colour': scheme.colour
             },
-            'images': self._get_ubiquity_images(reward_tier, images),
+            'images': images,
             'account': {
                 'tier': reward_tier
             },
-            'balances': UbiquityBalanceHandler(instance.balances, many=True).data if instance.balances else None
+            'balances': balances
         }
 
         if instance.vouchers is not None:
@@ -605,25 +602,49 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return card_repr
 
 
-# not used for now but will be needed
-# class ListMembershipCardSerializer(MembershipCardSerializer):
-#     @staticmethod
-#     def _get_ubiquity_images(tier, images):
-#         return [
-#             image.id
-#             for image in images
-#             if image.image_type_code in [image.HERO, image.ICON] or (
-#                     image.image_type_code == image.TIER and image.reward_tier == tier)
-#         ]
-#
-#     def _get_transactions(self, instance):
-#         return self.get_transactions_id(
-#             self.context['request'].user.id, instance.id
-#         ) if self.context.get('request') and instance.scheme.has_transactions else []
+class LinkMembershipCardSerializer(SchemeAnswerSerializer):
+    scheme = serializers.IntegerField()
+    order = serializers.IntegerField()
+    id = serializers.IntegerField(read_only=True)
+    consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
+    def validate(self, data):
+        scheme = self.context['view'].current_scheme
+        scheme_questions = self.context['view'].scheme_questions
+        if not scheme:
+            scheme = Scheme.objects.get(pk=data['scheme'])
 
-class LinkMembershipCardSerializer(CreateSchemeAccountSerializer):
-    verify_account_exists = False
+        if scheme.id != data['scheme']:
+            raise serializers.ValidationError("wrong scheme id")
+
+        answer_types = set(data).intersection(credential_types_set)
+        if len(answer_types) != 1:
+            raise serializers.ValidationError("You must submit one scan or manual question answer")
+
+        answer_type = answer_types.pop()
+        self.context['answer_type'] = answer_type
+        # only allow one credential
+        if answer_type not in self.allowed_answers(scheme, scheme_questions):
+            raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
+
+        return data
+
+    @staticmethod
+    def allowed_answers(scheme, scheme_questions):
+        if scheme_questions:
+            return [
+                question.type
+                for question in scheme_questions
+                if any(map(
+                    lambda question_type: getattr(question, question_type),
+                    ['manual_question', 'scan_question', 'one_question_link']
+                ))
+            ]
+        else:
+            return [
+                question['type']
+                for question in scheme.get_required_questions(scheme_questions)
+            ]
 
 
 # todo adapt or remove

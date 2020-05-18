@@ -20,21 +20,20 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from payment_card.payment import Payment
 from payment_card.models import PaymentCardAccount
+from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
-from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
+from scheme.mixins import (IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
 from scheme.models import (ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage,
                            UserConsent, SchemeBundleAssociation)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
-                                GetSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
-                                ListSchemeAccountSerializer,
-                                QuerySchemeAccountSerializer, ReferenceImageSerializer, ResponseLinkSerializer,
-                                ResponseSchemeAccountAndBalanceSerializer, SchemeAccountCredentialsSerializer,
+                                GetSchemeAccountSerializer, JoinSerializer, ListSchemeAccountSerializer,
+                                QuerySchemeAccountSerializer, ReferenceImageSerializer,
+                                SchemeAccountCredentialsSerializer,
                                 SchemeAccountIdsSerializer,
-                                SchemeAccountSummarySerializer, SchemeAnswerSerializer, SchemeSerializer,
+                                SchemeAccountSummarySerializer, SchemeSerializer,
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
@@ -182,68 +181,69 @@ class UpdateUserConsent(UpdateAPIView):
             return self.update(request, *args, **kwargs)
 
 
-class LinkCredentials(BaseLinkMixin, GenericAPIView):
-    serializer_class = SchemeAnswerSerializer
-    override_serializer_classes = {
-        'PUT': SchemeAnswerSerializer,
-        'POST': LinkSchemeSerializer,
-        'OPTIONS': LinkSchemeSerializer,
-        'DELETE': DeleteCredentialSerializer,
-    }
-
-    def put(self, request, *args, **kwargs):
-        """Update manual answer or other credentials
-        ---
-        response_serializer: ResponseSchemeAccountAndBalanceSerializer
-        """
-        queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
-        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
-                                           user_set__id=self.request.user.id)
-        serializer = SchemeAnswerSerializer(data=request.data)
-        response_data = self.link_account(serializer, scheme_account, request.user)
-        out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
-        return Response(out_serializer.data)
-
-    def post(self, request, *args, **kwargs):
-        """
-        Link credentials for loyalty scheme login
-        ---
-        response_serializer: ResponseLinkSerializer
-        """
-        permit = request.channels_permit
-        queryset = permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
-        scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=request.user.id)
-
-        if permit.is_scheme_suspended(scheme_account.scheme_id):
-            return Response({
-                'error': 'This scheme is temporarily unavailable.'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
-                                                                      'user': request.user})
-
-        serializer.is_valid(raise_exception=True)
-
-        old_status = scheme_account.status
-
-        response_data = self.link_account(serializer, scheme_account, request.user)
-        scheme_account.save()
-
-        if request.user.client_id == settings.BINK_CLIENT_ID:
-            analytics.update_scheme_account_attribute(
-                scheme_account,
-                request.user,
-                dict(scheme_account.STATUSES).get(old_status))
-
-        out_serializer = ResponseLinkSerializer(response_data)
-
-        # Update barcode on front end if we get one from linking
-        response = out_serializer.data
-        barcode = scheme_account.barcode
-        if barcode:
-            response['barcode'] = barcode
-
-        return Response(response, status=status.HTTP_201_CREATED)
+# class LinkCredentials(BaseLinkMixin, GenericAPIView):
+#     serializer_class = SchemeAnswerSerializer
+#     override_serializer_classes = {
+#         'PUT': SchemeAnswerSerializer,
+#         'POST': LinkSchemeSerializer,
+#         'OPTIONS': LinkSchemeSerializer,
+#         'DELETE': DeleteCredentialSerializer,
+#     }
+#
+#     def put(self, request, *args, **kwargs):
+#         """Update manual answer or other credentials
+#         ---
+#         response_serializer: ResponseSchemeAccountAndBalanceSerializer
+#         """
+#         queryset = self.request.channels_permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
+#         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'],
+#                                            user_set__id=self.request.user.id)
+#         serializer = SchemeAnswerSerializer(data=request.data)
+#         response_data = self.link_account(serializer, scheme_account, request.user)
+#         out_serializer = ResponseSchemeAccountAndBalanceSerializer(response_data)
+#         return Response(out_serializer.data)
+#
+#     def post(self, request, *args, **kwargs):
+#         """
+#         Link credentials for loyalty scheme login
+#         ---
+#         response_serializer: ResponseLinkSerializer
+#         """
+#         permit = request.channels_permit
+#         queryset = permit.scheme_account_query(SchemeAccount.objects, user_filter=False)
+#         scheme_account = get_object_or_404(queryset, id=self.kwargs['pk'], user_set__id=request.user.id)
+#
+#         if permit.is_scheme_suspended(scheme_account.scheme_id):
+#             return Response({
+#                 'error': 'This scheme is temporarily unavailable.'
+#             }, status=status.HTTP_400_BAD_REQUEST)
+#
+#         serializer = LinkSchemeSerializer(data=request.data, context={'scheme_account': scheme_account,
+#                                                                       'user': request.user})
+#
+#         serializer.is_valid(raise_exception=True)
+#
+#         old_status = scheme_account.status
+#
+#         response_data = self.link_account(serializer, scheme_account, request.user)
+#         scheme_account.save()
+#
+#         if request.user.client_id == settings.BINK_CLIENT_ID:
+#             analytics.update_scheme_account_attribute(
+#                 scheme_account,
+#                 request.user,
+#                 dict(scheme_account.STATUSES).get(old_status))
+#
+#         out_serializer = ResponseLinkSerializer(response_data)
+#
+#         scheme_account.update_barcode_and_card_number()
+#         # Update barcode on front end if we get one from linking
+#         response = out_serializer.data
+#         barcode = scheme_account.barcode
+#         if barcode:
+#             response['barcode'] = barcode
+#
+#         return Response(response, status=status.HTTP_201_CREATED)
 
 
 class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
@@ -540,7 +540,9 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         ---
         """
         account = self.get_object()
-        return Response(self.update_credentials(account, request.data), status=status.HTTP_200_OK)
+        response = self.update_credentials(account, request.data)
+        account.update_barcode_and_card_number()
+        return Response(response, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
         """
