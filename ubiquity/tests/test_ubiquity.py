@@ -1038,7 +1038,7 @@ class TestResources(APITestCase):
                        BROKER_BACKEND='memory')
     @patch('payment_card.metis.metis_request', autospec=True)
     @patch('ubiquity.views.get_secret_key')
-    def test_payment_card_delete_by_hash(self, hash_secret, *_):
+    def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'
         pca = PaymentCardAccountFactory(hash=BLAKE2sHash().new(obj='testhash', key='test-secret'))
         PaymentCardAccountEntry.objects.create(user=self.user, payment_card_account_id=pca.id)
