@@ -832,6 +832,7 @@ class SchemeAccount(models.Model):
             try:
                 regex_match = re.search(self.scheme.barcode_regex, barcode['answer'])
             except sre_constants.error:
+                self.barcode = ''
                 return None
             if regex_match:
                 try:
@@ -859,6 +860,7 @@ class SchemeAccount(models.Model):
             try:
                 regex_match = re.search(self.scheme.card_number_regex, card_number['answer'])
             except sre_constants.error:
+                self.card_number = ''
                 return None
             if regex_match:
                 try:
