@@ -471,18 +471,21 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         query = {'user_id': request.user.id}
-        use_hash = False
+        pcard_hash: t.Optional[str] = None
+        pcard_pk: t.Optional[int] = None
+
         if self.kwargs.get('hash'):
-            query['payment_card_account__hash'] = BLAKE2sHash().new(
+            pcard_hash = BLAKE2sHash().new(
                 obj=self.kwargs['hash'],
                 key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
             )
-            use_hash = True
+            query['payment_card_account__hash'] = pcard_hash
         else:
-            query['payment_card_account_id'] = kwargs['pk']
+            pcard_pk = kwargs['pk']
+            query['payment_card_account_id'] = pcard_pk
 
         get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
-        deleted_payment_card_cleanup.delay(*query.values(), use_hash)
+        deleted_payment_card_cleanup.delay(pcard_pk, pcard_hash)
         return Response({}, status=status.HTTP_200_OK)
 
 

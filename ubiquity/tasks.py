@@ -145,11 +145,14 @@ def send_merchant_metrics_for_link_delete(scheme_account_id: int, scheme_slug: s
 
 
 @shared_task
-def deleted_payment_card_cleanup(user_id: int, payment_card_lookup: t.Tuple[int, str], use_hash: bool) -> None:
-    payment_card_account = PaymentCardAccount.objects.get(**{
-        'hash' if use_hash else 'pk': payment_card_lookup
-    })
-    p_card_users = payment_card_account.user_set.values_list('id', flat=True).exclude(id=user_id).all()
+def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_hash: t.Optional[str]) -> None:
+    if payment_card_id is not None:
+        query = {'pk': payment_card_id}
+    else:
+        query = {'hash': payment_card_hash}
+
+    payment_card_account = PaymentCardAccount.objects.get(**query)
+    p_card_users = payment_card_account.user_set.values_list('id', flat=True).all()
     entries = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
 
     if not p_card_users:
