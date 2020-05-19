@@ -617,18 +617,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         self.log_update(account.pk)
 
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
-        manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if registration_fields:
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
-            updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
+            updated_account = self._handle_update_fields(account, update_fields)
 
         async_balance.delay(updated_account.id)
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
 
@@ -636,13 +635,23 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
-        if manual_question and manual_question in update_fields:
-            if self.card_with_same_data_already_exists(account, account.scheme.id, update_fields[manual_question]):
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+            .values("id", "type", "manual_question").all()
+
+        manual_question_type = None
+        for question in questions:
+            if question["manual_question"]:
+                manual_question_type = question["type"]
+
+        if manual_question_type and manual_question_type in update_fields:
+            if self.card_with_same_data_already_exists(
+                    account, account.scheme.id, update_fields[manual_question_type]
+            ):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return account
 
-        self.update_credentials(account, update_fields)
+        self.update_credentials(account, update_fields, questions)
         account.delete_cached_balance()
         account.set_pending()
         return account
