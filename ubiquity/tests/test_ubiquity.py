@@ -38,6 +38,11 @@ class RequestMock:
     channels_permit = None
 
 
+class ChannelPermitMock:
+    def __init__(self, client=None):
+        self.client = client
+
+
 class MockApiCache:
     key = None
     expire = None
@@ -398,6 +403,8 @@ class TestResources(APITestCase):
         # Need to add an active association since it was assumed no setting was enabled
         self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
                                                                         status=SchemeBundleAssociation.ACTIVE)
+
+        self.scheme_account.update_barcode_and_card_number()
 
         self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
@@ -768,6 +775,7 @@ class TestResources(APITestCase):
         user = MagicMock()
         user.client = self.client_app
         request.user = user
+        request.channels_permit = ChannelPermitMock(self.client_app)
         view = MembershipCardView()
         view.request = request
 

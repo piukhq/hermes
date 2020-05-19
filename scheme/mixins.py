@@ -21,7 +21,7 @@ from payment_card.payment import Payment, PaymentError
 from scheme.credentials import PAYMENT_CARD_HASH
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           UserConsent)
+                           UserConsent, SchemeCredentialQuestion)
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -177,8 +177,20 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         data['id'] = scheme_account.id
         return scheme_account, data, account_created
 
-    @staticmethod
-    def _create_account(user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
+    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str
+                                ) -> SchemeCredentialQuestion:
+        if not hasattr(self, 'scheme_questions'):
+            return scheme_account.question(question_type)
+
+        for question in self.scheme_questions:
+            if question.type == question_type:
+                return question
+
+        raise SchemeCredentialQuestion.DoesNotExist(
+            f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
+        )
+
+    def _create_account(self, user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
         account_created = False  # Required for /ubiquity
 
         with transaction.atomic():
@@ -218,13 +230,18 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
-                question=scheme_account.question(answer_type),
+                question=self._get_question_from_type(scheme_account, answer_type),
                 answer=data[answer_type],
             )
 
             if 'consents' in data:
+                if hasattr(self, 'current_scheme'):
+                    scheme = self.current_scheme
+                else:
+                    scheme = scheme_account.scheme
+
                 user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
-                UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme, JourneyTypes.ADD.value)
+                UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
                 for user_consent in user_consents:
                     user_consent.status = ConsentStatus.SUCCESS
                     user_consent.save()
@@ -262,6 +279,7 @@ class SchemeAccountJoinMixin:
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
                             serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
 
+        scheme_account.update_barcode_and_card_number()
         try:
             payment_card_hash = data['credentials'].get(PAYMENT_CARD_HASH)
             if payment_card_hash:
@@ -421,8 +439,7 @@ class UpdateCredentialsMixin:
 
         return {'updated': updated_credentials}
 
-    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme_id: int) -> dict:
-        scheme = get_object_or_404(Scheme, id=scheme_id)
+    def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
         self._check_required_data_presence(scheme, data)
 
         if scheme_account.scheme != scheme:
