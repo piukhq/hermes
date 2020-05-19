@@ -681,9 +681,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
+        scheme, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
-        if not request.channels_permit.is_scheme_available(scheme_id):
+        if not request.channels_permit.is_scheme_available(scheme.id):
             raise ParseError('membership plan not allowed for this user.')
 
         # This check needs to be done before balance is deleted
@@ -704,16 +704,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             )
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
-            async_join.delay(account.id, user_id, serializer, scheme_id, validated_data)
+            async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
-            if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+            if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
                 account.status = account.FAILED_UPDATE
                 account.save()
             else:
-                self.replace_credentials_and_scheme(account, new_answers, scheme_id)
+                self.replace_credentials_and_scheme(account, new_answers, scheme)
 
             account.set_pending()
             async_balance.delay(account.id)
