@@ -28,7 +28,7 @@ from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
-from ubiquity.views import MembershipTransactionView, MembershipCardView
+from ubiquity.views import MembershipCardView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
