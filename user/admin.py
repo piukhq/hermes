@@ -6,7 +6,7 @@ from django.utils.translation import ugettext_lazy as _
 from scheme.models import SchemeBundleAssociation
 from ubiquity.models import ServiceConsent
 from django.contrib import messages
-from scheme.admin import check_active_scheme
+from scheme.admin import check_active_scheme, CacheResetAdmin
 from user.models import (ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, MarketingCode,
                          Organisation, Referral, Setting, UserDetail, UserSetting)
 
@@ -172,7 +172,7 @@ class SchemeInline(admin.TabularInline):
 
 
 @admin.register(ClientApplicationBundle)
-class ClientApplicationBundleAdmin(admin.ModelAdmin):
+class ClientApplicationBundleAdmin(CacheResetAdmin):
     list_display = ('bundle_id', 'client')
     search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
     filter_horizontal = ('scheme', 'issuer')

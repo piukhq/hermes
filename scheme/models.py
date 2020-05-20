@@ -424,6 +424,7 @@ class SchemeAccount(models.Model):
     vouchers = JSONField(default=dict, null=True, blank=True)
     card_number = models.CharField(max_length=250, blank=True, default='')
     barcode = models.CharField(max_length=250, blank=True, default='')
+    transactions = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):
@@ -598,7 +599,7 @@ class SchemeAccount(models.Model):
             queryset.all().delete()
 
         if self.status != SchemeAccount.PENDING:
-            self.save()
+            self.save(update_fields=['status'])
             self.call_analytics(self.user_set.all(), old_status)
 
     def call_analytics(self, user_set, old_status):
@@ -677,7 +678,7 @@ class SchemeAccount(models.Model):
             needs_save = True
 
         if needs_save:
-            self.save()
+            self.save(update_fields=['balances', 'vouchers'])
 
         return balance
 
@@ -762,7 +763,7 @@ class SchemeAccount(models.Model):
 
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
-        self.save()
+        self.save(update_fields=['status'])
 
     def set_async_join_status(self) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -826,17 +827,16 @@ class SchemeAccount(models.Model):
 
         if barcode['question__type'] == BARCODE:
             self.barcode = barcode['answer']
-            self.save(update_fields=['barcode'])
 
         elif barcode['question__type'] == CARD_NUMBER and self.scheme.barcode_regex:
             try:
                 regex_match = re.search(self.scheme.barcode_regex, barcode['answer'])
             except sre_constants.error:
+                self.barcode = ''
                 return None
             if regex_match:
                 try:
                     self.barcode = self.scheme.barcode_prefix + regex_match.group(1)
-                    self.save(update_fields=['barcode'])
                 except IndexError:
                     pass
 
@@ -859,6 +859,7 @@ class SchemeAccount(models.Model):
             try:
                 regex_match = re.search(self.scheme.card_number_regex, card_number['answer'])
             except sre_constants.error:
+                self.card_number = ''
                 return None
             if regex_match:
                 try:

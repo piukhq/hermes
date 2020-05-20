@@ -587,7 +587,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 
     def validate(self, credentials):
         # Validate all credential types
-        scheme_fields = [field.type for field in self.context['scheme_account'].scheme.questions.all()]
+        scheme_fields = [question["type"] for question in self.context["questions"]]
         unknown = set(self.initial_data) - set(scheme_fields)
         if "consents" in unknown:
             unknown.remove("consents")

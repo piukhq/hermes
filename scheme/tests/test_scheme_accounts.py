@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
@@ -17,7 +18,8 @@ from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, S
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer
 from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccountFactory, SchemeAccountImageFactory,
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
-                                    SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory)
+                                    SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
+                                    SchemeBalanceDetailsFactory)
 from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
@@ -94,6 +96,8 @@ class TestSchemeAccountViews(APITestCase):
 
         cls.scheme_account1.update_barcode_and_card_number()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
+
+        cls.scheme1_balance_details = SchemeBalanceDetailsFactory(scheme_id=cls.scheme1)
         super().setUpClass()
 
     @patch.object(SchemeAccount, 'call_analytics')
@@ -458,6 +462,111 @@ class TestSchemeAccountViews(APITestCase):
 
         self.assertFalse(mock_sentry.capture_exception.called)
         self.assertTrue(mock_post.called)
+
+    def test_scheme_account_update_transactions(self):
+        transactions = [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account1.id,
+                'created': '2020-05-15 12:08:10+00:00',
+                'date': '2018-09-04 16:55:00+00:00',
+                'description': 'Test transaction: 2 items',
+                'location': None,
+                'points': -50.0,
+                'value': None,
+                'hash': '6fbbd14fc16964c314b4a0cc87db506f',
+                'user_set': [self.user.id]
+            },
+            {
+                'id': 2,
+                'scheme_account_id': self.scheme_account1.id,
+                'created': '2020-05-15 12:08:10+00:00',
+                'date': '2018-09-04 07:35:10+00:00',
+                'description': 'Test transaction: 1 item',
+                'location': None,
+                'points': 10.0,
+                'value': None,
+                'hash': 'f55cef56b2b3b47589299a14d88d2008',
+                'user_set': [self.user.id]
+            }
+        ]
+
+        serialized_transactions = [
+            {
+                'id': 1,
+                'status': 'active',
+                'timestamp': 1536080100,
+                'description': 'Test transaction: 2 items',
+                'amounts': [
+                    {
+                        'currency': self.scheme1_balance_details.currency,
+                        'prefix': self.scheme1_balance_details.prefix,
+                        'suffix': self.scheme1_balance_details.suffix,
+                        'value': -50
+                    }
+                ]
+            },
+            {
+                'id': 2,
+                'status': 'active',
+                'timestamp': 1536046510,
+                'description': 'Test transaction: 1 item',
+                'amounts': [
+                    {
+                        'currency': self.scheme1_balance_details.currency,
+                        'prefix': self.scheme1_balance_details.prefix,
+                        'suffix': self.scheme1_balance_details.suffix,
+                        'value': 10
+                    }
+                ]
+            }
+        ]
+        expected_resp = {
+            "id": self.scheme_account1.id,
+            "transactions": serialized_transactions
+        }
+
+        response = self.client.post(
+            reverse("update_account_transactions", kwargs={"pk": self.scheme_account1.id}),
+            data=json.dumps(transactions),
+            format="json",
+            **self.auth_service_headers
+        )
+
+        self.scheme_account1.refresh_from_db()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, expected_resp)
+        self.assertEqual(self.scheme_account1.transactions, serialized_transactions)
+
+    def test_scheme_account_update_transactions_invalid_scheme_account_returns_error(self):
+        transactions = []
+        response = self.client.post(
+            reverse("update_account_transactions", kwargs={"pk": 9999999999999}),
+            data=json.dumps(transactions),
+            format="json",
+            **self.auth_service_headers
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_scheme_account_update_transactions_invalid_transactions_returns_error(self):
+        transactions = [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account1.id,
+                'points': -50.0,
+                'value': None
+            }
+        ]
+
+        response = self.client.post(
+            reverse("update_account_transactions", kwargs={"pk": self.scheme_account1.id}),
+            data=json.dumps(transactions),
+            format="json",
+            **self.auth_service_headers
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_scheme_accounts_active(self):
         scheme = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
