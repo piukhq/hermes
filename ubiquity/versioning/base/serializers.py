@@ -6,7 +6,11 @@ import jwt
 import requests
 from arrow.parser import ParserError
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import empty
+from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -234,72 +238,72 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
         exclude = ('scheme_account', 'payment_card_account')
 
 
-class TransactionsSerializer(serializers.Serializer):
-    scheme_info = None
-    id = serializers.IntegerField()
-    status = serializers.SerializerMethodField()
-    timestamp = serializers.SerializerMethodField()
-    description = serializers.CharField()
-    amounts = serializers.SerializerMethodField()
+class TransactionListSerializer(serializers.ListSerializer):
+    def run_validation(self, data=empty):
+        """
+        Overriding run_validation in order to filter transactions for the given user before
+        converting the data to the internal value. This would usually be done in .validate()
+        but cannot be in this case since the internal value does not store the scheme_account_id,
+        which is required for the filtering.
+        """
+        (is_empty_value, data) = self.validate_empty_values(data)
+        if is_empty_value:
+            return data
 
-    @staticmethod
-    def get_status(_):
-        return 'active'
+        if self.context.get("user"):
+            data = self.filter_transactions_for_user(data)
+        value = self.to_internal_value(data)
+        try:
+            self.run_validators(value)
+            value = self.validate(value)
+            assert value is not None, '.validate() should return the validated data'
+        except (ValidationError, DjangoValidationError) as exc:
+            raise ValidationError(detail=as_serializer_error(exc))
 
-    @staticmethod
-    def get_timestamp(instance):
-        return arrow.get(instance['date']).timestamp
+        return value
 
-    def _get_scheme_info(self, mcard_id):
-        if self.scheme_info:
-            return self.scheme_info
+    def filter_transactions_for_user(self, data):
+        user = self.context["user"]
+        queryset = user.scheme_account_set.values('id')
+        if not user.is_tester:
+            queryset = queryset.filter(scheme__test_scheme=False).values('id').all()
 
-        self.scheme_info = Scheme.objects.get(schemeaccount__id=mcard_id).schemebalancedetails_set.first()
-        return self.scheme_info
-
-    def get_amounts(self, instance):
-        scheme_balances = self._get_scheme_info(instance['scheme_account_id'])
-        amounts = []
-
-        if scheme_balances.currency in ['GBP', 'EUR', 'USD']:
-            amounts.append(
-                {
-                    'currency': scheme_balances.currency,
-                    'prefix': scheme_balances.prefix,
-                    'suffix': scheme_balances.suffix,
-                    'value': float(Decimal(instance['points']).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
-                }
-            )
-        else:
-            amounts.append(
-                {
-                    'currency': scheme_balances.currency,
-                    'prefix': scheme_balances.prefix,
-                    'suffix': scheme_balances.suffix,
-                    'value': int(instance['points'])
-                }
-            )
-
-        return amounts
+        return [
+            tx for tx in data
+            if tx.get('scheme_account_id') in {account['id'] for account in queryset.all()}
+        ]
 
 
-class TransactionsSerializer2(serializers.Serializer):
+class TransactionSerializer(serializers.Serializer):
     """
     A second version of the TransactionsSerializer since the original does not
     validate input fields when deserializing.
     """
     scheme_info = None
+    status = "active"
     id = serializers.IntegerField()
     scheme_account_id = serializers.IntegerField()
     date = serializers.DateTimeField()
     description = serializers.CharField()
     points = serializers.FloatField()
 
+    class Meta:
+        list_serializer_class = TransactionListSerializer
+
+    def to_representation(self, instance):
+        return {
+            "id": instance["id"],
+            "status": self.status,
+            "timestamp": arrow.get(instance["date"]).timestamp,
+            "description": instance["description"],
+            "amounts": self.get_amounts(instance)
+        }
+
     def to_internal_value(self, data):
         data = super().to_internal_value(data)
         return {
             "id": data["id"],
-            "status": "active",
+            "status": self.status,
             "timestamp": arrow.get(data["date"]).timestamp,
             "description": data["description"],
             "amounts": self.get_amounts(data)

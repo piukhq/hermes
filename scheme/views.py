@@ -37,7 +37,7 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
-from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionsSerializer2
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
@@ -484,7 +484,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):
     permission_classes = (AllowService,)
     authentication_classes = (ServiceAuthentication,)
-    serializer_class = TransactionsSerializer2
+    serializer_class = TransactionSerializer
 
     def post(self, request, *args, **kwargs):
         """
