@@ -1305,7 +1305,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             serializer = self.serializer_class(data=resp_json)
             serializer.is_valid(raise_exception=True)
 
-            if self._account_belongs_to_user(request.user, serializer.validated_data.get('scheme_account_id')):
+            if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
                 return Response(self.get_serializer_by_request(serializer.validated_data).data)
 
         return Response({})
@@ -1330,10 +1330,10 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
             return Response([])
 
-        response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        serializer = self.serializer_class(data=response.json(), many=True, context={"user": request.user})
+        transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
+        serializer = self.serializer_class(data=transactions, many=True, context={"user": request.user})
         serializer.is_valid(raise_exception=True)
-        return Response(self.get_serializer_by_request(response, many=True).data if response else [])
+        return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
 
     @staticmethod
     def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:

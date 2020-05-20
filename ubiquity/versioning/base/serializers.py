@@ -294,9 +294,9 @@ class TransactionSerializer(serializers.Serializer):
         return {
             "id": instance["id"],
             "status": self.status,
-            "timestamp": arrow.get(instance["date"]).timestamp,
+            "timestamp": instance.get("timestamp") or arrow.get(instance["date"]).timestamp,
             "description": instance["description"],
-            "amounts": self.get_amounts(instance)
+            "amounts": instance.get("amounts") or self.get_amounts(instance),
         }
 
     def to_internal_value(self, data):

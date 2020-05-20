@@ -1198,6 +1198,38 @@ class TestResources(APITestCase):
         self.assertTrue(httpretty.has_request())
         self.assertEqual(expected_resp, resp.json())
 
+    @httpretty.activate
+    def test_transactions_user_filter(self):
+        uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
+        transactions = self.test_hades_transactions + [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account.id + 1,
+                'created': '2020-05-19 14:36:35+00:00',
+                'date': '2020-05-19 14:36:35+00:00',
+                'description': 'Test Transaction',
+                'location': 'Bink',
+                'points': 200,
+                'value': 'A lot',
+                'hash': 'ewfnwoenfwen'
+            }
+        ]
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(transactions))
+        expected_resp = [
+            {
+                'id': 1,
+                'status': 'active',
+                'timestamp': 1589898995,
+                'description': 'Test Transaction',
+                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            }
+        ]
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(httpretty.has_request())
+        self.assertEqual(expected_resp, resp.json())
+
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
@@ -1668,22 +1700,6 @@ class TestResources(APITestCase):
         self.assertEqual(fail_resp.status_code, 201)
         query['scheme_account_id'] = fail_resp.json()['id']
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
-
-    def test_membership_card_transactions_user_filters(self):
-        sae_correct = SchemeAccountEntryFactory(user=self.user)
-        sae_wrong = SchemeAccountEntryFactory()
-        data = [
-            {'scheme_account_id': sae_correct.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_correct.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id}
-        ]
-        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user, data)
-        self.assertEqual(len(filtered_data), 2)
-        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user, sae_correct.scheme_account_id))
-        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user, sae_wrong.scheme_account_id))
 
 
 class TestAgainWithWeb2(TestResources):
