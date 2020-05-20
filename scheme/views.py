@@ -380,6 +380,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             raise serializers.ValidationError('Invalid status code sent.')
 
         scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
+        previous_status = scheme_account.status
 
         pending_statuses = (SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.JOIN_IN_PROGRESS,
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
@@ -387,6 +388,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code is SchemeAccount.ACTIVE:
             if previous_status is not SchemeAccount.ACTIVE:
                 # @todo Soft links make
+                # make soft links for scheme_account=Active  -  make_soft_links_active_by_scheme(scheme_account)
                 pass
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:

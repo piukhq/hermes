@@ -314,12 +314,13 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
-        if new_status_code == payment_card_account.ACTIVE:
-            # @todo Soft links make
-            pass
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
+            if new_status_code == payment_card_account.ACTIVE:
+                # @todo Soft links make
+                # make_soft_links_active_by_payment_account(payment_card_account)
+                pass
 
         return Response({
             'id': payment_card_account.id,
