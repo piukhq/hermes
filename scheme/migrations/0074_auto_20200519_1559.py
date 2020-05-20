@@ -8,63 +8,62 @@ from scheme.credentials import CARD_NUMBER, BARCODE
 
 
 def _update_card_number(account, questions_ids, SchemeAccountCredentialAnswer):
+    save_card_number = False
+
     card_number = SchemeAccountCredentialAnswer.objects.filter(
         scheme_account_id=account.id,
         question__id__in=questions_ids.values()
     ).values('question__type', 'answer').order_by('-question__type').first()
 
     if not card_number:
-        account.card_number = ''
-        return None
+        return save_card_number
 
     if card_number['question__type'] == CARD_NUMBER:
         account.card_number = card_number['answer']
+        save_card_number = True
 
     elif card_number['question__type'] == BARCODE and account.scheme.card_number_regex:
         try:
             regex_match = re.search(account.scheme.card_number_regex, card_number['answer'])
         except sre_constants.error:
-            account.card_number = ''
-            return None
+            return save_card_number
         if regex_match:
             try:
                 account.card_number = account.scheme.card_number_prefix + regex_match.group(1)
+                save_card_number = True
             except IndexError:
                 pass
 
-    else:
-        account.card_number = ''
+    return save_card_number
 
 
 def _update_barcode(account, questions_ids, SchemeAccountCredentialAnswer):
+    save_barcode = False
     barcode = SchemeAccountCredentialAnswer.objects.filter(
         scheme_account_id=account.id,
         question__id__in=questions_ids.values()
     ).values('question__type', 'answer').order_by('question__type').first()
 
     if not barcode:
-        account.barcode = ''
-        return None
+        return save_barcode
 
     if barcode['question__type'] == BARCODE:
         account.barcode = barcode['answer']
-        account.save(update_fields=['barcode'])
+        save_barcode = True
 
     elif barcode['question__type'] == CARD_NUMBER and account.scheme.barcode_regex:
         try:
             regex_match = re.search(account.scheme.barcode_regex, barcode['answer'])
         except sre_constants.error:
-            account.barcode = ''
-            return
+            return save_barcode
         if regex_match:
             try:
                 account.barcode = account.scheme.barcode_prefix + regex_match.group(1)
-                account.save(update_fields=['barcode'])
+                save_barcode = True
             except IndexError:
                 pass
 
-    else:
-        account.barcode = ''
+    return save_barcode
 
 
 def update_barcode_and_card_number(account, SchemeCredentialQuestion, SchemeAccountCredentialAnswer):
@@ -75,9 +74,14 @@ def update_barcode_and_card_number(account, SchemeCredentialQuestion, SchemeAcco
             type__in=[CARD_NUMBER, BARCODE]).values('type', 'id')
     }
 
-    _update_card_number(account, questions_ids, SchemeAccountCredentialAnswer)
-    _update_barcode(account, questions_ids, SchemeAccountCredentialAnswer)
-    account.save(update_fields=['barcode', 'card_number'])
+    update_fields = []
+    if _update_card_number(account, questions_ids, SchemeAccountCredentialAnswer):
+        update_fields.append(CARD_NUMBER)
+    if _update_barcode(account, questions_ids, SchemeAccountCredentialAnswer):
+        update_fields.append(BARCODE)
+
+    if update_fields:
+        account.save(update_fields=update_fields)
 
 
 def populate_card_number_and_barcode(apps, schema_editor):
