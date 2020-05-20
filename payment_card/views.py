@@ -314,6 +314,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
+        if new_status_code == payment_card_account.ACTIVE:
+            # @todo Soft links make
+            pass
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
