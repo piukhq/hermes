@@ -74,7 +74,7 @@ class BaseLinkMixin(object):
                 question=scheme_account.question(answer_type),
                 scheme_account=scheme_account, defaults={'answer': answer})
 
-        midas_information = scheme_account.get_midas_balance(journey=JourneyTypes.LINK)
+        midas_information = scheme_account.get_cached_balance()
 
         response_data = {
             'balance': midas_information,
@@ -422,19 +422,29 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
 
     @staticmethod
-    def update_credentials(scheme_account: SchemeAccount, data: dict) -> dict:
-        serializer = UpdateCredentialSerializer(data=data, context={'scheme_account': scheme_account})
+    def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
+        if questions is None:
+            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)\
+                .values("id", "type").all()
+
+        serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if 'consents' in data:
             del data['consents']
 
-        updated_credentials = []
+        question_id_from_type = {
+            question["type"]: question["id"]
+            for question in questions
+        }
 
+        updated_credentials = []
         for credential_type in data.keys():
-            question = scheme_account.scheme.questions.get(type=credential_type)
-            SchemeAccountCredentialAnswer.objects.update_or_create(question=question, scheme_account=scheme_account,
-                                                                   defaults={'answer': data[credential_type]})
+            SchemeAccountCredentialAnswer.objects.update_or_create(
+                question_id=question_id_from_type[credential_type],
+                scheme_account=scheme_account,
+                defaults={'answer': data[credential_type]}
+            )
             updated_credentials.append(credential_type)
 
         return {'updated': updated_credentials}

@@ -6,7 +6,11 @@ import jwt
 import requests
 from arrow.parser import ParserError
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+from rest_framework.fields import empty
+from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -234,21 +238,76 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
         exclude = ('scheme_account', 'payment_card_account')
 
 
-class TransactionsSerializer(serializers.Serializer):
+class TransactionListSerializer(serializers.ListSerializer):
+    def run_validation(self, data=empty):
+        """
+        Overriding run_validation in order to filter transactions for the given user before
+        converting the data to the internal value. This would usually be done in .validate()
+        but cannot be in this case since the internal value does not store the scheme_account_id,
+        which is required for the filtering.
+        """
+        (is_empty_value, data) = self.validate_empty_values(data)
+        if is_empty_value:
+            return data
+
+        if self.context.get("user"):
+            data = self.filter_transactions_for_user(data)
+        value = self.to_internal_value(data)
+        try:
+            self.run_validators(value)
+            value = self.validate(value)
+            assert value is not None, '.validate() should return the validated data'
+        except (ValidationError, DjangoValidationError) as exc:
+            raise ValidationError(detail=as_serializer_error(exc))
+
+        return value
+
+    def filter_transactions_for_user(self, data):
+        user = self.context["user"]
+        queryset = user.scheme_account_set.values('id')
+        if not user.is_tester:
+            queryset = queryset.filter(scheme__test_scheme=False).values('id').all()
+
+        return [
+            tx for tx in data
+            if tx.get('scheme_account_id') in {account['id'] for account in queryset.all()}
+        ]
+
+
+class TransactionSerializer(serializers.Serializer):
+    """
+    A second version of the TransactionsSerializer since the original does not
+    validate input fields when deserializing.
+    """
     scheme_info = None
+    status = "active"
     id = serializers.IntegerField()
-    status = serializers.SerializerMethodField()
-    timestamp = serializers.SerializerMethodField()
+    scheme_account_id = serializers.IntegerField()
+    date = serializers.DateTimeField()
     description = serializers.CharField()
-    amounts = serializers.SerializerMethodField()
+    points = serializers.FloatField()
 
-    @staticmethod
-    def get_status(_):
-        return 'active'
+    class Meta:
+        list_serializer_class = TransactionListSerializer
 
-    @staticmethod
-    def get_timestamp(instance):
-        return arrow.get(instance['date']).timestamp
+    def to_representation(self, instance):
+        return {
+            "id": instance["id"],
+            "status": self.status,
+            "timestamp": instance.get("timestamp") or arrow.get(instance["date"]).timestamp,
+            "description": instance["description"],
+            "amounts": instance.get("amounts") or self.get_amounts(instance),
+        }
+
+    def to_internal_value(self, data):
+        data = super().to_internal_value(data)
+        return {
+            "id": data["id"],
+            "status": self.status,
+            "timestamp": arrow.get(data["date"]).timestamp,
+            "description": data["description"],
+            "amounts": self.get_amounts(data)
+        }
 
     def _get_scheme_info(self, mcard_id):
         if self.scheme_info:
@@ -527,14 +586,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
 
-    def _get_transactions(self, instance, scheme):
-        if self.context.get('request') and scheme.has_transactions:
-            transactions = self.get_transactions_data(self.context['request'].user.id, instance.id)
-            if transactions:
-                return TransactionsSerializer(transactions, many=True).data
-
-        return []
-
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:
         status = instance.status
@@ -581,7 +632,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'id': instance.id,
             'membership_plan': instance.scheme_id,
             'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
-            'membership_transactions': self._get_transactions(instance, scheme),
+            'membership_transactions': instance.transactions,
             'status': self.get_translated_status(instance),
             'card': {
                 'barcode': instance.barcode,

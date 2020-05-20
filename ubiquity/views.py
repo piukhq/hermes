@@ -39,13 +39,13 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
-                            async_add_field_only_link)
+                            async_add_field_only_link, deleted_payment_card_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
-                                                  TransactionsSerializer, LinkMembershipCardSerializer)
+                                                  TransactionSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -470,28 +470,22 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
-        payment_card_account = self.get_hashed_object()
-        p_card_users = {
-            user['id'] for user in
-            payment_card_account.user_set.values('id').exclude(id=request.user.id)
-        }
+        query = {'user_id': request.user.id}
+        pcard_hash: t.Optional[str] = None
+        pcard_pk: t.Optional[int] = None
 
-        PaymentCardSchemeEntry.objects.filter(
-            payment_card_account=payment_card_account
-        ).exclude(
-            scheme_account__user_set__id__in=p_card_users
-        ).delete()
-        PaymentCardAccountEntry.objects.get(
-            payment_card_account=payment_card_account, user__id=request.user.id
-        ).delete()
+        if self.kwargs.get('hash'):
+            pcard_hash = BLAKE2sHash().new(
+                obj=self.kwargs['hash'],
+                key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+            )
+            query['payment_card_account__hash'] = pcard_hash
+        else:
+            pcard_pk = kwargs['pk']
+            query['payment_card_account_id'] = pcard_pk
 
-        if payment_card_account.user_set.count() < 1:
-            payment_card_account.is_deleted = True
-            payment_card_account.save()
-            PaymentCardSchemeEntry.objects.filter(payment_card_account=payment_card_account).delete()
-
-            metis.delete_payment_card(payment_card_account)
-
+        get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
+        deleted_payment_card_cleanup.delay(pcard_pk, pcard_hash)
         return Response({}, status=status.HTTP_200_OK)
 
 
@@ -617,18 +611,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         self.log_update(account.pk)
 
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
-        manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if registration_fields:
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
-            updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
+            updated_account = self._handle_update_fields(account, update_fields)
 
         async_balance.delay(updated_account.id)
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
 
@@ -636,13 +629,23 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
-        if manual_question and manual_question in update_fields:
-            if self.card_with_same_data_already_exists(account, account.scheme.id, update_fields[manual_question]):
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+            .values("id", "type", "manual_question").all()
+
+        manual_question_type = None
+        for question in questions:
+            if question["manual_question"]:
+                manual_question_type = question["type"]
+
+        if manual_question_type and manual_question_type in update_fields:
+            if self.card_with_same_data_already_exists(
+                    account, account.scheme.id, update_fields[manual_question_type]
+            ):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return account
 
-        self.update_credentials(account, update_fields)
+        self.update_credentials(account, update_fields, questions)
         account.delete_cached_balance()
         account.set_pending()
         return account
@@ -672,9 +675,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
+        scheme, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
-        if not request.channels_permit.is_scheme_available(scheme_id):
+        if not request.channels_permit.is_scheme_available(scheme.id):
             raise ParseError('membership plan not allowed for this user.')
 
         # This check needs to be done before balance is deleted
@@ -695,16 +698,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             )
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
-            async_join.delay(account.id, user_id, serializer, scheme_id, validated_data)
+            async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
-            if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+            if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
                 account.status = account.FAILED_UPDATE
                 account.save()
             else:
-                self.replace_credentials_and_scheme(account, new_answers, scheme_id)
+                self.replace_credentials_and_scheme(account, new_answers, scheme)
 
             account.set_pending()
             async_balance.delay(account.id)
@@ -1283,7 +1286,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
 
 class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, MembershipTransactionsMixin):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = TransactionsSerializer
+    serializer_class = TransactionSerializer
     response_serializer = SelectSerializer.MEMBERSHIP_TRANSACTION
 
     @censor_and_decorate
@@ -1291,13 +1294,13 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        if resp.status_code == 200 and resp.json():
-            data = resp.json()
-            if isinstance(data, list):
-                data = data[0]
+        resp_json = resp.json()
+        if resp.status_code == 200 and resp_json:
+            serializer = self.serializer_class(data=resp_json)
+            serializer.is_valid(raise_exception=True)
 
-            if self._account_belongs_to_user(request.user, data.get('scheme_account_id')):
-                return Response(self.get_serializer_by_request(data, many=False).data)
+            if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
+                return Response(self.get_serializer_by_request(serializer.validated_data).data)
 
         return Response({})
 
@@ -1306,9 +1309,11 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        if resp.status_code == 200 and resp.json():
-            data = self._filter_transactions_for_current_user(request.user, resp.json())
-            data = data[:5]  # limit to 5 transactions as per documentation
+        resp_json = resp.json()
+        if resp.status_code == 200 and resp_json:
+            serializer = self.serializer_class(data=resp_json, many=True, context={"user": request.user})
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data[:5]  # limit to 5 transactions as per documentation
             if data:
                 return Response(self.get_serializer_by_request(data, many=True).data)
 
@@ -1319,8 +1324,10 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
             return Response([])
 
-        response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        return Response(self.get_serializer_by_request(response, many=True).data if response else [])
+        transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
+        serializer = self.serializer_class(data=transactions, many=True, context={"user": request.user})
+        serializer.is_valid(raise_exception=True)
+        return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
 
     @staticmethod
     def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
@@ -1332,14 +1339,3 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             query['scheme__test_scheme'] = False
 
         return user.scheme_account_set.filter(**query).exists()
-
-    @staticmethod
-    def _filter_transactions_for_current_user(user: CustomUser, data: t.List[dict]) -> t.List[dict]:
-        queryset = user.scheme_account_set.values('id')
-        if not user.is_tester:
-            queryset = queryset.filter(scheme__test_scheme=False)
-
-        return [
-            tx for tx in data
-            if tx.get('scheme_account_id') in {account['id'] for account in queryset.all()}
-        ]
