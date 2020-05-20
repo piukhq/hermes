@@ -385,6 +385,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                             SchemeAccount.PENDING, SchemeAccount.PENDING_MANUAL_CHECK)
 
         if new_status_code is SchemeAccount.ACTIVE:
+            if previous_status is not SchemeAccount.ACTIVE:
+                # @todo Soft links make
+                pass
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
