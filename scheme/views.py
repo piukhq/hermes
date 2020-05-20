@@ -37,11 +37,14 @@ from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialS
                                 StatusSerializer, UpdateUserConsentSerializer)
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
 from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class SchemeAccountQuery(APIView):
@@ -476,6 +479,34 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 logging.exception('Failed to send join data to thanatos.')
                 if settings.HERMES_SENTRY_DSN:
                     sentry_sdk.capture_exception()
+
+
+class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):
+    permission_classes = (AllowService,)
+    authentication_classes = (ServiceAuthentication,)
+    serializer_class = TransactionSerializer
+
+    def post(self, request, *args, **kwargs):
+        """
+        DO NOT USE - NOT FOR APP ACCESS
+        """
+        scheme_account_id = int(kwargs["pk"])
+        transactions = json.loads(request.data)
+
+        scheme_account = get_object_or_404(SchemeAccount, id=scheme_account_id, is_deleted=False)
+        logger.info(f"Updating transactions for scheme account (id={scheme_account_id})")
+
+        serializer = self.get_serializer(data=transactions, many=True)
+        serializer.is_valid(raise_exception=True)
+
+        scheme_account.transactions = serializer.validated_data
+        scheme_account.save()
+
+        logger.info(f"Transactions updated for scheme account (id={scheme_account_id})")
+        return Response({
+            "id": scheme_account.id,
+            "transactions": serializer.validated_data
+        })
 
 
 class Pagination(PageNumberPagination):

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
-TransactionsSerializer = base_serializers.TransactionsSerializer
+TransactionSerializer = base_serializers.TransactionSerializer
 
 
 class MembershipPlanContentSerializer(serializers.ModelSerializer):

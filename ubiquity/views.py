@@ -45,7 +45,7 @@ from ubiquity.versioning.base.serializers import (MembershipCardSerializer, Memb
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
                                                   PaymentCardSerializer, MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
-                                                  TransactionsSerializer, LinkMembershipCardSerializer)
+                                                  TransactionSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
@@ -1292,7 +1292,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
 
 class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, MembershipTransactionsMixin):
     authentication_classes = (PropertyAuthentication,)
-    serializer_class = TransactionsSerializer
+    serializer_class = TransactionSerializer
     response_serializer = SelectSerializer.MEMBERSHIP_TRANSACTION
 
     @censor_and_decorate
@@ -1300,13 +1300,13 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        if resp.status_code == 200 and resp.json():
-            data = resp.json()
-            if isinstance(data, list):
-                data = data[0]
+        resp_json = resp.json()
+        if resp.status_code == 200 and resp_json:
+            serializer = self.serializer_class(data=resp_json)
+            serializer.is_valid(raise_exception=True)
 
-            if self._account_belongs_to_user(request.user, data.get('scheme_account_id')):
-                return Response(self.get_serializer_by_request(data, many=False).data)
+            if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
+                return Response(self.get_serializer_by_request(serializer.validated_data).data)
 
         return Response({})
 
@@ -1315,9 +1315,11 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
         resp = requests.get(url, headers=headers)
-        if resp.status_code == 200 and resp.json():
-            data = self._filter_transactions_for_current_user(request.user, resp.json())
-            data = data[:5]  # limit to 5 transactions as per documentation
+        resp_json = resp.json()
+        if resp.status_code == 200 and resp_json:
+            serializer = self.serializer_class(data=resp_json, many=True, context={"user": request.user})
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data[:5]  # limit to 5 transactions as per documentation
             if data:
                 return Response(self.get_serializer_by_request(data, many=True).data)
 
@@ -1328,8 +1330,10 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
             return Response([])
 
-        response = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        return Response(self.get_serializer_by_request(response, many=True).data if response else [])
+        transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
+        serializer = self.serializer_class(data=transactions, many=True, context={"user": request.user})
+        serializer.is_valid(raise_exception=True)
+        return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
 
     @staticmethod
     def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
@@ -1341,14 +1345,3 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             query['scheme__test_scheme'] = False
 
         return user.scheme_account_set.filter(**query).exists()
-
-    @staticmethod
-    def _filter_transactions_for_current_user(user: CustomUser, data: t.List[dict]) -> t.List[dict]:
-        queryset = user.scheme_account_set.values('id')
-        if not user.is_tester:
-            queryset = queryset.filter(scheme__test_scheme=False)
-
-        return [
-            tx for tx in data
-            if tx.get('scheme_account_id') in {account['id'] for account in queryset.all()}
-        ]

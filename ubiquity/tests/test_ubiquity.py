@@ -3,7 +3,6 @@ import json
 from decimal import Decimal
 from unittest.mock import patch, MagicMock
 
-import arrow
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory
@@ -29,7 +28,7 @@ from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
-from ubiquity.views import MembershipTransactionView, MembershipCardView
+from ubiquity.views import MembershipCardView
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -428,6 +427,20 @@ class TestResources(APITestCase):
         self.put_scheme_auth_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=PASSWORD,
                                                                  label=PASSWORD, auth_field=True)
 
+        self.test_hades_transactions = [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account.id,
+                'created': '2020-05-19 14:36:35+00:00',
+                'date': '2020-05-19 14:36:35+00:00',
+                'description': 'Test Transaction',
+                'location': 'Bink',
+                'points': 200,
+                'value': 'A lot',
+                'hash': 'ewfnwoenfwen'
+            }
+        ]
+
     def test_get_single_payment_card(self):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         expected_result = remove_empty(PaymentCardSerializer(payment_card_account).data)
@@ -709,9 +722,8 @@ class TestResources(APITestCase):
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_membership_card_creation(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
+    def test_membership_card_creation(self, mock_date, mock_async_balance, mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
             "membership_plan": self.scheme.id,
@@ -740,7 +752,6 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
-        self.assertTrue(mock_hades.called)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
@@ -1134,50 +1145,90 @@ class TestResources(APITestCase):
     @httpretty.activate
     def test_membership_transactions(self):
         uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
-        transactions = json.dumps([
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
+        expected_resp = [
             {
                 'id': 1,
-                'scheme_account_id': self.scheme_account.id,
-                'created': arrow.utcnow().format(),
-                'date': arrow.utcnow().format(),
+                'status': 'active',
+                'timestamp': 1589898995,
+                'description': 'Test Transaction',
+                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            }
+        ]
+        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(httpretty.has_request())
+        self.assertEqual(expected_resp, resp.json())
+
+    @httpretty.activate
+    def test_user_transactions(self):
+        uri = '{}/transactions/user/{}'.format(settings.HADES_URL, self.user.id)
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
+        expected_resp = [
+            {
+                'id': 1,
+                'status': 'active',
+                'timestamp': 1589898995,
+                'description': 'Test Transaction',
+                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            }
+        ]
+        resp = self.client.get(reverse('user-transactions'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()[0]['amounts'][0]['value'], 200)
+        self.assertTrue(httpretty.has_request())
+        self.assertEqual(expected_resp, resp.json())
+
+    @httpretty.activate
+    def test_retrieve_transactions(self):
+        transaction_id = 1
+        uri = '{}/transactions/{}'.format(settings.HADES_URL, transaction_id)
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions[0]))
+        expected_resp = {
+            'id': 1,
+            'status': 'active',
+            'timestamp': 1589898995,
+            'description': 'Test Transaction',
+            'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+        }
+        resp = self.client.get(reverse('retrieve-transactions', args=[transaction_id]),
+                               **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(httpretty.has_request())
+        self.assertEqual(expected_resp, resp.json())
+
+    @httpretty.activate
+    def test_transactions_user_filter(self):
+        uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
+        transactions = self.test_hades_transactions + [
+            {
+                'id': 1,
+                'scheme_account_id': self.scheme_account.id + 1,
+                'created': '2020-05-19 14:36:35+00:00',
+                'date': '2020-05-19 14:36:35+00:00',
                 'description': 'Test Transaction',
                 'location': 'Bink',
                 'points': 200,
                 'value': 'A lot',
                 'hash': 'ewfnwoenfwen'
             }
-        ])
-        httpretty.register_uri(httpretty.GET, uri, transactions)
+        ]
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(transactions))
+        expected_resp = [
+            {
+                'id': 1,
+                'status': 'active',
+                'timestamp': 1589898995,
+                'description': 'Test Transaction',
+                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            }
+        ]
         resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
-
-        uri = '{}/transactions/user/{}'.format(settings.HADES_URL, self.user.id)
-        httpretty.register_uri(httpretty.GET, uri, transactions)
-        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
-                               **self.auth_headers)
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.json()[0]['amounts'][0]['value'], 200)
-        self.assertTrue(httpretty.has_request())
-
-        uri = '{}/transactions/1'.format(settings.HADES_URL)
-        transaction = json.dumps({
-            'id': 1,
-            'scheme_account_id': self.scheme_account.id,
-            'created': arrow.utcnow().format(),
-            'date': arrow.utcnow().format(),
-            'description': 'Test Transaction',
-            'location': 'Bink',
-            'points': 200,
-            'value': 'A lot',
-            'hash': 'ewfnwoenfwen'
-        })
-        httpretty.register_uri(httpretty.GET, uri, transaction)
-        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
-                               **self.auth_headers)
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(httpretty.has_request())
+        self.assertEqual(expected_resp, resp.json())
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
@@ -1650,22 +1701,6 @@ class TestResources(APITestCase):
         query['scheme_account_id'] = fail_resp.json()['id']
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
-    def test_membership_card_transactions_user_filters(self):
-        sae_correct = SchemeAccountEntryFactory(user=self.user)
-        sae_wrong = SchemeAccountEntryFactory()
-        data = [
-            {'scheme_account_id': sae_correct.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id},
-            {'scheme_account_id': sae_correct.scheme_account_id},
-            {'scheme_account_id': sae_wrong.scheme_account_id}
-        ]
-        filtered_data = MembershipTransactionView._filter_transactions_for_current_user(self.user, data)
-        self.assertEqual(len(filtered_data), 2)
-        self.assertTrue(MembershipTransactionView._account_belongs_to_user(self.user, sae_correct.scheme_account_id))
-        self.assertFalse(MembershipTransactionView._account_belongs_to_user(self.user, sae_wrong.scheme_account_id))
-
 
 class TestAgainWithWeb2(TestResources):
 
@@ -1771,9 +1806,8 @@ class TestResourcesV1_2(APITestCase):
     @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch('analytics.api._get_today_datetime')
-    def test_sensitive_field_decryption(self, mock_date, mock_hades, mock_async_balance, mock_async_link, *_):
+    def test_sensitive_field_decryption(self, mock_date, mock_async_balance, mock_async_link, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1805,7 +1839,6 @@ class TestResourcesV1_2(APITestCase):
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
 
-        self.assertTrue(mock_hades.called)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
