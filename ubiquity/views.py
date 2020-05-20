@@ -617,18 +617,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         self.log_update(account.pk)
 
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
-        manual_question = SchemeCredentialQuestion.objects.filter(scheme=account.scheme, manual_question=True).first()
 
         if registration_fields:
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
-            updated_account = self._handle_update_fields(account, update_fields, manual_question.type)
+            updated_account = self._handle_update_fields(account, update_fields)
 
         async_balance.delay(updated_account.id)
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, manual_question: str) -> SchemeAccount:
+    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
 
@@ -636,13 +635,23 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             # Fix for Barclays sending escaped unicode sequences for special chars.
             update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
-        if manual_question and manual_question in update_fields:
-            if self.card_with_same_data_already_exists(account, account.scheme.id, update_fields[manual_question]):
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+            .values("id", "type", "manual_question").all()
+
+        manual_question_type = None
+        for question in questions:
+            if question["manual_question"]:
+                manual_question_type = question["type"]
+
+        if manual_question_type and manual_question_type in update_fields:
+            if self.card_with_same_data_already_exists(
+                    account, account.scheme.id, update_fields[manual_question_type]
+            ):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return account
 
-        self.update_credentials(account, update_fields)
+        self.update_credentials(account, update_fields, questions)
         account.delete_cached_balance()
         account.set_pending()
         return account
@@ -672,9 +681,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
-        scheme_id, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
+        scheme, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
-        if not request.channels_permit.is_scheme_available(scheme_id):
+        if not request.channels_permit.is_scheme_available(scheme.id):
             raise ParseError('membership plan not allowed for this user.')
 
         # This check needs to be done before balance is deleted
@@ -695,16 +704,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             )
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
-            async_join.delay(account.id, user_id, serializer, scheme_id, validated_data)
+            async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
         else:
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
-            if self.card_with_same_data_already_exists(account, scheme_id, main_answer):
+            if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
                 account.status = account.FAILED_UPDATE
                 account.save()
             else:
-                self.replace_credentials_and_scheme(account, new_answers, scheme_id)
+                self.replace_credentials_and_scheme(account, new_answers, scheme)
 
             account.set_pending()
             async_balance.delay(account.id)
