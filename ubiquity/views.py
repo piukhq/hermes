@@ -63,7 +63,7 @@ def is_auto_link(req):
 
 
 def replace_escaped_unicode(match):
-    return match.group(1).encode().decode('unicode-escape')
+    return match.group(1)
 
 
 def send_data_to_atlas(response: 'HttpResponse') -> None:
@@ -849,7 +849,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 auth_fields['password'] = escaped_unicode_pattern.sub(
                     replace_escaped_unicode,
                     auth_fields['password']
-                )
+                ).encode().decode('unicode-escape')
 
             if account_created:
                 scheme_account.set_pending()
