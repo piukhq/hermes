@@ -57,7 +57,8 @@ class PaymentCardSchemeEntry(models.Model):
 
         return account_links.all()
 
-    def get_active_status(self):
+    @property
+    def computed_active_link(self):
         if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
                 not self.payment_card_account.is_deleted and \
                 self.scheme_account.status == self.scheme_account.ACTIVE and \
@@ -66,7 +67,7 @@ class PaymentCardSchemeEntry(models.Model):
         return False
 
     def set_active_status(self):
-        self.active_link = self.get_active_status()
+        self.active_link = self.computed_active_link
 
 
 class ServiceConsent(models.Model):

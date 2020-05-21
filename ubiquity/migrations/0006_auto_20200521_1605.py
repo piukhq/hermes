@@ -3,17 +3,27 @@
 from django.db import migrations, models
 
 
+def computed_active_link(payment_card_account, scheme_account):
+    # We cannot use .ACTIVE in a migration since code may change so we use 1 which is the value of ACTIVE when migration
+    # was written
+    if payment_card_account.status == 1 and \
+            not payment_card_account.is_deleted and \
+            scheme_account.status == 1 and \
+            not scheme_account.is_deleted:
+        return True
+    return False
+
+
 def update_active_status(apps, schema_editor):
     PaymentCardSchemeEntry = apps.get_model('ubiquity', 'PaymentCardSchemeEntry')
 
     for link in PaymentCardSchemeEntry.objects.all():
         current_status = link.active_link
-        print(f"Looking at active_link on PaymentCardSchemeEntry id:{link.id} is {current_status}")
-        new_status = link.get_active_status()
+        # Note migrations do not allow you to call class methods or attributes which are not in the data
+        new_status = computed_active_link(link.payment_card_account, link.scheme_account)
         if current_status != new_status:
             link.active_link = new_status
-            # link.save()
-            print(f"Changed active_link on PaymentCardSchemeEntry id:{link.id} to {new_status} was {current_status}")
+            link.save()
 
 
 class Migration(migrations.Migration):
