@@ -44,6 +44,15 @@ class PaymentCardSchemeEntry(models.Model):
 
         return account_links.all()
 
+    def get_active_status(self):
+        if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
+                self.scheme_account.status == self.scheme_account.ACTIVE:
+            return True
+        return False
+
+    def set_active_status(self):
+        self.active_link = self.get_active_status()
+
 
 class ServiceConsent(models.Model):
     user = models.OneToOneField('user.CustomUser', on_delete=models.CASCADE, primary_key=True)
