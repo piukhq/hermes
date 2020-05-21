@@ -1296,7 +1296,10 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         resp = requests.get(url, headers=headers)
         resp_json = resp.json()
         if resp.status_code == 200 and resp_json:
-            serializer = self.serializer_class(data=resp_json)
+            if isinstance(resp_json, list) and len(resp_json) > 1:
+                logger.warning("Hades responded with more than one transaction for a single id")
+            transaction = resp_json[0]
+            serializer = self.serializer_class(data=transaction)
             serializer.is_valid(raise_exception=True)
 
             if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
