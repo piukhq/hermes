@@ -108,7 +108,7 @@ class VersionedSerializerMixin:
         version = get_api_version(self.request)
         return versioned_serializer_class(version, self.response_serializer)
 
-
+def check_link_status(scheme_account: )
 class AutoLinkOnCreationMixin:
 
     @staticmethod
@@ -134,15 +134,17 @@ class AutoLinkOnCreationMixin:
             scheme_account_id = account.id
 
             PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=pcard_id)
+                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=pcard_id,
+                                       active_link=False)
                 for pcard_id in payment_card_to_link
             ])
+            # @todo Soft links make make true
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,
                                       account: PaymentCardAccount,
                                       just_created: bool = False) -> None:
-
+        # @todo Soft links make
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
         wallet_scheme_accounts = SchemeAccount.objects.values('id', 'scheme_id').filter(
             user_set=user, scheme__tier=Scheme.PLL
@@ -175,15 +177,18 @@ class AutoLinkOnCreationMixin:
                 if cards_by_scheme_ids.get(scheme_id):
                     # however, this scheme account which is a link candidate so we must choose the oldest (lowest id)
                     if cards_by_scheme_ids[scheme_id] > scheme_account_id:
-                        cards_by_scheme_ids[scheme_id] = scheme_account_id
+                        cards_by_scheme_ids[scheme_id]['id'] = scheme_account_id
                 else:
-                    cards_by_scheme_ids[scheme_id] = scheme_account_id
+                    cards_by_scheme_ids[scheme_id]['id'] = scheme_account_id
 
         if account and cards_by_scheme_ids:
             PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=account.id)
-                for scheme_account_id in cards_by_scheme_ids.values()
+                PaymentCardSchemeEntry(scheme_account_id=set_entry['id'], payment_card_account_id=account.id,
+                                       active_link=set_entry['link'])
+                for set_entry in cards_by_scheme_ids.values()
             ])
+
+
 
 
 class PaymentCardCreationMixin:

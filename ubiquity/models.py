@@ -37,7 +37,7 @@ class PaymentCardSchemeEntry(models.Model):
             payment_card_account=self.payment_card_account, scheme_account__scheme=self.scheme_account.scheme
         ).exclude(pk=self.pk)
         account_links.update(active_link=False)
-
+        #@todo Soft Link set Active only if both  payment card and membership card are active otherwise false
         if not self.active_link:
             self.active_link = True
             self.save()
