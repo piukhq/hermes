@@ -37,7 +37,7 @@ class PaymentCardSchemeEntry(models.Model):
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Membership Card Account")
-    active_link = models.BooleanField(default=True)
+    active_link = models.BooleanField(default=False)
     vop_link = models.IntegerField(choices=VOP_STATUS, default=0, help_text='The status of VOP card activation')
 
     class Meta:
@@ -59,7 +59,9 @@ class PaymentCardSchemeEntry(models.Model):
 
     def get_active_status(self):
         if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
-                self.scheme_account.status == self.scheme_account.ACTIVE:
+                not self.payment_card_account.is_deleted and \
+                self.scheme_account.status == self.scheme_account.ACTIVE and \
+                not self.scheme_account.is_deleted:
             return True
         return False
 
