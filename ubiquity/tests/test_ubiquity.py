@@ -1196,7 +1196,7 @@ class TestResources(APITestCase):
     def test_retrieve_transactions(self):
         transaction_id = 1
         uri = '{}/transactions/{}'.format(settings.HADES_URL, transaction_id)
-        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions[0]))
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
         expected_resp = {
             'id': 1,
             'status': 'active',
