@@ -8,8 +8,10 @@ from enum import IntEnum
 
 import arrow
 import requests
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
+from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
@@ -19,12 +21,10 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
-
-from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
-from common.models import Image
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
+from ubiquity.models import PaymentCardSchemeEntry
 
 
 class Category(models.Model):
@@ -583,6 +583,11 @@ class SchemeAccount(models.Model):
                          "rep": repr(self)},
                         headers={'X-content-type': 'application/json'}
                     )
+
+            # Update active_link status
+            if self.status != old_status:
+                PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
+
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
