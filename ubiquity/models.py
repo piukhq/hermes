@@ -21,11 +21,24 @@ class PaymentCardAccountEntry(models.Model):
 
 
 class PaymentCardSchemeEntry(models.Model):
+    UNDEFINED = 0
+    ACTIVATING = 1
+    DEACTIVATING = 2
+    ACTIVATED = 3
+
+    VOP_STATUS = (
+        (UNDEFINED, 'undefined'),
+        (ACTIVATING, 'activating'),
+        (DEACTIVATING, 'deactivating'),
+        (ACTIVATED, 'activated')
+    )
+
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Membership Card Account")
-    active_link = models.BooleanField(default=True)
+    active_link = models.BooleanField(default=False)
+    vop_link = models.IntegerField(choices=VOP_STATUS, default=0, help_text='The status of VOP card activation')
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")
@@ -33,16 +46,51 @@ class PaymentCardSchemeEntry(models.Model):
         verbose_name_plural = "".join([verbose_name, 's'])
 
     def activate_link(self):
-        account_links = self.__class__.objects.filter(
+        same_scheme_links = self.__class__.objects.filter(
             payment_card_account=self.payment_card_account, scheme_account__scheme=self.scheme_account.scheme
         ).exclude(pk=self.pk)
-        account_links.update(active_link=False)
 
-        if not self.active_link:
-            self.active_link = True
+        # The autolink rule is to choose the oldest link over current one but for now we will prefer the one requested
+        # and delete the older ones
+        # todo check if we should use the autolink selection and also prefer active links
+
+        same_scheme_links.delete()
+        called_status = self.active_link
+        self.active_link = self.computed_active_link
+        if called_status != self.active_link:
             self.save()
 
-        return account_links.all()
+    @property
+    def computed_active_link(self):
+        if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
+                not self.payment_card_account.is_deleted and \
+                self.scheme_account.status == self.scheme_account.ACTIVE and \
+                not self.scheme_account.is_deleted:
+            return True
+        return False
+
+    def get_instance_with_active_status(self):
+        """ Returns the instance of its self after having first set the corrected active_link status
+        :return: self
+        """
+        self.active_link = self.computed_active_link
+        return self
+
+    @classmethod
+    def update_active_link_status(cls, query):
+        links = cls.objects.filter(**query)
+        bulk_update = []
+        for link in links:
+            update_link = link.get_instance_with_active_status()
+            if update_link.active_link:
+                bulk_update.append(update_link)
+        if bulk_update:
+            cls.objects.bulk_update(bulk_update, ['active_link'])
+
+    @classmethod
+    def update_soft_links(cls, query):
+        query['active_link'] = False
+        cls.update_active_link_status(query)
 
 
 class ServiceConsent(models.Model):
