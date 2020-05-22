@@ -46,16 +46,19 @@ class PaymentCardSchemeEntry(models.Model):
         verbose_name_plural = "".join([verbose_name, 's'])
 
     def activate_link(self):
-        account_links = self.__class__.objects.filter(
+        same_scheme_links = self.__class__.objects.filter(
             payment_card_account=self.payment_card_account, scheme_account__scheme=self.scheme_account.scheme
         ).exclude(pk=self.pk)
-        account_links.update(active_link=False)
-        # @todo Soft Link set Active only if both  payment card and membership card are active otherwise false
-        if not self.active_link:
-            self.active_link = True
-            self.save()
 
-        return account_links.all()
+        # The autolink rule is to choose the oldest link over current one but for now we will prefer the one requested
+        # and delete the older ones
+        # todo check if we should use the autolink selection and also prefer active links
+
+        same_scheme_links.delete()
+        called_status = self.active_link
+        self.active_link = self.computed_active_link
+        if called_status != self.active_link:
+            self.save()
 
     @property
     def computed_active_link(self):
@@ -74,15 +77,20 @@ class PaymentCardSchemeEntry(models.Model):
         return self
 
     @classmethod
-    def update_soft_links(cls, query):
-        soft_links = cls.objects.filter(**query)
+    def update_active_link_status(cls, query):
+        links = cls.objects.filter(**query)
         bulk_update = []
-        for soft_link in soft_links:
-            update_link = soft_link.get_instance_with_active_status()
+        for link in links:
+            update_link = link.get_instance_with_active_status()
             if update_link.active_link:
                 bulk_update.append(update_link)
         if bulk_update:
             cls.objects.bulk_update(bulk_update, ['active_link'])
+
+    @classmethod
+    def update_soft_links(cls, query):
+        query['active_link'] = False
+        cls.update_active_link_status(query)
 
 
 class ServiceConsent(models.Model):

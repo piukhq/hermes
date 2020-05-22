@@ -390,7 +390,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if new_status_code is SchemeAccount.ACTIVE:
             if previous_status is not SchemeAccount.ACTIVE:
-                PaymentCardSchemeEntry.update_soft_links({'scheme_account': scheme_account, 'active_link': False})
+                PaymentCardSchemeEntry.update_soft_links({'scheme_account': scheme_account})
 
             Payment.process_payment_success(scheme_account)
         elif new_status_code not in pending_statuses:
