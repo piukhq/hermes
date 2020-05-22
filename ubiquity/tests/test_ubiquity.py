@@ -200,25 +200,26 @@ class TestPaymentAutoLink(APITestCase):
         self.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c4_p5_u5,
                                                                        user=self.user5)
 
+    def auto_link_post(self, payload, user):
+        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(payload),
+                                content_type='application/json', **self._get_auth_headers(user),
+                                **self.version_header)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        return resp, linked
+
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_auto_link(self, *_):
         # seanario 1 1 membership cards 1 plans - user 1
-
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user1),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         self.assertEqual(len(linked), 1)
 
         # Repeat auto link to ensure nothing extra is added and 200 returned
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user1),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         self.assertEqual(len(linked), 1)
 
@@ -229,39 +230,42 @@ class TestPaymentAutoLink(APITestCase):
         SchemeAccountEntryFactory(scheme_account=scheme_account2, user=self.user1)
 
         # Try to add again and see if auto links
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user1),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user1)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(linked), 2)
+
+        # Make the links active
+        for link in linked:
+            link.active_link = True
+            link.save()
+
+        # Try to add again and see if auto links = True
+        resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(resp.data['membership_cards']), 2)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         self.assertEqual(len(linked), 2)
+        for item in resp.data['membership_cards']:
+            self.assertEqual(item['active_link'], True)
+            self.assertIn('id', item)
+            self.assertEqual(len(item), 2)
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_2_cards_different_plans(self, *_):
         # senario 2 2 membership cards 2 plans - user 2
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user2),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user2)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 2)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         self.assertEqual(len(linked), 2)
 
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_4_cards_same_plan(self, *_):
         # senario 3 4 membership cards 1 plans - user 3
-
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user3),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user3)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        # Test first added with lowest id is returned in list
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c1_p4.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         # Test only card linked to payment card has lowest id
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p4.id)
@@ -270,15 +274,9 @@ class TestPaymentAutoLink(APITestCase):
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_4cards_2users_same_plan(self, *_):
         # senario 4 4 membership cards 1 plans - user 4
-
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user4),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        # Test first added with lowest id is returned in list
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c1_p5_u4.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         # Test only card linked to payment card has lowest id
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p5_u4.id)
@@ -288,28 +286,19 @@ class TestPaymentAutoLink(APITestCase):
     def test_payment_card_auto_link_4cards_2users_same_plan_other_user_linked(self, *_):
         # senario 4 4 membership cards 1 plans - user 5
         # now with user 5 instead of 4 auto link
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user5),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        # Test first added with lowest id is returned in list
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c3_p5_u5.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
         # now repeat user 4 auto link
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user4),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c3_p5_u5.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
@@ -318,17 +307,10 @@ class TestPaymentAutoLink(APITestCase):
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_2_payment_cards(self, *_):
         # senario 4 4 membership cards 1 plans - user 5 but with an additional linked payment
-
         # now with user 5 instead of 4 auto link but with payment card 2
-
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload2),
-                                content_type='application/json', **self._get_auth_headers(self.user5),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload2, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        # Test first added with lowest id is returned in list
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c3_p5_u5.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
@@ -336,28 +318,19 @@ class TestPaymentAutoLink(APITestCase):
         # now with user 5 instead of 4 auto link as previous test same result as before the auto linking of
         # another payment card should have no effect.
 
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user5),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
-        # Test first added with lowest id is returned in list
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c3_p5_u5.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data['membership_cards']), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
         # now repeat user 4 auto link
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(self.payload),
-                                content_type='application/json', **self._get_auth_headers(self.user4),
-                                **self.version_header)
+        resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 1)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
-        self.assertEqual(resp.data['membership_cards'][0]['id'], self.scheme_account_c3_p5_u5.id)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
