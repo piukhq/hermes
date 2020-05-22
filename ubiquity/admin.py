@@ -8,8 +8,7 @@ from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     list_display = ('payment_card_account', 'scheme_account', 'active_link', 'payment_card_account_link',
-                    'scheme_account_link', 'pcard_status', 'pcard_deleted', 'mcard_status', 'mcard_deleted',
-                    'pay_created')
+                    'scheme_account_link', 'pcard_status', 'pcard_deleted', 'mcard_status', 'mcard_deleted')
     search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
                      'scheme_account__scheme__name', 'payment_card_account__payment_card__name')
 
@@ -39,9 +38,6 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
     def mcard_status(self, obj):
         return obj.scheme_account.status_name
-
-    def pay_created(self, obj):
-        return obj.payment_card_account.created
 
     def mcard_deleted(self, obj):
         return obj.scheme_account.is_deleted
