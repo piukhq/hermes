@@ -69,7 +69,7 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
 
     def get_payment_card(self, obj):
         slug = bin_to_provider(obj['first_six_digits'])
-        return PaymentCard.objects.values('id').get(slug=slug)['id']
+        return PaymentCard.objects.values_list('id', flat=True).get(slug=slug)
 
     @staticmethod
     def get_hash(obj):
