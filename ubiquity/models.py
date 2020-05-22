@@ -50,7 +50,7 @@ class PaymentCardSchemeEntry(models.Model):
             payment_card_account=self.payment_card_account, scheme_account__scheme=self.scheme_account.scheme
         ).exclude(pk=self.pk)
         account_links.update(active_link=False)
-        #@todo Soft Link set Active only if both  payment card and membership card are active otherwise false
+        # @todo Soft Link set Active only if both  payment card and membership card are active otherwise false
         if not self.active_link:
             self.active_link = True
             self.save()
@@ -73,15 +73,16 @@ class PaymentCardSchemeEntry(models.Model):
         self.active_link = self.computed_active_link
         return self
 
-    def update_soft_links(self, query):
-        soft_links = self.__class__.objects.filter(**query)
+    @classmethod
+    def update_soft_links(cls, query):
+        soft_links = cls.objects.filter(**query)
         bulk_update = []
         for soft_link in soft_links:
             update_link = soft_link.get_instance_with_active_status()
             if update_link.active_link:
                 bulk_update.append(update_link)
         if bulk_update:
-            self.__class__.objects.bulk_update(bulk_update, ['active_link'])
+            cls.objects.bulk_update(bulk_update, ['active_link'])
 
 
 class ServiceConsent(models.Model):

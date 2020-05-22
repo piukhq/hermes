@@ -320,8 +320,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
-                PaymentCardSchemeEntry.update_soft_links(
-                    query={'payment_card_account': payment_card_account, 'active_link': False})
+                PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account,
+                                                          'active_link': False})
 
         return Response({
             'id': payment_card_account.id,
