@@ -1,6 +1,7 @@
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from rest_framework import serializers
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
@@ -16,8 +17,6 @@ if TYPE_CHECKING:
 ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionSerializer = base_serializers.TransactionSerializer
-
-pool = ProcessPoolExecutor(max_workers=4)
 
 
 class MembershipPlanContentSerializer(serializers.ModelSerializer):
@@ -62,12 +61,11 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
 
 
 class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSerializer):
-    FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
-    pan_start = serializers.SerializerMethodField()
-    pan_end = serializers.SerializerMethodField()
-    expiry_year = serializers.SerializerMethodField()
-    expiry_month = serializers.SerializerMethodField()
     hash = serializers.SerializerMethodField()
+
+    FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
+    pool_executor = ProcessPoolExecutor(max_workers=settings.POOL_EXECUTOR_MAX_WORKERS)
+    rsa_cipher = RSACipher()
 
     def get_payment_card(self, obj):
         slug = bin_to_provider(obj['first_six_digits'])
@@ -81,25 +79,10 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         )
 
     def _decrypt_val(self, val):
-        if not self.context.get('rsa'):
-            self.context['rsa'] = RSACipher()
-
-        key = get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
-        rsa = self.context['rsa']
-        return rsa.decrypt(val, rsa_key=key)
+        rsa_key = get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
+        return self.rsa_cipher.decrypt(val, rsa_key=rsa_key)
 
     def to_representation(self, data):
-        keys = []
-        values = []
-
-        for k, v in data.items():
-            if k in self.FIELDS_TO_DECRYPT:
-                keys.append(k)
-                values.append(v)
-
-        decrypted_values = pool.map(self._decrypt_val, values)
-
-        for k in keys:
-            data[k] = next(decrypted_values)
-
+        values = [data[key] for key in self.FIELDS_TO_DECRYPT]
+        data.update(zip(self.FIELDS_TO_DECRYPT, self.pool_executor.map(self._decrypt_val, values)))
         return super().to_representation(data)
