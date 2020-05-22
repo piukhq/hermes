@@ -1196,7 +1196,7 @@ class TestResources(APITestCase):
     def test_retrieve_transactions(self):
         transaction_id = 1
         uri = '{}/transactions/{}'.format(settings.HADES_URL, transaction_id)
-        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions[0]))
+        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
         expected_resp = {
             'id': 1,
             'status': 'active',
@@ -1811,16 +1811,11 @@ class TestResourcesV1_2(APITestCase):
         self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
+    @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('analytics.api._get_today_datetime')
-    def test_sensitive_field_decryption(self, mock_date, mock_async_balance, mock_async_link, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_sensitive_field_decryption(self, mock_async_balance, mock_async_link, *_):
         password = 'Password1'
         question_answer2 = 'some other answer'
         payload = {
@@ -1850,6 +1845,46 @@ class TestResourcesV1_2(APITestCase):
 
         self.assertEqual(len(answers), 1)
         self.assertEqual(password, mock_async_link.delay.call_args[0][0][PASSWORD])
+
+        self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
+
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    def test_double_escaped_sensitive_field_value(self, mock_async_balance, mock_async_link, *_):
+        password = 'pa\\u0024\\u0024w\\u0026rd01\\u0021'
+        expected_password = 'pa$$w&rd01!'
+        question_answer2 = 'some other answer'
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": self.question_2.label,
+                            "value": question_answer2,
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": self.question_1.label,
+                            "value": self.rsa.encrypt(password, pub_key=self.pub_key),
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers, **self.version_header)
+        self.assertEqual(resp.status_code, 201)
+
+        scheme_acc = SchemeAccount.objects.get(pk=resp.data['id'])
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account=scheme_acc).all()
+
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(expected_password, mock_async_link.delay.call_args[0][0][PASSWORD])
 
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
