@@ -66,8 +66,9 @@ class PaymentCardSchemeEntry(models.Model):
             return True
         return False
 
-    def set_active_status(self):
+    def get_instance_with_active_status(self):
         self.active_link = self.computed_active_link
+        return self
 
 
 class ServiceConsent(models.Model):
