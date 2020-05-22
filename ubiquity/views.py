@@ -138,7 +138,6 @@ class AutoLinkOnCreationMixin:
                                        payment_card_account_id=pcard_id).get_instance_with_active_status()
                 for pcard_id in payment_card_to_link
             ])
-            # @todo Soft links make make true
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,

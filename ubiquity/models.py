@@ -67,8 +67,21 @@ class PaymentCardSchemeEntry(models.Model):
         return False
 
     def get_instance_with_active_status(self):
+        """ Returns the instance of its self after having first set the corrected active_link status
+        :return: self
+        """
         self.active_link = self.computed_active_link
         return self
+
+    def update_soft_links(self, query):
+        soft_links = self.__class__.objects.filter(**query)
+        bulk_update = []
+        for soft_link in soft_links:
+            update_link = soft_link.get_instance_with_active_status()
+            if update_link.active_link:
+                bulk_update.append(update_link)
+        if bulk_update:
+            self.__class__.objects.bulk_update(bulk_update, ['active_link'])
 
 
 class ServiceConsent(models.Model):
