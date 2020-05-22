@@ -165,7 +165,7 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer, null=True, blank=True, on_delete=models.PROTECT)
-    fingerprint = models.CharField(max_length=100)
+    fingerprint = models.CharField(max_length=100, db_index=True)
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
     hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)

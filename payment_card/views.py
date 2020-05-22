@@ -99,47 +99,38 @@ class ListCreatePaymentCardAccount(APIView):
                     PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
         return Response(accounts, status=200)
 
-    def post(self, request):
-        """Add a payment card account
-        ---
-        request_serializer: serializers.PaymentCardAccountSerializer
-        response_serializer: serializers.PaymentCardAccountSerializer
-        responseMessages:
-            - code: 400
-              message: Error code 400 is indicative of serializer errors. The error response will show more information.
-            - code: 403
-              message: A payment card account by that fingerprint and expiry already exists.
-        """
-        message, status_code, _ = self.create_payment_card_account(request.data, request.user)
-        return Response(message, status=status_code)
+    # TODO: this will be removed later when we remove all the legacy endpoints,
+    #  for now commented out as the new payment card creation logic does not work anymore with it
+    # def post(self, request):
+    #     """Add a payment card account
+    #     ---
+    #     request_serializer: serializers.PaymentCardAccountSerializer
+    #     response_serializer: serializers.PaymentCardAccountSerializer
+    #     responseMessages:
+    #         - code: 400
+    #           message: Error code 400 is indicative of serializer errors.
+    #           The error response will show more information.
+    #         - code: 403
+    #           message: A payment card account by that fingerprint and expiry already exists.
+    #     """
+    #     status_code, account = self.create_payment_card_account(request.data, request.user)
+    #     message = serializers.PaymentCardAccountSerializer(instance=account).data
+    #     return Response(message, status=status_code)
 
-    def create_payment_card_account(self, data, user):
+    def create_payment_card_account(self, data, user, old_account=None):
         serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
-        if serializer.is_valid():
-            data = serializer.validated_data
-            try:
-                account = PaymentCardAccount.objects.get(fingerprint=data['fingerprint'],
-                                                         expiry_month=data['expiry_month'],
-                                                         expiry_year=data['expiry_year'])
-            except PaymentCardAccount.DoesNotExist:
-                account = PaymentCardAccount(**data)
-                result = self._create_payment_card_account(account, user)
-                if not isinstance(result, PaymentCardAccount):
-                    return result
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
 
-                self.apply_barclays_images(account)
+        account = PaymentCardAccount(**data)
+        result = self._create_payment_card_account(account, user, old_account)
+        if not isinstance(result, PaymentCardAccount):
+            return result
+        else:
+            account = result
 
-            except Exception as e:
-                raise e
-
-            else:
-                # if the payment card exists already in another user, link it to this user and import all the scheme
-                # accounts currently linked to it.
-                self._link_account_to_new_user(account, user)
-
-            response_serializer = serializers.PaymentCardAccountSerializer(instance=account)
-            return response_serializer.data, status.HTTP_201_CREATED, account
-        return serializer.errors, status.HTTP_400_BAD_REQUEST, None
+        self.apply_barclays_images(account)
+        return account
 
     @staticmethod
     def _link_account_to_new_user(account, user):
@@ -152,14 +143,8 @@ class ListCreatePaymentCardAccount(APIView):
             SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
-    def _create_payment_card_account(new_acc, user):
-        # check if an new_acc with the same fingerprint already exists
-        old_accounts = PaymentCardAccount.all_objects.filter(fingerprint=new_acc.fingerprint).order_by('-created')
-        if old_accounts.exists():
-            # get the latest new_acc from the same client if it exists
-            same_client_old_accounts = old_accounts.filter(user_set__client=user.client.pk)
-            old_account = same_client_old_accounts.first() or old_accounts.first()
-
+    def _create_payment_card_account(new_acc, user, old_account):
+        if old_account is not None:
             return ListCreatePaymentCardAccount.supercede_old_account(new_acc, old_account, user)
 
         new_acc.save()
@@ -170,31 +155,18 @@ class ListCreatePaymentCardAccount(APIView):
 
     @staticmethod
     def supercede_old_account(new_account, old_account, user):
-        # if the clients are the same but the users don't match, reject the card.
-        if not old_account.user_set.filter(pk=user.pk).exists() and old_account.user_set.filter(
-                client=user.client).exists():
-            return {'error': 'Fingerprint is already in use by another user.',
-                    'code': '403'}, status.HTTP_403_FORBIDDEN, None
-
-        # copy the tokens from the previous account
         new_account.token = old_account.token
         new_account.psp_token = old_account.psp_token
 
         if old_account.is_deleted:
             new_account.save()
-            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
             metis.enrol_existing_payment_card(new_account)
+
         else:
             new_account.status = old_account.status
             new_account.save()
-            PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
 
-            # delete the old account if it is on the same client.
-            if old_account.user_set.filter(client=user.client).exists():
-                old_account.is_deleted = True
-                old_account.save()
-
-        PaymentCardAccountEntry.objects.filter(user=user, payment_card_account_id=old_account.id).delete()
+        PaymentCardAccountEntry.objects.create(user=user, payment_card_account=new_account)
         return new_account
 
     @staticmethod

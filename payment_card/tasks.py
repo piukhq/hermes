@@ -1,13 +1,15 @@
 import json
 import logging
 
-import sentry_sdk
 import arrow
+import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from requests import request, HTTPError
 
 from hermes.tasks import RetryTaskStore, RetryTaskList, PeriodicRetryHandler
 from payment_card.models import PaymentAudit, PaymentStatus, PeriodicRetry, PeriodicRetryStatus
+from payment_card.enums import RequestMethod
 from payment_card.payment import Payment, PaymentError
 from scheme.models import SchemeAccount
 
@@ -90,3 +92,19 @@ def retry_metis_request_tasks() -> None:
         )
 
     periodic_retry_handler.call_all_tasks()
+
+
+def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
+    response = request(
+        method.value,
+        settings.METIS_URL + endpoint,
+        json=payload,
+        headers={
+            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+            'Content-Type': 'application/json'
+        }
+    )
+    try:
+        response.raise_for_status()
+    except HTTPError:
+        sentry_sdk.capture_exception()
