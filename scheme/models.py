@@ -553,6 +553,28 @@ class SchemeAccount(models.Model):
 
         return formatted_user_consents
 
+    def _process_midas_response(self, response):
+        points = None
+        self.status = response.status_code
+        if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+            self.status = SchemeAccount.UNKNOWN_ERROR
+        if response.status_code == 200:
+            points = response.json()
+            self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
+            points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
+            points['is_stale'] = False
+
+            if settings.ENABLE_DAEDALUS_MESSAGING:
+                settings.TO_DAEDALUS.send(
+                    {"type": 'membership_card_update',
+                     "model": 'schemeaccount',
+                     "id": str(self.id),
+                     "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
+                     "rep": repr(self)},
+                    headers={'X-content-type': 'application/json'}
+                )
+        return points
+
     def get_midas_balance(self, journey):
         points = None
         old_status = self.status
@@ -565,24 +587,7 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             response = self._get_balance(credentials, journey)
-            self.status = response.status_code
-            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
-                self.status = SchemeAccount.UNKNOWN_ERROR
-            if response.status_code == 200:
-                points = response.json()
-                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
-                points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
-                points['is_stale'] = False
-
-                if settings.ENABLE_DAEDALUS_MESSAGING:
-                    settings.TO_DAEDALUS.send(
-                        {"type": 'membership_card_update',
-                         "model": 'schemeaccount',
-                         "id": str(self.id),
-                         "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                         "rep": repr(self)},
-                        headers={'X-content-type': 'application/json'}
-                    )
+            points = self._process_midas_response(response)
 
             # Update active_link status
             if self.status != old_status:
