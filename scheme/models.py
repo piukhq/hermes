@@ -589,10 +589,6 @@ class SchemeAccount(models.Model):
             response = self._get_balance(credentials, journey)
             points = self._process_midas_response(response)
 
-            # Update active_link status
-            if self.status != old_status:
-                PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
-
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
@@ -612,6 +608,10 @@ class SchemeAccount(models.Model):
             self.save(update_fields=['status'])
             self.call_analytics(self.user_set.all(), old_status)
 
+        # Update active_link status
+        if self.status != old_status:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
+
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:  # Update intercom
@@ -626,9 +626,9 @@ class SchemeAccount(models.Model):
             'status': self.status,
             'journey_type': journey.value,
         }
+        midas_balance_uri = f'{settings.MIDAS_URL}/{self.scheme.slug}/balance'
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                params=parameters, headers=headers)
+        response = requests.get(midas_balance_uri, params=parameters, headers=headers)
         return response
 
     def get_journey_type(self):
