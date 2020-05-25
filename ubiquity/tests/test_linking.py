@@ -129,8 +129,12 @@ class TestSoftLinking(APITestCase):
             'id': card_id,
 
         }
-        resp = self.client.put(f'{reverse("update_payment_card_account_status")}', data=json.dumps(payload),
-                                content_type='application/json', **self._get_service_auth_headers())
+        resp = self.client.put(
+            f'{reverse("update_payment_card_account_status")}',
+            data=json.dumps(payload),
+            content_type='application/json',
+            **self._get_service_auth_headers()
+        )
         linked_info = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=card_id))
         return resp, linked_info
 
@@ -442,4 +446,3 @@ class TestPaymentAutoLink(APITestCase):
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
-
