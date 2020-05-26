@@ -616,7 +616,6 @@ class SchemeAccount(models.Model):
             self.call_analytics(self.user_set.all(), old_status)
         return saved
 
-
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
         for user in bink_users:  # Update intercom
