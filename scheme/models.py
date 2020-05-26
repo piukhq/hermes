@@ -8,8 +8,10 @@ from enum import IntEnum
 
 import arrow
 import requests
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
+from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
@@ -19,12 +21,10 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
-
-from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
-from common.models import Image
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
+from ubiquity.models import PaymentCardSchemeEntry
 
 
 class Category(models.Model):
@@ -553,6 +553,28 @@ class SchemeAccount(models.Model):
 
         return formatted_user_consents
 
+    def _process_midas_response(self, response):
+        points = None
+        self.status = response.status_code
+        if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+            self.status = SchemeAccount.UNKNOWN_ERROR
+        if response.status_code == 200:
+            points = response.json()
+            self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
+            points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
+            points['is_stale'] = False
+
+            if settings.ENABLE_DAEDALUS_MESSAGING:
+                settings.TO_DAEDALUS.send(
+                    {"type": 'membership_card_update',
+                     "model": 'schemeaccount',
+                     "id": str(self.id),
+                     "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
+                     "rep": repr(self)},
+                    headers={'X-content-type': 'application/json'}
+                )
+        return points
+
     def get_midas_balance(self, journey):
         points = None
         old_status = self.status
@@ -565,31 +587,21 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             response = self._get_balance(credentials, journey)
-            self.status = response.status_code
-            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
-                self.status = SchemeAccount.UNKNOWN_ERROR
-            if response.status_code == 200:
-                points = response.json()
-                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
-                points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
-                points['is_stale'] = False
+            points = self._process_midas_response(response)
 
-                if settings.ENABLE_DAEDALUS_MESSAGING:
-                    settings.TO_DAEDALUS.send(
-                        {"type": 'membership_card_update',
-                         "model": 'schemeaccount',
-                         "id": str(self.id),
-                         "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                         "rep": repr(self)},
-                        headers={'X-content-type': 'application/json'}
-                    )
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        self._received_balance_checks(old_status)
+        saved = self._received_balance_checks(old_status)
+        # Update active_link status
+        if self.status != old_status:
+            if not saved:
+                self.save(update_fields=['status'])
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
         return points
 
     def _received_balance_checks(self, old_status):
+        saved = False
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
             queryset = self.schemeaccountcredentialanswer_set
             card_number = self.card_number
@@ -600,7 +612,9 @@ class SchemeAccount(models.Model):
 
         if self.status != SchemeAccount.PENDING:
             self.save(update_fields=['status'])
+            saved = True
             self.call_analytics(self.user_set.all(), old_status)
+        return saved
 
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
@@ -616,9 +630,9 @@ class SchemeAccount(models.Model):
             'status': self.status,
             'journey_type': journey.value,
         }
+        midas_balance_uri = f'{settings.MIDAS_URL}/{self.scheme.slug}/balance'
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                params=parameters, headers=headers)
+        response = requests.get(midas_balance_uri, params=parameters, headers=headers)
         return response
 
     def get_journey_type(self):
