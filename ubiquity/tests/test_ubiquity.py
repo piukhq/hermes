@@ -27,7 +27,7 @@ from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
-from ubiquity.views import MembershipCardView
+from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
@@ -1546,6 +1546,19 @@ class TestResourcesV1_2(APITestCase):
 
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
+
+    def test_detect_and_handle_escaped_unicode(self):
+        passwords = {
+            "pa$$w&rd01!@%£Â*🐍": "pa$$w&rd01!@%£Â*🐍",
+            "pa\u0024\u0024w\u0026rd01\u0021": "pa$$w&rd01!",
+            "pa\\u0024\\u0024w\\u0026rd01\\u0021": "pa$$w&rd01!",
+            "pa\\\\u0024\\\\u0024w\\\\u0026rd01\\\\u0021": "pa$$w&rd01!",
+            # mixing escaped unicode with non ascii characters is a client error and we wont process it
+            "pa\\u0024\\u0024w\\u0026rd01\\u0021ÂÂ££": "pa\\u0024\\u0024w\\u0026rd01\\u0021ÂÂ££"
+        }
+        for input_password, expected_outcome in passwords.items():
+            output = detect_and_handle_escaped_unicode(input_password)
+            self.assertEqual(output, expected_outcome)
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('ubiquity.influx_audit.InfluxDBClient')
