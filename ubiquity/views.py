@@ -66,6 +66,16 @@ def replace_escaped_unicode(match):
     return match.group(1)
 
 
+def detect_and_handle_escaped_unicode(string_to_check):
+    # Fix for Barclays sending escaped unicode sequences for special chars.
+    if string_to_check.isascii():
+        return escaped_unicode_pattern.sub(
+            replace_escaped_unicode, string_to_check
+        ).encode().decode("unicode-escape")
+    else:
+        return string_to_check
+
+
 def send_data_to_atlas(response: 'HttpResponse') -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
@@ -852,11 +862,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if auth_fields:
             if auth_fields.get('password'):
-                # Fix for Barclays sending escaped unicode sequences for special chars.
-                auth_fields['password'] = escaped_unicode_pattern.sub(
-                    replace_escaped_unicode,
-                    auth_fields['password']
-                ).encode().decode('unicode-escape')
+                auth_fields['password'] = detect_and_handle_escaped_unicode(auth_fields['password'])
 
             if account_created:
                 scheme_account.set_pending()

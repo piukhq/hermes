@@ -15,7 +15,6 @@ import os
 import sys
 from collections import namedtuple
 from enum import Enum
-from multiprocessing import cpu_count
 
 import sentry_sdk
 from redis import ConnectionPool as Redis_ConnectionPool
@@ -514,4 +513,4 @@ CSRF_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 
-POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", cpu_count()))
+POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", "1"))
