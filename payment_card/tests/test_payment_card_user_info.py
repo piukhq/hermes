@@ -127,6 +127,7 @@ class TestPaymentCardUserInfo(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
+        print(data)
 
         self.assertIn('1144**33', data)
         self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
@@ -282,6 +283,9 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertNotIn('card_information', data['5544**11'])
 
     def test_soft_linking_payment_card1_2active(self):
+        """
+        Link is none since different user for payment card and membership card
+        """
         self.link1_1.active_link = False
         self.link1_1.save()
         self.link1_2.active_link = True
