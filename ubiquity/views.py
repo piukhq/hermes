@@ -66,6 +66,20 @@ def replace_escaped_unicode(match):
     return match.group(1)
 
 
+def detect_and_handle_escaped_unicode(credentials_dict):
+    # Fix for Barclays sending escaped unicode sequences for special chars in password.
+    if credentials_dict.get("password"):
+        password = credentials_dict["password"]
+        if password.isascii():
+            password = escaped_unicode_pattern.sub(
+                replace_escaped_unicode, password
+            ).encode().decode("unicode-escape")
+
+        credentials_dict["password"] = password
+
+    return credentials_dict
+
+
 def send_data_to_atlas(response: 'HttpResponse') -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
@@ -620,9 +634,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
 
         if registration_fields:
+            registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
+            if update_fields:
+                update_fields = detect_and_handle_escaped_unicode(update_fields)
+
             updated_account = self._handle_update_fields(account, update_fields)
 
         async_balance.delay(updated_account.id)
@@ -631,10 +649,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
-
-        if update_fields.get('password'):
-            # Fix for Barclays sending escaped unicode sequences for special chars.
-            update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
         questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
             .values("id", "type", "manual_question").all()
@@ -851,13 +865,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_account.update_barcode_and_card_number(self.scheme_questions)
 
         if auth_fields:
-            if auth_fields.get('password'):
-                # Fix for Barclays sending escaped unicode sequences for special chars.
-                auth_fields['password'] = escaped_unicode_pattern.sub(
-                    replace_escaped_unicode,
-                    auth_fields['password']
-                ).encode().decode('unicode-escape')
-
             if account_created:
                 scheme_account.set_pending()
                 async_link.delay(auth_fields, scheme_account.id, user.id)
@@ -1064,10 +1071,14 @@ class ListMembershipCardView(MembershipCardView):
         self.scheme_questions = scheme_questions
 
         if enrol_fields:
+            enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             account, status_code = self._handle_create_join_route(
                 request.user, request.channels_permit, scheme, enrol_fields
             )
         else:
+            if auth_fields:
+                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
             account, status_code = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields
             )
