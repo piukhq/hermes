@@ -68,7 +68,7 @@ def replace_escaped_unicode(match):
 
 def detect_and_handle_escaped_unicode(string_to_check):
     # Fix for Barclays sending escaped unicode sequences for special chars.
-    if all(ord(c) < 128 for c in string_to_check):
+    if string_to_check.isascii():
         return escaped_unicode_pattern.sub(
             replace_escaped_unicode, string_to_check
         ).encode().decode("unicode-escape")
