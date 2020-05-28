@@ -1556,9 +1556,12 @@ class TestResourcesV1_2(APITestCase):
             # mixing escaped unicode with non ascii characters is a client error and we wont process it
             "pa\\u0024\\u0024w\\u0026rd01\\u0021ÂÂ££": "pa\\u0024\\u0024w\\u0026rd01\\u0021ÂÂ££"
         }
+        test_email = "testunchanged@binkcom"
         for input_password, expected_outcome in passwords.items():
-            output = detect_and_handle_escaped_unicode(input_password)
-            self.assertEqual(output, expected_outcome)
+            credential_fields = {"password": input_password, "email": test_email}
+            output = detect_and_handle_escaped_unicode(credential_fields)
+            self.assertEqual(output["password"], expected_outcome)
+            self.assertEqual(output["email"], test_email)
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('ubiquity.influx_audit.InfluxDBClient')
