@@ -3,13 +3,15 @@ import re
 import socket
 import sre_constants
 import uuid
-import requests
 from decimal import Decimal
 from enum import IntEnum
 
 import arrow
+import requests
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
+from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
@@ -19,12 +21,11 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
-
-from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
-from common.models import Image
+from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
-from scheme import vouchers
+from ubiquity.models import PaymentCardSchemeEntry
+
 from hermes.vop_tasks import vop_check_scheme
 
 
@@ -183,13 +184,20 @@ class Scheme(models.Model):
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
-    def get_question_type_dict(self):
+    @property
+    def get_required_questions(self):
+        return self.questions.filter(
+            Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
+        ).values('id', 'type')
+
+    def get_question_type_dict(self, question_queryset=None):
+        queryset = question_queryset if question_queryset is not None else self.questions.all()
         return {
             question.label: {
                 "type": question.type,
                 "answer_type": question.answer_type
             }
-            for question in self.questions.all()
+            for question in queryset
         }
 
     def __str__(self):
@@ -416,6 +424,9 @@ class SchemeAccount(models.Model):
     # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
     vouchers = JSONField(default=dict, null=True, blank=True)
+    card_number = models.CharField(max_length=250, blank=True, default='')
+    barcode = models.CharField(max_length=250, blank=True, default='')
+    transactions = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):
@@ -508,33 +519,20 @@ class SchemeAccount(models.Model):
         :param credentials: dict of credentials
         :return: credentials
         """
-        manual_question = self.scheme.manual_question
-        manual_answer = None
-        if manual_question:
-            manual_answer = credentials.get(manual_question.type)
+        new_credentials = {
+            question['type']: credentials.get(question['type'])
+            for question in self.scheme.get_required_questions
+        }
 
-        scan_question = self.scheme.scan_question
-        scan_answer = None
-        if scan_question:
-            scan_answer = credentials.get(scan_question.type)
+        for k, v in new_credentials.items():
+            if v:
+                SchemeAccountCredentialAnswer.objects.update_or_create(
+                    question=self.question(k),
+                    scheme_account=self,
+                    defaults={'answer': v})
 
-        if manual_question and manual_answer:
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=self.question(manual_question.type),
-                scheme_account=self,
-                defaults={'answer': credentials[manual_question.type]})
-
-        if scan_question and scan_answer:
-            SchemeAccountCredentialAnswer.objects.update_or_create(
-                question=self.question(scan_question.type),
-                scheme_account=self,
-                defaults={'answer': credentials[scan_question.type]})
-
-        regex_credentials = [
-            'card_number',
-            'barcode'
-        ]
-        for question in regex_credentials:
+        self.update_barcode_and_card_number()
+        for question in ['card_number', 'barcode']:
             value = getattr(self, question)
             if not credentials.get(question) and value:
                 credentials.update({question: value})
@@ -557,6 +555,28 @@ class SchemeAccount(models.Model):
 
         return formatted_user_consents
 
+    def _process_midas_response(self, response):
+        points = None
+        self.status = response.status_code
+        if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
+            self.status = SchemeAccount.UNKNOWN_ERROR
+        if response.status_code == 200:
+            points = response.json()
+            self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
+            points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
+            points['is_stale'] = False
+
+            if settings.ENABLE_DAEDALUS_MESSAGING:
+                settings.TO_DAEDALUS.send(
+                    {"type": 'membership_card_update',
+                     "model": 'schemeaccount',
+                     "id": str(self.id),
+                     "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
+                     "rep": repr(self)},
+                    headers={'X-content-type': 'application/json'}
+                )
+        return points
+
     def get_midas_balance(self, journey):
         points = None
         old_status = self.status
@@ -569,29 +589,27 @@ class SchemeAccount(models.Model):
             if not credentials:
                 return points
             response = self._get_balance(credentials, journey)
-            self.status = response.status_code
-            if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
-                self.status = SchemeAccount.UNKNOWN_ERROR
-            if response.status_code == 200:
-                points = response.json()
-                previous_state = self.status
-                self.status = SchemeAccount.PENDING if points.get('pending') else SchemeAccount.ACTIVE
-                points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
-                points['is_stale'] = False
+            points = self._process_midas_response(response)
 
-                if previous_state is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
-                    self.vop_check()
+            if previous_state is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
+                self.vop_check()
 
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        self._received_balance_checks(old_status)
+        saved = self._received_balance_checks(old_status)
+        # Update active_link status
+        if self.status != old_status:
+            if not saved:
+                self.save(update_fields=['status'])
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
         return points
 
     def vop_check(self):
         vop_check_scheme(self)
 
     def _received_balance_checks(self, old_status):
+        saved = False
         if self.status in SchemeAccount.JOIN_ACTION_REQUIRED:
             queryset = self.schemeaccountcredentialanswer_set
             card_number = self.card_number
@@ -601,8 +619,10 @@ class SchemeAccount(models.Model):
             queryset.all().delete()
 
         if self.status != SchemeAccount.PENDING:
-            self.save()
+            self.save(update_fields=['status'])
+            saved = True
             self.call_analytics(self.user_set.all(), old_status)
+        return saved
 
     def call_analytics(self, user_set, old_status):
         bink_users = [user for user in user_set if user.client_id == settings.BINK_CLIENT_ID]
@@ -618,9 +638,9 @@ class SchemeAccount(models.Model):
             'status': self.status,
             'journey_type': journey.value,
         }
+        midas_balance_uri = f'{settings.MIDAS_URL}/{self.scheme.slug}/balance'
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
-        response = requests.get('{}/{}/balance'.format(settings.MIDAS_URL, self.scheme.slug),
-                                params=parameters, headers=headers)
+        response = requests.get(midas_balance_uri, params=parameters, headers=headers)
         return response
 
     def get_journey_type(self):
@@ -633,6 +653,7 @@ class SchemeAccount(models.Model):
         journey = self.get_journey_type()
         balance = self.get_midas_balance(journey=journey)
         vouchers = None
+
         if balance:
             if "vouchers" in balance:
                 vouchers = self.make_vouchers_response(balance["vouchers"])
@@ -640,7 +661,25 @@ class SchemeAccount(models.Model):
 
             balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
+
         return balance, vouchers
+
+    def update_barcode_and_card_number(self, scheme_questions=None):
+        if scheme_questions is not None:
+            questions_ids = {
+                question.type: question.id
+                for question in scheme_questions
+                if question.type in [CARD_NUMBER, BARCODE]
+            }
+        else:
+            questions_ids = {
+                question['type']: question['id']
+                for question in self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE]).values('type', 'id')
+            }
+
+        self._update_card_number(questions_ids)
+        self._update_barcode(questions_ids)
+        self.save(update_fields=['barcode', 'card_number'])
 
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -661,7 +700,7 @@ class SchemeAccount(models.Model):
             needs_save = True
 
         if needs_save:
-            self.save()
+            self.save(update_fields=['balances', 'vouchers'])
 
         return balance
 
@@ -746,7 +785,7 @@ class SchemeAccount(models.Model):
 
     def set_pending(self, manual_pending: bool = False) -> None:
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
-        self.save()
+        self.save(update_fields=['status'])
 
     def set_async_join_status(self) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -790,25 +829,6 @@ class SchemeAccount(models.Model):
                     return None
         return barcode_answer.answer
 
-    @property
-    def card_number(self):
-        card_number_answer = self.card_number_answer
-        if card_number_answer:
-            return card_number_answer.answer
-
-        barcode = self.barcode_answer
-        if barcode and self.scheme.card_number_regex:
-            try:
-                regex_match = re.search(self.scheme.card_number_regex, barcode.answer)
-            except sre_constants.error:
-                return None
-            if regex_match:
-                try:
-                    return self.scheme.card_number_prefix + regex_match.group(1)
-                except IndexError:
-                    return None
-        return None
-
     def get_transaction_matching_user_id(self):
         bink_user = self.user_set.filter(client_id=settings.BINK_CLIENT_ID).values('id').order_by('date_joined')
         if bink_user.exists():
@@ -818,24 +838,59 @@ class SchemeAccount(models.Model):
 
         return user_id
 
-    @property
-    def barcode(self):
-        barcode_answer = self.barcode_answer
-        if barcode_answer:
-            return barcode_answer.answer
+    def _update_barcode(self, questions_ids):
+        barcode = self.schemeaccountcredentialanswer_set.filter(
+            question__id__in=questions_ids.values()
+        ).values('question__type', 'answer').order_by('question__type').first()
 
-        card_number = self.card_number_answer
-        if card_number and self.scheme.barcode_regex:
+        if not barcode:
+            self.barcode = ''
+            return None
+
+        if barcode['question__type'] == BARCODE:
+            self.barcode = barcode['answer']
+
+        elif barcode['question__type'] == CARD_NUMBER and self.scheme.barcode_regex:
             try:
-                regex_match = re.search(self.scheme.barcode_regex, card_number.answer)
+                regex_match = re.search(self.scheme.barcode_regex, barcode['answer'])
             except sre_constants.error:
+                self.barcode = ''
                 return None
             if regex_match:
                 try:
-                    return self.scheme.barcode_prefix + regex_match.group(1)
+                    self.barcode = self.scheme.barcode_prefix + regex_match.group(1)
                 except IndexError:
-                    return None
-        return None
+                    pass
+
+        else:
+            self.barcode = ''
+
+    def _update_card_number(self, questions_ids):
+        card_number = self.schemeaccountcredentialanswer_set.filter(
+            question__id__in=questions_ids.values()
+        ).values('question__type', 'answer').order_by('-question__type').first()
+
+        if not card_number:
+            self.card_number = ''
+            return None
+
+        if card_number['question__type'] == CARD_NUMBER:
+            self.card_number = card_number['answer']
+
+        elif card_number['question__type'] == BARCODE and self.scheme.card_number_regex:
+            try:
+                regex_match = re.search(self.scheme.card_number_regex, card_number['answer'])
+            except sre_constants.error:
+                self.card_number = ''
+                return None
+            if regex_match:
+                try:
+                    self.card_number = self.scheme.card_number_prefix + regex_match.group(1)
+                except IndexError:
+                    pass
+
+        else:
+            self.card_number = ''
 
     @property
     def barcode_answer(self):

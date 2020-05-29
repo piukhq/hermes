@@ -8,7 +8,7 @@ from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument
 @admin.register(PaymentCardSchemeEntry)
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     list_display = ('payment_card_account', 'scheme_account', 'active_link', 'payment_card_account_link',
-                    'scheme_account_link', 'card_status', 'card_is_deleted', 'card_created')
+                    'scheme_account_link', 'pcard_status', 'pcard_deleted', 'mcard_status', 'mcard_deleted')
     search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
                      'scheme_account__scheme__name', 'payment_card_account__payment_card__name')
 
@@ -33,16 +33,20 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
                            obj.scheme_account.id)
 
-    def card_status(self, obj):
+    def pcard_status(self, obj):
         return obj.payment_card_account.status_name
 
-    def card_created(self, obj):
-        return obj.payment_card_account.created
+    def mcard_status(self, obj):
+        return obj.scheme_account.status_name
 
-    def card_is_deleted(self, obj):
+    def mcard_deleted(self, obj):
+        return obj.scheme_account.is_deleted
+
+    def pcard_deleted(self, obj):
         return obj.payment_card_account.is_deleted
 
-    card_is_deleted.boolean = True
+    pcard_deleted.boolean = True
+    mcard_deleted.boolean = True
 
 
 @admin.register(MembershipPlanDocument)
