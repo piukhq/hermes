@@ -1,19 +1,21 @@
 import json
-from rest_framework.test import APITestCase
 
 import ubiquity.tests.factories
 from hermes import settings
+from hermes.fixtures.setupdb import set_up_db
 from payment_card.tests import factories as payment_card_factories
-from scheme.tests import factories as scheme_factories
+from rest_framework.test import APITestCase
 from scheme.models import SchemeCredentialQuestion
-from user.tests import factories as user_factories
+from scheme.tests import factories as scheme_factories
 from ubiquity.models import PaymentCardSchemeEntry
+from user.tests import factories as user_factories
 
 
 class TestPaymentCardUserInfo(APITestCase):
 
     @classmethod
     def setUpClass(cls):
+        set_up_db(cls)
         cls.user_1 = user_factories.UserFactory()
         cls.user_2 = user_factories.UserFactory()
         cls.user_3 = user_factories.UserFactory()
@@ -127,7 +129,6 @@ class TestPaymentCardUserInfo(APITestCase):
                                     **self.auth_headers)
         self.assertEqual(response.status_code, 200)
         data = json.loads(response.content.decode('utf-8'))
-        print(data)
 
         self.assertIn('1144**33', data)
         self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
