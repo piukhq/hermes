@@ -591,7 +591,7 @@ class SchemeAccount(models.Model):
             response = self._get_balance(credentials, journey)
             points = self._process_midas_response(response)
 
-            if previous_state is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
+            if old_status is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
                 self.vop_check()
 
         except ConnectionError:

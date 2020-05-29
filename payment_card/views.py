@@ -295,9 +295,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = serializers.PaymentCardAccountStatusSerializer
 
-    def _vop_activate_check(self):
+    def _vop_activate_check(self, payment_card_account):
         entries = PaymentCardSchemeEntry.objects.filter(
-            payment_card_accoun=self,
+            payment_card_account=payment_card_account,
             scheme_account__status=SchemeAccount.ACTIVE,
             vop_link=PaymentCardSchemeEntry.UNDEFINED
         )
@@ -332,8 +332,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 # make any soft links active for payment_card_account
                 PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account})
 
-            if new_status_code == payment_card_account.ACTIVE and payment_card_account.payment_card.slug == "visa":
-                self._vop_activate_check()
+                if payment_card_account.payment_card.slug == "visa":
+                    self._vop_activate_check(payment_card_account)
 
         return Response({
             'id': payment_card_account.id,
