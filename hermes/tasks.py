@@ -92,10 +92,77 @@ class RetryError(Exception):
 
 
 class PeriodicRetryHandler:
+    """
+    A handler class to set tasks that should be retried periodically. New tasks can be assigned
+    for retry using the .new() method. This will create a PeriodicRetry object in
+    PeriodicRetryStatus.REQUIRED status and should be initialised with all the necessary information
+    to retry a function call.
+
+    PeriodicRetry objects will be retried until one of two conditions are met:
+     - The number of retries performed has reached the value of the .max_retry_attempts property
+     - The status is set to something other than PENDING or REQUIRED in the retried function
+
+    A periodic Celery task should be used to check if any PeriodicRetry objects are in the REQUIRED
+    status, add them to the queue, and retry all tasks in the queue. This task should re-add the
+    PeriodicRetry objects to the queue by using the .retry() method.
+
+    Usage:
+
+        General functions:
+            This class allows for retrying of any normal function e.g
+
+            def some_func(arg1, arg2, kwarg1="some_kwarg"):
+                ...
+                return
+
+
+            The function above can be retried with the following:
+
+            PeriodicRetryHandler(task_list=RetryTaskList.DEFAULT).new(
+                'hermes.tasks', 'some_func', 'arg1', 'arg2', kwarg1="different_kwarg",
+                retry_kwargs={"max_retry_attempts": 3}
+            )
+
+            Additional property values for PeriodicRetry, such as the max_retry_attempts,
+            can be passed in as a dict to retry_kwargs. If nothing is passed in, the max_retry_attempts
+            defaults to 10
+
+
+        Tailored Retry Functions:
+            Using a function that is specifically for retrying can allow more control and information
+            logging. For example, a task can be retried indefinitely until it is successful by
+            setting PeriodicRetry.status to SUCCESS only when it succeeds. This also requires disabling
+            max_retry_attempts which can be done by passing it to the .new() function with a value of None.
+
+            This also allows recording of each task outcome as a list in the PeriodicRetry.result attribute,
+            which could be used for just logging purposes or even finer control.
+
+            These functions should only accept one argument, which will be a dictionary containing
+            the PeriodicRetry instance. Any additional data can be passed to the function as a dictionary
+            via the context argument in .new()
+
+            def retry_func(data):
+                retry_obj = data["periodic_retry_obj"]
+
+                    if (some_success_case):
+                        retry_obj.status = PeriodicRetryStatus.SUCCESSFUL
+
+                    retry_obj.results += ["Retry results"]
+                    retry_obj.save()
+
+            PeriodicRetryHandler(task_list=RetryTaskList.DEFAULT).new(
+                'hermes.tasks',
+                'some_func',
+                context={"additional_data": True}
+                retry_kwargs={"max_retry_attempts": None}
+            )
+
+    """
 
     def __init__(self, task_list: RetryTaskList):
         self.task_list = task_list
         self.warning_attempt_count = 5
+        self.default_max_retry_count = 10
         self.storage = get_redis_connection('retry_tasks')
 
     @property
@@ -147,16 +214,21 @@ class PeriodicRetryHandler:
         retry_info.status = PeriodicRetryStatus.PENDING
         retry_info.save()
 
-        logger.debug(f"PeriodicRetry (id={retry_info.id}) added to {self.task_list} queue")
+        logger.info(f"PeriodicRetry (id={retry_info.id}) added to {self.task_list} queue")
 
-    def new(self, module_name: str, function_name: str, *args, retry_kwargs: dict = None, **kwargs) -> PeriodicRetry:
+    def new(self, module_name: str, function_name: str, *args, retry_kwargs: dict = None,
+            context: dict = None, **kwargs) -> PeriodicRetry:
         """Creates a new PeriodicRetry object and adds to the retry queue"""
-        data = {"args": args, "kwargs": kwargs}
+        data = {
+            "args": args,
+            "kwargs": kwargs,
+            "context": context or {},
+        }
 
         if retry_kwargs is None:
             # Default max number of retries to 10 to avoid infinite retries
             # This can be bypassed by providing None for this value
-            retry_kwargs = {"max_retry_attempts": 10}
+            retry_kwargs = {"max_retry_attempts": self.default_max_retry_count}
 
         retry_task = PeriodicRetry.objects.create(
             task_group=self.task_list,
@@ -175,31 +247,44 @@ class PeriodicRetryHandler:
 
     def call_next_task(self):
         data = json.loads(self.storage.rpop(self.task_list))
-        periodic_retry_obj = PeriodicRetry.objects.get(pk=data["task_id"])
-        data["periodic_retry_obj"] = periodic_retry_obj
+        try:
+            periodic_retry_obj = PeriodicRetry.objects.get(pk=data["task_id"])
+        except KeyError:
+            logger.exception(
+                f"PeriodicRetry improperly set. Missing 'task_id' in data when calling task."
+            )
+            return
+
+        logger.debug(f"Attempting to retry PeriodicRetry (id={periodic_retry_obj.id})")
         try:
             self._call_task_prechecks(periodic_retry_obj)
-            if data:
-                module = importlib.import_module(data["_module"])
-                func = getattr(module, data["_function"])
-                args, kwargs = (data.get("args", {}), data.get("kwargs", {}))
-                if args or kwargs:
-                    func(*args, **kwargs)
-                else:
-                    func(data)
+            data["periodic_retry_obj"] = periodic_retry_obj
+            data["periodic_retry_handler"] = self
+            module = importlib.import_module(data["_module"])
+            func = getattr(module, data["_function"])
+            args, kwargs = (data.get("args", {}), data.get("kwargs", {}))
+            if args or kwargs:
+                func(*args, **kwargs)
+            else:
+                func(data)
 
-                if periodic_retry_obj.status == PeriodicRetryStatus.PENDING:
-                    # Assumes retry is still required since the status was not changed in retried function
-                    periodic_retry_obj.status = PeriodicRetryStatus.REQUIRED
+            if periodic_retry_obj.status == PeriodicRetryStatus.PENDING:
+                # Assumes retry is still required since the status was not changed in retried function
+                periodic_retry_obj.status = PeriodicRetryStatus.REQUIRED
 
-                periodic_retry_obj.retry_count += 1
-                periodic_retry_obj.next_retry_after = arrow.utcnow().shift(seconds=int(settings.RETRY_PERIOD)).datetime
-                periodic_retry_obj.save()
+            periodic_retry_obj.retry_count += 1
+            periodic_retry_obj.next_retry_after = arrow.utcnow().shift(seconds=int(settings.RETRY_PERIOD)).datetime
+            periodic_retry_obj.save()
 
-        except IOError as e:
-            periodic_retry_obj.results += str(e)
+        except Exception as e:
+            # All exceptions caught and logged in results since it is impossible to know explicitly which exceptions
+            # could be raised by a retried function. This also means execution of tasks will not be blocked if an
+            # exception is raised by an earlier one.
+            periodic_retry_obj.results += [str(e)]
+            logger.exception(f"Error retrying PeriodicRetry (id={periodic_retry_obj.id})")
 
     def call_all_tasks(self):
+        logger.info(f"Executing tasks on {self.task_list} queue")
         for i in range(0, self.length):
             self.call_next_task()
 

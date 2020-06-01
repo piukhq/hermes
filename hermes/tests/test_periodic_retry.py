@@ -14,12 +14,17 @@ def test_generic_func(arg):
 
 def test_retry_func(data):
     global test_retry_func_call_count
-    retry_obj = data["periodic_retry_obj"]
+    test_retry_func_call_count += 1
 
-    if test_retry_func_call_count > 0:
+    retry_obj = data["periodic_retry_obj"]
+    handler = data["periodic_retry_handler"]
+
+    disable_max_test = data["context"].get("disable_max_test")
+
+    if (test_retry_func_call_count > 1 and not disable_max_test or
+            disable_max_test and test_retry_func_call_count >= handler.default_max_retry_count + 2):
         retry_obj.status = PeriodicRetryStatus.SUCCESSFUL
 
-    test_retry_func_call_count += 1
     retry_obj.results += ["Retry results"]
 
     retry_obj.save(update_fields=["status", "results"])
@@ -55,6 +60,11 @@ class TestPeriodicRetry(TestCase):
         for _ in range(self.handler.length):
             self.handler.storage.rpop(self.test_task_list)
 
+    def tearDown(self) -> None:
+        # empty task list
+        for _ in range(self.handler.length):
+            self.handler.storage.rpop(self.test_task_list)
+
     def test_retry_generic_function(self):
         retry_obj = self.handler.new("hermes.tests.test_periodic_retry", "test_generic_func", "some arg")
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
@@ -70,7 +80,7 @@ class TestPeriodicRetry(TestCase):
         self.assertEqual(test_generic_func_call_count, 2)
         self.assertEqual(retry_obj.retry_count, 2)
 
-    def test_retry_specific_retry_function(self):
+    def test_retry_tailored_retry_function(self):
         retry_obj = self.handler.new("hermes.tests.test_periodic_retry", "test_retry_func")
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
@@ -137,3 +147,21 @@ class TestPeriodicRetry(TestCase):
 
         self.handler.retry(retry_obj)
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
+
+    def test_max_retry_can_be_disabled(self):
+        retry_count_success = self.handler.default_max_retry_count + 2
+        retry_obj = self.handler.new(
+            "hermes.tests.test_periodic_retry",
+            "test_retry_func",
+            context={"disable_max_test": True},
+            retry_kwargs={"max_retry_attempts": None}
+        )
+
+        # need to retry greater than 10 times since 10 is the default max
+        for _ in range(retry_count_success):
+            mock_retry_task(self.test_task_list)
+
+        self.assertEqual(test_retry_func_call_count, retry_count_success)
+        retry_obj.refresh_from_db(fields=["retry_count", "status"])
+        self.assertEqual(retry_obj.retry_count, retry_count_success)
+        self.assertEqual(retry_obj.status, PeriodicRetryStatus.SUCCESSFUL)
