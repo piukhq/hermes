@@ -291,6 +291,7 @@ class PeriodicRetry(models.Model):
     data = JSONField(default=dict, null=True, blank=True)
     retry_count = models.IntegerField(default=0, null=True, blank=True)
     max_retry_attempts = models.IntegerField(null=True, blank=True)
+    results = JSONField(default=list, null=True, blank=True)
 
     # Retry is done via polling which will not allow retrying at an exact time.
     # next_retry_after indicates a minimum time before the next retry attempt.

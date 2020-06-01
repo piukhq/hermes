@@ -69,27 +69,8 @@ def retry_metis_request_tasks() -> None:
         status=PeriodicRetryStatus.REQUIRED
     )
 
-    # tasks_in_queue = task_store.storage.lrange(task_store.task_list, 0, task_store.length)
-    #
-    # ids_in_queue = []
-    # for task in tasks_in_queue:
-    #     task_data = json.loads(task)
-    #     if task_data.get("periodic_retry_id"):
-    #         ids_in_queue.append(task_data["periodic_retry_id"])
-
-    tasks_in_queue = periodic_retry_handler.get_tasks_in_queue()
-    ids_in_queue = [task["id"] for task in tasks_in_queue]
-
     for retry_info in requests_to_retry:
-        if retry_info.id in ids_in_queue:
-            # request is already queued for a retry
-            continue
-
-        periodic_retry_handler.new(
-            module_name=retry_info.module,
-            function_name=retry_info.function,
-            data=retry_info.data
-        )
+        periodic_retry_handler.retry(retry_info)
 
     periodic_retry_handler.call_all_tasks()
 

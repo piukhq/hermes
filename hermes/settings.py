@@ -306,6 +306,11 @@ LOGGING = {
             'handlers': ['console'],
             'propagate': False,
         },
+        'hermes': {
+            'level': MASTER_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
+        }
     },
 }
 
