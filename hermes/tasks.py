@@ -197,9 +197,6 @@ class PeriodicRetryHandler:
             sentry_sdk.capture_message(msg, level=logging.WARNING)
             logger.debug(msg)
 
-    def _call_task_prechecks(self, periodic_retry_obj: PeriodicRetry) -> None:
-        pass
-
     def _set_task(self, retry_info: PeriodicRetry, module_name: str, function_name: str, data: dict) -> None:
         data["task_id"] = retry_info.id
         data["_module"] = module_name
@@ -257,7 +254,6 @@ class PeriodicRetryHandler:
 
         logger.debug(f"Attempting to retry PeriodicRetry (id={periodic_retry_obj.id})")
         try:
-            self._call_task_prechecks(periodic_retry_obj)
             data["periodic_retry_obj"] = periodic_retry_obj
             data["periodic_retry_handler"] = self
             module = importlib.import_module(data["_module"])
