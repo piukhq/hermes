@@ -155,6 +155,8 @@ class TestSoftLinking(APITestCase):
     @httpretty.activate
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
+    @patch('payment_card.views.vop_activate')
+    @patch('hermes.vop_tasks.vop_activate')
     def test_active_membership_linking_to_payment_card(self, *_):
         # set mcard 2 to pending
         self.scheme_account_c2_s2.status = SchemeAccount.REGISTRATION_FAILED
