@@ -1,15 +1,15 @@
 import re
 
+from common.admin import InputFilter
 from django.conf import settings
 from django.contrib import admin
 from django.contrib import messages
+from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from redis import Redis
-
-from common.admin import InputFilter
 from scheme.forms import ConsentForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
@@ -20,6 +20,60 @@ from ubiquity.models import SchemeAccountEntry
 slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
+
+
+def delete_membership_plans_cache():
+    # Delete all caches for m_plan key slug including all by id ones
+    for key in r.scan_iter("m_plans:*"):
+        r.delete(key)
+
+
+def replaced_delete_selected(model_admin, request, queryset):
+    if request.POST.get('post') == 'yes':
+        ret = delete_selected(model_admin, request, queryset)
+        delete_membership_plans_cache()
+        return ret  # (v2.2) returns a overrideable template (delete_selected_confirmation_template) with context
+    else:
+        return delete_selected(model_admin, request, queryset)
+
+
+replaced_delete_selected.short_description = "Delete Selected and reset Cache"
+
+
+class CacheResetAdmin(admin.ModelAdmin):
+    """ This model removes the default delete_selected action using get_actions.  This is the documented method for
+    Django v2.2 and later. Not as described for earlier versions on many help sites.
+    A bulk delete which resets the cache when the delete is confirmed is then added as a replacement action i.e.
+    replaced_delete_selected.
+    Since we still need the delete_selected logic we this function from our replaced_delete_selected function.
+    However, the confirmation this function used by default has the delete_selected action hard coded.
+    We therefore tell delete_selected function to use our form which has replaced_delete_selected hard coded instead.
+    This is done by setting  delete_selected_confirmation_template = my_template.html
+
+    Note the replaced_delete_selected(..) function is called once to render the confirmation form with the action
+    which in turn causes a second call to replaced_delete_selected; this time with a POST of the confirmation form's
+    parameters which may be used to reset the cache after a return call to delete_selected has completed the delete.
+
+    delete_model and save_model are conventional overrides for equivalent single model change events
+    """
+    actions = [replaced_delete_selected]
+    delete_selected_confirmation_template = "admin/common/bulk_del_selected_confirmation.html"
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    def save_model(self, request, obj, form, change):
+        resp = super().save_model(request, obj, form, change)
+        delete_membership_plans_cache()
+        return resp     # currently resp is None but in case it ever changes
+
+    def delete_model(self, request, obj):
+        resp = super().delete_model(request, obj)
+        delete_membership_plans_cache()
+        return resp    # currently resp is None but in case it ever changes
 
 
 def check_active_scheme(scheme):
@@ -129,7 +183,8 @@ class SchemeDetailsInline(admin.StackedInline):
 
 
 @admin.register(Scheme)
-class SchemeAdmin(admin.ModelAdmin):
+class SchemeAdmin(CacheResetAdmin):
+
     inlines = (
         SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
         CredentialQuestionInline,
@@ -145,15 +200,9 @@ class SchemeAdmin(admin.ModelAdmin):
             return self.readonly_fields + ('slug',)
         return self.readonly_fields
 
-    def save_model(self, request, obj, form, change):
-        # Delete all caches for m_plan key slug including all by id ones
-        for key in r.scan_iter("m_plans:*"):
-            r.delete(key)
-        super().save_model(request, obj, form, change)
-
 
 @admin.register(SchemeImage)
-class SchemeImageAdmin(admin.ModelAdmin):
+class SchemeImageAdmin(CacheResetAdmin):
     list_display = ('scheme', 'description', 'image_type_code_name', 'status', 'start_date', 'end_date', 'created',)
     list_filter = ('scheme', 'image_type_code', 'status', 'created')
     search_fields = ('scheme__name', 'description')
@@ -420,7 +469,7 @@ class SchemeCredentialQuestionChoiceAdmin(admin.ModelAdmin):
 
 
 @admin.register(ThirdPartyConsentLink)
-class ThirdPartyConsentLinkAdmin(admin.ModelAdmin):
+class ThirdPartyConsentLinkAdmin(CacheResetAdmin):
     form = ModelForm
     fields = (
         'consent_label',
@@ -438,7 +487,7 @@ admin.site.register(Category)
 
 
 @admin.register(SchemeBundleAssociation)
-class SchemeBundleAssociationAdmin(admin.ModelAdmin):
+class SchemeBundleAssociationAdmin(CacheResetAdmin):
     list_display = ('bundle', 'scheme', 'status')
     search_fields = ('bundle_id', 'scheme__name')
     raw_id_fields = ("scheme",)

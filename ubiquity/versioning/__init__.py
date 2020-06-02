@@ -24,7 +24,7 @@ class SelectSerializer(str, Enum):
     MEMBERSHIP_PLAN = 'MembershipPlanSerializer'
     MEMBERSHIP_CARD = 'MembershipCardSerializer'
     PAYMENT_CARD = 'PaymentCardSerializer'
-    MEMBERSHIP_TRANSACTION = 'TransactionsSerializer'
+    MEMBERSHIP_TRANSACTION = 'TransactionSerializer'
     PAYMENT_CARD_TRANSLATION = 'PaymentCardTranslationSerializer'
 
 
