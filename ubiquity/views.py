@@ -1068,7 +1068,7 @@ class ListMembershipCardView(MembershipCardView):
             lambda serializer, account: serializer(account).data,
             self.get_serializer_class_by_request()
         )
-        response = list(settings.THREAD_POOL_EXECUTOR.map(serialize_account, accounts))
+        response = list(self.thread_pool_executor.map(serialize_account, accounts))
         return Response(response)
 
     @censor_and_decorate
