@@ -1,7 +1,6 @@
 import importlib
 import json
 import logging
-from enum import Enum
 
 import arrow
 import sentry_sdk
@@ -9,15 +8,9 @@ from celery import shared_task
 from django_redis import get_redis_connection
 from django.conf import settings
 
-from payment_card.models import PeriodicRetry, PeriodicRetryStatus
-
+from payment_card.models import PeriodicRetry, PeriodicRetryStatus, RetryTaskList
 
 logger = logging.getLogger(__name__)
-
-
-class RetryTaskList(str, Enum):
-    DEFAULT = "retrytasks"
-    METIS_REQUESTS = "metis_request_retry_tasks"
 
 
 @shared_task

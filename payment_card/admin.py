@@ -156,3 +156,4 @@ class PaymentAuditAdmin(admin.ModelAdmin):
 
 
 admin.site.register(models.Issuer)
+admin.site.register(models.PeriodicRetry)

@@ -1,6 +1,6 @@
 import base64
 import uuid
-from enum import IntEnum
+from enum import IntEnum, Enum
 
 from bulk_update.helper import bulk_update
 from django.contrib.postgres.fields import JSONField
@@ -273,6 +273,11 @@ class PaymentAudit(models.Model):
         )
 
 
+class RetryTaskList(str, Enum):
+    DEFAULT = "retrytasks"
+    METIS_REQUESTS = "metis_request_retry_tasks"
+
+
 class PeriodicRetryStatus(IntEnum):
     REQUIRED = 0      # Retry is required
     PENDING = 1       # Retry has been queued but is pending
@@ -281,7 +286,11 @@ class PeriodicRetryStatus(IntEnum):
 
 
 class PeriodicRetry(models.Model):
-    task_group = models.CharField(max_length=255)    # for identifying a group of tasks
+    # for identifying a group of tasks
+    task_group = models.CharField(
+        max_length=255,
+        choices=[(task_list.value, task_list.name) for task_list in RetryTaskList]
+    )
     status = models.IntegerField(
         choices=[(status.value, status.name) for status in PeriodicRetryStatus],
         default=PeriodicRetryStatus.REQUIRED
