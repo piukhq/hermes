@@ -17,7 +17,7 @@ from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
@@ -257,11 +257,14 @@ class RetrievePaymentCardUserInfo(View):
             if not payment_card_entries.exists():
                 continue
 
-            scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
-                                                           status=SchemeAccount.ACTIVE,
-                                                           user_set__id__in=(p.user.id for p in payment_card_entries))
-            if scheme_accounts.exists():
-                scheme_account = scheme_accounts.order_by('created').first()
+            active_links = PaymentCardSchemeEntry.objects.filter(
+                active_link=True,
+                scheme_account__scheme=scheme,
+                payment_card_account__id__in=(p.id for p in payment_card_entries)
+            )
+
+            if active_links.exists():
+                scheme_account = active_links.order_by('scheme_account__created').first().scheme_account
                 user_id = scheme_account.get_transaction_matching_user_id()
 
                 response_data[payment_card_token] = {
