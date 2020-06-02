@@ -1,6 +1,8 @@
 import logging
 import re
 import typing as t
+from concurrent.futures.thread import ThreadPoolExecutor
+from functools import partial
 from pathlib import Path
 
 import arrow
@@ -650,7 +652,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if 'consents' in update_fields:
             del update_fields['consents']
 
-        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme) \
             .values("id", "type", "manual_question").all()
 
         manual_question_type = None
@@ -1052,6 +1054,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 class ListMembershipCardView(MembershipCardView):
     current_scheme = None
     scheme_questions = None
+    thread_pool_executor = ThreadPoolExecutor(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS)
     authentication_classes = (PropertyAuthentication,)
     response_serializer = SelectSerializer.MEMBERSHIP_CARD
     override_serializer_classes = {
@@ -1062,7 +1065,12 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
-        return Response(self.get_serializer_by_request(accounts, many=True).data)
+        serialize_account = partial(
+            lambda serializer, account: serializer(account).data,
+            self.get_serializer_class_by_request()
+        )
+        response = list(self.thread_pool_executor.map(serialize_account, accounts))
+        return Response(response)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
