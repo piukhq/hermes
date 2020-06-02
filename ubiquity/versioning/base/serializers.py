@@ -513,9 +513,6 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
-
-
-
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
