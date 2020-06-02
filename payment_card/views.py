@@ -257,11 +257,14 @@ class RetrievePaymentCardUserInfo(View):
             if not payment_card_entries.exists():
                 continue
 
-            scheme_accounts = SchemeAccount.objects.filter(scheme=scheme,
-                                                           status=SchemeAccount.ACTIVE,
-                                                           user_set__id__in=(p.user.id for p in payment_card_entries))
-            if scheme_accounts.exists():
-                scheme_account = scheme_accounts.order_by('created').first()
+            active_links = PaymentCardSchemeEntry.objects.filter(
+                active_link=True,
+                scheme_account__scheme=scheme,
+                payment_card_account__id__in=(p.id for p in payment_card_entries)
+            )
+
+            if active_links.exists():
+                scheme_account = active_links.order_by('scheme_account__created').first().scheme_account
                 user_id = scheme_account.get_transaction_matching_user_id()
 
                 response_data[payment_card_token] = {
