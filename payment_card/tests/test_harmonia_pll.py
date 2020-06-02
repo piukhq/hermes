@@ -157,7 +157,7 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertIn('3344**11', data)
         self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
         self.assertEqual(data['3344**11']['scheme_account_id'], None)
-        self.assertEqual(data['3344**11']['loyalty_id'], None )
+        self.assertEqual(data['3344**11']['loyalty_id'], None)
         self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
 
@@ -166,7 +166,6 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(data['5544**11']['scheme_account_id'], None)
         self.assertEqual(data['5544**11']['loyalty_id'], None)
         self.assertNotIn('card_information', data['5544**11'])
-
 
     def test_soft_linking_payment_card_only2_soft(self):
         self.link1_1.active_link = True
