@@ -1,7 +1,6 @@
 import logging
 import re
 import typing as t
-from concurrent.futures.thread import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
 
@@ -1054,7 +1053,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 class ListMembershipCardView(MembershipCardView):
     current_scheme = None
     scheme_questions = None
-    thread_pool_executor = ThreadPoolExecutor(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS)
+    thread_pool_executor = settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS)
     authentication_classes = (PropertyAuthentication,)
     response_serializer = SelectSerializer.MEMBERSHIP_CARD
     override_serializer_classes = {
@@ -1069,7 +1068,7 @@ class ListMembershipCardView(MembershipCardView):
             lambda serializer, account: serializer(account).data,
             self.get_serializer_class_by_request()
         )
-        response = list(self.thread_pool_executor.map(serialize_account, accounts))
+        response = list(settings.THREAD_POOL_EXECUTOR.map(serialize_account, accounts))
         return Response(response)
 
     @censor_and_decorate
