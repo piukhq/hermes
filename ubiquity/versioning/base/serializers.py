@@ -148,7 +148,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     def get_membership_cards(obj):
         query = {
             'payment_card_account': obj,
-            'scheme_account__is_deleted': False
+            'scheme_account__is_deleted': False,
+            'active_link': True
         }
         links = PaymentCardSchemeEntry.objects.filter(**query).all()
         return MembershipCardLinksSerializer(links, many=True).data
@@ -606,7 +607,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
-            'payment_card_account__is_deleted': False
+            'payment_card_account__is_deleted': False,
+            'active_link': True,
         }
         payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
         exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES

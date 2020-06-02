@@ -67,6 +67,20 @@ def replace_escaped_unicode(match):
     return match.group(1)
 
 
+def detect_and_handle_escaped_unicode(credentials_dict):
+    # Fix for Barclays sending escaped unicode sequences for special chars in password.
+    if credentials_dict.get("password"):
+        password = credentials_dict["password"]
+        if password.isascii():
+            password = escaped_unicode_pattern.sub(
+                replace_escaped_unicode, password
+            ).encode().decode("unicode-escape")
+
+        credentials_dict["password"] = password
+
+    return credentials_dict
+
+
 def send_data_to_atlas(response: 'HttpResponse') -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
@@ -135,7 +149,8 @@ class AutoLinkOnCreationMixin:
             scheme_account_id = account.id
 
             PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=pcard_id)
+                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id,
+                                       payment_card_account_id=pcard_id).get_instance_with_active_status()
                 for pcard_id in payment_card_to_link
             ])
 
@@ -167,24 +182,30 @@ class AutoLinkOnCreationMixin:
         # Once a link is set it is never changed for an older card or for a card in another wallet.
 
         cards_by_scheme_ids = {}
+        instances_to_bulk_create = {}
 
         for wsa in wallet_scheme_accounts:
             scheme_account_id = wsa['id']
             scheme_id = wsa['scheme_id']
+            # link instance will only be save if in instances_to_bulk_create
+            link = PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account=account)
             if scheme_id not in already_linked_scheme_ids:
                 # we have a potential new link to a scheme account which does not have a previously linked plan
                 if cards_by_scheme_ids.get(scheme_id):
                     # however, this scheme account which is a link candidate so we must choose the oldest (lowest id)
+                    # Todo confirm if we should we choose the lowest id which is active or the lowest id if none active
+                    #  at the time of auto-linking ie where x is current if statement
+                    #  (x and (link.active_link or not instances_to_bulk_create[scheme_id].active_link) or
+                    #  (link.active_link and not instances_to_bulk_create[scheme_id].active_link):
                     if cards_by_scheme_ids[scheme_id] > scheme_account_id:
                         cards_by_scheme_ids[scheme_id] = scheme_account_id
+                        instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
                 else:
                     cards_by_scheme_ids[scheme_id] = scheme_account_id
+                    instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
 
-        if account and cards_by_scheme_ids:
-            PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account_id=account.id)
-                for scheme_account_id in cards_by_scheme_ids.values()
-            ])
+        if instances_to_bulk_create:
+            PaymentCardSchemeEntry.objects.bulk_create([link for link in instances_to_bulk_create.values()])
 
 
 class PaymentCardCreationMixin:
@@ -619,9 +640,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         update_fields, registration_fields = self._collect_updated_answers(account.scheme)
 
         if registration_fields:
+            registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
                                                               account, registration_fields)
         else:
+            if update_fields:
+                update_fields = detect_and_handle_escaped_unicode(update_fields)
+
             updated_account = self._handle_update_fields(account, update_fields)
 
         async_balance.delay(updated_account.id)
@@ -630,10 +655,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
-
-        if update_fields.get('password'):
-            # Fix for Barclays sending escaped unicode sequences for special chars.
-            update_fields['password'] = escaped_unicode_pattern.sub(replace_escaped_unicode, update_fields['password'])
 
         questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
             .values("id", "type", "manual_question").all()
@@ -855,13 +876,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_account.update_barcode_and_card_number(self.scheme_questions)
 
         if auth_fields:
-            if auth_fields.get('password'):
-                # Fix for Barclays sending escaped unicode sequences for special chars.
-                auth_fields['password'] = escaped_unicode_pattern.sub(
-                    replace_escaped_unicode,
-                    auth_fields['password']
-                ).encode().decode('unicode-escape')
-
             if account_created:
                 scheme_account.set_pending()
                 async_link.delay(auth_fields, scheme_account.id, user.id)
@@ -1068,10 +1082,14 @@ class ListMembershipCardView(MembershipCardView):
         self.scheme_questions = scheme_questions
 
         if enrol_fields:
+            enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             account, status_code = self._handle_create_join_route(
                 request.user, request.channels_permit, scheme, enrol_fields
             )
         else:
+            if auth_fields:
+                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
             account, status_code = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields
             )
