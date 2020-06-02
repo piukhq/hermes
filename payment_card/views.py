@@ -260,8 +260,7 @@ class RetrievePaymentCardUserInfo(View):
             active_links = PaymentCardSchemeEntry.objects.filter(
                 active_link=True,
                 scheme_account__scheme=scheme,
-                payment_card_account__id__in=(p.id for p in payment_card_entries),
-                scheme_account__user_set__id__in=(p.user.id for p in payment_card_entries)
+                payment_card_account__id__in=(p.id for p in payment_card_entries)
             )
 
             if active_links.exists():

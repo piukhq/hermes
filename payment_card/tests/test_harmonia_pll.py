@@ -61,54 +61,12 @@ class TestPaymentCardUserInfo(APITestCase):
         )
         cls.link1_1.save()
 
-        cls.link1_2 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_1,
-            scheme_account=cls.scheme_account_2,
-            active_link=True
-        )
-        cls.link1_2.save()
-
-        cls.link1_3 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_1,
-            scheme_account=cls.scheme_account_3,
-            active_link=True
-        )
-        cls.link1_3.save()
-
-        cls.link2_1 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_2,
-            scheme_account=cls.scheme_account_1,
-            active_link=True
-        )
-        cls.link2_1.save()
-
         cls.link2_2 = PaymentCardSchemeEntry(
             payment_card_account=cls.payment_card_account_2,
             scheme_account=cls.scheme_account_2,
             active_link=True
         )
         cls.link2_2.save()
-
-        cls.link2_3 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_2,
-            scheme_account=cls.scheme_account_3,
-            active_link=True
-        )
-        cls.link2_3.save()
-
-        cls.link3_1 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_3,
-            scheme_account=cls.scheme_account_1,
-            active_link=True
-        )
-        cls.link3_1.save()
-
-        cls.link3_2 = PaymentCardSchemeEntry(
-            payment_card_account=cls.payment_card_account_3,
-            scheme_account=cls.scheme_account_2,
-            active_link=True
-        )
-        cls.link3_2.save()
 
         cls.link3_3 = PaymentCardSchemeEntry(
             payment_card_account=cls.payment_card_account_3,
@@ -175,10 +133,10 @@ class TestPaymentCardUserInfo(APITestCase):
     def test_soft_linking_payment_card1_allSoft(self):
         self.link1_1.active_link = False
         self.link1_1.save()
-        self.link1_2.active_link = False
-        self.link1_2.save()
-        self.link1_3.active_link = False
-        self.link1_3.save()
+        self.link2_2.active_link = False
+        self.link2_2.save()
+        self.link3_3.active_link = False
+        self.link3_3.save()
 
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
@@ -198,24 +156,25 @@ class TestPaymentCardUserInfo(APITestCase):
 
         self.assertIn('3344**11', data)
         self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
-        self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
-        self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
+        self.assertEqual(data['3344**11']['scheme_account_id'], None)
+        self.assertEqual(data['3344**11']['loyalty_id'], None )
         self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
 
         self.assertIn('5544**11', data)
         self.assertEqual(data['5544**11']['user_id'], self.user_3.id)
-        self.assertEqual(data['5544**11']['scheme_account_id'], self.scheme_account_3.id)
-        self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
+        self.assertEqual(data['5544**11']['scheme_account_id'], None)
+        self.assertEqual(data['5544**11']['loyalty_id'], None)
         self.assertNotIn('card_information', data['5544**11'])
 
-    def test_soft_linking_payment_card1_1active(self):
+
+    def test_soft_linking_payment_card_only2_soft(self):
         self.link1_1.active_link = True
         self.link1_1.save()
-        self.link1_2.active_link = False
-        self.link1_2.save()
-        self.link1_3.active_link = False
-        self.link1_3.save()
+        self.link2_2.active_link = False
+        self.link2_2.save()
+        self.link3_3.active_link = True
+        self.link3_3.save()
 
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
@@ -235,8 +194,8 @@ class TestPaymentCardUserInfo(APITestCase):
 
         self.assertIn('3344**11', data)
         self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
-        self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
-        self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
+        self.assertEqual(data['3344**11']['scheme_account_id'], None)
+        self.assertEqual(data['3344**11']['loyalty_id'], None)
         self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
 
@@ -246,53 +205,16 @@ class TestPaymentCardUserInfo(APITestCase):
         self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
         self.assertNotIn('card_information', data['5544**11'])
 
-    def test_soft_linking_payment_card1_1and2active(self):
-        self.link1_1.active_link = True
-        self.link1_1.save()
-        self.link1_2.active_link = True
-        self.link1_2.save()
-        self.link1_3.active_link = False
-        self.link1_3.save()
-
-        response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
-                                    json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
-                                                                  self.payment_card_account_2.psp_token,
-                                                                  self.payment_card_account_3.psp_token]}),
-                                    content_type='application/json',
-                                    **self.auth_headers)
-        self.assertEqual(response.status_code, 200)
-        data = json.loads(response.content.decode('utf-8'))
-
-        self.assertIn('1144**33', data)
-        self.assertEqual(data['1144**33']['user_id'], self.user_1.id)
-        self.assertEqual(data['1144**33']['scheme_account_id'], self.scheme_account_1.id)
-        self.assertEqual(data['1144**33']['loyalty_id'], self.scheme_answer_1.answer)
-        self.assertEqual(data['1144**33']['card_information']['first_six'], str(self.payment_card_account_1.pan_start))
-        self.assertEqual(data['1144**33']['card_information']['last_four'], str(self.payment_card_account_1.pan_end))
-
-        self.assertIn('3344**11', data)
-        self.assertEqual(data['3344**11']['user_id'], self.user_2.id)
-        self.assertEqual(data['3344**11']['scheme_account_id'], self.scheme_account_2.id)
-        self.assertEqual(data['3344**11']['loyalty_id'], self.scheme_answer_2.answer)
-        self.assertEqual(data['3344**11']['card_information']['first_six'], str(self.payment_card_account_2.pan_start))
-        self.assertEqual(data['3344**11']['card_information']['last_four'], str(self.payment_card_account_2.pan_end))
-
-        self.assertIn('5544**11', data)
-        self.assertEqual(data['5544**11']['user_id'], self.user_3.id)
-        self.assertEqual(data['5544**11']['scheme_account_id'], self.scheme_account_3.id)
-        self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
-        self.assertNotIn('card_information', data['5544**11'])
-
-    def test_soft_linking_payment_card1_2active(self):
+    def test_soft_linking_payment_card_only_2active(self):
         """
         Link is none since different user for payment card and membership card
         """
         self.link1_1.active_link = False
         self.link1_1.save()
-        self.link1_2.active_link = True
-        self.link1_2.save()
-        self.link1_3.active_link = False
-        self.link1_3.save()
+        self.link2_2.active_link = True
+        self.link2_2.save()
+        self.link3_3.active_link = False
+        self.link3_3.save()
 
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),
                                     json.dumps({"payment_cards": [self.payment_card_account_1.psp_token,
@@ -319,6 +241,6 @@ class TestPaymentCardUserInfo(APITestCase):
 
         self.assertIn('5544**11', data)
         self.assertEqual(data['5544**11']['user_id'], self.user_3.id)
-        self.assertEqual(data['5544**11']['scheme_account_id'], self.scheme_account_3.id)
-        self.assertEqual(data['5544**11']['loyalty_id'], self.scheme_answer_3.answer)
+        self.assertEqual(data['5544**11']['scheme_account_id'], None)
+        self.assertEqual(data['5544**11']['loyalty_id'], None)
         self.assertNotIn('card_information', data['5544**11'])
