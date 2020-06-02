@@ -75,6 +75,7 @@ def retry_metis_request_tasks() -> None:
     periodic_retry_handler.call_all_tasks()
 
 
+@shared_task
 def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
     response = request(
         method.value,
