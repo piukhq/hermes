@@ -304,6 +304,6 @@ class PeriodicRetry(models.Model):
 
     # Retry is done via polling which will not allow retrying at an exact time.
     # next_retry_after indicates a minimum time before the next retry attempt.
-    next_retry_after = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    next_retry_after = models.DateTimeField(default=timezone.now, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
