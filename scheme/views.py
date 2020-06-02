@@ -574,7 +574,7 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         """
         account = self.get_object()
         response = self.update_credentials(account, request.data)
-        account.update_barcode_and_card_number()
+        account.format_balance()
         return Response(response, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
