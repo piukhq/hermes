@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -78,11 +79,13 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
             key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
         )
 
-    def _decrypt_val(self, val):
-        rsa_key = get_key(bundle_id=self.context['bundle_id'], key_type='rsa_key')
-        return self.rsa_cipher.decrypt(val, rsa_key=rsa_key)
+    @staticmethod
+    def _decrypt_val(rsa_cipher, bundle_id, val):
+        rsa_key = get_key(bundle_id=bundle_id, key_type='rsa_key')
+        return rsa_cipher.decrypt(val, rsa_key=rsa_key)
 
     def to_representation(self, data):
         values = [data[key] for key in self.FIELDS_TO_DECRYPT]
-        data.update(zip(self.FIELDS_TO_DECRYPT, self.pool_executor.map(self._decrypt_val, values)))
+        decrypt_val = partial(self._decrypt_val, self.rsa_cipher, self.context['bundle_id'])
+        data.update(zip(self.FIELDS_TO_DECRYPT, self.pool_executor.map(decrypt_val, values)))
         return super().to_representation(data)
