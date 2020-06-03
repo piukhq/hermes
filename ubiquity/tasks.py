@@ -37,8 +37,12 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
 
 
 @shared_task
-def async_balance(instance_id: int) -> None:
+def async_balance(instance_id: int, delete_balance=False) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
+    if delete_balance:
+        scheme_account.delete_cached_balance()
+        scheme_account.delete_saved_balance()
+
     scheme_account.get_cached_balance()
 
 
@@ -79,9 +83,12 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
 
 @shared_task
 def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
-                       validated_data: dict) -> None:
+                       validated_data: dict, delete_balance=False) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+    if delete_balance:
+        scheme_account.delete_cached_balance()
+        scheme_account.delete_saved_balance()
 
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
                                                  scheme_account, serializer)

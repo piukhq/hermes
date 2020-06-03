@@ -643,7 +643,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             updated_account = self._handle_update_fields(account, update_fields)
 
-        async_balance.delay(updated_account.id)
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
     def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
@@ -667,8 +666,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 return account
 
         self.update_credentials(account, update_fields, questions)
-        account.delete_cached_balance()
+
         account.set_pending()
+        async_balance.delay(account.id, delete_balance=True)
         return account
 
     @staticmethod
@@ -690,7 +690,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_id=account.scheme_id
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, validated_data)
+        async_registration.delay(user.id, serializer, account.id, validated_data, delete_balance=True)
         return account
 
     @censor_and_decorate
