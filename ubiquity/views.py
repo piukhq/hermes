@@ -1,3 +1,4 @@
+import binascii
 import logging
 import re
 import typing as t
@@ -654,7 +655,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if 'consents' in update_fields:
             del update_fields['consents']
 
-        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme) \
             .values("id", "type", "manual_question").all()
 
         manual_question_type = None
@@ -798,18 +799,24 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return field_content
 
     @staticmethod
-    def _decrypt_field(rsa_cipher, bundle_id, val):
+    def _decrypt_field(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple):
         rsa_key = get_key(
             bundle_id=bundle_id,
             key_type="rsa_key"
         )
-        return rsa_cipher.decrypt(val, rsa_key=rsa_key)
+        try:
+            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
+        except binascii.Error:
+            sentry_sdk.capture_exception()
+            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
+
+        return decrypted_val
 
     def _decrypt_sensitive_fields(self, bundle_id: str, fields: dict) -> zip:
         decrypt_field = partial(
             self._decrypt_field, self.rsa_cipher, bundle_id
         )
-        return zip(fields.keys(), self.pool_executor.map(decrypt_field, fields.values()))
+        return zip(fields.keys(), self.pool_executor.map(decrypt_field, fields.items()))
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
