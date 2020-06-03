@@ -1,9 +1,12 @@
+import binascii
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import TYPE_CHECKING
 
+import sentry_sdk
 from django.conf import settings
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
@@ -80,12 +83,18 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         )
 
     @staticmethod
-    def _decrypt_val(rsa_cipher, bundle_id, val):
+    def _decrypt_val(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple) -> str:
         rsa_key = get_key(bundle_id=bundle_id, key_type='rsa_key')
-        return rsa_cipher.decrypt(val, rsa_key=rsa_key)
+        try:
+            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
+        except binascii.Error:
+            sentry_sdk.capture_exception()
+            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
+
+        return decrypted_val
 
     def to_representation(self, data):
-        values = [data[key] for key in self.FIELDS_TO_DECRYPT]
+        values = [(key, data[key]) for key in self.FIELDS_TO_DECRYPT]
         decrypt_val = partial(self._decrypt_val, self.rsa_cipher, self.context['bundle_id'])
         data.update(zip(self.FIELDS_TO_DECRYPT, self.pool_executor.map(decrypt_val, values)))
         return super().to_representation(data)
