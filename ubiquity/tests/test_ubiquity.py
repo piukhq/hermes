@@ -1229,7 +1229,7 @@ class TestResources(APITestCase):
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_get_cached_balance_link(self, mock_get_midas_balance, *_):
-        test_scheme_account = SchemeAccountFactory()
+        test_scheme_account = SchemeAccountFactory(scheme=self.scheme)
         mock_get_midas_balance.return_value = {
             'value': Decimal('10'),
             'points': Decimal('100'),
