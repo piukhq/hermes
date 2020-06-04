@@ -15,3 +15,4 @@ __pychache__
 venv/
 .DS_Store
 celerybeat-schedule
+/celerybeat.pid
