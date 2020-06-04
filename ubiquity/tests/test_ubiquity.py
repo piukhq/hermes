@@ -1096,7 +1096,7 @@ class TestResources(APITestCase):
         external_id = 'test patch user 1'
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
-        sa = SchemeAccountFactory(scheme=self.scheme)
+        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345")
         SchemeAccountEntryFactory(user=user, scheme_account=sa)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer='12345')
         SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
