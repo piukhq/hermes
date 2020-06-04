@@ -248,14 +248,13 @@ class Scheme(models.Model):
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
         ).values('id', 'type')
 
-    def get_question_type_dict(self, question_queryset=None):
-        queryset = question_queryset if question_queryset is not None else self.questions.all()
+    def get_question_type_dict(self, question_list):
         return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
+            question["label"]: {
+                "type": question["type"],
+                "answer_type": question["answer_type"]
             }
-            for question in queryset
+            for question in question_list
         }
 
     def __str__(self):

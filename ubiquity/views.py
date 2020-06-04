@@ -635,42 +635,41 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def update(self, request, *args, **kwargs):
         account = self.get_object()
         self.log_update(account.pk)
-
-        update_fields, registration_fields = self._collect_updated_answers(account.scheme)
+        scheme = account.scheme
+        scheme_questions = scheme.questions.all().values()
+        update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
-                                                              account, registration_fields)
+                                                              account, registration_fields, scheme_questions)
         else:
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
-            updated_account = self._handle_update_fields(account, update_fields)
+            updated_account = self._handle_update_fields(account, update_fields, scheme_questions)
 
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
+    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, scheme_questions: list
+                              ) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
 
-        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme) \
-            .values("id", "type", "manual_question").all()
-
         manual_question_type = None
-        for question in questions:
+        for question in scheme_questions:
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
         if manual_question_type and manual_question_type in update_fields:
             if self.card_with_same_data_already_exists(
-                    account, account.scheme.id, update_fields[manual_question_type]
+                    account, account.scheme_id, update_fields[manual_question_type]
             ):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return account
 
-        self.update_credentials(account, update_fields, questions)
+        self.update_credentials(account, update_fields, scheme_questions)
 
         account.set_pending()
         async_balance.delay(account.id, delete_balance=True)
@@ -678,12 +677,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
-                                   registration_fields: dict) -> SchemeAccount:
+                                   registration_fields: dict, scheme_questions: list) -> SchemeAccount:
         check_join_with_pay(registration_fields, user.id)
-        manual_answer = account.card_number_answer
-        main_credential = manual_answer if manual_answer else account.barcode_answer
+        manual_answer = account.card_number
+        if manual_answer:
+            main_credential = manual_answer
+            question_type = [question["type"] for question in scheme_questions if question["manual_question"]][0]
+        else:
+            main_credential = account.barcode
+            question_type = [question["type"] for question in scheme_questions if question["scan_question"]][0]
         registration_data = {
-            main_credential.question.type: main_credential.answer,
+            question_type: main_credential,
             **registration_fields,
             'scheme_account': account
         }
@@ -829,9 +833,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         else:
             field_content[credential_type] = item['value']
 
-    def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
+    def _collect_updated_answers(self, scheme: Scheme, scheme_questions: list
+                                 ) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
         data = self.request.data
-        label_to_type = scheme.get_question_type_dict()
+        label_to_type = scheme.get_question_type_dict(scheme_questions)
         out_fields = {}
         for fields_type in self.create_update_fields:
             out_fields[fields_type] = self._extract_consent_data(scheme, fields_type, data)
@@ -860,9 +865,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             raise ParseError('required field membership_plan is missing')
         except (ValueError, Scheme.DoesNotExist):
             raise ParseError
-
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(
-            self.request.data, scheme=scheme, scheme_questions=scheme_questions
+            self.request.data, scheme=scheme, scheme_questions=scheme_questions.values()
         )
         return scheme, auth_fields, enrol_fields, add_fields, scheme_questions
 
@@ -993,8 +997,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _get_manual_question(scheme_slug, scheme_questions):
         for question in scheme_questions:
-            if question.manual_question:
-                return question.type
+            if question["manual_question"]:
+                return question["type"]
 
         raise SchemeCredentialQuestion.DoesNotExist(
             f'could not find the manual question for scheme: {scheme_slug}.'
