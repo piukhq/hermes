@@ -63,13 +63,10 @@ def try_activation(data):
     retry_obj = data["periodic_retry_obj"]
     print(data['context'], retry_obj.next_retry_after, retry_obj.retry_count)
 
-
     #if (some_success_case):
         #handler.done()
 
     retry_obj.results += ["Retry results"]
-
-
 
 
 @shared_task
