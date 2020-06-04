@@ -8,7 +8,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hermes.settings')
 
 app = Celery('async_midas')
 app.config_from_object('django.conf:settings', namespace='CELERY')
-app.autodiscover_tasks(['ubiquity.tasks', 'payment_card.tasks', 'hermes.vop_tasks.tasks'])
+app.autodiscover_tasks(['ubiquity.tasks', 'payment_card.tasks', 'periodic_retry.tasks', 'hermes.vop_tasks.tasks'])
 
 app.conf.beat_schedule = {
     'retry_tasks': {
@@ -22,7 +22,7 @@ app.conf.beat_schedule = {
         'args': ()
     },
     'retry_metis_request_tasks': {
-        'task': 'payment_card.tasks.retry_metis_request_tasks',
+        'task': 'periodic_retry.tasks.retry_metis_request_tasks',
         'schedule': int(settings.RETRY_PERIOD),
         'args': ()
     }

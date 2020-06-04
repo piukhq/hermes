@@ -5,12 +5,11 @@ import arrow
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from requests import request, HTTPError
-
-from hermes.tasks import RetryTaskStore, RetryTaskList, PeriodicRetryHandler
-from payment_card.models import PaymentAudit, PaymentStatus, PeriodicRetry, PeriodicRetryStatus
+from hermes.tasks import RetryTaskStore
 from payment_card.enums import RequestMethod
+from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
+from requests import request, HTTPError
 from scheme.models import SchemeAccount
 
 
@@ -58,21 +57,6 @@ def expired_payment_void_task() -> None:
         except PaymentError:
             transaction_data = {'scheme_acc_id': payment_audit.scheme_account_id}
             task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
-
-
-@shared_task
-def retry_metis_request_tasks() -> None:
-    periodic_retry_handler = PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS)
-
-    requests_to_retry = PeriodicRetry.objects.filter(
-        task_group=RetryTaskList.METIS_REQUESTS,
-        status=PeriodicRetryStatus.REQUIRED
-    )
-
-    for retry_info in requests_to_retry:
-        periodic_retry_handler.retry(retry_info)
-
-    periodic_retry_handler.call_all_tasks()
 
 
 @shared_task
