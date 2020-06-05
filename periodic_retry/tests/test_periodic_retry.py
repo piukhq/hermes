@@ -5,8 +5,8 @@ import arrow
 import fakeredis
 from django.test import TestCase
 
-from periodic_retry.tasks import PeriodicRetryHandler
-from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry
+from periodic_retry.tasks import PeriodicRetryHandler, retry_metis_request_tasks
+from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry, RetryTaskList
 
 test_generic_func_call_count = 0
 test_retry_func_call_count = 0
@@ -39,11 +39,13 @@ def test_retry_func(data):
 
 
 def mock_retry_task(task_list: str) -> None:
+    time_now = arrow.utcnow().datetime
     periodic_retry_handler = PeriodicRetryHandler(task_list=task_list)
 
     requests_to_retry = PeriodicRetry.objects.filter(
         task_group=task_list,
-        status=PeriodicRetryStatus.REQUIRED
+        status=PeriodicRetryStatus.REQUIRED,
+        next_retry_after__lte=time_now
     )
 
     for retry_info in requests_to_retry:
@@ -216,3 +218,24 @@ class TestPeriodicRetry(TestCase):
 
         mock_retry_task(self.test_task_list)
         self.assertEqual(test_retry_func_call_count, 1)
+
+    @patch("periodic_retry.tasks.get_redis_connection")
+    def test_metis_requests_retry_only_queues_after_the_next_retry_after_field_datetime(self, mock_redis_connection):
+        mock_redis_connection.return_value = mock_redis
+        retry_after_seconds = 3
+
+        retry_obj = PeriodicRetry.objects.create(
+            task_group=RetryTaskList.METIS_REQUESTS,
+            module="periodic_retry.tests.test_periodic_retry",
+            function="test_generic_func",
+            next_retry_after=arrow.utcnow().shift(seconds=retry_after_seconds).datetime
+        )
+        self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
+
+        retry_metis_request_tasks()
+        self.assertEqual(test_generic_func_call_count, 0)
+
+        time.sleep(retry_after_seconds)
+
+        retry_metis_request_tasks()
+        self.assertEqual(test_generic_func_call_count, 1)
