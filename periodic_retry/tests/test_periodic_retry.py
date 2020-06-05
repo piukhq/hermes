@@ -1,5 +1,7 @@
+import time
 from unittest.mock import patch
 
+import arrow
 import fakeredis
 from django.test import TestCase
 
@@ -192,3 +194,25 @@ class TestPeriodicRetry(TestCase):
         retry_obj.refresh_from_db(fields=["retry_count", "status"])
         self.assertEqual(retry_obj.retry_count, retry_count_success)
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.SUCCESSFUL)
+
+    @patch("periodic_retry.tasks.get_redis_connection")
+    def test_retry_task_not_called_before_next_retry_after_value(self, mock_redis_connection):
+        mock_redis_connection.return_value = mock_redis
+        retry_after_seconds = 3
+
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry",
+            "test_retry_func",
+            retry_kwargs={
+                "next_retry_after": arrow.utcnow().shift(seconds=retry_after_seconds).datetime
+            }
+        )
+        self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
+
+        mock_retry_task(self.test_task_list)
+        self.assertEqual(test_retry_func_call_count, 0)
+
+        time.sleep(retry_after_seconds)
+
+        mock_retry_task(self.test_task_list)
+        self.assertEqual(test_retry_func_call_count, 1)
