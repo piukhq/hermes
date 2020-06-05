@@ -1,10 +1,8 @@
 import binascii
-from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from typing import TYPE_CHECKING
 
 import sentry_sdk
-from django.conf import settings
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
@@ -68,7 +66,6 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     hash = serializers.SerializerMethodField()
 
     FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
-    pool_executor = ProcessPoolExecutor(max_workers=settings.POOL_EXECUTOR_MAX_WORKERS)
     rsa_cipher = RSACipher()
 
     def get_payment_card(self, obj):
@@ -96,5 +93,5 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     def to_representation(self, data):
         values = [(key, data[key]) for key in self.FIELDS_TO_DECRYPT]
         decrypt_val = partial(self._decrypt_val, self.rsa_cipher, self.context['bundle_id'])
-        data.update(zip(self.FIELDS_TO_DECRYPT, self.pool_executor.map(decrypt_val, values)))
+        data.update(zip(self.FIELDS_TO_DECRYPT, map(decrypt_val, values)))
         return super().to_representation(data)

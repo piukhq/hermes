@@ -2,7 +2,6 @@ import binascii
 import logging
 import re
 import typing as t
-from concurrent.futures.process import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path
 
@@ -581,7 +580,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
     rsa_cipher = RSACipher()
-    pool_executor = ProcessPoolExecutor(max_workers=settings.POOL_EXECUTOR_MAX_WORKERS)
 
     def get_queryset(self):
         query = {}
@@ -827,7 +825,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         decrypt_field = partial(
             self._decrypt_field, self.rsa_cipher, bundle_id
         )
-        return zip(fields.keys(), self.pool_executor.map(decrypt_field, fields.items()))
+        return zip(fields.keys(), map(decrypt_field, fields.items()))
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
