@@ -2,7 +2,6 @@ import binascii
 import logging
 import re
 import typing as t
-from concurrent.futures.process import ProcessPoolExecutor
 from functools import partial
 from pathlib import Path
 
@@ -575,7 +574,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
     rsa_cipher = RSACipher()
-    pool_executor = ProcessPoolExecutor(max_workers=settings.POOL_EXECUTOR_MAX_WORKERS)
 
     def get_queryset(self):
         query = {}
@@ -820,7 +818,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         decrypt_field = partial(
             self._decrypt_field, self.rsa_cipher, bundle_id
         )
-        return zip(fields.keys(), self.pool_executor.map(decrypt_field, fields.items()))
+        return zip(fields.keys(), map(decrypt_field, fields.items()))
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
@@ -1087,7 +1085,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 class ListMembershipCardView(MembershipCardView):
     current_scheme = None
     scheme_questions = None
-    thread_pool_executor = settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS)
     authentication_classes = (PropertyAuthentication,)
     response_serializer = SelectSerializer.MEMBERSHIP_CARD
     override_serializer_classes = {
@@ -1098,11 +1095,15 @@ class ListMembershipCardView(MembershipCardView):
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
-        serialize_account = partial(
-            lambda serializer, account: serializer(account).data,
-            self.get_serializer_class_by_request()
-        )
-        response = list(self.thread_pool_executor.map(serialize_account, accounts))
+        if len(accounts) > 3:
+            serialize_account = partial(
+                lambda serializer, account: serializer(account).data,
+                self.get_serializer_class_by_request()
+            )
+            with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
+                response = list(executor.map(serialize_account, accounts))
+        else:
+            response = self.get_serializer_by_request(accounts, many=True).data
         return Response(response)
 
     @censor_and_decorate
