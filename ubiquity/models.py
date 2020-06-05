@@ -25,12 +25,14 @@ class PaymentCardSchemeEntry(models.Model):
     ACTIVATING = 1
     DEACTIVATING = 2
     ACTIVATED = 3
+    DEACTIVATED = 4
 
     VOP_STATUS = (
         (UNDEFINED, 'undefined'),
         (ACTIVATING, 'activating'),
         (DEACTIVATING, 'deactivating'),
-        (ACTIVATED, 'activated')
+        (ACTIVATED, 'activated'),
+        (DEACTIVATED, 'deactivated')
     )
 
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,

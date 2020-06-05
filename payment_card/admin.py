@@ -1,8 +1,8 @@
 import arrow
 from django.contrib import admin
 from django.utils.html import format_html
-from ubiquity.models import PaymentCardAccountEntry
 from payment_card import models
+from ubiquity.models import PaymentCardAccountEntry
 
 
 @admin.register(models.PaymentCard)
@@ -153,14 +153,3 @@ class PaymentAuditAdmin(admin.ModelAdmin):
                      'transaction_token', 'status', 'payment_card_hash', 'payment_card_id',)
     readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
                        'void_attempts', 'status', 'payment_card_hash', 'payment_card_id',)
-
-
-@admin.register(models.PeriodicRetry)
-class PeriodicRetryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'task_group', 'status', 'retry_count', 'max_retry_attempts', 'next_retry_after',
-                    'created_on',)
-    readonly_fields = ('created_on', 'modified_on',)
-    search_fields = ('id', 'status', 'task_group', 'function', 'module')
-
-
-admin.site.register(models.Issuer)

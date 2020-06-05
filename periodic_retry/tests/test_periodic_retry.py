@@ -3,8 +3,8 @@ from unittest.mock import patch
 import fakeredis
 from django.test import TestCase
 
-from hermes.tasks import PeriodicRetryHandler
-from payment_card.models import PeriodicRetryStatus, PeriodicRetry
+from periodic_retry.tasks import PeriodicRetryHandler
+from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry
 
 test_generic_func_call_count = 0
 test_retry_func_call_count = 0
@@ -52,7 +52,7 @@ def mock_retry_task(task_list: str) -> None:
 
 class TestPeriodicRetry(TestCase):
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def setUp(self, mock_redis_connection) -> None:
         global test_generic_func_call_count
         global test_retry_func_call_count
@@ -74,11 +74,11 @@ class TestPeriodicRetry(TestCase):
         for _ in range(self.handler.length):
             self.handler.storage.rpop(self.test_task_list)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_retry_generic_function(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("hermes.tests.test_periodic_retry", "test_generic_func", "some arg")
+        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_generic_func", "some arg")
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
         mock_retry_task(self.test_task_list)
@@ -92,11 +92,11 @@ class TestPeriodicRetry(TestCase):
         self.assertEqual(test_generic_func_call_count, 2)
         self.assertEqual(retry_obj.retry_count, 2)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_retry_tailored_retry_function(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("hermes.tests.test_periodic_retry", "test_retry_func")
+        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_retry_func")
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
         mock_retry_task(self.test_task_list)
@@ -117,13 +117,13 @@ class TestPeriodicRetry(TestCase):
         self.assertEqual(retry_obj.retry_count, 2)
         self.assertEqual(len(retry_obj.results), 2)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_retry_halts_after_max_retry_attempts_is_reached(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
         max_retry_attempts = 3
         retry_obj = self.handler.new(
-            "hermes.tests.test_periodic_retry",
+            "periodic_retry.tests.test_periodic_retry",
             "test_generic_func",
             "some arg",
             retry_kwargs={"max_retry_attempts": max_retry_attempts}
@@ -137,12 +137,12 @@ class TestPeriodicRetry(TestCase):
         self.assertEqual(retry_obj.retry_count, max_retry_attempts)
         self.assertEqual(test_generic_func_call_count, max_retry_attempts)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_retry_existing_periodic_retry_object(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
         retry_obj = self.handler.new(
-            "hermes.tests.test_periodic_retry",
+            "periodic_retry.tests.test_periodic_retry",
             "test_generic_func",
             "some arg",
             retry_kwargs={"max_retry_attempts": 2}
@@ -162,23 +162,23 @@ class TestPeriodicRetry(TestCase):
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 0)
         self.assertEqual(retry_obj.retry_count, 2)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_cannot_set_task_already_in_queue(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
-        retry_obj = self.handler.new("hermes.tests.test_periodic_retry", "test_generic_func", "some arg")
+        retry_obj = self.handler.new("periodic_retry.tests.test_periodic_retry", "test_generic_func", "some arg")
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
         self.handler.retry(retry_obj)
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
-    @patch("hermes.tasks.get_redis_connection")
+    @patch("periodic_retry.tasks.get_redis_connection")
     def test_max_retry_can_be_disabled(self, mock_redis_connection):
         mock_redis_connection.return_value = mock_redis
 
         retry_count_success = self.handler.default_max_retry_count + 2
         retry_obj = self.handler.new(
-            "hermes.tests.test_periodic_retry",
+            "periodic_retry.tests.test_periodic_retry",
             "test_retry_func",
             context={"disable_max_test": True},
             retry_kwargs={"max_retry_attempts": None}
