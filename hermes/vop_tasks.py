@@ -106,7 +106,7 @@ def deactivate(entry: PaymentCardSchemeEntry, data: dict):
     return process_result(rep, entry, PaymentCardSchemeEntry.DEACTIVATED)
 
 
-def retry_deactivation():
+def retry_deactivation(data):
     retry_obj = data["periodic_retry_obj"]
     entry = PaymentCardSchemeEntry.objects.get(id=data['context']['entry_id'])
     status, result = deactivate(entry, data['context']['post_data'])
