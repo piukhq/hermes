@@ -34,18 +34,17 @@ def test_retry_func(data):
         retry_obj.status = PeriodicRetryStatus.SUCCESSFUL
 
     retry_obj.results += ["Retry results"]
+    retry_obj.next_retry_after = arrow.utcnow().datetime
 
     retry_obj.save(update_fields=["status", "results"])
 
 
 def mock_retry_task(task_list: str) -> None:
-    time_now = arrow.utcnow().datetime
     periodic_retry_handler = PeriodicRetryHandler(task_list=task_list)
 
     requests_to_retry = PeriodicRetry.objects.filter(
         task_group=task_list,
-        status=PeriodicRetryStatus.REQUIRED,
-        next_retry_after__lte=time_now
+        status=PeriodicRetryStatus.REQUIRED
     )
 
     for retry_info in requests_to_retry:
@@ -68,6 +67,7 @@ class TestPeriodicRetry(TestCase):
         self.test_task_list = "test_retry_tasks"
 
         self.handler = PeriodicRetryHandler(task_list=self.test_task_list)
+        self.time_now = arrow.utcnow().datetime
 
         # empty task list
         for _ in range(self.handler.length):
@@ -91,6 +91,8 @@ class TestPeriodicRetry(TestCase):
         retry_obj.refresh_from_db(fields=["status"])
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
 
+        retry_obj.next_retry_after = self.time_now
+        retry_obj.save(update_fields=["next_retry_after"])
         mock_retry_task(self.test_task_list)
         retry_obj.refresh_from_db(fields=["retry_count"])
         self.assertEqual(test_generic_func_call_count, 2)
@@ -135,6 +137,8 @@ class TestPeriodicRetry(TestCase):
 
         for _ in range(5):
             mock_retry_task(self.test_task_list)
+            retry_obj.next_retry_after = self.time_now
+            retry_obj.save(update_fields=["next_retry_after"])
 
         retry_obj.refresh_from_db(fields=["retry_count"])
         self.assertEqual(test_generic_func_call_count, max_retry_attempts)
@@ -160,6 +164,8 @@ class TestPeriodicRetry(TestCase):
         self.handler.retry(retry_obj)
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
+        retry_obj.next_retry_after = self.time_now
+        retry_obj.save(update_fields=["next_retry_after"])
         mock_retry_task(self.test_task_list)
 
         retry_obj.refresh_from_db()
