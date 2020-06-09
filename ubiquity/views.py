@@ -10,6 +10,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db import connection
 from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
@@ -1092,12 +1093,17 @@ class ListMembershipCardView(MembershipCardView):
         'POST': LinkMembershipCardSerializer
     }
 
+    def serialize_mcard(self, serializer, account):
+        data = serializer(account).data
+        connection.close()
+        return data
+
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
         if len(accounts) > 3:
             serialize_account = partial(
-                lambda serializer, account: serializer(account).data,
+                lambda serializer, account: self.serialize_mcard(serializer, account),
                 self.get_serializer_class_by_request()
             )
             with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
