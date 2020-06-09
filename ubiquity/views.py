@@ -1103,7 +1103,7 @@ class ListMembershipCardView(MembershipCardView):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
         if len(accounts) > 3:
             serialize_account = partial(
-                lambda serializer, account: self.serialize_mcard(serializer, account),
+                self.serialize_mcard,
                 self.get_serializer_class_by_request()
             )
             with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
