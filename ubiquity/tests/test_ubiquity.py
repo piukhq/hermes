@@ -1413,9 +1413,10 @@ class TestResources(APITestCase):
         query['scheme_account_id'] = fail_resp.json()['id']
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_join', autospec=True)
     @patch('payment_card.payment.get_secret_key', autospec=True)
-    def test_replace_mcard_with_enrol_fields(self, mock_secret, mock_async_join):
+    def test_replace_mcard_with_enrol_fields(self, mock_secret, mock_async_join, mock_async_balance):
         mock_secret.return_value = "test_secret"
         self.scheme_account.status = SchemeAccount.ENROL_FAILED
         self.scheme_account.save(update_fields=["status"])
@@ -1460,6 +1461,7 @@ class TestResources(APITestCase):
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
+        self.assertTrue(mock_async_balance.delay.called)
 
 
 class TestAgainWithWeb2(TestResources):
