@@ -1,26 +1,28 @@
 import base64
 import json
 import time
-from unittest import mock
-
 import arrow
 import httpretty as httpretty
 import jwt
+from rest_framework.utils.serializer_helpers import ReturnList
+from rest_framework.test import APITestCase
+
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
+from django.urls import reverse
 from django.http import HttpResponse
 from django.test import Client, TestCase
-from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APITestCase
-from rest_framework.utils.serializer_helpers import ReturnList
 
-from hermes import settings
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
                                   MarketingCodeFactory)
+from unittest import mock
+
 from user.views import facebook_login, twitter_login, social_login, apple_login, generate_apple_client_secret
+from hermes import settings
+
 
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
@@ -396,7 +398,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
+        self.assertEqual(content['region'],  user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -422,7 +424,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
+        self.assertEqual(content['region'],  user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -447,7 +449,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], new_address_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
+        self.assertEqual(content['region'],  user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -469,6 +471,21 @@ class TestUserProfileViews(TestCase):
         content = json.loads(response.content.decode())
         self.assertEqual(content['uid'], str(uid))
         self.assertEqual(content['email'], new_email)
+
+    def test_edit_duplicate_email(self):
+        user_profile1 = UserProfileFactory()
+        user_profile2 = UserProfileFactory()
+        data = {
+            'email': user_profile2.user.email,
+        }
+        auth_headers = {
+            'HTTP_AUTHORIZATION': 'Token ' + user_profile1.user.create_token()
+        }
+        client = Client()
+        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        self.assertEqual(response.status_code, 200)
+        content = json.loads(response.content.decode())
+        self.assertNotEqual(content['email'], ['This field must be unique.'])
 
     def test_cannot_edit_uid(self):
         # You cannot edit uid, but if you try you still get a 200.
@@ -523,7 +540,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
+        self.assertEqual(content['region'],  user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], 0)
@@ -556,7 +573,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], '')
         self.assertEqual(content['address_line_2'], '')
         self.assertEqual(content['city'], '')
-        self.assertEqual(content['region'], '')
+        self.assertEqual(content['region'],  '')
         self.assertEqual(content['postcode'], '')
         self.assertEqual(content['country'], '')
         self.assertEqual(content['notifications'], None)
@@ -816,7 +833,7 @@ class TestFacebookLogin(APITestCase):
                                body=json.dumps({'id': '12'}), content_type="application/json")
         response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_facebook_login.call_args[0][0], '25232345')
+        self.assertEqual(mock_facebook_login.call_args[0][0],  '25232345')
 
     @httpretty.activate
     def test_facebook_login_view_bad_id(self):
@@ -1158,7 +1175,7 @@ class TestUserSettings(APITestCase):
         analytic_data = [
             mock_update_attributes.call_args_list[0][0][1],
             mock_update_attributes.call_args_list[1][0][1]
-        ]
+            ]
 
         # marketing-bink updated to False in analytics
         self.assertFalse(analytic_data[0]['marketing-bink'])
