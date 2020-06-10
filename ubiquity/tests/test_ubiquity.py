@@ -105,7 +105,13 @@ class TestResources(APITestCase):
 
         self.issuer = IssuerFactory(name='Barclays')
         self.payment_card = PaymentCardFactory(slug='visa', system='visa')
-        self.payment_card_account = PaymentCardAccountFactory(issuer=self.issuer, payment_card=self.payment_card)
+        self.pcard_hash1 = "some_hash"
+        self.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
+        self.payment_card_account = PaymentCardAccountFactory(
+            issuer=self.issuer,
+            payment_card=self.payment_card,
+            hash=self.pcard_hash2
+        )
         self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
                                                                          payment_card_account=self.payment_card_account)
 
@@ -510,15 +516,11 @@ class TestResources(APITestCase):
         )
         self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
 
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
+    @patch('analytics.api')
     @patch('ubiquity.views.async_join', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
     @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_membership_card_jwp_fails_with_bad_payment_card(self, mock_get_hash_secret, *_):
         mock_get_hash_secret.return_value = "testsecret"
@@ -1411,6 +1413,56 @@ class TestResources(APITestCase):
         query['scheme_account_id'] = fail_resp.json()['id']
         self.assertFalse(PaymentCardSchemeEntry.objects.filter(**query).exists())
 
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_join', autospec=True)
+    @patch('payment_card.payment.get_secret_key', autospec=True)
+    def test_replace_mcard_with_enrol_fields(self, mock_secret, mock_async_join, mock_async_balance):
+        mock_secret.return_value = "test_secret"
+        self.scheme_account.status = SchemeAccount.ENROL_FAILED
+        self.scheme_account.save(update_fields=["status"])
+
+        consent_label = "Consent 1"
+        consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
+
+        ThirdPartyConsentLink.objects.create(consent_label=consent_label,
+                                             client_app=self.client_app,
+                                             scheme=self.scheme,
+                                             consent=consent,
+                                             add_field=False,
+                                             auth_field=False,
+                                             register_field=True,
+                                             enrol_field=True)
+
+        payload = {
+            "account": {
+                "enrol_fields": [
+                    {
+                        "column": LAST_NAME,
+                        "value": "New last name"
+                    },
+                    {
+                        "column": PAYMENT_CARD_HASH,
+                        "value": self.pcard_hash1
+                    },
+                    {
+                        "column": consent_label,
+                        "value": "True"
+                    },
+                ]
+            },
+            "membership_plan": self.scheme_account.scheme_id
+        }
+
+        resp = self.client.put(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
+                               content_type='application/json', **self.auth_headers, **self.version_header)
+
+        self.assertEqual(resp.status_code, 200)
+        self.scheme_account.refresh_from_db()
+        self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.assertTrue(mock_async_join.delay.called)
+        self.assertTrue(mock_async_balance.delay.called)
+
 
 class TestAgainWithWeb2(TestResources):
 
@@ -1604,18 +1656,13 @@ class TestResourcesV1_2(APITestCase):
         self.assertFalse(mock_async_balance.delay.called)
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
-    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_date, mock_hades, mock_async_balance,
+    def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_hades, mock_async_balance,
                                                                 mock_async_link, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         password = 'Password1'
         question_answer2 = 'some other answer'
         payload = {

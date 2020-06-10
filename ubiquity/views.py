@@ -721,7 +721,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
-                user=user_id,
+                user=request.user,
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
