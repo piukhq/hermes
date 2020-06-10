@@ -1338,11 +1338,13 @@ class TestResources(APITestCase):
         pcard_delete.refresh_from_db()
         mcard_unlink.refresh_from_db()
         mcard_delete.refresh_from_db()
+        user.refresh_from_db()
 
         self.assertTrue(pcard_delete.is_deleted)
         self.assertTrue(mcard_delete.is_deleted)
         self.assertFalse(pcard_unlink.is_deleted)
         self.assertFalse(mcard_unlink.is_deleted)
+        self.assertNotEquals(user.delete_token, '')
 
         non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
         self.assertEqual(non_deleted_links, 0)
