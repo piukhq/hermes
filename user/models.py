@@ -276,6 +276,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         token = jwt.encode(payload, self.client.secret + self.salt)
         return token.decode('unicode_escape')
 
+    def soft_delete(self):
+        self.is_active = False
+        self.delete_token = uuid.uuid4()
+        self.save(update_fields=['is_active', 'delete_token'])
+
     # Admin required fields
     # @property
     # def is_superuser(self):

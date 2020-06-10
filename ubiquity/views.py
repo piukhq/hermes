@@ -380,8 +380,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
 
-        request.user.is_active = False
-        request.user.save()
+        request.user.soft_delete()
 
         try:  # send user info to be persisted in Atlas
             send_data_to_atlas(response)
