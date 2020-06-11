@@ -10,11 +10,11 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import connection
+from django.db import IntegrityError, connection
 from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError, ValidationError
+from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -58,6 +58,12 @@ if t.TYPE_CHECKING:
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
+
+
+class ConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = 'Attempting to create two or more identical users at the same time.'
+    default_code = 'conflict'
 
 
 def is_auto_link(req):
@@ -347,7 +353,10 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
 
-            user = new_user.save()
+            try:
+                user = new_user.save()
+            except IntegrityError:
+                raise ConflictError
 
             consent = self._add_consent(user, consent_data)
         else:
@@ -371,8 +380,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
 
-        request.user.is_active = False
-        request.user.save()
+        request.user.soft_delete()
 
         try:  # send user info to be persisted in Atlas
             send_data_to_atlas(response)
@@ -721,7 +729,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
-                user=user_id,
+                user=request.user,
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
