@@ -14,11 +14,13 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def retry_metis_request_tasks() -> None:
+    time_now = arrow.utcnow().datetime
     periodic_retry_handler = PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS)
 
     requests_to_retry = PeriodicRetry.objects.filter(
         task_group=RetryTaskList.METIS_REQUESTS,
-        status=PeriodicRetryStatus.REQUIRED
+        status=PeriodicRetryStatus.REQUIRED,
+        next_retry_after__lte=time_now
     )
 
     for retry_info in requests_to_retry:
@@ -141,6 +143,14 @@ class PeriodicRetryHandler:
             sentry_sdk.capture_message(msg, level=logging.WARNING)
             logger.debug(msg)
 
+    def _call_task_prechecks(self, periodic_retry_obj: PeriodicRetry) -> None:
+        time_now = arrow.utcnow()
+        if periodic_retry_obj.next_retry_after > time_now:
+            msg = f"PeriodicRetry (id={periodic_retry_obj.id}) cannot be retried " \
+                  f"until after {periodic_retry_obj.next_retry_after}"
+            logger.debug(msg)
+            raise RetryError(msg)
+
     def _set_task(self, retry_info: PeriodicRetry, module_name: str, function_name: str, data: dict) -> None:
         data["task_id"] = retry_info.id
         data["_module"] = module_name
@@ -198,6 +208,14 @@ class PeriodicRetryHandler:
 
         logger.debug(f"Attempting to retry PeriodicRetry (id={periodic_retry_obj.id})")
         try:
+            self._call_task_prechecks(periodic_retry_obj)
+        except RetryError:
+            logger.debug(f"Skipping task PeriodicRetry (id={periodic_retry_obj.id})...")
+            periodic_retry_obj.status = PeriodicRetryStatus.REQUIRED
+            periodic_retry_obj.save(update_fields=["status"])
+            return
+
+        try:
             data["periodic_retry_obj"] = periodic_retry_obj
             data["periodic_retry_handler"] = self
             module = importlib.import_module(data["_module"])
@@ -217,7 +235,10 @@ class PeriodicRetryHandler:
 
             periodic_retry_obj.retry_count += 1
             periodic_retry_obj.save()
-
+            logger.debug(
+                f"Retry attempt completed with PeriodicRetry (id={periodic_retry_obj.id}) "
+                f"in status - {periodic_retry_obj.status.name}"
+            )
         except Exception as e:
             # All exceptions caught and logged in results since it is impossible to know explicitly which exceptions
             # could be raised by a retried function. This also means execution of tasks will not be blocked if an

@@ -1,10 +1,12 @@
+import time
 from unittest.mock import patch
 
+import arrow
 import fakeredis
 from django.test import TestCase
 
-from periodic_retry.tasks import PeriodicRetryHandler
-from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry
+from periodic_retry.tasks import PeriodicRetryHandler, retry_metis_request_tasks
+from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry, RetryTaskList
 
 test_generic_func_call_count = 0
 test_retry_func_call_count = 0
@@ -32,6 +34,7 @@ def test_retry_func(data):
         retry_obj.status = PeriodicRetryStatus.SUCCESSFUL
 
     retry_obj.results += ["Retry results"]
+    retry_obj.next_retry_after = arrow.utcnow().datetime
 
     retry_obj.save(update_fields=["status", "results"])
 
@@ -64,6 +67,7 @@ class TestPeriodicRetry(TestCase):
         self.test_task_list = "test_retry_tasks"
 
         self.handler = PeriodicRetryHandler(task_list=self.test_task_list)
+        self.time_now = arrow.utcnow().datetime
 
         # empty task list
         for _ in range(self.handler.length):
@@ -87,6 +91,8 @@ class TestPeriodicRetry(TestCase):
         retry_obj.refresh_from_db(fields=["status"])
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
 
+        retry_obj.next_retry_after = self.time_now
+        retry_obj.save(update_fields=["next_retry_after"])
         mock_retry_task(self.test_task_list)
         retry_obj.refresh_from_db(fields=["retry_count"])
         self.assertEqual(test_generic_func_call_count, 2)
@@ -131,6 +137,8 @@ class TestPeriodicRetry(TestCase):
 
         for _ in range(5):
             mock_retry_task(self.test_task_list)
+            retry_obj.next_retry_after = self.time_now
+            retry_obj.save(update_fields=["next_retry_after"])
 
         retry_obj.refresh_from_db(fields=["retry_count"])
         self.assertEqual(test_generic_func_call_count, max_retry_attempts)
@@ -156,6 +164,8 @@ class TestPeriodicRetry(TestCase):
         self.handler.retry(retry_obj)
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
+        retry_obj.next_retry_after = self.time_now
+        retry_obj.save(update_fields=["next_retry_after"])
         mock_retry_task(self.test_task_list)
 
         retry_obj.refresh_from_db()
@@ -192,3 +202,46 @@ class TestPeriodicRetry(TestCase):
         retry_obj.refresh_from_db(fields=["retry_count", "status"])
         self.assertEqual(retry_obj.retry_count, retry_count_success)
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.SUCCESSFUL)
+
+    @patch("periodic_retry.tasks.get_redis_connection")
+    def test_retry_task_not_called_before_next_retry_after_value(self, mock_redis_connection):
+        mock_redis_connection.return_value = mock_redis
+        retry_after_seconds = 3
+
+        retry_obj = self.handler.new(
+            "periodic_retry.tests.test_periodic_retry",
+            "test_retry_func",
+            retry_kwargs={
+                "next_retry_after": arrow.utcnow().shift(seconds=retry_after_seconds).datetime
+            }
+        )
+        self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
+
+        mock_retry_task(self.test_task_list)
+        self.assertEqual(test_retry_func_call_count, 0)
+
+        time.sleep(retry_after_seconds)
+
+        mock_retry_task(self.test_task_list)
+        self.assertEqual(test_retry_func_call_count, 1)
+
+    @patch("periodic_retry.tasks.get_redis_connection")
+    def test_metis_requests_retry_only_queues_after_the_next_retry_after_field_datetime(self, mock_redis_connection):
+        mock_redis_connection.return_value = mock_redis
+        retry_after_seconds = 3
+
+        retry_obj = PeriodicRetry.objects.create(
+            task_group=RetryTaskList.METIS_REQUESTS,
+            module="periodic_retry.tests.test_periodic_retry",
+            function="test_generic_func",
+            next_retry_after=arrow.utcnow().shift(seconds=retry_after_seconds).datetime
+        )
+        self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
+
+        retry_metis_request_tasks()
+        self.assertEqual(test_generic_func_call_count, 0)
+
+        time.sleep(retry_after_seconds)
+
+        retry_metis_request_tasks()
+        self.assertEqual(test_generic_func_call_count, 1)
