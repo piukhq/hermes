@@ -33,7 +33,8 @@ def vop_activate(entries: Iterable[PaymentCardSchemeEntry]):
 
         data = {
             'payment_token': entry.payment_card_account.psp_token,
-            'partner_slug': entry.scheme_account.scheme.slug,
+            'partner_slug': 'visa',
+            'merchant_slug': entry.scheme_account.scheme.slug,
             'association_id': entry.id,
             'payment_card_account_id': entry.payment_card_account.id,
             'scheme_account_id': entry.scheme_account.id
