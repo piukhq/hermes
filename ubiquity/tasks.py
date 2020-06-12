@@ -164,12 +164,10 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
 
     if not p_card_users:
         payment_card_account.is_deleted = True
-        payment_card_account.save()
+        payment_card_account.save(update_fields=['is_deleted'])
         metis.delete_payment_card(payment_card_account, run_async=False)
 
     else:
-        entries = entries.exclude(
-            scheme_account__user_set__id__in=p_card_users
-        )
+        entries = entries.exclude(scheme_account__user_set__id__in=p_card_users)
 
     entries.delete()

@@ -6,19 +6,20 @@ from unittest.mock import patch, MagicMock
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
+from rest_framework.reverse import reverse
+from rest_framework.test import APITestCase
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
+from shared_config_storage.credentials.utils import AnswerTypeChoices
+
 from hermes.channel_vault import channel_vault
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory)
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
@@ -1692,3 +1693,97 @@ class TestResourcesV1_2(APITestCase):
         self.assertFalse(mock_hades.called)
         self.assertFalse(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
+
+
+class TestLastManStanding(APITestCase):
+    def _get_auth_header(self, user):
+        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+                                user.external_id).get_token()
+        return 'Bearer {}'.format(token)
+
+    def setUp(self) -> None:
+        self.bundle_id = 'com.barclays.test'
+        organisation = OrganisationFactory(name='test_organisation')
+        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+        self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
+        self.scheme = SchemeFactory()
+
+        self.question_1 = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
+            label=PASSWORD, options=SchemeCredentialQuestion.LINK
+        )
+        self.question_2 = SchemeCredentialQuestionFactory(
+            scheme=self.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
+            label=USER_NAME
+        )
+
+        external_id_1 = 'test_1@user.com'
+        external_id_2 = 'test_2@user.com'
+        self.user_1 = UserFactory(external_id=external_id_1, client=self.client_app, email=external_id_1)
+        self.user_2 = UserFactory(external_id=external_id_2, client=self.client_app, email=external_id_2)
+
+        # Need to add an active association since it was assumed no setting was enabled
+        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
+
+        self.auth_headers_1 = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user_1))}
+        self.auth_headers_2 = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user_2))}
+        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('payment_card.metis.metis_request', autospec=True)
+    def test_single_property_cards_deletion(self, _):
+        pcard_1 = PaymentCardAccountFactory()
+        pcard_2 = PaymentCardAccountFactory()
+        mcard = SchemeAccountFactory(scheme=self.scheme)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_1, user=self.user_1)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_2, user=self.user_1)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_1, scheme_account=mcard)
+
+        pcard_1.refresh_from_db()
+        mcard.refresh_from_db()
+
+        self.assertEqual(pcard_1.scheme_account_set.count(), 1)
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('payment-card', args=[pcard_1.id]), **self.auth_headers_1)
+
+        self.assertEqual(mcard.payment_card_account_set.count(), 0)
+
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_2, scheme_account=mcard)
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('membership-card', args=[mcard.id]), **self.auth_headers_1)
+        self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('payment_card.metis.metis_request', autospec=True)
+    def test_multiple_property_cards_deletion(self, _):
+        pcard = PaymentCardAccountFactory()
+        mcard = SchemeAccountFactory(scheme=self.scheme)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard, user=self.user_1)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard, user=self.user_2)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_2)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard, scheme_account=mcard)
+
+        pcard.refresh_from_db()
+        mcard.refresh_from_db()
+
+        self.assertEqual(pcard.scheme_account_set.count(), 1)
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('payment-card', args=[pcard.id]), **self.auth_headers_1)
+
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('membership-card', args=[mcard.id]), **self.auth_headers_1)
+        self.assertEqual(pcard.scheme_account_set.count(), 1)
