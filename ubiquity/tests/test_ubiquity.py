@@ -64,23 +64,25 @@ class MockApiCache:
 
 class TestResources(APITestCase):
 
-    def _get_auth_header(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+    @classmethod
+    def _get_auth_header(cls, user):
+        token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,
                                 user.external_id).get_token()
         return 'Bearer {}'.format(token)
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         organisation = OrganisationFactory(name='test_organisation')
-        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+        cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
                                                    client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-        self.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=self.client_app)
+        cls.bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=cls.client_app)
         external_id = 'test@user.com'
-        self.user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        self.scheme = SchemeFactory()
-        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+        cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
+        cls.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        self.secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True)
+        cls.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                                   type=LAST_NAME,
                                                                   label=LAST_NAME,
                                                                   third_party_identifier=True,
@@ -88,54 +90,54 @@ class TestResources(APITestCase):
                                                                   auth_field=True,
                                                                   enrol_field=True,
                                                                   register_field=True)
-        self.jwp_question = SchemeCredentialQuestionFactory(scheme=self.scheme, type=PAYMENT_CARD_HASH,
+        cls.jwp_question = SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PAYMENT_CARD_HASH,
                                                             label=PAYMENT_CARD_HASH, enrol_field=True,
                                                             options=SchemeCredentialQuestion.OPTIONAL_JOIN)
-        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
-                                                                   scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=self.secondary_question,
-                                                                          scheme_account=self.scheme_account)
-        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
+        cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
+                                                                   scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.secondary_question,
+                                                                          scheme_account=cls.scheme_account)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
         # Need to add an active association since it was assumed no setting was enabled
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                         status=SchemeBundleAssociation.ACTIVE)
 
-        self.scheme_account.update_barcode_and_card_number()
+        cls.scheme_account.update_barcode_and_card_number()
 
-        self.issuer = IssuerFactory(name='Barclays')
-        self.payment_card = PaymentCardFactory(slug='visa', system='visa')
-        self.pcard_hash1 = "some_hash"
-        self.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
-        self.payment_card_account = PaymentCardAccountFactory(
-            issuer=self.issuer,
-            payment_card=self.payment_card,
-            hash=self.pcard_hash2
+        cls.issuer = IssuerFactory(name='Barclays')
+        cls.payment_card = PaymentCardFactory(slug='visa', system='visa')
+        cls.pcard_hash1 = "some_hash"
+        cls.pcard_hash2 = "5ae741975b4db7bc80072fe8f88f233ef4a67e1e1d7e3bbf68a314dfc6691636"
+        cls.payment_card_account = PaymentCardAccountFactory(
+            issuer=cls.issuer,
+            payment_card=cls.payment_card,
+            hash=cls.pcard_hash2
         )
-        self.payment_card_account_entry = PaymentCardAccountEntryFactory(user=self.user,
-                                                                         payment_card_account=self.payment_card_account)
+        cls.payment_card_account_entry = PaymentCardAccountEntryFactory(user=cls.user,
+                                                                         payment_card_account=cls.payment_card_account)
 
-        self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
-        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user))}
+        cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
 
-        self.put_scheme = SchemeFactory()
-        SchemeBalanceDetailsFactory(scheme_id=self.put_scheme)
+        cls.put_scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=cls.put_scheme)
 
-        self.scheme_bundle_association_put = SchemeBundleAssociationFactory(scheme=self.put_scheme,
-                                                                            bundle=self.bundle,
+        cls.scheme_bundle_association_put = SchemeBundleAssociationFactory(scheme=cls.put_scheme,
+                                                                            bundle=cls.bundle,
                                                                             status=SchemeBundleAssociation.ACTIVE)
-        self.put_scheme_manual_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=CARD_NUMBER,
+        cls.put_scheme_manual_q = SchemeCredentialQuestionFactory(scheme=cls.put_scheme, type=CARD_NUMBER,
                                                                    label=CARD_NUMBER, manual_question=True)
-        self.put_scheme_scan_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=BARCODE,
+        cls.put_scheme_scan_q = SchemeCredentialQuestionFactory(scheme=cls.put_scheme, type=BARCODE,
                                                                  label=BARCODE, scan_question=True)
-        self.put_scheme_auth_q = SchemeCredentialQuestionFactory(scheme=self.put_scheme, type=PASSWORD,
+        cls.put_scheme_auth_q = SchemeCredentialQuestionFactory(scheme=cls.put_scheme, type=PASSWORD,
                                                                  label=PASSWORD, auth_field=True)
 
-        self.test_hades_transactions = [
+        cls.test_hades_transactions = [
             {
                 'id': 1,
-                'scheme_account_id': self.scheme_account.id,
+                'scheme_account_id': cls.scheme_account.id,
                 'created': '2020-05-19 14:36:35+00:00',
                 'date': '2020-05-19 14:36:35+00:00',
                 'description': 'Test Transaction',
@@ -1469,7 +1471,8 @@ class TestResources(APITestCase):
 
 class TestAgainWithWeb2(TestResources):
 
-    def _get_auth_header(self, user):
+    @classmethod
+    def _get_auth_header(cls, user):
         token = user.create_token()
         return 'Token {}'.format(token)
 
@@ -1528,40 +1531,42 @@ class TestMembershipCardCredentials(APITestCase):
 
 
 class TestResourcesV1_2(APITestCase):
-    def _get_auth_header(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+    @classmethod
+    def _get_auth_header(cls, user):
+        token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,
                                 user.external_id).get_token()
         return 'Bearer {}'.format(token)
 
-    def setUp(self) -> None:
-        self.rsa = RSACipher()
-        self.bundle_id = 'com.barclays.test'
-        self.pub_key = mock_secrets["bundle_secrets"][self.bundle_id]['public_key']
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.rsa = RSACipher()
+        cls.bundle_id = 'com.barclays.test'
+        cls.pub_key = mock_secrets["bundle_secrets"][cls.bundle_id]['public_key']
 
         organisation = OrganisationFactory(name='test_organisation')
-        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+        cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
                                                    client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-        self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
-        self.scheme = SchemeFactory()
+        cls.bundle = ClientApplicationBundleFactory(bundle_id=cls.bundle_id, client=cls.client_app)
+        cls.scheme = SchemeFactory()
 
-        self.question_1 = SchemeCredentialQuestionFactory(
-            scheme=self.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
+        cls.question_1 = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
             label=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
-        self.question_2 = SchemeCredentialQuestionFactory(
-            scheme=self.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
+        cls.question_2 = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
             label=USER_NAME
         )
 
         external_id = 'test@user.com'
-        self.user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
 
         # Need to add an active association since it was assumed no setting was enabled
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                         status=SchemeBundleAssociation.ACTIVE)
 
-        self.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user))}
-        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user))}
+        cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -1703,7 +1708,7 @@ class TestLastManStanding(APITestCase):
         return 'Bearer {}'.format(token)
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setUpTestData(cls) -> None:
         cls.bundle_id = 'com.barclays.test'
         organisation = OrganisationFactory(name='test_organisation')
         cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
@@ -1732,7 +1737,6 @@ class TestLastManStanding(APITestCase):
         cls.auth_headers_1 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_1))}
         cls.auth_headers_2 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_2))}
         cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
-        super().setUpClass()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,

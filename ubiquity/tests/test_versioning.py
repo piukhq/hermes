@@ -16,8 +16,9 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
 
 class TestResources(APITestCase):
 
-    def _get_auth_header(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+    @classmethod
+    def _get_auth_header(cls, user):
+        token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,
                                 user.external_id).get_token()
         return {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
@@ -25,18 +26,19 @@ class TestResources(APITestCase):
     def _get_version_header(version):
         return {'HTTP_ACCEPT': f"application/vnd.bink+json;v={version}"}
 
-    def setUp(self):
+    @classmethod
+    def setUpTestData(cls):
         organisation = OrganisationFactory(name='test_version_organisation')
-        self.client_app = ClientApplicationFactory(organisation=organisation, name='versioning client application',
+        cls.client_app = ClientApplicationFactory(organisation=organisation, name='versioning client application',
                                                    client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-        self.bundle = ClientApplicationBundleFactory(bundle_id='test.version.fake', client=self.client_app)
+        cls.bundle = ClientApplicationBundleFactory(bundle_id='test.version.fake', client=cls.client_app)
         external_id = 'test@user.com'
-        self.user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
-        self.scheme = SchemeFactory()
-        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
+        cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
+        cls.scheme = SchemeFactory()
+        SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        self.secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True)
+        cls.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                                   type=LAST_NAME,
                                                                   label=LAST_NAME,
                                                                   third_party_identifier=True,
@@ -44,21 +46,21 @@ class TestResources(APITestCase):
                                                                   auth_field=True,
                                                                   enrol_field=True,
                                                                   register_field=True)
-        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
-                                                                   scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=self.secondary_question,
-                                                                          scheme_account=self.scheme_account)
-        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
+        cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
+                                                                   scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.secondary_question,
+                                                                          scheme_account=cls.scheme_account)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                         status=SchemeBundleAssociation.ACTIVE)
-        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
-        auth_header = self._get_auth_header(self.user)
-        self.headers_v1_1 = {**auth_header, **self._get_version_header('1.1.4')}
-        self.headers_v1_2 = {**auth_header, **self._get_version_header('1.2')}
-        self.resp_wrong_ver = {**auth_header, **self._get_version_header('-3')}
-        self.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': f"application/vnd.bink+jso"}
-        self.headers_no_ver = auth_header
+        SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
+        auth_header = cls._get_auth_header(cls.user)
+        cls.headers_v1_1 = {**auth_header, **cls._get_version_header('1.1.4')}
+        cls.headers_v1_2 = {**auth_header, **cls._get_version_header('1.2')}
+        cls.resp_wrong_ver = {**auth_header, **cls._get_version_header('-3')}
+        cls.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': f"application/vnd.bink+jso"}
+        cls.headers_no_ver = auth_header
 
     def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format):
         self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
