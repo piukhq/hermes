@@ -1696,40 +1696,43 @@ class TestResourcesV1_2(APITestCase):
 
 
 class TestLastManStanding(APITestCase):
-    def _get_auth_header(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
+    @classmethod
+    def _get_auth_header(cls, user):
+        token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,
                                 user.external_id).get_token()
         return 'Bearer {}'.format(token)
 
-    def setUp(self) -> None:
-        self.bundle_id = 'com.barclays.test'
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.bundle_id = 'com.barclays.test'
         organisation = OrganisationFactory(name='test_organisation')
-        self.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
-                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-        self.bundle = ClientApplicationBundleFactory(bundle_id=self.bundle_id, client=self.client_app)
-        self.scheme = SchemeFactory()
+        cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
+                                                  client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+        cls.bundle = ClientApplicationBundleFactory(bundle_id=cls.bundle_id, client=cls.client_app)
+        cls.scheme = SchemeFactory()
 
-        self.question_1 = SchemeCredentialQuestionFactory(
-            scheme=self.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
+        cls.question_1 = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, answer_type=AnswerTypeChoices.SENSITIVE.value, auth_field=True, type=PASSWORD,
             label=PASSWORD, options=SchemeCredentialQuestion.LINK
         )
-        self.question_2 = SchemeCredentialQuestionFactory(
-            scheme=self.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
+        cls.question_2 = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
             label=USER_NAME
         )
 
         external_id_1 = 'test_1@user.com'
         external_id_2 = 'test_2@user.com'
-        self.user_1 = UserFactory(external_id=external_id_1, client=self.client_app, email=external_id_1)
-        self.user_2 = UserFactory(external_id=external_id_2, client=self.client_app, email=external_id_2)
+        cls.user_1 = UserFactory(external_id=external_id_1, client=cls.client_app, email=external_id_1)
+        cls.user_2 = UserFactory(external_id=external_id_2, client=cls.client_app, email=external_id_2)
 
         # Need to add an active association since it was assumed no setting was enabled
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
-                                                                        status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
 
-        self.auth_headers_1 = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user_1))}
-        self.auth_headers_2 = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(self.user_2))}
-        self.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+        cls.auth_headers_1 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_1))}
+        cls.auth_headers_2 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_2))}
+        cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+        super().setUpClass()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
