@@ -1744,9 +1744,6 @@ class TestLastManStanding(APITestCase):
         SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
         PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_1, scheme_account=mcard)
 
-        pcard_1.refresh_from_db()
-        mcard.refresh_from_db()
-
         self.assertEqual(pcard_1.scheme_account_set.count(), 1)
         self.assertEqual(mcard.payment_card_account_set.count(), 1)
 
@@ -1772,9 +1769,6 @@ class TestLastManStanding(APITestCase):
         SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
         SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_2)
         PaymentCardSchemeEntry.objects.create(payment_card_account=pcard, scheme_account=mcard)
-
-        pcard.refresh_from_db()
-        mcard.refresh_from_db()
 
         self.assertEqual(pcard.scheme_account_set.count(), 1)
         self.assertEqual(mcard.payment_card_account_set.count(), 1)
