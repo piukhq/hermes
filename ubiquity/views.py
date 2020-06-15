@@ -761,16 +761,27 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_slug = scheme_account.scheme.slug
         scheme_account_id = scheme_account.id
         delete_date = arrow.utcnow().format()
-        m_card_users = [
-            user['id'] for user in
-            scheme_account.user_set.values('id').exclude(id=request.user.id)
-        ]
 
-        query = {
-            'payment_card_account__user_set__id__in': m_card_users
-        }
-        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query).delete()
-        super().delete(request, *args, **kwargs)
+        pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account_id)
+        entries_query = SchemeAccountEntry.objects.filter(scheme_account_id=scheme_account_id)
+
+        if scheme_account.user_set.count() <= 1:
+            scheme_account.is_deleted = True
+            scheme_account.save(update_fields=['is_deleted'])
+
+            if request.user.client_id == settings.BINK_CLIENT_ID:
+                analytics.update_scheme_account_attribute(
+                    scheme_account,
+                    request.user,
+                    old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
+
+        else:
+            m_card_users = scheme_account.user_set.exclude(id=request.user.id).values_list('id', flat=True)
+            pll_links = pll_links.exclude(payment_card_account__user_set__id__in=m_card_users)
+            entries_query = entries_query.filter(user_id=request.user.id)
+
+        entries_query.delete()
+        pll_links.delete()
 
         if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, delete_date, 'delete')
