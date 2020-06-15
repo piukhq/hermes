@@ -927,6 +927,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         plr_slugs = [
             "fatface",
             "burger-king-rewards",
+            "whsmith-rewards",
         ]
         if scheme.slug in plr_slugs:
             # at the moment, all PLR schemes provide email as an enrol field.
