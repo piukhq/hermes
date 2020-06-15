@@ -29,8 +29,11 @@ class TestResources(APITestCase):
     @classmethod
     def setUpTestData(cls):
         organisation = OrganisationFactory(name='test_version_organisation')
-        cls.client_app = ClientApplicationFactory(organisation=organisation, name='versioning client application',
-                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
+        cls.client_app = ClientApplicationFactory(
+            organisation=organisation,
+            name='versioning client application',
+            client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi'
+        )
         cls.bundle = ClientApplicationBundleFactory(bundle_id='test.version.fake', client=cls.client_app)
         external_id = 'test@user.com'
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
@@ -38,22 +41,33 @@ class TestResources(APITestCase):
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True)
-        cls.secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
-                                                                  type=LAST_NAME,
-                                                                  label=LAST_NAME,
-                                                                  third_party_identifier=True,
-                                                                  options=SchemeCredentialQuestion.LINK_AND_JOIN,
-                                                                  auth_field=True,
-                                                                  enrol_field=True,
-                                                                  register_field=True)
+        cls.secondary_question = SchemeCredentialQuestionFactory(
+            scheme=cls.scheme,
+            type=LAST_NAME,
+            label=LAST_NAME,
+            third_party_identifier=True,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+            enrol_field=True,
+            register_field=True
+        )
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
-        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
-                                                                   scheme_account=cls.scheme_account)
-        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.secondary_question,
-                                                                          scheme_account=cls.scheme_account)
-        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
-        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
-                                                                        status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=cls.scheme.manual_question,
+            scheme_account=cls.scheme_account
+        )
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
+            question=cls.secondary_question,
+            scheme_account=cls.scheme_account
+        )
+        cls.scheme_account_entry = SchemeAccountEntryFactory(
+            scheme_account=cls.scheme_account,
+            user=cls.user
+        )
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(
+            scheme=cls.scheme, bundle=cls.bundle,
+            status=SchemeBundleAssociation.ACTIVE
+        )
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
         auth_header = cls._get_auth_header(cls.user)
         cls.headers_v1_1 = {**auth_header, **cls._get_version_header('1.1.4')}
