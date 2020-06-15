@@ -160,7 +160,7 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
 
     payment_card_account = PaymentCardAccount.objects.get(**query)
     p_card_users = payment_card_account.user_set.values_list('id', flat=True).all()
-    entries = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
+    pll_links = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
 
     if not p_card_users:
         payment_card_account.is_deleted = True
@@ -168,6 +168,6 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
         metis.delete_payment_card(payment_card_account, run_async=False)
 
     else:
-        entries = entries.exclude(scheme_account__user_set__id__in=p_card_users)
+        pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
-    entries.delete()
+    pll_links.delete()
