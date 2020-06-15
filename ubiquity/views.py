@@ -762,10 +762,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_account_id = scheme_account.id
         delete_date = arrow.utcnow().format()
 
-        pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account)
-        entries_query = SchemeAccountEntry.objects.filter(user_id=request.user.id)
+        pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account_id)
+        entries_query = SchemeAccountEntry.objects.filter(scheme_account_id=scheme_account_id)
 
-        if scheme_account.user_set.count() < 1:
+        if scheme_account.user_set.count() <= 1:
             scheme_account.is_deleted = True
             scheme_account.save(update_fields=['is_deleted'])
 
@@ -778,7 +778,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         else:
             m_card_users = scheme_account.user_set.exclude(id=request.user.id).values_list('id', flat=True)
             pll_links = pll_links.exclude(payment_card_account__user_set__id__in=m_card_users)
-            entries_query = entries_query.filter(scheme_account_id=scheme_account_id)
+            entries_query = entries_query.filter(user_id=request.user.id)
 
         entries_query.delete()
         pll_links.delete()

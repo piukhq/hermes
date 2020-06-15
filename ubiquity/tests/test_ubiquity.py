@@ -1735,7 +1735,7 @@ class TestLastManStanding(APITestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch('payment_card.metis.metis_request', autospec=True)
-    def test_single_property_cards_deletion(self, _):
+    def test_cards_in_single_property_deletion(self, _):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -1764,7 +1764,7 @@ class TestLastManStanding(APITestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch('payment_card.metis.metis_request', autospec=True)
-    def test_multiple_property_cards_deletion(self, _):
+    def test_both_cards_in_multiple_property_deletion(self, _):
         pcard = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
         PaymentCardAccountEntryFactory(payment_card_account=pcard, user=self.user_1)
@@ -1780,10 +1780,36 @@ class TestLastManStanding(APITestCase):
         self.assertEqual(mcard.payment_card_account_set.count(), 1)
 
         self.client.delete(reverse('payment-card', args=[pcard.id]), **self.auth_headers_1)
-
-        self.assertEqual(mcard.payment_card_account_set.count(), 1)
-
         self.assertEqual(mcard.payment_card_account_set.count(), 1)
 
         self.client.delete(reverse('membership-card', args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard.scheme_account_set.count(), 1)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('payment_card.metis.metis_request', autospec=True)
+    def test_single_card_in_multiple_property_deletion(self, _):
+        pcard_1 = PaymentCardAccountFactory()
+        pcard_2 = PaymentCardAccountFactory()
+        mcard = SchemeAccountFactory(scheme=self.scheme)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_1, user=self.user_1)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_1, user=self.user_2)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_1, scheme_account=mcard)
+
+        self.assertEqual(pcard_1.scheme_account_set.count(), 1)
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('payment-card', args=[pcard_1.id]), **self.auth_headers_1)
+        self.assertEqual(mcard.payment_card_account_set.count(), 0)
+
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_2, user=self.user_1)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_2)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_2, scheme_account=mcard)
+
+        self.assertEqual(pcard_2.scheme_account_set.count(), 1)
+        self.assertEqual(mcard.payment_card_account_set.count(), 1)
+
+        self.client.delete(reverse('membership-card', args=[mcard.id]), **self.auth_headers_1)
+        self.assertEqual(pcard_2.scheme_account_set.count(), 0)
