@@ -316,7 +316,7 @@ class SchemeAccountJoinMixin:
             for user_consent in user_consents:
                 user_consent.save()
 
-            user_consents = scheme_account.collect_pending_consents()
+            user_consents = scheme_account.format_user_consents([x.__dict__ for x in user_consents])
             data['credentials'].update(consents=user_consents)
 
     @staticmethod
