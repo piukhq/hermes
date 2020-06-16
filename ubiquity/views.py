@@ -250,7 +250,7 @@ class PaymentCardCreationMixin:
         ).annotate(
             belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id))
         ).order_by(
-            '-belongs_to_this_user', '-is_deleted', '-created'
+            '-belongs_to_this_user', 'is_deleted', '-created'
         ).first()
 
         if card is None:
