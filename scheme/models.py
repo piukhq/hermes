@@ -598,19 +598,19 @@ class SchemeAccount(models.Model):
 
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
-        formatted_user_consents = []
-        for user_consent in user_consents:
-            formatted_user_consents.append(
-                {
-                    "id": user_consent['id'],
-                    "slug": user_consent['slug'],
-                    "value": user_consent['value'],
-                    "created_on": arrow.get(user_consent['created_on']).for_json(),
-                    "journey_type": user_consent['metadata']['journey']
-                }
-            )
+        return self.format_user_consents(user_consents)
 
-        return formatted_user_consents
+    @staticmethod
+    def format_user_consents(user_consents):
+        return [
+            {
+                "id": user_consent['id'],
+                "slug": user_consent['slug'],
+                "value": user_consent['value'],
+                "created_on": arrow.get(user_consent['created_on']).for_json(),
+                "journey_type": user_consent['metadata']['journey']
+            } for user_consent in user_consents
+        ]
 
     def _process_midas_response(self, response):
         points = None
