@@ -18,7 +18,7 @@ def _format_image_for_ubiquity(image):
     return {
         'type': image['image_type_code'],
         'url': image['image'],
-        'description': 'description',
+        'description': image['description'],
         'encoding': encoding
     }
 
