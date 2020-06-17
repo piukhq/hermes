@@ -381,8 +381,7 @@ def _format_image_for_ubiquity(image):
     }
 
 
-@receiver(signals.post_save, sender=SchemeImage)
-def update_scheme_images(sender, instance, created, **kwargs):
+def _update_scheme_images(instance):
     scheme = instance.scheme
     formatted_images = {}
     tier_images = {}
@@ -395,6 +394,16 @@ def update_scheme_images(sender, instance, created, **kwargs):
     formatted_images[Image.TIER] = tier_images
     scheme.formatted_images = formatted_images
     scheme.save(update_fields=['formatted_images'])
+
+
+@receiver(signals.post_save, sender=SchemeImage)
+def update_scheme_images_on_save(sender, instance, created, **kwargs):
+    _update_scheme_images(instance)
+
+
+@receiver(signals.post_delete, sender=SchemeImage)
+def update_scheme_images_on_delete(sender, instance, **kwargs):
+    _update_scheme_images(instance)
 
 
 class SchemeAccountImage(Image):
