@@ -544,6 +544,17 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             ]
         }
 
+    @staticmethod
+    def _strip_reward_tier(balances):
+        return [
+            {
+                k: v
+                for k, v in balance.items()
+                if k != 'reward_tier'
+            }
+            for balance in balances
+        ]
+
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         query = {
             'scheme_account': instance,
@@ -584,7 +595,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'account': {
                 'tier': reward_tier
             },
-            'balances': instance.balances
+            'balances': self._strip_reward_tier(instance.balances)
         }
 
         if instance.vouchers is not None:
