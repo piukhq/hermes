@@ -44,6 +44,7 @@ class UbiquityBalanceHandler:
         self.point_balance = dictionary.get('points')
         self.value_balance = dictionary.get('value')
         self.updated_at = dictionary.get('updated_at')
+        self.reward_tier = dictionary.get('reward_tier', 0)
         self._get_balances()
 
     def _collect_scheme_balances_info(self, scheme_id):
@@ -76,7 +77,8 @@ class UbiquityBalanceHandler:
             "prefix": info.prefix,
             "suffix": info.suffix,
             "description": info.description,
-            "updated_at": self.updated_at
+            "updated_at": self.updated_at,
+            "reward_tier": self.reward_tier
         }
 
     def _get_balances(self):
