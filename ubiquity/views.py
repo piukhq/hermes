@@ -1,6 +1,8 @@
+import binascii
 import logging
 import re
 import typing as t
+from functools import partial
 from pathlib import Path
 
 import arrow
@@ -577,6 +579,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         'PUT': LinkMembershipCardSerializer
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
+    rsa_cipher = RSACipher()
 
     def get_queryset(self):
         query = {}
@@ -656,7 +659,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if 'consents' in update_fields:
             del update_fields['consents']
 
-        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme)\
+        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme) \
             .values("id", "type", "manual_question").all()
 
         manual_question_type = None
@@ -782,30 +785,56 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _collect_field_content(self, fields_type, data, label_to_type):
         try:
             fields = data['account'].get(fields_type, [])
+            api_version = get_api_version(self.request)
             field_content = {}
+            encrypted_fields = {}
 
             for item in fields:
-                credential_type = label_to_type[item['column']]['type']
-                answer_type = label_to_type[item['column']]['answer_type']
-                self._decrypt_sensitive_fields(field_content, credential_type, answer_type, item)
+                field_type = label_to_type[item['column']]
+                self._filter_sensitive_fields(field_content, encrypted_fields, field_type, item, api_version)
 
-            return field_content
         except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
-    def _decrypt_sensitive_fields(self, field_content, credential_type, answer_type, item):
-        api_version = get_api_version(self.request)
-        if api_version >= Version.v1_2 and answer_type == AnswerTypeChoices.SENSITIVE.value:
-            try:
-                key = get_key(
-                    bundle_id=self.request.channels_permit.bundle_id,
-                    key_type="rsa_key"
+        if encrypted_fields:
+            field_content.update(
+                self._decrypt_sensitive_fields(
+                    self.request.channels_permit.bundle_id,
+                    encrypted_fields
                 )
-                field_content[credential_type] = RSACipher().decrypt(item['value'], rsa_key=key)
-            except ValueError:
-                logger.warning(f'Failed to decrypt sensitive field "{credential_type}"')
-                raise
+            )
+
+        return field_content
+
+    @staticmethod
+    def _decrypt_field(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple):
+        rsa_key = get_key(
+            bundle_id=bundle_id,
+            key_type="rsa_key"
+        )
+        try:
+            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
+        except binascii.Error:
+            sentry_sdk.capture_exception()
+            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
+
+        return decrypted_val
+
+    def _decrypt_sensitive_fields(self, bundle_id: str, fields: dict) -> zip:
+        decrypt_field = partial(
+            self._decrypt_field, self.rsa_cipher, bundle_id
+        )
+        return zip(fields.keys(), map(decrypt_field, fields.items()))
+
+    @staticmethod
+    def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
+                                 api_version: Version) -> None:
+        credential_type = field_type['type']
+        answer_type = field_type['answer_type']
+
+        if api_version >= Version.v1_2 and answer_type == AnswerTypeChoices.SENSITIVE.value:
+            encrypted_fields[credential_type] = item['value']
         else:
             field_content[credential_type] = item['value']
 
