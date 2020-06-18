@@ -225,7 +225,7 @@ class Scheme(models.Model):
                                  help_text='journeys supported by the scheme in the ubiquity endpoints, '
                                            'ie: ADD, REGISTRATION, ENROL')
 
-    formatted_images = JSONField(default=dict)
+    formatted_images = JSONField(default=dict, blank=True)
 
     @property
     def manual_question(self):

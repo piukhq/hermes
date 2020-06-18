@@ -52,7 +52,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='scheme',
             name='formatted_images',
-            field=django.contrib.postgres.fields.jsonb.JSONField(default=dict),
+            field=django.contrib.postgres.fields.jsonb.JSONField(default=dict, blank=True),
         ),
         migrations.RunPython(format_images, revert_format_images),
     ]
