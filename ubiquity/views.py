@@ -712,6 +712,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
+        if account.status in [SchemeAccount.PENDING, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+            raise ParseError('requested card is still in a pending state, please wait for current journey to finish')
+
         scheme, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
         if not request.channels_permit.is_scheme_available(scheme.id):

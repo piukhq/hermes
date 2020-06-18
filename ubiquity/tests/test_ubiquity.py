@@ -1121,6 +1121,53 @@ class TestResources(APITestCase):
         self.assertEqual(scheme_account.status, SchemeAccount.PENDING)
         self.assertFalse(scheme_account.balances)
 
+    @patch("scheme.mixins.analytics", autospec=True)
+    @patch("ubiquity.views.async_link", autospec=True)
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
+    @patch("ubiquity.views.async_balance", autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    def test_membership_card_put_on_pending_card_error(self, *_):
+        scheme_account = SchemeAccountFactory(scheme=self.put_scheme, status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        test_card_no = "654321"
+        test_pass = "pass4"
+        SchemeCredentialAnswerFactory(question=self.put_scheme_manual_q, scheme_account=scheme_account,
+                                      answer=test_card_no)
+        SchemeCredentialAnswerFactory(question=self.put_scheme_auth_q, scheme_account=scheme_account,
+                                      answer=test_pass)
+
+        payload = {
+            "membership_plan": self.put_scheme.id,
+            "account": {
+                "add_fields": [
+                    {
+                        "column": CARD_NUMBER,
+                        "value": "67890"
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": PASSWORD,
+                        "value": "pass"
+                    }
+                ]
+            }
+        }
+
+        resp = self.client.put(reverse("membership-card", args=[scheme_account.id]), data=json.dumps(payload),
+                               content_type="application/json", **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+        error_message = resp.json().get("detail")
+        self.assertEqual(error_message, "requested card is still in a pending state, please wait for "
+                                        "current journey to finish")
+
+        scheme_account.refresh_from_db()
+        answers = scheme_account._collect_credentials()
+        add_answer = answers.get(self.put_scheme_manual_q.type)
+        auth_answer = answers.get(self.put_scheme_auth_q.type)
+        self.assertEqual(add_answer, test_card_no)
+        self.assertEqual(auth_answer, test_pass)
+
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
