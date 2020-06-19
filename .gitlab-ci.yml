@@ -57,6 +57,7 @@ build-preprod:
   script:
     - docker build --pull -t "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA" --build-arg "DEPLOY_KEY=$DEPLOY_KEY" .
     - docker push "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA"
+  when: manual
   only:
     - VOP_Develop
 
