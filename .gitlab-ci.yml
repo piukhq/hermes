@@ -3,7 +3,6 @@ stages:
   - build
   - dev
   - staging
-  - preprod
   - prod
 
 tests:
@@ -58,6 +57,7 @@ build-preprod:
   script:
     - docker build --pull -t "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA" --build-arg "DEPLOY_KEY=$DEPLOY_KEY" .
     - docker push "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA"
+  when: manual
   only:
     - VOP_Develop
 
@@ -109,16 +109,6 @@ statics-staging:
     - ENVIRONMENT=staging deploystatic
   only:
     - tags
-
-tag-preprod:
-  stage: preprod
-  image: binkops.azurecr.io/tagbot:latest
-  environment: prod
-  script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA" --tag "preprod-$CI_COMMIT_SHORT_SHA"
-  when: manual
-  only:
-    - VOP_Develop
 
 tag-prod:
   stage: prod
