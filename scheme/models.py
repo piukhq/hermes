@@ -421,7 +421,7 @@ class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
     use_in_migrations = True
 
     def get_queryset(self):
-        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().exclude(is_deleted=True)
+        return super(ActiveSchemeIgnoreQuestionManager, self).get_queryset().filter(is_deleted=False)
 
 
 class SchemeAccount(models.Model):
@@ -531,6 +531,7 @@ class SchemeAccount(models.Model):
     card_number = models.CharField(max_length=250, blank=True, default='')
     barcode = models.CharField(max_length=250, blank=True, default='')
     transactions = JSONField(default=dict, null=True, blank=True)
+    main_answer = models.CharField(max_length=250, blank=True, default='')
 
     @property
     def status_name(self):
