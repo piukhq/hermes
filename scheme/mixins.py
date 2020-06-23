@@ -173,7 +173,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             else:
                 query['main_answer'] = data[answer_type]
 
-            scheme_account = SchemeAccount.all_objects.filter(**query).get()
+            scheme_account = SchemeAccount.objects.filter(**query).get()
             return scheme_account, data, account_created
 
         except SchemeAccount.DoesNotExist:
