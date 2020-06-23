@@ -256,7 +256,7 @@ APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
 
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
-TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or any("pytest" in arg for arg in sys.argv)
 LOCAL = env_var('HERMES_LOCAL', False)
 
 ROOT_LOG_LEVEL = env_var('ROOT_LOG_LEVEL', 'WARNING')
@@ -397,7 +397,7 @@ cache_options = {
     }
 }
 CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis'],
+    "default": cache_options['test'] if TESTING else cache_options['redis'],
     "retry_tasks": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
