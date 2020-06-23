@@ -8,19 +8,20 @@ from enum import IntEnum
 
 import arrow
 import requests
-from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, signals
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
+
+from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
+from common.models import Image
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -224,6 +225,8 @@ class Scheme(models.Model):
                                  help_text='journeys supported by the scheme in the ubiquity endpoints, '
                                            'ie: ADD, REGISTRATION, ENROL')
 
+    formatted_images = JSONField(default=dict, blank=True)
+
     @property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
@@ -361,6 +364,48 @@ class ActiveSchemeImageManager(models.Manager):
 class SchemeImage(Image):
     objects = ActiveSchemeImageManager()
     scheme = models.ForeignKey('scheme.Scheme', related_name='images', on_delete=models.CASCADE)
+
+
+def _format_image_for_ubiquity(image):
+    if image['encoding']:
+        encoding = image['encoding']
+    else:
+        try:
+            encoding = image['image'].split('.')[-1].replace('/', '')
+        except (IndexError, AttributeError):
+            encoding = None
+
+    return {
+        'type': image['image_type_code'],
+        'url': image['image'],
+        'description': image['description'],
+        'encoding': encoding
+    }
+
+
+def _update_scheme_images(instance):
+    scheme = instance.scheme
+    formatted_images = {}
+    tier_images = {}
+    for img in scheme.images.values('image_type_code', 'image', 'description', 'encoding', 'reward_tier'):
+        if img['image_type_code'] in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+            formatted_images[img['image_type_code']] = _format_image_for_ubiquity(img)
+        elif img['image_type_code'] == Image.TIER:
+            tier_images[img['reward_tier']] = _format_image_for_ubiquity(img)
+
+    formatted_images[Image.TIER] = tier_images
+    scheme.formatted_images = formatted_images
+    scheme.save(update_fields=['formatted_images'])
+
+
+@receiver(signals.post_save, sender=SchemeImage)
+def update_scheme_images_on_save(sender, instance, created, **kwargs):
+    _update_scheme_images(instance)
+
+
+@receiver(signals.post_delete, sender=SchemeImage)
+def update_scheme_images_on_delete(sender, instance, **kwargs):
+    _update_scheme_images(instance)
 
 
 class SchemeAccountImage(Image):
