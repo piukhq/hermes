@@ -366,32 +366,32 @@ class SchemeImage(Image):
     scheme = models.ForeignKey('scheme.Scheme', related_name='images', on_delete=models.CASCADE)
 
 
-def _format_image_for_ubiquity(image):
-    if image['encoding']:
-        encoding = image['encoding']
+def _format_image_for_ubiquity(img: SchemeImage) -> dict:
+    if img.encoding:
+        encoding = img.encoding
     else:
         try:
-            encoding = image['image'].split('.')[-1].replace('/', '')
+            encoding = img.image.name.split('.')[-1].replace('/', '')
         except (IndexError, AttributeError):
             encoding = None
 
     return {
-        'type': image['image_type_code'],
-        'url': image['image'],
-        'description': image['description'],
+        'type': img.image_type_code,
+        'url': img.image.url,
+        'description': img.description,
         'encoding': encoding
     }
 
 
-def _update_scheme_images(instance):
+def _update_scheme_images(instance: SchemeImage) -> None:
     scheme = instance.scheme
     formatted_images = {}
     tier_images = {}
-    for img in scheme.images.values('image_type_code', 'image', 'description', 'encoding', 'reward_tier'):
-        if img['image_type_code'] in [Image.HERO, Image.ICON, Image.ALT_HERO]:
-            formatted_images[img['image_type_code']] = _format_image_for_ubiquity(img)
-        elif img['image_type_code'] == Image.TIER:
-            tier_images[img['reward_tier']] = _format_image_for_ubiquity(img)
+    for img in scheme.images.all():
+        if img.image_type_code in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+            formatted_images[img.image_type_code] = _format_image_for_ubiquity(img)
+        elif img.image_type_code == Image.TIER:
+            tier_images[img.reward_tier] = _format_image_for_ubiquity(img)
 
     formatted_images[Image.TIER] = tier_images
     scheme.formatted_images = formatted_images
