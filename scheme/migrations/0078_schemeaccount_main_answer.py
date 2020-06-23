@@ -30,7 +30,7 @@ def revert_populate_main_answer(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0076_format_stored_balance'),
+        ('scheme', '0077_scheme_formatted_images'),
     ]
 
     operations = [
