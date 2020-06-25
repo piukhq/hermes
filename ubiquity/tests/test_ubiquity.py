@@ -233,7 +233,6 @@ class TestResources(APITestCase):
         self.assertEqual(len(resp.json()), 5)
         self.assertTrue(mock_con_close.called)
 
-
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_midas_balance, *_):
