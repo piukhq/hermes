@@ -1,14 +1,11 @@
-import binascii
-from functools import partial
 from typing import TYPE_CHECKING
 
-import sentry_sdk
+from django.conf import settings
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-from shared_config_storage.credentials.encryption import BLAKE2sHash, RSACipher
+from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
+from hermes.channel_vault import get_secret_key, SecretKeyName, decrypt_values_with_jeff, JeffDecryptionURL
 from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
@@ -66,32 +63,21 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     hash = serializers.SerializerMethodField()
 
     FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
-    rsa_cipher = RSACipher()
 
-    def get_payment_card(self, obj):
+    def get_payment_card(self, obj: dict) -> list:
         slug = bin_to_provider(obj['first_six_digits'])
         return PaymentCard.objects.values_list('id', flat=True).get(slug=slug)
 
     @staticmethod
-    def get_hash(obj):
+    def get_hash(obj: dict) -> str:
         return BLAKE2sHash().new(
             obj=obj["hash"],
             key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
         )
 
-    @staticmethod
-    def _decrypt_val(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple) -> str:
-        rsa_key = get_key(bundle_id=bundle_id, key_type='rsa_key')
-        try:
-            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
-        except binascii.Error:
-            sentry_sdk.capture_exception()
-            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
-
-        return decrypted_val
-
-    def to_representation(self, data):
-        values = [(key, data[key]) for key in self.FIELDS_TO_DECRYPT]
-        decrypt_val = partial(self._decrypt_val, self.rsa_cipher, self.context['bundle_id'])
-        data.update(zip(self.FIELDS_TO_DECRYPT, map(decrypt_val, values)))
+    def to_representation(self, data: dict) -> dict:
+        values_to_decrypt = {key: data[key] for key in self.FIELDS_TO_DECRYPT}
+        data.update(
+            decrypt_values_with_jeff(JeffDecryptionURL.PAYMENT_CARD, self.context['bundle_id'], values_to_decrypt)
+        )
         return super().to_representation(data)

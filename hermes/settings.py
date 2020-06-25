@@ -59,20 +59,20 @@ LOCAL_APPS = (
 )
 
 INSTALLED_APPS = (
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'django_admin_env_notice',
-    'django.contrib.admin',
-    'rest_framework',
-    'corsheaders',
-    'colorful',
-    'mail_templated',
-    'anymail',
-    'storages',
-) + LOCAL_APPS
+                     'django.contrib.auth',
+                     'django.contrib.contenttypes',
+                     'django.contrib.sessions',
+                     'django.contrib.messages',
+                     'django.contrib.staticfiles',
+                     'django_admin_env_notice',
+                     'django.contrib.admin',
+                     'rest_framework',
+                     'corsheaders',
+                     'colorful',
+                     'mail_templated',
+                     'anymail',
+                     'storages',
+                 ) + LOCAL_APPS
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
@@ -519,3 +519,5 @@ POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", "1"))
 THREAD_POOL_EXECUTOR_MAX_WORKERS = int(env_var("THREAD_POOL_EXECUTOR_MAX_WORKERS", "1"))
 
 THREAD_POOL_EXECUTOR = MockThreadPool if TESTING else ThreadPoolExecutor
+
+JEFF_URL = env_var("JEFF_URL", "http://localhost:8080")
