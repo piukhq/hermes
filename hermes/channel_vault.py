@@ -142,11 +142,12 @@ def get_secret_key(secret: str):
 
 def decrypt_values_with_jeff(base_url: JeffDecryptionURL, bundle_id: str, values: dict) -> dict:
     url = base_url.value.format(bundle_id)
-    response = requests.post(url, json=values)
-    if response.status_code == 401:
-        channel_vault.load_secrets_in_jeff()
-        response = requests.post(url, json=values)
     try:
+        response = requests.post(url, json=values)
+        if response.status_code == 401:
+            channel_vault.load_secrets_in_jeff()
+            response = requests.post(url, json=values)
+
         response.raise_for_status()
     except (requests.HTTPError, requests.RequestException) as e:
         logger.exception(e)
