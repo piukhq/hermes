@@ -323,6 +323,7 @@ if HERMES_SENTRY_DSN:
 ANYMAIL = {
     'MAILGUN_API_KEY': 'b09950929bd21cbece22c22b2115736d-e5e67e3e-068f44cc',
     'MAILGUN_SENDER_DOMAIN': 'bink.com',
+    'MAILGUN_API_URL': 'https://api.eu.mailgun.net/v3',
 }
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
 DEFAULT_FROM_EMAIL = 'Bink Support <support@bink.com>'
