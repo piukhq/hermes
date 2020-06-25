@@ -219,6 +219,20 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    @patch('django.db.connection.close')
+    def test_get_payment_cards_multithreading(self, mock_con_close):
+        for _ in range(4):
+            PaymentCardAccountEntryFactory(user=self.user)
+
+        payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = remove_empty(PaymentCardSerializer(payment_card_accounts, many=True).data)
+        resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+        self.assertEqual(len(resp.json()), 5)
+        self.assertTrue(mock_con_close.called)
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_midas_balance, *_):
@@ -269,6 +283,25 @@ class TestResources(APITestCase):
         self.user.save()
         self.scheme.test_scheme = False
         self.scheme.save()
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('django.db.connection.close')
+    def test_get_all_membership_cards_multithreading(self, mock_con_close, *_):
+        for _ in range(4):
+            scheme_account = SchemeAccountFactory(balances=self.scheme_account.balances)
+            SchemeBundleAssociationFactory(scheme=scheme_account.scheme, bundle=self.bundle,
+                                           status=SchemeBundleAssociation.ACTIVE)
+            SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
+        self.assertEqual(len(resp.json()), 5)
+        self.assertTrue(mock_con_close.called)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
