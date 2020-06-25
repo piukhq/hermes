@@ -7,7 +7,7 @@ from django.db.models import Q
 
 @lru_cache(maxsize=256)
 def get_main_question_type(scheme):
-    return scheme.questions.filter(Q(manual_question=True | scan_question=True)).values_list('id', flat=True).first()
+    return scheme.questions.filter(Q(manual_question=True) | Q(scan_question=True)).values_list('id', flat=True).first()
 
 
 def get_manual_answer(scheme_account):
