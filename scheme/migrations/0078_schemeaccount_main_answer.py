@@ -2,27 +2,43 @@
 from functools import lru_cache
 
 from django.db import migrations, models
-from django.db.models import Q
 
 
 @lru_cache(maxsize=256)
-def get_main_question_type(scheme):
-    return scheme.questions.filter(Q(manual_question=True) | Q(scan_question=True)).values_list('id', flat=True).first()
+def get_manual_question_id(scheme):
+    return scheme.questions.filter(manual_question=True).values_list("id", flat=True).first()
 
 
-def get_manual_answer(scheme_account):
-    question_id = get_main_question_type(scheme_account.scheme)
-    return scheme_account.schemeaccountcredentialanswer_set.filter(
-        question=question_id
-    ).values_list('answer', flat=True).get()
+@lru_cache(maxsize=256)
+def get_scan_question_id(scheme):
+    return scheme.questions.filter(scan_question=True).values_list("id", flat=True).first()
+
+
+def get_answer(scheme_account, question_id):
+    if question_id is None:
+        return None
+
+    return (
+        scheme_account.schemeaccountcredentialanswer_set.filter(question=question_id)
+        .values_list("answer", flat=True)
+        .first()
+    )
 
 
 def populate_main_answer(apps, schema_editor):
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
 
     for account in SchemeAccount.all_objects.filter(is_deleted=False).all():
-        account.main_answer = get_manual_answer(account)
-        account.save(update_fields=['main_answer'])
+        answer = get_answer(account, get_manual_question_id(account.scheme))
+
+        if answer is None:
+            answer = get_answer(account, get_scan_question_id(account.scheme))
+
+        if answer is None:
+            continue
+
+        account.main_answer = answer
+        account.save(update_fields=["main_answer"])
 
 
 def revert_populate_main_answer(apps, schema_editor):
@@ -30,15 +46,13 @@ def revert_populate_main_answer(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [
-        ('scheme', '0077_scheme_formatted_images'),
-    ]
+    dependencies = [("scheme", "0077_scheme_formatted_images")]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccount',
-            name='main_answer',
-            field=models.CharField(blank=True, default='', max_length=250),
+            model_name="schemeaccount",
+            name="main_answer",
+            field=models.CharField(blank=True, default="", max_length=250),
         ),
         migrations.RunPython(populate_main_answer, revert_populate_main_answer),
     ]
