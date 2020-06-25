@@ -392,7 +392,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code != previous_status:
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
             Payment.process_payment_success(scheme_account)
-            if new_status_code is SchemeAccount.ACTIVE:
+            if new_status_code == SchemeAccount.ACTIVE:
                 vop_check_scheme(scheme_account)
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
