@@ -321,11 +321,11 @@ if HERMES_SENTRY_DSN:
     )
 
 ANYMAIL = {
-    'MAILGUN_API_KEY': 'key-63iepgmkm8qdzs0fxm05jy0oq3c1yd42',
-    'MAILGUN_SENDER_DOMAIN': 'uk.bink.com',
+    'MAILGUN_API_KEY': 'b09950929bd21cbece22c22b2115736d-e5e67e3e-068f44cc',
+    'MAILGUN_SENDER_DOMAIN': 'bink.com',
 }
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Bink HQ <noreply@uk.bink.com>'
+DEFAULT_FROM_EMAIL = 'Bink Support <support@bink.com>'
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
