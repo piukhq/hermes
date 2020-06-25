@@ -18,7 +18,7 @@ from rest_framework.generics import get_object_or_404
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH
+from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion)
@@ -164,11 +164,16 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         answer_type = serializer.context['answer_type']
         try:
             query = {
-                'scheme__id': data['scheme'],
-                'schemeaccountcredentialanswer__answer': data[answer_type],
-                'is_deleted': False
+                'scheme_id': data['scheme']
             }
-            scheme_account = SchemeAccount.objects.filter(**query).distinct().get()
+            if answer_type == CARD_NUMBER:
+                query['card_number'] = data[answer_type]
+            elif answer_type == BARCODE:
+                query['barcode'] = data[answer_type]
+            else:
+                query['main_answer'] = data[answer_type]
+
+            scheme_account = SchemeAccount.objects.filter(**query).get()
             return scheme_account, data, account_created
 
         except SchemeAccount.DoesNotExist:
@@ -440,11 +445,19 @@ class UpdateCredentialsMixin:
 
         updated_credentials = []
         for credential_type in data.keys():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
+            new_answer = data[credential_type]
+            answer, created = SchemeAccountCredentialAnswer.objects.get_or_create(
                 question_id=question_id_from_type[credential_type],
                 scheme_account=scheme_account,
-                defaults={'answer': data[credential_type]}
+                defaults={'answer': new_answer}
             )
+            if not created:  # an existing answer is being updated
+                if scheme_account.main_answer == answer.answer:
+                    # the answer being updated is also saved as the main credential, so we need to update that too.
+                    scheme_account.main_answer = new_answer
+                    scheme_account.save()
+                answer.answer = new_answer
+                answer.save()
             updated_credentials.append(credential_type)
 
         return {'updated': updated_credentials}
