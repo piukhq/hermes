@@ -5,11 +5,27 @@ from enum import Enum
 
 import requests
 from django.conf import settings
+from requests.adapters import HTTPAdapter
 from rest_framework import exceptions
 from rest_framework.exceptions import ValidationError
 from shared_config_storage.vault.secrets import VaultError, read_vault
+from urllib3 import Retry
 
 logger = logging.getLogger(__name__)
+
+
+def retry_session(backoff_factor: float = 0.3) -> requests.Session:
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        backoff_factor=backoff_factor,
+        method_whitelist=False,
+        status_forcelist=[500, 502, 503, 504]
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 class SecretKeyName(str, Enum):
@@ -54,11 +70,15 @@ class ChannelVault:
         return self.all_secrets["secret_keys"]
 
     def load_secrets_in_jeff(self):
+        session = retry_session(backoff_factor=2.5)
         base_url = settings.JEFF_URL + '/channel/{}/load'
         for channel, value in self.all_secrets['bundle_secrets'].items():
             if 'private_key' in value:
-                response = requests.post(base_url.format(channel), json={'key': value['private_key']})
-                response.raise_for_status()
+                try:
+                    response = session.post(base_url.format(channel), json={'key': value['private_key']})
+                    response.raise_for_status()
+                except (requests.HTTPError, requests.RequestException) as e:
+                    raise VaultError(f"Failed to load secrets into Jeff - Vault Exception {e}") from e
 
     def _load_secrets(self):
         """
@@ -137,12 +157,14 @@ def get_secret_key(secret: str):
 
 
 def decrypt_values_with_jeff(base_url: JeffDecryptionURL, bundle_id: str, values: dict) -> dict:
+    session = retry_session()
     url = base_url.value.format(bundle_id)
     try:
-        response = requests.post(url, json=values)
-        if response.status_code == 401:
+        response = session.post(url, json=values)
+        # if jeff has been restarted we need to reload the keys
+        if response.status_code == 412:
             channel_vault.load_secrets_in_jeff()
-            response = requests.post(url, json=values)
+            response = session.post(url, json=values)
 
         response.raise_for_status()
     except (requests.HTTPError, requests.RequestException) as e:

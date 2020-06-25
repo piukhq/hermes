@@ -23,6 +23,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
+from ubiquity.tests.jeff_mock import MockRetrySession
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
@@ -1655,6 +1656,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_sensitive_field_decryption(self, mock_async_balance, mock_async_link, *_):
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1710,6 +1712,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_double_escaped_sensitive_field_value(self, mock_async_balance, mock_async_link, *_):
         password = 'pa\\u0024\\u0024w\\u0026rd01\\u0021'
         expected_password = 'pa$$w&rd01!'

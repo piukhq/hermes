@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING
 
-from django.conf import settings
 from rest_framework import serializers
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
