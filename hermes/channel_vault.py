@@ -1,12 +1,9 @@
 import json
 import logging
 import sys
-import typing as t
 from enum import Enum
 
 import requests
-from Crypto.PublicKey import RSA
-from Crypto.PublicKey.RSA import RsaKey
 from django.conf import settings
 from rest_framework import exceptions
 from rest_framework.exceptions import ValidationError
@@ -111,7 +108,6 @@ class ChannelVault:
             self.all_secrets["secret_keys"] = secret_keys
 
         self.loaded = True
-
 
 
 channel_vault = ChannelVault(settings.VAULT_CONFIG)
