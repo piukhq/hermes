@@ -445,11 +445,19 @@ class UpdateCredentialsMixin:
 
         updated_credentials = []
         for credential_type in data.keys():
-            SchemeAccountCredentialAnswer.objects.update_or_create(
+            new_answer = data[credential_type]
+            answer, created = SchemeAccountCredentialAnswer.objects.get_or_create(
                 question_id=question_id_from_type[credential_type],
                 scheme_account=scheme_account,
-                defaults={'answer': data[credential_type]}
+                defaults={'answer': new_answer}
             )
+            if not created:  # an existing answer is being updated
+                if scheme_account.main_answer == answer.answer:
+                    # the answer being updated is also saved as the main credential, so we need to update that too.
+                    scheme_account.main_answer = new_answer
+                    scheme_account.save()
+                answer.answer = new_answer
+                answer.save()
             updated_credentials.append(credential_type)
 
         return {'updated': updated_credentials}
