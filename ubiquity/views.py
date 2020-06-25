@@ -837,7 +837,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         return decrypted_val
 
-    def _decrypt_sensitive_fields(self, bundle_id: str, fields: dict) -> zip:
+    @staticmethod
+    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
+        # TODO: jeff only supports password field for membership cards for now.
         return decrypt_values_with_jeff(JeffDecryptionURL.MEMBERSHIP_CARD, bundle_id, fields)
 
     @staticmethod
