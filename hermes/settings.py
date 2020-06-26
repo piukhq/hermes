@@ -520,3 +520,5 @@ POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", "1"))
 THREAD_POOL_EXECUTOR_MAX_WORKERS = int(env_var("THREAD_POOL_EXECUTOR_MAX_WORKERS", "1"))
 
 THREAD_POOL_EXECUTOR = MockThreadPool if TESTING else ThreadPoolExecutor
+
+JEFF_URL = env_var("JEFF_URL", "http://localhost:8080")

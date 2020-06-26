@@ -22,7 +22,7 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
+from hermes.channel_vault import get_key, get_secret_key, SecretKeyName, decrypt_values_with_jeff, JeffDecryptionURL
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
@@ -854,11 +854,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         return decrypted_val
 
-    def _decrypt_sensitive_fields(self, bundle_id: str, fields: dict) -> zip:
-        decrypt_field = partial(
-            self._decrypt_field, self.rsa_cipher, bundle_id
-        )
-        return zip(fields.keys(), map(decrypt_field, fields.items()))
+    @staticmethod
+    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
+        # TODO: jeff only supports password field for membership cards for now.
+        return decrypt_values_with_jeff(JeffDecryptionURL.MEMBERSHIP_CARD, bundle_id, fields)
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
