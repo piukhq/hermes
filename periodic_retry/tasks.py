@@ -189,8 +189,14 @@ class PeriodicRetryHandler:
             **retry_kwargs
         )
 
-        self._set_task(retry_task, module_name, function_name, data)
+        if retry_task.status == PeriodicRetryStatus.REQUIRED:
+            self._set_task(retry_task, module_name, function_name, data)
+
         return retry_task
+
+    @staticmethod
+    def get_task(retry_id: int) -> PeriodicRetry:
+        return PeriodicRetry.objects.get(pk=retry_id)
 
     def retry(self, retry_obj: PeriodicRetry) -> None:
         """Adds an existing PeriodicRetry object to the retry queue"""

@@ -21,7 +21,8 @@ from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
-
+from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
+from periodic_retry.tasks import PeriodicRetryHandler
 
 class ListPaymentCard(generics.ListAPIView):
     """
@@ -308,12 +309,33 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if entries:
             vop_activate(entries)
 
+    def _new_enroll_retry(self, attempts, id, retry_status, response_message, response_status):
+        PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+            'payment_card.metis', 'retry_enrol',
+            context={"card_id": int(id)},
+            retry_kwargs={"max_retry_attempts": attempts,
+                          "results": [{"caused_by": response_message, "status": response_status}],
+                          "status": retry_status
+                          }
+        )
+
     def put(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
+        Parameters returned from Enroll for retry:
+        'status',  PSP response status
+        'id', id of payment card
+        'response_status', PSP response status
+        'response_state',
+        'response_message',
+        'retry_id'
         """
         id = request.data.get('id', None)
         token = request.data.get('token', None)
+        response_status = request.data.get('response_status', None)
+        response_message = request.data.get('response_message', None)
+        response_state = request.data.get('response_state', None)
+        retry_id = request.data.get('retry_id', None)
 
         if not (id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
@@ -337,6 +359,27 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
 
                 if payment_card_account.payment_card.slug == "visa":
                     self._vop_activate_check(payment_card_account)
+
+        if not retry_id:
+            # First time call back
+            if response_state == "Retry":
+                self._new_enroll_retry(10, id, PeriodicRetryStatus.REQUIRED, response_message, response_status)
+            elif response_state == "Failed":
+                # Just save retry info for manual retry without invoking retry attempt
+                self._new_enroll_retry(0, id, PeriodicRetryStatus.FAILED, response_message, response_status)
+        else:
+            # We are actively retrying
+            task = PeriodicRetryHandler.get_task(retry_id=retry_id)
+            if response_state == "Retry":
+                task.results += [{"retry_message": response_message, "retry_status": response_status}]
+                task.status = PeriodicRetryStatus.REQUIRED
+                task.save()
+            elif response_state == "Failed":
+                task.status = PeriodicRetryStatus.FAILED
+                task.save()
+            elif response_state == "Success":
+                task.status = PeriodicRetryStatus.SUCCESSFUL
+                task.save()
 
         return Response({
             'id': payment_card_account.id,
