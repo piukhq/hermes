@@ -11,6 +11,8 @@ from rest_framework.exceptions import ValidationError
 from shared_config_storage.vault.secrets import VaultError, read_vault
 from urllib3 import Retry
 
+from ubiquity.tests.jeff_mock import MockRetrySession
+
 logger = logging.getLogger(__name__)
 
 
@@ -70,6 +72,10 @@ class ChannelVault:
         return self.all_secrets["secret_keys"]
 
     def load_secrets_in_jeff(self):
+        if not settings.JEFF_URL:
+            logger.warning('Jeff url not configured using MockJeffDecryption instead.')
+            return None
+
         session = retry_session(backoff_factor=2.5)
         base_url = settings.JEFF_URL + '/channel/{}/load'
         for channel, value in self.all_secrets['bundle_secrets'].items():
@@ -157,7 +163,12 @@ def get_secret_key(secret: str):
 
 
 def decrypt_values_with_jeff(base_url: JeffDecryptionURL, bundle_id: str, values: dict) -> dict:
-    session = retry_session()
+    if settings.JEFF_URL:
+        session = retry_session()
+    else:
+        logger.warning('Currently using MockJeffDecryption instead of Jeff for decryption.')
+        session = MockRetrySession(get_key_func=get_key)
+
     url = base_url.value.format(bundle_id)
     try:
         response = session.post(url, json=values)
