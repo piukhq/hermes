@@ -73,7 +73,7 @@ class ChannelVault:
 
     def load_secrets_in_jeff(self):
         if not settings.JEFF_URL:
-            logger.warning('Jeff url not configured using MockJeffDecryption instead.')
+            logger.warning('JEFF_URL not configured using MockJeffDecryption instead.')
             return None
 
         session = retry_session(backoff_factor=2.5)

@@ -21,7 +21,7 @@ class MockJeffDecryption:
             self.status_code = 400
 
     def raise_for_status(self):
-        if self.status_code is not 200:
+        if self.status_code != 200:
             raise HTTPError
 
     def json(self):
