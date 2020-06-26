@@ -1787,6 +1787,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_hades, mock_async_balance,
                                                                 mock_async_link, *_):
         password = 'Password1'

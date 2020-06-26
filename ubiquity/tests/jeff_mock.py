@@ -1,4 +1,7 @@
+import binascii
+
 from Crypto.PublicKey import RSA
+from requests import HTTPError
 from shared_config_storage.credentials.encryption import RSACipher
 
 
@@ -8,14 +11,18 @@ class MockJeffDecryption:
     def __init__(self, bundle_id, data, get_key_func):
         key = RSA.import_key(get_key_func(bundle_id, 'private_key'))
         rsa_cipher = RSACipher()
-        self.data = {
-            k: rsa_cipher.decrypt(v, rsa_key=key)
-            for k, v in data.items()
-        }
+        try:
+            self.data = {
+                k: rsa_cipher.decrypt(v, rsa_key=key)
+                for k, v in data.items()
+            }
+        except binascii.Error:
+            self.data = {}
+            self.status_code = 400
 
-    @staticmethod
-    def raise_for_status():
-        return True
+    def raise_for_status(self):
+        if self.status_code is not 200:
+            raise HTTPError
 
     def json(self):
         return self.data
