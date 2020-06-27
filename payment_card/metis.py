@@ -1,14 +1,9 @@
 from typing import TYPE_CHECKING
 
 import arrow
-
 from payment_card.enums import RequestMethod
-from payment_card.models import PaymentCard, PaymentCardAccount
+from payment_card.models import PaymentCard
 from payment_card.tasks import metis_request
-
-from periodic_retry.tasks import PeriodicRetryHandler
-from ubiquity.models import PaymentCardSchemeEntry
-
 
 if TYPE_CHECKING:
     from payment_card.models import PaymentCardAccount

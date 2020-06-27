@@ -8,21 +8,22 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from hermes.vop_tasks import vop_activate
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
+from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
+from periodic_retry.tasks import PeriodicRetryHandler
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from scheme.models import Scheme, SchemeAccount
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
-from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
-from periodic_retry.tasks import PeriodicRetryHandler
+
 
 class ListPaymentCard(generics.ListAPIView):
     """
@@ -317,6 +318,28 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                           }
         )
 
+    def _process_enrol_retries(self, response_state, retry_id, response_message, response_status):
+        if not retry_id:
+            # First time call back
+            if response_state == "Retry":
+                self._new_enroll_retry(10, id, PeriodicRetryStatus.REQUIRED, response_message, response_status)
+            elif response_state == "Failed":
+                # Just save retry info for manual retry without invoking retry attempt
+                self._new_enroll_retry(0, id, PeriodicRetryStatus.FAILED, response_message, response_status)
+        else:
+            # We are actively retrying
+            task = PeriodicRetryHandler.get_task(retry_id=retry_id)
+            if response_state == "Retry":
+                task.results += [{"retry_message": response_message, "retry_status": response_status}]
+                task.status = PeriodicRetryStatus.REQUIRED
+                task.save()
+            elif response_state == "Failed":
+                task.status = PeriodicRetryStatus.FAILED
+                task.save()
+            elif response_state == "Success":
+                task.status = PeriodicRetryStatus.SUCCESSFUL
+                task.save()
+
     def put(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
@@ -358,26 +381,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 if payment_card_account.payment_card.slug == "visa":
                     self._vop_activate_check(payment_card_account)
 
-        if not retry_id:
-            # First time call back
-            if response_state == "Retry":
-                self._new_enroll_retry(10, id, PeriodicRetryStatus.REQUIRED, response_message, response_status)
-            elif response_state == "Failed":
-                # Just save retry info for manual retry without invoking retry attempt
-                self._new_enroll_retry(0, id, PeriodicRetryStatus.FAILED, response_message, response_status)
-        else:
-            # We are actively retrying
-            task = PeriodicRetryHandler.get_task(retry_id=retry_id)
-            if response_state == "Retry":
-                task.results += [{"retry_message": response_message, "retry_status": response_status}]
-                task.status = PeriodicRetryStatus.REQUIRED
-                task.save()
-            elif response_state == "Failed":
-                task.status = PeriodicRetryStatus.FAILED
-                task.save()
-            elif response_state == "Success":
-                task.status = PeriodicRetryStatus.SUCCESSFUL
-                task.save()
+        if response_state:
+            # Only metis agents which send a response state will be retried
+            self._process_enrol_retries(response_state, retry_id, response_message, response_status)
 
         return Response({
             'id': payment_card_account.id,
