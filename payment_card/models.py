@@ -169,6 +169,7 @@ class PaymentCardAccount(models.Model):
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
     hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)
+    activation_id = models.CharField(null=True, blank=True, max_length=60)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
