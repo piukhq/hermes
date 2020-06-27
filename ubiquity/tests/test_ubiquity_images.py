@@ -16,7 +16,7 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
 
 class TestPaymentCardAccountImages(APITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         organisation = OrganisationFactory(name='set up authentication')
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
@@ -61,7 +61,6 @@ class TestPaymentCardAccountImages(APITestCase):
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
-        super().setUpClass()
 
     def test_images_in_payment_card_response(self):
         resp = self.client.get(reverse('payment-cards'), **self.auth_headers)

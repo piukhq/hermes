@@ -37,8 +37,12 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
 
 
 @shared_task
-def async_balance(instance_id: int) -> None:
+def async_balance(instance_id: int, delete_balance=False) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
+    if delete_balance:
+        scheme_account.delete_cached_balance()
+        scheme_account.delete_saved_balance()
+
     scheme_account.get_cached_balance()
 
 
@@ -79,9 +83,12 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
 
 @shared_task
 def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
-                       validated_data: dict) -> None:
+                       validated_data: dict, delete_balance=False) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+    if delete_balance:
+        scheme_account.delete_cached_balance()
+        scheme_account.delete_saved_balance()
 
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
                                                  scheme_account, serializer)
@@ -153,16 +160,14 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
 
     payment_card_account = PaymentCardAccount.objects.get(**query)
     p_card_users = payment_card_account.user_set.values_list('id', flat=True).all()
-    entries = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
+    pll_links = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=payment_card_account.id)
 
     if not p_card_users:
         payment_card_account.is_deleted = True
-        payment_card_account.save()
+        payment_card_account.save(update_fields=['is_deleted'])
         metis.delete_payment_card(payment_card_account, run_async=False)
 
     else:
-        entries = entries.exclude(
-            scheme_account__user_set__id__in=p_card_users
-        )
+        pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
-    entries.delete()
+    pll_links.delete()

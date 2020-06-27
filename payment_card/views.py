@@ -140,8 +140,6 @@ class ListCreatePaymentCardAccount(APIView):
             account.save()
 
         PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
-        for scheme_account in account.scheme_account_set.all():
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
     def _create_payment_card_account(new_acc, user, old_account):

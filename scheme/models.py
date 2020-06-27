@@ -3,7 +3,7 @@ import re
 import socket
 import sre_constants
 import uuid
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from enum import IntEnum
 
 import arrow
@@ -27,6 +27,68 @@ from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
 
 from hermes.vop_tasks import vop_check_scheme
+
+
+class UbiquityBalanceHandler:
+    point_info = None
+    value_info = None
+    data = None
+    precision = None
+
+    def __init__(self, dictionary):
+        if isinstance(dictionary, list):
+            dictionary, *_ = dictionary
+
+        if 'scheme_id' in dictionary:
+            self._collect_scheme_balances_info(dictionary['scheme_id'])
+
+        self.point_balance = dictionary.get('points')
+        self.value_balance = dictionary.get('value')
+        self.updated_at = dictionary.get('updated_at')
+        self.reward_tier = dictionary.get('reward_tier', 0)
+        self._get_balances()
+
+    def _collect_scheme_balances_info(self, scheme_id):
+        for balance_info in SchemeBalanceDetails.objects.filter(scheme_id=scheme_id).all():
+            # Set info for points or known currencies and also set precision for each supported currency
+            if balance_info.currency in ['GBP', 'EUR', 'USD']:
+                self.value_info = balance_info
+                self.precision = Decimal('0.01')
+            else:
+                self.point_info = balance_info
+
+    def _format_balance(self, value, info, is_currency):
+        """
+        :param value:
+        :type value: float, int, string or Decimal
+        :param info:
+        :type info: SchemeBalanceDetails
+        :return: dict
+        """
+        # The spec requires currency to be returned as a float this is done at final format since any
+        # subsequent arithmetic function would cause a rounding error.
+        if is_currency and self.precision is not None:
+            value = float(Decimal(value).quantize(self.precision, rounding=ROUND_HALF_UP))
+        else:
+            value = int(value)
+
+        return {
+            "value": value,
+            "currency": info.currency,
+            "prefix": info.prefix,
+            "suffix": info.suffix,
+            "description": info.description,
+            "updated_at": self.updated_at,
+            "reward_tier": self.reward_tier
+        }
+
+    def _get_balances(self):
+        self.data = []
+        if self.point_balance is not None and self.point_info:
+            self.data.append(self._format_balance(self.point_balance, self.point_info, False))
+
+        if self.value_balance is not None and self.value_info:
+            self.data.append(self._format_balance(self.value_balance, self.value_info, True))
 
 
 class Category(models.Model):
@@ -190,14 +252,13 @@ class Scheme(models.Model):
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
         ).values('id', 'type')
 
-    def get_question_type_dict(self, question_queryset=None):
-        queryset = question_queryset if question_queryset is not None else self.questions.all()
+    def get_question_type_dict(self, question_list):
         return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
+            question["label"]: {
+                "type": question["type"],
+                "answer_type": question["answer_type"]
             }
-            for question in queryset
+            for question in question_list
         }
 
     def __str__(self):
@@ -541,19 +602,19 @@ class SchemeAccount(models.Model):
 
     def collect_pending_consents(self):
         user_consents = self.userconsent_set.filter(status=ConsentStatus.PENDING).values()
-        formatted_user_consents = []
-        for user_consent in user_consents:
-            formatted_user_consents.append(
-                {
-                    "id": user_consent['id'],
-                    "slug": user_consent['slug'],
-                    "value": user_consent['value'],
-                    "created_on": arrow.get(user_consent['created_on']).for_json(),
-                    "journey_type": user_consent['metadata']['journey']
-                }
-            )
+        return self.format_user_consents(user_consents)
 
-        return formatted_user_consents
+    @staticmethod
+    def format_user_consents(user_consents):
+        return [
+            {
+                "id": user_consent['id'],
+                "slug": user_consent['slug'],
+                "value": user_consent['value'],
+                "created_on": arrow.get(user_consent['created_on']).for_json(),
+                "journey_type": user_consent['metadata']['journey']
+            } for user_consent in user_consents
+        ]
 
     def _process_midas_response(self, response):
         points = None
@@ -660,6 +721,7 @@ class SchemeAccount(models.Model):
                 del balance["vouchers"]
 
             balance.update({'updated_at': arrow.utcnow().timestamp, 'scheme_id': self.scheme.id})
+            balance = UbiquityBalanceHandler(balance).data
             cache.set(cache_key, balance, settings.BALANCE_RENEW_PERIOD)
 
         return balance, vouchers
@@ -692,7 +754,7 @@ class SchemeAccount(models.Model):
         needs_save = False
 
         if balance != self.balances and balance:
-            self.balances = [{k: float(v) if isinstance(v, Decimal) else v for k, v in balance.items()}]
+            self.balances = balance
             needs_save = True
 
         if vouchers != self.vouchers and vouchers:

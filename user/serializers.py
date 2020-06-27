@@ -179,9 +179,10 @@ class UserSerializer(serializers.ModelSerializer):
             user_detail_serializer.is_valid(raise_exception=True)
             user_detail_serializer.save()
 
-        if email:
+        if email and not instance.__class__.objects.filter(email=email, client_id=instance.client_id).exists():
             instance.email = email
-            instance.save()
+            instance.save(update_fields=['email'])
+
         return instance
 
     uid = serializers.CharField(read_only=True, required=False)

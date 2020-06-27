@@ -172,6 +172,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True, on_delete=models.SET_NULL)
     salt = models.CharField(max_length=8)
     external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
+    delete_token = models.CharField(max_length=255, blank=True, default='')
 
     USERNAME_FIELD = 'uid'
 
@@ -181,6 +182,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = 'user'
+        unique_together = [['email', 'client', 'external_id', 'delete_token']]
 
     def get_full_name(self):
         return self.email
@@ -273,6 +275,11 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         }
         token = jwt.encode(payload, self.client.secret + self.salt)
         return token.decode('unicode_escape')
+
+    def soft_delete(self):
+        self.is_active = False
+        self.delete_token = uuid.uuid4()
+        self.save(update_fields=['is_active', 'delete_token'])
 
     # Admin required fields
     # @property
