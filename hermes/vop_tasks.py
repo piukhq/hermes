@@ -68,16 +68,29 @@ def process_result(rep, entry, link_action):
     status = PeriodicRetryStatus.REQUIRED
     ret_data = rep.json()
     response_status = ret_data.get("response_status")
-    agent_response_code = ret_data.get("agent_response_code")
+    activation_id = ret_data.get("activation_id")
+
+    response_data = {
+        "agent_response_code": ret_data.get("agent_response_code", ""),
+        "agent_response_message": ret_data.get("agent_response_message", "")
+    }
+
+    if activation_id:
+        response_data['activation_id'] = activation_id
+
     if rep.status_code == 201:
         entry.vop_link = link_action
         entry.save()
+        if link_action == PaymentCardSchemeEntry.ACTIVATED and activation_id:
+            pay_account = entry.payment_card_account
+            pay_account.activation_id = activation_id
+            pay_account.save()
         status = PeriodicRetryStatus.SUCCESSFUL
-        return status, agent_response_code
+        return status, response_data
     else:
         if response_status != "Retry":
             status = PeriodicRetryStatus.FAILED
-    return status, agent_response_code
+    return status, response_data
 
 
 def activate(entry: PaymentCardSchemeEntry, data: dict):
@@ -90,12 +103,18 @@ def activate(entry: PaymentCardSchemeEntry, data: dict):
 
 @shared_task
 def send_activation(entry: PaymentCardSchemeEntry, data: dict):
-    status, _ = activate(entry, data)
+    status, result = activate(entry, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'hermes.vop_tasks', 'retry_activation',
             context={"entry_id": entry.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 100}
+            retry_kwargs={"max_retry_attempts": 100, "results": [result]}
+        )
+    elif status == PeriodicRetryStatus.FAILED:
+        PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+            'hermes.vop_tasks', 'retry_activation',
+            context={"entry_id": entry.id, "post_data": data},
+            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
 
 
@@ -124,12 +143,12 @@ def send_deactivation(entry: PaymentCardSchemeEntry):
     data = {
         'payment_token': entry.payment_card_account.psp_token,
         'partner_slug': 'visa',
-        'merchant_slug': entry.scheme_account.scheme.slug,
+        'activation_id': entry.payment_card_account.activation_id,
         # 'association_id': entry.id,
         # 'payment_card_account_id': entry.payment_card_account.id,
         # 'scheme_account_id': entry.scheme_account.id
     }
-    status, _ = deactivate(entry, data)
+    status, result = deactivate(entry, data)
 
     if status == PeriodicRetryStatus.SUCCESSFUL:
         entry.delete()
@@ -137,5 +156,11 @@ def send_deactivation(entry: PaymentCardSchemeEntry):
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'hermes.vop_tasks', 'retry_deactivation',
             context={"entry_id": entry.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 100}
+            retry_kwargs={"max_retry_attempts": 100, "results": [result]}
+        )
+    elif status == PeriodicRetryStatus.FAILED:
+        PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+            'hermes.vop_tasks', 'retry_deactivation',
+            context={"entry_id": entry.id, "post_data": data},
+            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
