@@ -20,6 +20,26 @@ class PaymentCardAccountEntry(models.Model):
         unique_together = ("payment_card_account", "user")
 
 
+class VopActivations(models.Model):
+    ACTIVATING = 1
+    DEACTIVATING = 2
+    ACTIVATED = 3
+    DEACTIVATED = 4
+
+    VOP_STATUS = (
+        (ACTIVATING, 'activating'),
+        (DEACTIVATING, 'deactivating'),
+        (ACTIVATED, 'activated'),
+        (DEACTIVATED, 'deactivated'),
+    )
+
+    activation_id = models.CharField(null=True, blank=True, max_length=60)
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.PROTECT,
+                                             verbose_name="Associated VOP Payment Card Account")
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT, verbose_name="Associated Scheme")
+    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='The activation')
+
+
 class PaymentCardSchemeEntry(models.Model):
     UNDEFINED = 0
     ACTIVATING = 1
