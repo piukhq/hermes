@@ -56,6 +56,23 @@ class PaymentCardSchemeEntry(models.Model):
         # and delete the older ones
         # todo check if we should use the autolink selection and also prefer active links
 
+        requires_activation = False
+        if self.payment_card_account.payment_card.slug == "visa":
+            requires_activation = True
+            # Check to see if any links are VOP activated
+            for same_scheme_link in same_scheme_links:
+                link_vop_status = same_scheme_link.vop_link
+                if link_vop_status == self.ACTIVATED or link_vop_status == self.ACTIVATING:
+                    requires_activation = False
+                elif link_vop_status == self.DEACTIVATED or link_vop_status == self.DEACTIVATING:
+                    requires_activation = True
+
+            if vop_link_status == self.UNDEFINED or vop_link_status == self.DEACTIVATED:
+
+                vop_link_status = self.ACTIVATED
+            elif activated_count > 0:
+
+
         same_scheme_links.delete()
         called_status = self.active_link
         self.active_link = self.computed_active_link

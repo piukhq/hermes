@@ -25,22 +25,25 @@ def vop_check_scheme(scheme_account):
         vop_activate(entries)
 
 
+def vop_activate_link(entry: PaymentCardSchemeEntry):
+    entry.vop_link = PaymentCardSchemeEntry.ACTIVATING
+    entry.save()
+
+    data = {
+        'payment_token': entry.payment_card_account.psp_token,
+        'partner_slug': 'visa',
+        'merchant_slug': entry.scheme_account.scheme.slug,
+        # 'association_id': entry.id,
+        # 'payment_card_account_id': entry.payment_card_account.id,
+        # 'scheme_account_id': entry.scheme_account.id
+    }
+
+    send_activation.delay(entry, data)
+
+
 def vop_activate(entries: Iterable[PaymentCardSchemeEntry]):
-
     for entry in entries:
-        entry.vop_link = PaymentCardSchemeEntry.ACTIVATING
-        entry.save()
-
-        data = {
-            'payment_token': entry.payment_card_account.psp_token,
-            'partner_slug': 'visa',
-            'merchant_slug': entry.scheme_account.scheme.slug,
-            # 'association_id': entry.id,
-            # 'payment_card_account_id': entry.payment_card_account.id,
-            # 'scheme_account_id': entry.scheme_account.id
-        }
-
-        send_activation.delay(entry, data)
+        self.op_activate_link(entry)
 
 
 def deactivate_delete_link(entry: PaymentCardSchemeEntry):
