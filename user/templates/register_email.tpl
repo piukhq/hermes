@@ -1191,7 +1191,7 @@ none;-ms-interpolation-mode: bicubic;" class="mcnImage" align="middle" width="16
                                         12px;line-height:
                                         150%;text-align: center;" valign="top">
                                         <div style="text-align: center;"><em>Copyright
-                                            © 2017 Bink, All rights
+                                            © 2020 Bink, All rights
                                             reserved.</em><br>
                                           <br>
                                           <strong>Our mailing address
