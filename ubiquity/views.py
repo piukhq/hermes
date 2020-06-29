@@ -548,7 +548,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()))
 
-        if len(accounts) > 3:
+        if len(accounts) >= 2:
             serialize_account = partial(
                 self.serialize_pcard,
                 self.get_serializer_class_by_request()
@@ -1142,7 +1142,7 @@ class ListMembershipCardView(MembershipCardView):
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN))
 
-        if len(accounts) > 3:
+        if len(accounts) >= 3:
             serialize_account = partial(
                 self.serialize_mcard,
                 self.get_serializer_class_by_request()
