@@ -9,7 +9,7 @@ from periodic_retry.tasks import PeriodicRetryHandler
 
 
 def vop_activate_by_link(link: "ubiquity.models.PaymentCardSchemeEntry",
-                         activation: "ubiquity.models.VopActivations"
+                         activation: "ubiquity.models.VopActivation"
                          ):
     # todo remove vop_link status on entry table
     link.vop_link = link.ACTIVATING
@@ -43,9 +43,9 @@ def deactivate_vop_list(entries: Iterable["ubiquity.models.PaymentCardSchemeEntr
 
 
 def retry_activation(data):
-    from ubiquity.models import VopActivations
+    from ubiquity.models import VopActivation
     retry_obj = data["periodic_retry_obj"]
-    activation = VopActivations.objects.get(id=data['context']['activation_id'])
+    activation = VopActivation.objects.get(id=data['context']['activation_id'])
     status, result = activate(activation, data['context']['post_data'])
     retry_obj.status = status
     retry_obj.results += [result]
@@ -81,7 +81,7 @@ def process_result(rep, activation, link_action):
     return status, response_data
 
 
-def activate(activation: "ubiquity.models.VopActivations", data: dict):
+def activate(activation: "ubiquity.models.VopActivation", data: dict):
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -90,7 +90,7 @@ def activate(activation: "ubiquity.models.VopActivations", data: dict):
 
 
 @shared_task
-def send_activation(activation: "ubiquity.models.VopActivations", data: dict):
+def send_activation(activation: "ubiquity.models.VopActivation", data: dict):
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
