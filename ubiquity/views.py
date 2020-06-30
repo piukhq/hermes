@@ -10,7 +10,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import IntegrityError, connection
+from django.db import IntegrityError
 from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
@@ -541,14 +541,13 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
     @staticmethod
     def serialize_pcard(serializer, account):
         data = serializer(account).data
-        connection.close()
         return data
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()))
 
-        if len(accounts) > 3:
+        if len(accounts) >= 2:
             serialize_account = partial(
                 self.serialize_pcard,
                 self.get_serializer_class_by_request()
@@ -1135,14 +1134,13 @@ class ListMembershipCardView(MembershipCardView):
     @staticmethod
     def serialize_mcard(serializer, account):
         data = serializer(account).data
-        connection.close()
         return data
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN))
 
-        if len(accounts) > 3:
+        if len(accounts) >= 3:
             serialize_account = partial(
                 self.serialize_mcard,
                 self.get_serializer_class_by_request()

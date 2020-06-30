@@ -220,8 +220,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
-    @patch('django.db.connection.close')
-    def test_get_payment_cards_multithreading(self, mock_con_close):
+    def test_get_payment_cards_multithreading(self):
         for _ in range(4):
             PaymentCardAccountEntryFactory(user=self.user)
 
@@ -232,7 +231,6 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
         self.assertEqual(len(resp.json()), 5)
-        self.assertTrue(mock_con_close.called)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -287,8 +285,7 @@ class TestResources(APITestCase):
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('django.db.connection.close')
-    def test_get_all_membership_cards_multithreading(self, mock_con_close, *_):
+    def test_get_all_membership_cards_multithreading(self, *_):
         for _ in range(4):
             scheme_account = SchemeAccountFactory(balances=self.scheme_account.balances)
             SchemeBundleAssociationFactory(scheme=scheme_account.scheme, bundle=self.bundle,
@@ -302,7 +299,6 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
         self.assertEqual(len(resp.json()), 5)
-        self.assertTrue(mock_con_close.called)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
