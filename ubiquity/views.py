@@ -753,6 +753,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 scheme_id=account.scheme_id
             )
             account.schemeaccountcredentialanswer_set.all().delete()
+            account.main_answer = ""
             account.set_async_join_status()
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
