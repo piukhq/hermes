@@ -541,7 +541,6 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
     @staticmethod
     def serialize_pcard(serializer, account):
         data = serializer(account).data
-        connection.close()
         return data
 
     @censor_and_decorate
@@ -1135,7 +1134,6 @@ class ListMembershipCardView(MembershipCardView):
     @staticmethod
     def serialize_mcard(serializer, account):
         data = serializer(account).data
-        connection.close()
         return data
 
     @censor_and_decorate
