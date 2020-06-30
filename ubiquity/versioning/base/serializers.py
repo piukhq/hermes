@@ -115,7 +115,7 @@ class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('payment_card_account', 'scheme_account', 'vop_link')
+        exclude = ('payment_card_account', 'scheme_account')
 
 
 class UbiquityImageSerializer(serializers.Serializer):
@@ -236,7 +236,7 @@ class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
 
     class Meta:
         model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('scheme_account', 'payment_card_account', 'vop_link')
+        exclude = ('scheme_account', 'payment_card_account')
 
 
 class TransactionListSerializer(serializers.ListSerializer):
