@@ -101,24 +101,6 @@ class PaymentCardConsentSerializer(serializers.Serializer):
         return date.timestamp
 
 
-class PaymentCardSchemeEntrySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PaymentCardSchemeEntry
-        fields = '__all__'
-
-
-class PaymentCardLinksSerializer(PaymentCardSchemeEntrySerializer):
-    id = serializers.SerializerMethodField()
-
-    @staticmethod
-    def get_id(obj):
-        return obj.payment_card_account_id
-
-    class Meta:
-        model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('payment_card_account', 'scheme_account', 'vop_link')
-
-
 class UbiquityImageSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     type = serializers.IntegerField(source='image_type_code')
@@ -147,13 +129,12 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 
     @staticmethod
     def get_membership_cards(obj):
-        query = {
-            'payment_card_account': obj,
-            'scheme_account__is_deleted': False,
-            'active_link': True
-        }
-        links = PaymentCardSchemeEntry.objects.filter(**query).all()
-        return MembershipCardLinksSerializer(links, many=True).data
+        return [
+            {'id': card_id, 'active_link': active_link}
+            for card_id, active_link in PaymentCardSchemeEntry.objects.filter(
+                payment_card_account=obj, active_link=True
+            ).values_list('scheme_account_id', 'active_link')
+        ]
 
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('psp_token', 'user_set', 'scheme_account_set')
@@ -226,18 +207,6 @@ class PaymentCardUpdateSerializer(serializers.Serializer):
     country = serializers.CharField(required=False)
     order = serializers.IntegerField(required=False, default=0)
     currency_code = serializers.CharField(required=False, default='GBP')
-
-
-class MembershipCardLinksSerializer(PaymentCardSchemeEntrySerializer):
-    id = serializers.SerializerMethodField()
-
-    @staticmethod
-    def get_id(obj):
-        return obj.scheme_account_id
-
-    class Meta:
-        model = PaymentCardSchemeEntrySerializer.Meta.model
-        exclude = ('scheme_account', 'payment_card_account', 'vop_link')
 
 
 class TransactionListSerializer(serializers.ListSerializer):
