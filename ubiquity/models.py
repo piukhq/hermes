@@ -1,5 +1,6 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from hermes.vop_tasks import vop_activate_by_link
 
 
 class SchemeAccountEntry(models.Model):
@@ -76,28 +77,12 @@ class PaymentCardSchemeEntry(models.Model):
         # and delete the older ones
         # todo check if we should use the autolink selection and also prefer active links
 
-        requires_activation = False
-        if self.payment_card_account.payment_card.slug == "visa":
-            requires_activation = True
-            # Check to see if any links are VOP activated
-            for same_scheme_link in same_scheme_links:
-                link_vop_status = same_scheme_link.vop_link
-                if link_vop_status == self.ACTIVATED or link_vop_status == self.ACTIVATING:
-                    requires_activation = False
-                elif link_vop_status == self.DEACTIVATED or link_vop_status == self.DEACTIVATING:
-                    requires_activation = True
-
-            if vop_link_status == self.UNDEFINED or vop_link_status == self.DEACTIVATED:
-
-                vop_link_status = self.ACTIVATED
-            elif activated_count > 0:
-
-
         same_scheme_links.delete()
         called_status = self.active_link
         self.active_link = self.computed_active_link
         if called_status != self.active_link:
             self.save()
+            vop_activate_check(self)
 
     @property
     def computed_active_link(self):
@@ -107,6 +92,17 @@ class PaymentCardSchemeEntry(models.Model):
                 not self.scheme_account.is_deleted:
             return True
         return False
+
+    def vop_activate_check(self):
+        if self.payment_card_account.payment_card.slug == "visa" and self.active_link:
+            # use get_or_create to ensure we avoid race conditions
+            vop_activation, created = VopActivations.objects.get_or_create(
+                payment_card_account=self.payment_card_account,
+                scheme=self.scheme_account.scheme,
+                defaults={'activation_id': "", "status": VopActivations.ACTIVATING}
+            )
+            if created:
+                vop_activate_by_link(self, vop_activation)
 
     def get_instance_with_active_status(self):
         """ Returns the instance of its self after having first set the corrected active_link status
@@ -126,6 +122,8 @@ class PaymentCardSchemeEntry(models.Model):
                 bulk_update.append(update_link)
         if bulk_update:
             cls.objects.bulk_update(bulk_update, ['active_link'])
+            for updated in bulk_update:
+                cls.vop_activate_check(updated)
 
     @classmethod
     def update_soft_links(cls, query):

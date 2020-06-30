@@ -8,7 +8,6 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.generic import View
-from hermes.vop_tasks import vop_activate
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -298,16 +297,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = serializers.PaymentCardAccountStatusSerializer
 
-    def _vop_activate_check(self, payment_card_account):
-        entries = PaymentCardSchemeEntry.objects.filter(
-            payment_card_account=payment_card_account,
-            scheme_account__status=SchemeAccount.ACTIVE,
-            vop_link=PaymentCardSchemeEntry.UNDEFINED
-        )
-
-        if entries:
-            vop_activate(entries)
-
     def _new_enroll_retry(self, attempts, id, retry_status, response_message, response_status):
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'payment_card.metis', 'retry_enrol',
@@ -377,9 +366,6 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
                 PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account})
-
-                if payment_card_account.payment_card.slug == "visa":
-                    self._vop_activate_check(payment_card_account)
 
         if response_state:
             # Only metis agents which send a response state will be retried

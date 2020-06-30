@@ -26,8 +26,6 @@ from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED
 from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
 
-from hermes.vop_tasks import vop_check_scheme
-
 
 class UbiquityBalanceHandler:
     point_info = None

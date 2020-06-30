@@ -5,69 +5,54 @@ from celery import shared_task
 from django.conf import settings
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
-from ubiquity.models import PaymentCardSchemeEntry
+# from ubiquity.models import PaymentCardSchemeEntry
 
 
-def vop_check_scheme(scheme_account):
-    """ This method finds all the visa payment cards linked to this scheme account with undefined VOP status
-    """
-    # Must import here to avoid circular imports in future consider moving status definitions outside of model
-    from payment_card.models import PaymentCardAccount
+def vop_activate_by_link(link: "ubiquity.models.PaymentCardSchemeEntry",
+                         activation: "ubiquity.models.VopActivations"
+                         ):
+    # todo remove vop_link status on entry table
+    link.vop_link = link.ACTIVATING
+    link.save()
 
-    entries = PaymentCardSchemeEntry.objects.filter(
-        scheme_account=scheme_account,
-        payment_card_account__status=PaymentCardAccount.ACTIVE,
-        payment_card_account__payment_card__slug="visa",
-        vop_link=PaymentCardSchemeEntry.UNDEFINED
-    )
-
-    if entries:
-        vop_activate(entries)
-
-
-def vop_activate_link(entry: PaymentCardSchemeEntry):
-    entry.vop_link = PaymentCardSchemeEntry.ACTIVATING
-    entry.save()
+    # for convenience the link is used to get payment_card_account and slug but should imply this is called for
+    # every active visa link only for those not already activated in VopActivation model
 
     data = {
         'payment_token': entry.payment_card_account.psp_token,
         'partner_slug': 'visa',
-        'merchant_slug': entry.scheme_account.scheme.slug,
-        # 'association_id': entry.id,
-        # 'payment_card_account_id': entry.payment_card_account.id,
-        # 'scheme_account_id': entry.scheme_account.id
+        'merchant_slug': entry.scheme_account.scheme.slug
     }
 
-    send_activation.delay(entry, data)
+    send_activation.delay(activation, data)
 
 
-def vop_activate(entries: Iterable[PaymentCardSchemeEntry]):
-    for entry in entries:
-        self.op_activate_link(entry)
-
-
-def deactivate_delete_link(entry: PaymentCardSchemeEntry):
+def deactivate_delete_link(entry: "ubiquity.models.PaymentCardSchemeEntry"):
+    # Todo: correct this!
     if entry.payment_card_account.payment_card.slug == "visa":
         send_deactivation.delay(entry)
     else:
         entry.delete()
 
 
-def deactivate_vop_list(entries: Iterable[PaymentCardSchemeEntry]):
+def deactivate_vop_list(entries: Iterable["ubiquity.models.PaymentCardSchemeEntry"]):
+    # Todo: correct this!
     # pass list and send to deactivate.
     for entry in entries:
         send_deactivation.delay(entry)
 
 
 def retry_activation(data):
+    from ubiquity.models import VopActivations
     retry_obj = data["periodic_retry_obj"]
-    entry = PaymentCardSchemeEntry.objects.get(id=data['context']['entry_id'])
-    status, result = activate(entry, data['context']['post_data'])
+    activation = VopActivations.objects.get(id=data['context']['activation_id'])
+    status, result = activate(activation, data['context']['post_data'])
     retry_obj.status = status
     retry_obj.results += [result]
 
 
-def process_result(rep, entry, link_action):
+def process_result(rep, activation, link_action):
+    # Todo: correct this!
     status = PeriodicRetryStatus.REQUIRED
     ret_data = rep.json()
     response_status = ret_data.get("response_status")
@@ -84,10 +69,10 @@ def process_result(rep, entry, link_action):
     if rep.status_code == 201:
         entry.vop_link = link_action
         entry.save()
-        if link_action == PaymentCardSchemeEntry.ACTIVATED and activation_id:
-            pay_account = entry.payment_card_account
-            pay_account.activation_id = activation_id
-            pay_account.save()
+        if link_action == activation.ACTIVATING and activation_id:
+            activation.activation_id = activation_id
+            activation.status = activation.ACTIVATED
+            activation.save()
         status = PeriodicRetryStatus.SUCCESSFUL
         return status, response_data
     else:
@@ -96,32 +81,32 @@ def process_result(rep, entry, link_action):
     return status, response_data
 
 
-def activate(entry: PaymentCardSchemeEntry, data: dict):
+def activate(activation: "ubiquity.models.VopActivations", data: dict):
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
-    return process_result(rep, entry, PaymentCardSchemeEntry.ACTIVATED)
+    return process_result(rep, activation, activation.ACTIVATING)
 
 
 @shared_task
-def send_activation(entry: PaymentCardSchemeEntry, data: dict):
-    status, result = activate(entry, data)
+def send_activation(activation: "ubiquity.models.VopActivations", data: dict):
+    status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'hermes.vop_tasks', 'retry_activation',
-            context={"entry_id": entry.id, "post_data": data},
+            context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 100, "results": [result]}
         )
     elif status == PeriodicRetryStatus.FAILED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'hermes.vop_tasks', 'retry_activation',
-            context={"entry_id": entry.id, "post_data": data},
+            context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
 
 
-def deactivate(entry: PaymentCardSchemeEntry, data: dict):
+def deactivate(entry: "ubiquity.models.PaymentCardSchemeEntry", data: dict):
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -130,6 +115,7 @@ def deactivate(entry: PaymentCardSchemeEntry, data: dict):
 
 
 def retry_deactivation(data):
+    # Todo: correct this!
     retry_obj = data["periodic_retry_obj"]
     entry = PaymentCardSchemeEntry.objects.get(id=data['context']['entry_id'])
     status, result = deactivate(entry, data['context']['post_data'])
@@ -140,8 +126,9 @@ def retry_deactivation(data):
 
 
 @shared_task
-def send_deactivation(entry: PaymentCardSchemeEntry):
-    entry.vop_link = PaymentCardSchemeEntry.DEACTIVATING
+def send_deactivation(entry: "ubiquity.models.PaymentCardSchemeEntry"):
+    # Todo: correct this!
+    entry.vop_link = entry.DEACTIVATING
     entry.save()
     data = {
         'payment_token': entry.payment_card_account.psp_token,
@@ -153,7 +140,7 @@ def send_deactivation(entry: PaymentCardSchemeEntry):
     }
     status, result = deactivate(entry, data)
 
-    if status == PeriodicRetryStatus.SUCCESSFUL:
+    if status == entry.SUCCESSFUL:
         entry.delete()
     elif status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
