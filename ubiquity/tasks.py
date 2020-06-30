@@ -11,11 +11,29 @@ from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
+from hermes.vop_tasks import activate, deactivate
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
+
+
+# Call back retry tasks for activation and deactivation - called from background
+def retry_activation(data):
+    retry_obj = data["periodic_retry_obj"]
+    activation = VopActivation.objects.get(id=data['context']['activation_id'])
+    status, result = activate(activation, data['context']['post_data'])
+    retry_obj.status = status
+    retry_obj.results += [result]
+
+
+def retry_deactivation(data):
+    retry_obj = data["periodic_retry_obj"]
+    activation = VopActivation.objects.get(id=data['context']['activation_id'])
+    status, result = deactivate(activation, data['context']['post_data'])
+    retry_obj.status = status
+    retry_obj.results += [result]
 
 
 def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
