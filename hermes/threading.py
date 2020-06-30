@@ -22,9 +22,9 @@ class DjangoThreadPoolExecutor(ThreadPoolExecutor):
         def new_func(*args, **kwargs):
             try:
                 res = fn(*args, **kwargs)
-            except:
+            except Exception as e:
                 self.close_django_db_connection()
-                raise
+                raise e
             else:
                 self.close_django_db_connection()
                 return res

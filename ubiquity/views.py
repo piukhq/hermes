@@ -10,7 +10,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import IntegrityError, connection
+from django.db import IntegrityError
 from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
