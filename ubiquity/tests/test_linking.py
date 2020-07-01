@@ -1,12 +1,12 @@
 import json
 from unittest.mock import patch
-import httpretty
+
 from django.conf import settings
+from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
-from scheme.models import SchemeBundleAssociation, SchemeAccount, JourneyTypes
-from payment_card.models import PaymentCardAccount
+from scheme.models import SchemeBundleAssociation, SchemeAccount
 from scheme.tests.factories import (SchemeAccountFactory, SchemeFactory, SchemeBundleAssociationFactory)
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
