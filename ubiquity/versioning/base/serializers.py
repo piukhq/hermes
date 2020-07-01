@@ -130,8 +130,8 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     @staticmethod
     def get_membership_cards(obj):
         return [
-            {'id': card_id, 'active_link': active_link}
-            for card_id, active_link in PaymentCardSchemeEntry.objects.filter(
+            {'id': mcard_id, 'active_link': active_link}
+            for mcard_id, active_link in PaymentCardSchemeEntry.objects.filter(
                 payment_card_account=obj, active_link=True
             ).values_list('scheme_account_id', 'active_link')
         ]
