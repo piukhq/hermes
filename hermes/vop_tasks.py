@@ -92,12 +92,12 @@ def send_deactivation(activation):
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'ubiquity.tasks', 'retry_deactivation',
-            context={"activation_id": activation.activation_id, "post_data": data},
+            context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 100, "results": [result]}
         )
     elif status == PeriodicRetryStatus.FAILED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'ubiquity.tasks', 'retry_deactivation',
-            context={"activation_id": activation.activation_id, "post_data": data},
+            context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )

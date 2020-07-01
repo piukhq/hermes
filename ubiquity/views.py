@@ -1209,6 +1209,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
         # in list with activated status - if so call deactivate and then delete link
         activations = VopActivation.find_activations_matching_links([link])
+        link.delete()
         PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard
 
