@@ -114,6 +114,7 @@ class PaymentCardSchemeEntry(models.Model):
         self.active_link = self.computed_active_link
         return self
 
+    @classmethod
     def update_active_link_status(cls, query):
         links = cls.objects.filter(**query)
         bulk_update = []

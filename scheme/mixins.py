@@ -92,9 +92,6 @@ class BaseLinkMixin(object):
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
-
-            scheme_account.vop_check()
-
         else:
             user_consents = scheme_account.collect_pending_consents()
             for user_consent in user_consents:

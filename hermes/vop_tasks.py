@@ -1,5 +1,3 @@
-from typing import Iterable
-
 import requests
 from celery import shared_task
 from django.conf import settings
@@ -7,7 +5,7 @@ from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
 
 
-def vop_activate_request(activation: "ubiquity.models.VopActivation"):
+def vop_activate_request(activation):
     data = {
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
@@ -49,7 +47,7 @@ def process_result(rep, activation, link_action):
     return status, response_data
 
 
-def activate(activation: "ubiquity.models.VopActivation", data: dict):
+def activate(activation, data: dict):
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -58,7 +56,7 @@ def activate(activation: "ubiquity.models.VopActivation", data: dict):
 
 
 @shared_task
-def send_activation(activation: "ubiquity.models.VopActivation", data: dict):
+def send_activation(activation, data: dict):
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
@@ -74,7 +72,7 @@ def send_activation(activation: "ubiquity.models.VopActivation", data: dict):
         )
 
 
-def deactivate(activation: "ubiquity.models.VopActivation", data: dict):
+def deactivate(activation, data: dict):
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -83,7 +81,7 @@ def deactivate(activation: "ubiquity.models.VopActivation", data: dict):
 
 
 @shared_task
-def send_deactivation(activation: "ubiquity.models.VopActivation"):
+def send_deactivation(activation):
     data = {
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',

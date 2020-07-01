@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from payment_card.admin import titled_filter
-from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument
+from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument, VopActivation
 
 
 @admin.register(PaymentCardSchemeEntry)
@@ -55,3 +55,12 @@ class MembershipPlanDocumentAdmin(admin.ModelAdmin):
     search_fields = ('name', 'scheme__name', 'url', 'display')
     list_filter = ('scheme',)
     raw_id_fields = ('scheme',)
+
+
+@admin.register(VopActivation)
+class VopActivationAdmin(admin.ModelAdmin):
+    list_display = ('scheme', 'payment_card_account', 'status', 'activation_id')
+    search_fields = ('scheme__name', 'scheme__slug', 'payment_card_account__psp_token',
+                     'payment_card_account__pan_start', 'payment_card_account__pan_end',
+                     'status')
+    raw_id_fields = ('scheme', 'payment_card_account')

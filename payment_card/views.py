@@ -18,7 +18,7 @@ from rest_framework import generics, serializers as rest_framework_serializers, 
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from scheme.models import Scheme, SchemeAccount
+from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation

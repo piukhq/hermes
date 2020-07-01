@@ -650,9 +650,6 @@ class SchemeAccount(models.Model):
             response = self._get_balance(credentials, journey)
             points = self._process_midas_response(response)
 
-            if old_status is not SchemeAccount.ACTIVE and self.status is SchemeAccount.ACTIVE:
-                self.vop_check()
-
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
@@ -663,9 +660,6 @@ class SchemeAccount(models.Model):
                 self.save(update_fields=['status'])
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
         return points
-
-    def vop_check(self):
-        vop_check_scheme(self)
 
     def _received_balance_checks(self, old_status):
         saved = False
