@@ -5,41 +5,41 @@ import typing as t
 from functools import partial
 from pathlib import Path
 
+import analytics
 import arrow
 import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
+from django.db import IntegrityError, connection
 from django.db.models import Q, Count
-from requests import request
-from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError, ValidationError
-from rest_framework.generics import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
-
-import analytics
 from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
-from hermes.vop_tasks import deactivate_delete_link, deactivate_vop_list
 from payment_card import metis
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from requests import request
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
+from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
+from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
+                             VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
                             async_add_field_only_link, deleted_payment_card_cleanup)
@@ -58,6 +58,12 @@ if t.TYPE_CHECKING:
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
+
+
+class ConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = 'Attempting to create two or more identical users at the same time.'
+    default_code = 'conflict'
 
 
 def is_auto_link(req):
@@ -244,7 +250,7 @@ class PaymentCardCreationMixin:
         ).annotate(
             belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id))
         ).order_by(
-            '-belongs_to_this_user', '-is_deleted', '-created'
+            '-belongs_to_this_user', 'is_deleted', '-created'
         ).first()
 
         if card is None:
@@ -347,7 +353,10 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
 
-            user = new_user.save()
+            try:
+                user = new_user.save()
+            except IntegrityError:
+                raise ConflictError
 
             consent = self._add_consent(user, consent_data)
         else:
@@ -371,8 +380,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         self._delete_membership_cards(request.user)
         self._delete_payment_cards(request.user)
 
-        request.user.is_active = False
-        request.user.save()
+        request.user.soft_delete()
 
         try:  # send user info to be persisted in Atlas
             send_data_to_atlas(response)
@@ -405,11 +413,11 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         # VOP deactivate
         links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete)
         vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-        deactivate_vop_list(vop_links)
+        activations = VopActivation.find_activations_matching_links(vop_links)
         links_to_remove.delete()
-
         SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
         SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
+        PaymentCardSchemeEntry.deactivate_activations(activations)
 
     @staticmethod
     def _delete_payment_cards(user: CustomUser) -> None:
@@ -639,55 +647,59 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def update(self, request, *args, **kwargs):
         account = self.get_object()
         self.log_update(account.pk)
-
-        update_fields, registration_fields = self._collect_updated_answers(account.scheme)
+        scheme = account.scheme
+        scheme_questions = scheme.questions.all().values()
+        update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(request.user, request.channels_permit,
-                                                              account, registration_fields)
+                                                              account, registration_fields, scheme_questions)
         else:
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
-            updated_account = self._handle_update_fields(account, update_fields)
+            updated_account = self._handle_update_fields(account, update_fields, scheme_questions)
 
-        async_balance.delay(updated_account.id)
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict) -> SchemeAccount:
+    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, scheme_questions: list
+                              ) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
 
-        questions = SchemeCredentialQuestion.objects.filter(scheme=account.scheme) \
-            .values("id", "type", "manual_question").all()
-
         manual_question_type = None
-        for question in questions:
+        for question in scheme_questions:
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
         if manual_question_type and manual_question_type in update_fields:
             if self.card_with_same_data_already_exists(
-                    account, account.scheme.id, update_fields[manual_question_type]
+                    account, account.scheme_id, update_fields[manual_question_type]
             ):
                 account.status = account.FAILED_UPDATE
                 account.save()
                 return account
 
-        self.update_credentials(account, update_fields, questions)
-        account.delete_cached_balance()
+        self.update_credentials(account, update_fields, scheme_questions)
+
         account.set_pending()
+        async_balance.delay(account.id, delete_balance=True)
         return account
 
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
-                                   registration_fields: dict) -> SchemeAccount:
+                                   registration_fields: dict, scheme_questions: list) -> SchemeAccount:
         check_join_with_pay(registration_fields, user.id)
-        manual_answer = account.card_number_answer
-        main_credential = manual_answer if manual_answer else account.barcode_answer
+        manual_answer = account.card_number
+        if manual_answer:
+            main_credential = manual_answer
+            question_type = [question["type"] for question in scheme_questions if question["manual_question"]][0]
+        else:
+            main_credential = account.barcode
+            question_type = [question["type"] for question in scheme_questions if question["scan_question"]][0]
         registration_data = {
-            main_credential.question.type: main_credential.answer,
+            question_type: main_credential,
             **registration_fields,
             'scheme_account': account
         }
@@ -699,12 +711,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_id=account.scheme_id
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, validated_data)
+        async_registration.delay(user.id, serializer, account.id, validated_data, delete_balance=True)
         return account
 
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
+        if account.status in [SchemeAccount.PENDING, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+            raise ParseError('requested card is still in a pending state, please wait for current journey to finish')
+
         scheme, auth_fields, enrol_fields, add_fields, _ = self._collect_fields_and_determine_route()
 
         if not request.channels_permit.is_scheme_available(scheme.id):
@@ -722,7 +737,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
-                user=user_id,
+                user=request.user,
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
@@ -754,24 +769,33 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_slug = scheme_account.scheme.slug
         scheme_account_id = scheme_account.id
         delete_date = arrow.utcnow().format()
-        m_card_users = [
-            user['id'] for user in
-            scheme_account.user_set.values('id').exclude(id=request.user.id)
-        ]
 
-        query = {
-            'payment_card_account__user_set__id__in': m_card_users
-        }
+        pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account_id)
+        entries_query = SchemeAccountEntry.objects.filter(scheme_account_id=scheme_account_id)
 
-        # VOP deactivate
-        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account).exclude(**query)
-        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-        deactivate_vop_list(vop_links)
-        links_to_remove.delete()
-        super().delete(request, *args, **kwargs)
+        if scheme_account.user_set.count() <= 1:
+            scheme_account.is_deleted = True
+            scheme_account.save(update_fields=['is_deleted'])
+
+            if request.user.client_id == settings.BINK_CLIENT_ID:
+                analytics.update_scheme_account_attribute(
+                    scheme_account,
+                    request.user,
+                    old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
+
+        else:
+            m_card_users = scheme_account.user_set.exclude(id=request.user.id).values_list('id', flat=True)
+            pll_links = pll_links.exclude(payment_card_account__user_set__id__in=m_card_users)
+            entries_query = entries_query.filter(user_id=request.user.id)
+
+        entries_query.delete()
+        activations = VopActivation.find_activations_matching_links(pll_links)
+        pll_links.delete()
 
         if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, delete_date, 'delete')
+
+        PaymentCardSchemeEntry.deactivate_activations(activations)
 
         return Response({}, status=status.HTTP_200_OK)
 
@@ -838,9 +862,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         else:
             field_content[credential_type] = item['value']
 
-    def _collect_updated_answers(self, scheme: Scheme) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
+    def _collect_updated_answers(self, scheme: Scheme, scheme_questions: list
+                                 ) -> t.Tuple[t.Optional[dict], t.Optional[dict]]:
         data = self.request.data
-        label_to_type = scheme.get_question_type_dict()
+        label_to_type = scheme.get_question_type_dict(scheme_questions)
         out_fields = {}
         for fields_type in self.create_update_fields:
             out_fields[fields_type] = self._extract_consent_data(scheme, fields_type, data)
@@ -869,9 +894,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             raise ParseError('required field membership_plan is missing')
         except (ValueError, Scheme.DoesNotExist):
             raise ParseError
-
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(
-            self.request.data, scheme=scheme, scheme_questions=scheme_questions
+            self.request.data, scheme=scheme, scheme_questions=scheme_questions.values()
         )
         return scheme, auth_fields, enrol_fields, add_fields, scheme_questions
 
@@ -925,6 +949,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         plr_slugs = [
             "fatface",
             "burger-king-rewards",
+            "whsmith-rewards",
         ]
         if scheme.slug in plr_slugs:
             # at the moment, all PLR schemes provide email as an enrol field.
@@ -1002,8 +1027,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _get_manual_question(scheme_slug, scheme_questions):
         for question in scheme_questions:
-            if question.manual_question:
-                return question.type
+            if question["manual_question"]:
+                return question["type"]
 
         raise SchemeCredentialQuestion.DoesNotExist(
             f'could not find the manual question for scheme: {scheme_slug}.'
@@ -1099,10 +1124,24 @@ class ListMembershipCardView(MembershipCardView):
         'POST': LinkMembershipCardSerializer
     }
 
+    def serialize_mcard(self, serializer, account):
+        data = serializer(account).data
+        connection.close()
+        return data
+
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
-        return Response(self.get_serializer_by_request(accounts, many=True).data)
+        if len(accounts) > 3:
+            serialize_account = partial(
+                self.serialize_mcard,
+                self.get_serializer_class_by_request()
+            )
+            with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
+                response = list(executor.map(serialize_account, accounts))
+        else:
+            response = self.get_serializer_by_request(accounts, many=True).data
+        return Response(response)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
@@ -1169,7 +1208,8 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             raise NotFound('The link that you are trying to delete does not exist.')
         # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
         # in list with activated status - if so call deactivate and then delete link
-        deactivate_delete_link(link)
+        activations = VopActivation.find_activations_matching_links([link])
+        PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard
 
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:

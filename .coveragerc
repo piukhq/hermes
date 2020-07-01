@@ -8,7 +8,9 @@ omit = *migrations*
        scheme/admin.py
        common/admin.py
        hermes/tasks.py
+       hermes/fixtures/setupdb.py
        payment_card/tasks.py
+       payment_card/payment_card_scheme_account.py
        ubiquity/tasks.py
        user/exceptions.py
        hermes/wsgi.py
@@ -20,7 +22,8 @@ omit = *migrations*
        daedalus_messaging/broker.py
        daedalus_messaging/message_config.py
        daedalus_messaging/signals.py
+       gunicorn.py
 branch = True
 
 [report]
-fail_under = 85
+fail_under = 84

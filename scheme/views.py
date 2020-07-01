@@ -40,7 +40,6 @@ from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_jou
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
-from hermes.vop_tasks import vop_check_scheme
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -392,8 +391,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         if new_status_code != previous_status:
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
             Payment.process_payment_success(scheme_account)
-            if new_status_code is SchemeAccount.ACTIVE:
-                vop_check_scheme(scheme_account)
+
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
