@@ -217,7 +217,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme_account = SchemeAccount.objects.create(
                     scheme_id=data['scheme'],
                     order=data['order'],
-                    status=SchemeAccount.WALLET_ONLY
+                    status=SchemeAccount.WALLET_ONLY,
+                    main_answer=data[answer_type],
                 )
 
                 SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
