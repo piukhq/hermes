@@ -14,7 +14,6 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 import os
 import sys
 from collections import namedtuple
-from concurrent.futures.thread import ThreadPoolExecutor
 from enum import Enum
 
 import sentry_sdk
@@ -23,6 +22,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
+from hermes.threading import DjangoThreadPoolExecutor
 from hermes.version import __version__
 from ubiquity.tests.utils import MockThreadPool
 
@@ -256,7 +256,7 @@ APPLE_TEAM_ID = env_var('APPLE_TEAM_ID', 'HC34M8YE55')
 
 DEBUG_PROPAGATE_EXCEPTIONS = env_var('HERMES_PROPAGATE_EXCEPTIONS', False)
 
-TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or sys.argv[0][-7:] == 'py.test'
+TESTING = (len(sys.argv) > 1 and sys.argv[1] == 'test') or any("pytest" in arg for arg in sys.argv)
 LOCAL = env_var('HERMES_LOCAL', False)
 
 ROOT_LOG_LEVEL = env_var('ROOT_LOG_LEVEL', 'WARNING')
@@ -321,11 +321,12 @@ if HERMES_SENTRY_DSN:
     )
 
 ANYMAIL = {
-    'MAILGUN_API_KEY': 'key-63iepgmkm8qdzs0fxm05jy0oq3c1yd42',
-    'MAILGUN_SENDER_DOMAIN': 'uk.bink.com',
+    'MAILGUN_API_KEY': 'b09950929bd21cbece22c22b2115736d-e5e67e3e-068f44cc',
+    'MAILGUN_SENDER_DOMAIN': 'bink.com',
+    'MAILGUN_API_URL': 'https://api.eu.mailgun.net/v3',
 }
 EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Bink HQ <noreply@uk.bink.com>'
+DEFAULT_FROM_EMAIL = 'Bink Support <support@bink.com>'
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002", ]
 if env_var('HERMES_NO_DB_TEST', False):
@@ -397,7 +398,7 @@ cache_options = {
     }
 }
 CACHES = {
-    "default": cache_options['test'] if 'test' in sys.argv else cache_options['redis'],
+    "default": cache_options['test'] if TESTING else cache_options['redis'],
     "retry_tasks": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
@@ -518,4 +519,6 @@ SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", "1"))
 THREAD_POOL_EXECUTOR_MAX_WORKERS = int(env_var("THREAD_POOL_EXECUTOR_MAX_WORKERS", "1"))
 
-THREAD_POOL_EXECUTOR = MockThreadPool if TESTING else ThreadPoolExecutor
+THREAD_POOL_EXECUTOR = MockThreadPool if TESTING else DjangoThreadPoolExecutor
+
+JEFF_URL = env_var("JEFF_URL", "")

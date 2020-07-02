@@ -10,7 +10,7 @@ import requests
 import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import IntegrityError, connection
+from django.db import IntegrityError
 from django.db.models import Q, Count
 from requests import request
 from rest_framework import serializers, status
@@ -22,7 +22,7 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
+from hermes.channel_vault import get_key, get_secret_key, SecretKeyName, decrypt_values_with_jeff, JeffDecryptionURL
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
@@ -538,10 +538,26 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             user_filter=True
         )
 
+    @staticmethod
+    def serialize_pcard(serializer, account):
+        data = serializer(account).data
+        return data
+
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset())
-        return Response(self.get_serializer_by_request(accounts, many=True).data, status=200)
+        accounts = list(self.filter_queryset(self.get_queryset()))
+
+        if len(accounts) >= 2:
+            serialize_account = partial(
+                self.serialize_pcard,
+                self.get_serializer_class_by_request()
+            )
+            with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
+                response = list(executor.map(serialize_account, accounts))
+        else:
+            response = self.get_serializer_by_request(accounts, many=True).data
+
+        return Response(response, status=200)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
@@ -737,6 +753,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 scheme_id=account.scheme_id
             )
             account.schemeaccountcredentialanswer_set.all().delete()
+            account.main_answer = ""
             account.set_async_join_status()
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
@@ -837,11 +854,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         return decrypted_val
 
-    def _decrypt_sensitive_fields(self, bundle_id: str, fields: dict) -> zip:
-        decrypt_field = partial(
-            self._decrypt_field, self.rsa_cipher, bundle_id
-        )
-        return zip(fields.keys(), map(decrypt_field, fields.items()))
+    @staticmethod
+    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
+        # TODO: jeff only supports password field for membership cards for now.
+        return decrypt_values_with_jeff(JeffDecryptionURL.MEMBERSHIP_CARD, bundle_id, fields)
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
@@ -1116,15 +1132,16 @@ class ListMembershipCardView(MembershipCardView):
         'POST': LinkMembershipCardSerializer
     }
 
-    def serialize_mcard(self, serializer, account):
+    @staticmethod
+    def serialize_mcard(serializer, account):
         data = serializer(account).data
-        connection.close()
         return data
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
-        if len(accounts) > 3:
+        accounts = list(self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN))
+
+        if len(accounts) >= 3:
             serialize_account = partial(
                 self.serialize_mcard,
                 self.get_serializer_class_by_request()
@@ -1133,7 +1150,8 @@ class ListMembershipCardView(MembershipCardView):
                 response = list(executor.map(serialize_account, accounts))
         else:
             response = self.get_serializer_by_request(accounts, many=True).data
-        return Response(response)
+
+        return Response(response, status=200)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):

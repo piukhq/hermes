@@ -1,12 +1,12 @@
 import typing as t
 from unittest.mock import patch
 
-from Crypto.PublicKey import RSA
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from hermes.channel_vault import SecretKeyName, channel_vault
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
+from ubiquity.tests.jeff_mock import MockRetrySession
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
@@ -67,8 +67,7 @@ mock_secrets = {
                 '3rew3SwwX7MOWVwkPrZk8s5sCNLqRsARV1jW+nLw16t4pOtPlb5cAzdVgmszBR3fGjcqCcp7xb6VbxCjZ9Z'
                 'hUDz3w+gfyN1lYkkNiBUHw7RkJbr6Li5dzTeXENFKQxClAidsGy/BLd99z2JRUmWgaxvXTylAIf+DAVVHQ6'
                 'ZdImMqxMxp2s5GIseW2sC5YLJmBh5X0iTB3QVhOnYBri/X2NBlJE2IfbU8947BHan/2+mTG63Lxeph3WQt8'
-                'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com'),
-            'rsa_key': RSA.import_key(private_key)
+                'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com')
         }
     },
     'secret_keys': {
@@ -93,6 +92,7 @@ class TestSerializersV1_2(APITestCase):
         pass
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
         hash1 = 'hash1'

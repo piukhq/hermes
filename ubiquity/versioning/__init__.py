@@ -40,7 +40,7 @@ def get_api_version(request: 'Request') -> Version:
         if e.__class__ is ValueError:
             message = f"Unknown version found in accept header: {ver}, "
         else:
-            message = f"Unknown version format in accept header, "
+            message = "Unknown version format in accept header, "
 
         logger.warning(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
         ver = DEFAULT_API_VERSION

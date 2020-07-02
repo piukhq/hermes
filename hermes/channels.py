@@ -87,8 +87,6 @@ class Permit:
                          "which should have prevented this error")
             raise exceptions.AuthenticationFailed('Invalid Token')
 
-        self.client = self.looked_up_bundle.client
-
     @staticmethod
     def is_authenticated():
         """
