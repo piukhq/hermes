@@ -531,15 +531,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ]
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
-        payment_cards = [
-            {'id': pcard_id, 'active_link': active}
-            for pcard_id, active in PaymentCardSchemeEntry.objects.filter(
-                scheme_account_id=instance.id, active_link=True
-            ).values_list('payment_card_account_id', 'active_link')
-        ]
-        exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
-
-        if instance.status not in exclude_balance_statuses:
+        if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
             reward_tier = instance.balances[0]['reward_tier']
@@ -557,7 +549,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
-            'payment_cards': payment_cards,
+            'payment_cards': instance.pll_links,
             'membership_transactions': instance.transactions,
             'status': self.get_translated_status(instance),
             'card': {

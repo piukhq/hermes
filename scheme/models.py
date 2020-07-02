@@ -532,6 +532,7 @@ class SchemeAccount(models.Model):
     barcode = models.CharField(max_length=250, blank=True, default='')
     transactions = JSONField(default=dict, null=True, blank=True)
     main_answer = models.CharField(max_length=250, blank=True, default='')
+    pll_links = JSONField(default=list, null=True, blank=True)
 
     @property
     def status_name(self):
