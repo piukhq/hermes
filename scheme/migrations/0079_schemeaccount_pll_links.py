@@ -2,21 +2,26 @@
 
 import django.contrib.postgres.fields.jsonb
 from django.db import migrations
-from django.db.models import Count
 
 
 def populate_pll_links(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+    PaymentCardSchemeEntry = apps.get_model('ubiquity', 'PaymentCardSchemeEntry')
 
-    for account in SchemeAccount.objects.annotate(
-            links_number=Count('paymentcardschemeentry')
-    ).exclude(links_number=0).prefetch_related('paymentcardschemeentry_set').all():
-        account.pll_links = [
-            {'id': pcard_id, 'active_link': active}
-            for pcard_id, active in account.paymentcardschemeentry_set.filter(
-                active_link=True).values_list('payment_card_account_id', 'active_link')
-        ]
-        account.save(update_fields=['pll_links'])
+    accounts = {}
+    for link in PaymentCardSchemeEntry.objects.filter(active_link=True).all():
+        formatted_link = {'id': link.payment_card_account_id, 'active_link': True}
+
+        if link.scheme_account.id in accounts:
+            account = accounts[link.scheme_account.id]
+            account.pll_links.append(formatted_link)
+        
+        else:
+            account = link.scheme_account
+            account.pll_links = [formatted_link, ]
+            accounts[account.id] = account
+
+    SchemeAccount.objects.bulk_update(accounts.values(), ["pll_links"], batch_size=1000)
 
 
 def revert_populate_pll_links(apps, schema_editor):
