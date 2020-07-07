@@ -12,10 +12,10 @@ def populate_pll_links(apps, schema_editor):
     for link in PaymentCardSchemeEntry.objects.filter(active_link=True).all():
         formatted_link = {'id': link.payment_card_account_id, 'active_link': True}
 
-        if link.scheme_account.id in accounts:
-            account = accounts[link.scheme_account.id]
+        if link.scheme_account_id in accounts:
+            account = accounts[link.scheme_account_id]
             account.pll_links.append(formatted_link)
-        
+
         else:
             account = link.scheme_account
             account.pll_links = [formatted_link, ]
