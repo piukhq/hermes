@@ -21,7 +21,7 @@ def populate_pll_links(apps, schema_editor):
             account.pll_links = [formatted_link, ]
             accounts[account.id] = account
 
-    SchemeAccount.objects.bulk_update(accounts.values(), ["pll_links"], batch_size=1000)
+    SchemeAccount.objects.bulk_update(list(accounts.values()), ["pll_links"], batch_size=1000)
 
 
 def revert_populate_pll_links(apps, schema_editor):
