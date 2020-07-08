@@ -120,3 +120,41 @@ class TestSerializersV1_2(APITestCase):
         serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
 
         self.assertTrue(expected_data.items() < serialized_data.items())
+
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    def test_payment_card_translation_serializer_raises_error_for_incorrect_encryption(self):
+        serializer = PaymentCardTranslationSerializerV1_2
+        hash1 = 'hash1'
+        data = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'hash': 'aGFzaDE=',
+            'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
+            'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
+            'month': self.rsa.encrypt(12, pub_key=self.pub_key),
+            'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
+        }
+
+        # Test base64 encoded but the value is not encrypted
+        with self.assertRaises(ValueError) as e:
+            serializer(data, context={'bundle_id': self.bundle_id}).data
+
+        self.assertEqual(e.exception.args[0], 'Failed to decrypt sensitive fields')
+
+        data = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
+            'first_six_digits': '555555',
+            'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
+            'month': self.rsa.encrypt(12, pub_key=self.pub_key),
+            'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
+        }
+
+        # Test value is not encrypted or base64 encoded
+        with self.assertRaises(ValueError) as e:
+            serializer(data, context={'bundle_id': self.bundle_id}).data
+
+        self.assertEqual(e.exception.args[0], 'Failed to decrypt sensitive fields')

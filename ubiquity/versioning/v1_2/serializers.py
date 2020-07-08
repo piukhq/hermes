@@ -69,6 +69,10 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
             key_type=KeyType.PRIVATE_KEY
         )
 
-        decrypted_values = zip(self.FIELDS_TO_DECRYPT, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+        try:
+            decrypted_values = zip(self.FIELDS_TO_DECRYPT, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+        except ValueError as e:
+            raise ValueError("Failed to decrypt sensitive fields") from e
+
         data.update(decrypted_values)
         return super().to_representation(data)

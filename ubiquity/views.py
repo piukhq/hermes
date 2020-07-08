@@ -1,4 +1,3 @@
-import binascii
 import logging
 import re
 import typing as t
