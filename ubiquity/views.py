@@ -67,8 +67,8 @@ class ConflictError(APIException):
 
 
 def is_auto_link(req):
-    return req.query_params.get('autoLink', '').lower() == 'true' or \
-        req.query_params.get('autolink', '').lower() == 'true'
+    return (req.query_params.get('autoLink', '').lower() == 'true' or
+            req.query_params.get('autolink', '').lower() == 'true')
 
 
 def replace_escaped_unicode(match):
