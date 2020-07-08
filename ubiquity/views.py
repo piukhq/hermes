@@ -68,7 +68,7 @@ class ConflictError(APIException):
 
 def is_auto_link(req):
     return req.query_params.get('autoLink', '').lower() == 'true' or \
-           req.query_params.get('autolink', '').lower() == 'true'
+        req.query_params.get('autolink', '').lower() == 'true'
 
 
 def replace_escaped_unicode(match):
@@ -1132,25 +1132,10 @@ class ListMembershipCardView(MembershipCardView):
         'POST': LinkMembershipCardSerializer
     }
 
-    @staticmethod
-    def serialize_mcard(serializer, account):
-        data = serializer(account).data
-        return data
-
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN))
-
-        if len(accounts) >= 3:
-            serialize_account = partial(
-                self.serialize_mcard,
-                self.get_serializer_class_by_request()
-            )
-            with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
-                response = list(executor.map(serialize_account, accounts))
-        else:
-            response = self.get_serializer_by_request(accounts, many=True).data
-
+        response = self.get_serializer_by_request(accounts, many=True).data
         return Response(response, status=200)
 
     @censor_and_decorate
