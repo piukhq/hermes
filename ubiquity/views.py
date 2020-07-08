@@ -5,6 +5,7 @@ import typing as t
 from functools import partial
 from pathlib import Path
 
+import analytics
 import arrow
 import requests
 import sentry_sdk
@@ -12,6 +13,7 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Q, Count
+from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
 from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
@@ -42,8 +44,6 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate

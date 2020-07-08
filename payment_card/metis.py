@@ -47,16 +47,23 @@ def update_payment_card(account: 'PaymentCardAccount', run_async: bool = True, r
         metis_request(*args)
 
 
-def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True) -> None:
+def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True, retry_id: int = -1) -> None:
     args = (
         RequestMethod.DELETE,
         '/payment_service/payment_card',
-        _generate_card_json(account)
+        _generate_card_json(account, retry_id)
     )
     if run_async:
         metis_request.delay(*args)
     else:
         metis_request(*args)
+
+
+def retry_delete_payment_card(data):
+    # Metis card check ensures retry callbacks are from delete retry providers eg VOP
+    retry_obj = data["periodic_retry_obj"]
+    account = PaymentCardAccount.objects.get(id=data['context']['card_id'])
+    delete_payment_card(account, run_async, retry_obj.id)
 
 
 def retry_enrol(data):
