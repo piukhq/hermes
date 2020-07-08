@@ -2,6 +2,8 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
 from hermes.vop_tasks import vop_activate_request, send_deactivation
+from django.db.models import signals
+from django.dispatch import receiver
 
 
 class SchemeAccountEntry(models.Model):
@@ -145,6 +147,31 @@ class PaymentCardSchemeEntry(models.Model):
     def update_soft_links(cls, query):
         query['active_link'] = False
         cls.update_active_link_status(query)
+
+
+def _remove_pll_link(instance):
+    mcard = instance.scheme_account
+    for i, link in enumerate(mcard.pll_links):
+        if link['id'] == instance.payment_card_account_id:
+            mcard.pll_links.pop(i)
+            mcard.save(update_fields=['pll_links'])
+
+
+@receiver(signals.post_save, sender=PaymentCardSchemeEntry)
+def update_pll_links_on_save(sender, instance, created, **kwargs):
+    if instance.active_link:
+        new_link = {'id': instance.payment_card_account_id, 'active_link': instance.active_link}
+        mcard = instance.scheme_account
+        mcard.pll_links.append(new_link)
+        mcard.save(update_fields=['pll_links'])
+    elif not created:
+        _remove_pll_link(instance)
+
+
+@receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
+def update_pll_links_on_delete(sender, instance, **kwargs):
+    if instance.active_link:
+        _remove_pll_link(instance)
 
 
 class ServiceConsent(models.Model):

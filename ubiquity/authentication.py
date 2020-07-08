@@ -71,10 +71,10 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         channels_permit = Permit(bundle_id, organisation_name=organisation_id, ubiquity=True)
         # Check for keys which should be in token but don't cause a failed token or raise a key error
         if 'property_id' not in token_data:
-            logger.info(f'No property id found in Ubiquity token')
+            logger.info('No property id found in Ubiquity token')
         if 'iat' not in token_data:
             # We can't implement a timeout as token refresh not in spec.
-            logger.info(f'No iat (time stamp) found in Ubiquity token')
+            logger.info('No iat (time stamp) found in Ubiquity token')
 
         if bundle_id == settings.INTERNAL_SERVICE_BUNDLE:
             if 'iat' not in token_data:
@@ -94,10 +94,10 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         channels_permit = Permit(bundle_id, user=user, ubiquity=True, auth_by=auth_by)
 
         if not user.email:
-            logger.info(f"'token' type token does not have an email address")
+            logger.info("'token' type token does not have an email address")
             raise exceptions.AuthenticationFailed(_('Invalid token'))
         if 'iat' not in token_data:
-            logger.info(f"'token' type token does not a time stamp 'iat'' field")
+            logger.info("'token' type token does not a time stamp 'iat'' field")
             raise exceptions.AuthenticationFailed(_('Invalid token'))
 
         jwt.decode(token, channels_permit.bundle.client.secret + channels_permit.user.salt,

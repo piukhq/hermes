@@ -1406,7 +1406,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                 valign="top">
                                                 <div style="text-align:
                                                   center;"><em>Copyright
-                                                    © 2017 Bink, All
+                                                    © 2020 Bink, All
                                                     rights reserved.</em><br>
                                                   <br>
                                                   <strong>Our mailing

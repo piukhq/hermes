@@ -23,6 +23,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
+from ubiquity.tests.jeff_mock import MockRetrySession
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
@@ -219,6 +220,18 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(expected_result, resp.json())
 
+    def test_get_payment_cards_multithreading(self):
+        for _ in range(4):
+            PaymentCardAccountEntryFactory(user=self.user)
+
+        payment_card_accounts = PaymentCardAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = remove_empty(PaymentCardSerializer(payment_card_accounts, many=True).data)
+        resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result, resp.json())
+        self.assertEqual(len(resp.json()), 5)
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_single_membership_card(self, mock_get_midas_balance, *_):
@@ -269,6 +282,23 @@ class TestResources(APITestCase):
         self.user.save()
         self.scheme.test_scheme = False
         self.scheme.save()
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_get_all_membership_cards_multithreading(self, *_):
+        for _ in range(4):
+            scheme_account = SchemeAccountFactory(balances=self.scheme_account.balances)
+            SchemeBundleAssociationFactory(scheme=scheme_account.scheme, bundle=self.bundle,
+                                           status=SchemeBundleAssociation.ACTIVE)
+            SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
+        expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
+        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
+        self.assertEqual(len(resp.json()), 5)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -483,6 +513,10 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
         create_data = resp.data
+
+        sa = SchemeAccount.objects.get(pk=create_data["id"])
+        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+
         # replay and check same data with 200 response
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **self.auth_headers)
@@ -1656,6 +1690,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_sensitive_field_decryption(self, mock_async_balance, mock_async_link, *_):
         password = 'Password1'
         question_answer2 = 'some other answer'
@@ -1711,6 +1746,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_double_escaped_sensitive_field_value(self, mock_async_balance, mock_async_link, *_):
         password = 'pa\\u0024\\u0024w\\u0026rd01\\u0021'
         expected_password = 'pa$$w&rd01!'
@@ -1752,6 +1788,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_hades, mock_async_balance,
                                                                 mock_async_link, *_):
         password = 'Password1'
