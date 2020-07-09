@@ -506,9 +506,7 @@
         },
         "rusty-jeff": {
             "hashes": [
-                "sha256:20920a32eaf5d949f8ec7f690b4ce9162e910bbe30908830e26ee397749c39bd",
-                "sha256:5e1b1c03c4882a9a7a95b626f2e43f22e73b38f9dbada4d43eddf97cf44b8f5d",
-                "sha256:6ea413e9608103d1e3e246bc2fda7bca0dcdcbe5446bed80f28bd3f7ce2cf6a6"
+                "sha256:7eb156d797f197beeb016da89f7d45eb41a1967a21c8de409aed35d6affb4155"
             ],
             "index": "bypi",
             "version": "==0.1.2"
