@@ -140,6 +140,8 @@ class ListCreatePaymentCardAccount(APIView):
             account.save()
 
         PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
+        for scheme_account in account.scheme_account_set.all():
+            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
 
     @staticmethod
     def _create_payment_card_account(new_acc, user, old_account):
@@ -349,6 +351,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         response_action = request.data.get('response_action', "Add")
         new_status_code = request.data.get('status', None)
 
+        if new_status_code:
+            new_status_code = int(new_status_code)
+
         if not (id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
 
@@ -366,9 +371,11 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 'id': payment_card_account.id
             })
 
-        return self._add_response(new_status_code, response_state, retry_id, response_message, response_status, id)
+        return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
+                                  response_message, response_status, id)
 
-    def _add_response(self, new_status_code, response_state, retry_id, response_message, response_status, id):
+    def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
+                      response_message, response_status, id):
         # Normal enrol path for set status
         retry_task = "retry_enrol"
 
