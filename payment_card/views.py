@@ -307,7 +307,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                           }
         )
 
-    def _process_retries(self, retry_task, response_state, retry_id, response_message, response_status):
+    def _process_retries(self, retry_task, response_state, retry_id, response_message, response_status, id):
         if not retry_id:
             # First time call back
             if response_state == "Retry":
@@ -363,7 +363,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if response_action == "Delete":
             # Retry with delete action is only called for providers which support it eg VOP path
             retry_task = "retry_delete_payment_card"
-            self._process_retries(retry_task, response_state, retry_id, response_message, response_status)
+            self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
 
             return Response({
                 'id': payment_card_account.id
@@ -385,7 +385,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
 
             if response_state:
                 # Only metis agents which send a response state will be retried
-                self._process_retries(retry_task, response_state, retry_id, response_message, response_status)
+                self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
 
         return Response({
             'id': payment_card_account.id,

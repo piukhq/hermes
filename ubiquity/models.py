@@ -106,7 +106,9 @@ class PaymentCardSchemeEntry(models.Model):
                 scheme=self.scheme_account.scheme,
                 defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
             )
-            if created:
+            if created or vop_activation.VOP_STATUS == VopActivation.DEACTIVATED:
+                # todo consider edge case of Deactivating a periodic retry could call next line when deactivation has
+                # completed.
                 vop_activate_request(vop_activation)
 
     def get_instance_with_active_status(self):
