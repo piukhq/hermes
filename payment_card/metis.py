@@ -63,7 +63,7 @@ def retry_delete_payment_card(data):
     # Metis card check ensures retry callbacks are from delete retry providers eg VOP
     retry_obj = data["periodic_retry_obj"]
     account = PaymentCardAccount.objects.get(id=data['context']['card_id'])
-    delete_payment_card(account, run_async, retry_obj.id)
+    delete_payment_card(account, retry_id=retry_obj.id)
 
 
 def retry_enrol(data):

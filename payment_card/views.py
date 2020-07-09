@@ -347,13 +347,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         response_state = request.data.get('response_state', None)
         retry_id = request.data.get('retry_id', None)
         response_action = request.data.get('response_action', "Add")
+        new_status_code = request.data.get('status', None)
 
         if not (id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
-
-        new_status_code = int(request.data['status'])
-        if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
-            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         if id:
             payment_card_account = get_object_or_404(PaymentCardAccount, id=int(id))
@@ -369,9 +366,12 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 'id': payment_card_account.id
             })
 
+        return self._add_response(new_status_code, response_state, retry_id, response_message, response_status, id)
+
+    def _add_response(self, new_status_code, response_state, retry_id, response_message, response_status, id):
         # Normal enrol path for set status
         retry_task = "retry_enrol"
-        new_status_code = int(request.data['status'])
+
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
             raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
