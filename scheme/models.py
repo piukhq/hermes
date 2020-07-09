@@ -376,6 +376,7 @@ def _format_image_for_ubiquity(img: SchemeImage) -> dict:
             encoding = None
 
     return {
+        'id': img.id,
         'type': img.image_type_code,
         'url': img.image.url,
         'description': img.description,
