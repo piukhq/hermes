@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "974e9d9a3207144a6f4006316b243601c14b3eb46076519410f069d3fcdf7638"
+            "sha256": "04b30f0e4e60652bba0c5f12d9e6d2aaf0a756b05776f96df1a20e02257e099b"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -503,6 +503,15 @@
             ],
             "index": "bypi",
             "version": "==1.3.0"
+        },
+        "rusty-jeff": {
+            "hashes": [
+                "sha256:7eb156d797f197beeb016da89f7d45eb41a1967a21c8de409aed35d6affb4155",
+                "sha256:8f8f69e9d68ccd12734bfc2fb03c1f857e5e48b9c196f7476455a136b6a70810",
+                "sha256:c64e34ab353bffe00f058589016fb64e0960db069a2cd17e844d77619da75e47"
+            ],
+            "index": "bypi",
+            "version": "==0.1.2"
         },
         "sentry-sdk": {
             "hashes": [
