@@ -1,4 +1,3 @@
-import binascii
 import logging
 import re
 import typing as t
@@ -18,11 +17,12 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError, API
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
+from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import get_key, get_secret_key, SecretKeyName, decrypt_values_with_jeff, JeffDecryptionURL
+from rustyjeff import rsa_decrypt_base64
+from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
@@ -598,7 +598,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         'PUT': LinkMembershipCardSerializer
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
-    rsa_cipher = RSACipher()
 
     def get_queryset(self):
         query = {}
@@ -684,13 +683,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
-        if manual_question_type and manual_question_type in update_fields:
-            if self.card_with_same_data_already_exists(
-                    account, account.scheme_id, update_fields[manual_question_type]
-            ):
-                account.status = account.FAILED_UPDATE
-                account.save()
-                return account
+        if (
+            manual_question_type and manual_question_type in update_fields
+            and self.card_with_same_data_already_exists(
+                account,
+                account.scheme_id,
+                update_fields[manual_question_type]
+            )
+        ):
+            account.status = account.FAILED_UPDATE
+            account.save()
+            return account
 
         self.update_credentials(account, update_fields, scheme_questions)
 
@@ -826,38 +829,32 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 field_type = label_to_type[item['column']]
                 self._filter_sensitive_fields(field_content, encrypted_fields, field_type, item, api_version)
 
+            if encrypted_fields:
+                field_content.update(
+                    self._decrypt_sensitive_fields(
+                        self.request.channels_permit.bundle_id,
+                        encrypted_fields
+                    )
+                )
         except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
-        if encrypted_fields:
-            field_content.update(
-                self._decrypt_sensitive_fields(
-                    self.request.channels_permit.bundle_id,
-                    encrypted_fields
-                )
-            )
-
         return field_content
 
     @staticmethod
-    def _decrypt_field(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple):
-        rsa_key = get_key(
+    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
+        rsa_key_pem = get_key(
             bundle_id=bundle_id,
-            key_type="rsa_key"
+            key_type=KeyType.PRIVATE_KEY
         )
         try:
-            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
-        except binascii.Error:
-            sentry_sdk.capture_exception()
-            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
+            decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+        except ValueError as e:
+            raise ValueError("Failed to decrypt sensitive feilds") from e
 
-        return decrypted_val
-
-    @staticmethod
-    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
-        # TODO: jeff only supports password field for membership cards for now.
-        return decrypt_values_with_jeff(JeffDecryptionURL.MEMBERSHIP_CARD, bundle_id, fields)
+        fields.update(decrypted_values)
+        return fields
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
@@ -1053,7 +1050,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
-        except KeyError as e:
+        except (KeyError, ValueError) as e:
             logger.exception(e)
             raise ParseError()
 
