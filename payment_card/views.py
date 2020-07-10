@@ -297,9 +297,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     authentication_classes = (ServiceAuthentication,)
     serializer_class = serializers.PaymentCardAccountStatusSerializer
 
-    def _new_enroll_retry(self, attempts, id, retry_status, response_message, response_status):
+    def _new_retry(self, retry_task, attempts, id, retry_status, response_message, response_status):
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'payment_card.metis', 'retry_enrol',
+            'payment_card.metis', retry_task,
             context={"card_id": int(id)},
             retry_kwargs={"max_retry_attempts": attempts,
                           "results": [{"caused_by": response_message, "status": response_status}],
@@ -307,14 +307,14 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                           }
         )
 
-    def _process_enrol_retries(self, response_state, retry_id, response_message, response_status):
+    def _process_retries(self, retry_task, response_state, retry_id, response_message, response_status, id):
         if not retry_id:
             # First time call back
             if response_state == "Retry":
-                self._new_enroll_retry(10, id, PeriodicRetryStatus.REQUIRED, response_message, response_status)
+                self._new_retry(retry_task, 10, id, PeriodicRetryStatus.REQUIRED, response_message, response_status)
             elif response_state == "Failed":
                 # Just save retry info for manual retry without invoking retry attempt
-                self._new_enroll_retry(0, id, PeriodicRetryStatus.FAILED, response_message, response_status)
+                self._new_retry(retry_task, 0, id, PeriodicRetryStatus.FAILED, response_message, response_status)
         else:
             # We are actively retrying
             task = PeriodicRetryHandler.get_task(retry_id=retry_id)
@@ -346,18 +346,39 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         response_message = request.data.get('response_message', None)
         response_state = request.data.get('response_state', None)
         retry_id = request.data.get('retry_id', None)
+        response_action = request.data.get('response_action', "Add")
+        new_status_code = request.data.get('status', None)
+
+        if new_status_code:
+            new_status_code = int(new_status_code)
 
         if not (id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
-
-        new_status_code = int(request.data['status'])
-        if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
-            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         if id:
             payment_card_account = get_object_or_404(PaymentCardAccount, id=int(id))
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
+
+        if response_action == "Delete":
+            # Retry with delete action is only called for providers which support it eg VOP path
+            retry_task = "retry_delete_payment_card"
+            self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
+
+            return Response({
+                'id': payment_card_account.id
+            })
+
+        return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
+                                  response_message, response_status, id)
+
+    def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
+                      response_message, response_status, id):
+        # Normal enrol path for set status
+        retry_task = "retry_enrol"
+
+        if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
+            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
@@ -367,9 +388,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 # make any soft links active for payment_card_account
                 PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account})
 
-        if response_state:
-            # Only metis agents which send a response state will be retried
-            self._process_enrol_retries(response_state, retry_id, response_message, response_status)
+            if response_state:
+                # Only metis agents which send a response state will be retried
+                self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
 
         return Response({
             'id': payment_card_account.id,

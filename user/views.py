@@ -479,7 +479,7 @@ def apple_login(code):
     id_token = resp.json()["id_token"]
     user_info = jwt.decode(id_token, verify=False)
 
-    logger.info(f"Successful Apple Sign In")
+    logger.info("Successful Apple Sign In")
     return social_response(
         social_id=user_info["sub"],
         email=user_info["email"],

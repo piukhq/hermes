@@ -13,6 +13,7 @@ from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
+from common.models import Image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
                                       get_images_for_payment_card_account)
@@ -146,13 +147,12 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 
     @staticmethod
     def get_membership_cards(obj):
-        query = {
-            'payment_card_account': obj,
-            'scheme_account__is_deleted': False,
-            'active_link': True
-        }
-        links = PaymentCardSchemeEntry.objects.filter(**query).all()
-        return MembershipCardLinksSerializer(links, many=True).data
+        return [
+            {'id': mcard_id, 'active_link': active_link}
+            for mcard_id, active_link in PaymentCardSchemeEntry.objects.filter(
+                payment_card_account=obj, active_link=True
+            ).values_list('scheme_account_id', 'active_link')
+        ]
 
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('psp_token', 'user_set', 'scheme_account_set')
@@ -516,16 +516,21 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
-    def _get_ubiquity_images(tier, images):
-        # by using a dictionary duplicates are overwritten (if two hero are present only one will be returned)
-        filtered_images = {
-            image.image_type_code: image
-            for image in images
-            if image.image_type_code in [image.HERO, image.ICON, image.ALT_HERO] or (
-                    image.image_type_code == image.TIER and image.reward_tier == tier)
-        }
+    def _filter_tier_images(tier, images: dict):
+        tier_type_image = str(Image.TIER)
+        filtered_images = [
+            image
+            for img_type, image in images.items()
+            if img_type != tier_type_image
+        ]
+        try:
+            tier_image = images[tier_type_image][str(tier)]
+        except KeyError:
+            tier_image = None
 
-        return UbiquityImageSerializer(list(filtered_images.values()), many=True).data
+        if tier_image:
+            filtered_images.append(tier_image)
+        return filtered_images
 
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:
@@ -556,15 +561,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ]
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
-        query = {
-            'scheme_account': instance,
-            'payment_card_account__is_deleted': False,
-            'active_link': True,
-        }
-        payment_cards = PaymentCardSchemeEntry.objects.filter(**query).all()
-        exclude_balance_statuses = instance.EXCLUDE_BALANCE_STATUSES
-
-        if instance.status not in exclude_balance_statuses:
+        if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
             reward_tier = instance.balances[0]['reward_tier']
@@ -578,11 +575,11 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
 
-        images = self._get_ubiquity_images(reward_tier, scheme.images.all())
+        images = self._filter_tier_images(reward_tier, scheme.formatted_images)
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
-            'payment_cards': PaymentCardLinksSerializer(payment_cards, many=True).data,
+            'payment_cards': instance.pll_links,
             'membership_transactions': instance.transactions,
             'status': self.get_translated_status(instance),
             'card': {

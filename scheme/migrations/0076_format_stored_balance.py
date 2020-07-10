@@ -26,11 +26,15 @@ def format_balances(apps, schema_editor):
         format_balance(account)
 
 
+def revert_balance(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
     dependencies = [
         ('scheme', '0075_schemeaccount_transactions'),
     ]
 
     operations = [
-        migrations.RunPython(format_balances),
+        migrations.RunPython(format_balances, revert_balance),
     ]
