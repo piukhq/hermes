@@ -15,7 +15,6 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
 from django.db import models
 from django.db.models import F, Q, signals
-from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
@@ -366,33 +365,15 @@ class SchemeImage(Image):
     scheme = models.ForeignKey('scheme.Scheme', related_name='images', on_delete=models.CASCADE)
 
 
-def _format_image_for_ubiquity(img: SchemeImage) -> dict:
-    if img.encoding:
-        encoding = img.encoding
-    else:
-        try:
-            encoding = img.image.name.split('.')[-1].replace('/', '')
-        except (IndexError, AttributeError):
-            encoding = None
-
-    return {
-        'id': img.id,
-        'type': img.image_type_code,
-        'url': img.image.url,
-        'description': img.description,
-        'encoding': encoding
-    }
-
-
 def _update_scheme_images(instance: SchemeImage) -> None:
     scheme = instance.scheme
     formatted_images = {}
     tier_images = {}
     for img in scheme.images.all():
         if img.image_type_code in [Image.HERO, Image.ICON, Image.ALT_HERO]:
-            formatted_images[img.image_type_code] = _format_image_for_ubiquity(img)
+            formatted_images[img.image_type_code] = img.ubiquity_format()
         elif img.image_type_code == Image.TIER:
-            tier_images[img.reward_tier] = _format_image_for_ubiquity(img)
+            tier_images[img.reward_tier] = img.ubiquity_format()
 
     formatted_images[Image.TIER] = tier_images
     scheme.formatted_images = formatted_images
@@ -1185,7 +1166,7 @@ class SchemeAccountCredentialAnswer(models.Model):
         unique_together = ("scheme_account", "question")
 
 
-@receiver(pre_save, sender=SchemeAccountCredentialAnswer)
+@receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         try:

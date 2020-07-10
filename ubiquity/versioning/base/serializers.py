@@ -13,10 +13,9 @@ from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from common.models import Image
+from common.models import Image, check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
-from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
-                                      get_images_for_payment_card_account)
+from payment_card.serializers import CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
@@ -141,9 +140,24 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
 
     @staticmethod
-    def _get_images(instance):
-        return get_images_for_payment_card_account(instance, serializer_class=UbiquityImageSerializer,
-                                                   add_type=False)
+    def _get_images(instance: PaymentCardAccount):
+        today = arrow.utcnow().datetime.timestamp()
+        account_images = {
+            k: v['payload']
+            for k, v in instance.formatted_images.items()
+            if check_active_image(v.get('validity', {}), today)
+        }
+
+        base_images = {
+            k: v['payload']
+            for k, v in instance.payment_card.formatted_images.items()
+            if v and check_active_image(v.get('validity', {}), today)
+        }
+
+        return [
+            account_images.get(image_type, image)
+            for image_type, image in base_images.items()
+        ]
 
     def to_representation(self, instance):
         status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
