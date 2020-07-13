@@ -133,7 +133,7 @@ class PaymentCardSchemeEntry(models.Model):
 
     @classmethod
     def deactivate_activations(cls, activations: dict):
-        """If an activation cannot be supported by an active link then deactivate it"""
+        """If an activation cannot be supported by an active link then deactivate it if activated"""
         for activation in activations.values():
             # check if any entries require the activation - deactivate if not used
             matches = cls.objects.filter(
@@ -141,7 +141,7 @@ class PaymentCardSchemeEntry(models.Model):
                 scheme_account__scheme=activation.scheme,
                 active_link=True
             ).count()
-            if not matches:
+            if not matches and activation.VOP_STATUS == VopActivation.ACTIVATED:
                 send_deactivation.delay(activation)
 
     @classmethod
