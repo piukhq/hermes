@@ -494,8 +494,9 @@ class UpdateCredentialsMixin:
     @staticmethod
     def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:
         new_answers = {**add_fields, **auth_fields}
-        main_answer, *_ = add_fields.values()
 
+        add_fields.pop("consents", None)
+        main_answer, *_ = add_fields.values()
         return new_answers, main_answer
 
     @staticmethod
