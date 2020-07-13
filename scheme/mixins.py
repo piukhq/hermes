@@ -452,11 +452,12 @@ class UpdateCredentialsMixin:
                 scheme_account=scheme_account,
                 defaults={'answer': new_answer}
             )
+            main_answer = scheme_account.main_answer
+            if answer.answer == main_answer and new_answer != main_answer:
+                # the answer being updated is also saved as the main credential, so we need to update that too.
+                scheme_account.main_answer = new_answer
+                scheme_account.save()
             if not created:  # an existing answer is being updated
-                if scheme_account.main_answer == answer.answer:
-                    # the answer being updated is also saved as the main credential, so we need to update that too.
-                    scheme_account.main_answer = new_answer
-                    scheme_account.save()
                 answer.answer = new_answer
                 answer.save()
             updated_credentials.append(credential_type)
@@ -471,6 +472,7 @@ class UpdateCredentialsMixin:
             scheme_account.save()
 
         scheme_account.schemeaccountcredentialanswer_set.all().delete()
+        scheme_account.update_barcode_and_card_number()
         return self.update_credentials(scheme_account, data)
 
     @staticmethod
