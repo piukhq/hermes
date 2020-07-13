@@ -445,6 +445,7 @@ class UpdateCredentialsMixin:
         }
 
         updated_credentials = []
+        main_answer = scheme_account.main_answer
         for credential_type in data.keys():
             new_answer = data[credential_type]
             answer, created = SchemeAccountCredentialAnswer.objects.get_or_create(
@@ -452,11 +453,11 @@ class UpdateCredentialsMixin:
                 scheme_account=scheme_account,
                 defaults={'answer': new_answer}
             )
+            if answer.answer == main_answer and new_answer != main_answer:
+                # the answer being updated is also saved as the main credential, so we need to update that too.
+                scheme_account.main_answer = new_answer
+                scheme_account.save()
             if not created:  # an existing answer is being updated
-                if scheme_account.main_answer == answer.answer:
-                    # the answer being updated is also saved as the main credential, so we need to update that too.
-                    scheme_account.main_answer = new_answer
-                    scheme_account.save()
                 answer.answer = new_answer
                 answer.save()
             updated_credentials.append(credential_type)
@@ -470,7 +471,7 @@ class UpdateCredentialsMixin:
             scheme_account.scheme = scheme
             scheme_account.save()
 
-        scheme_account.schemeaccountcredentialanswer_set.all().delete()
+        scheme_account.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
         return self.update_credentials(scheme_account, data)
 
     @staticmethod
@@ -492,8 +493,9 @@ class UpdateCredentialsMixin:
     @staticmethod
     def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:
         new_answers = {**add_fields, **auth_fields}
-        main_answer, *_ = add_fields.values()
 
+        add_fields.pop("consents", None)
+        main_answer, *_ = add_fields.values()
         return new_answers, main_answer
 
     @staticmethod
