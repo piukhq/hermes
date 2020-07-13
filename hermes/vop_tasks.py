@@ -29,8 +29,8 @@ def process_result(rep, activation, link_action):
     if activation_id:
         response_data['activation_id'] = activation_id
 
-    if rep.status_code == 201 and activation_id:
-        if link_action == activation.ACTIVATING:
+    if rep.status_code == 201:
+        if activation_id and link_action == activation.ACTIVATING:
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
             activation.save()
@@ -48,6 +48,8 @@ def process_result(rep, activation, link_action):
 
 
 def activate(activation, data: dict):
+    activation.status = activation.ACTIVATING
+    activation.save()
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -73,6 +75,8 @@ def send_activation(activation, data: dict):
 
 
 def deactivate(activation, data: dict):
+    activation.status = activation.DEACTIVATING
+    activation.save()
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
