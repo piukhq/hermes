@@ -472,7 +472,6 @@ class UpdateCredentialsMixin:
             scheme_account.save()
 
         scheme_account.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
-        scheme_account.update_barcode_and_card_number()
         return self.update_credentials(scheme_account, data)
 
     @staticmethod

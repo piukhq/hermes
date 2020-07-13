@@ -768,6 +768,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 account.save()
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme)
+                account.update_barcode_and_card_number()
                 account.set_pending()
                 async_balance.delay(account.id)
 
