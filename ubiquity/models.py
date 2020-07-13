@@ -106,8 +106,8 @@ class PaymentCardSchemeEntry(models.Model):
                 scheme=self.scheme_account.scheme,
                 defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
             )
-            if created or vop_activation.VOP_STATUS == VopActivation.DEACTIVATED\
-                    or vop_activation.VOP_STATUS == VopActivation.DEACTIVATING:
+            if created or vop_activation.status == VopActivation.DEACTIVATED\
+                    or vop_activation.status == VopActivation.DEACTIVATING:
                 vop_activate_request(vop_activation)
 
     def get_instance_with_active_status(self):
@@ -141,7 +141,7 @@ class PaymentCardSchemeEntry(models.Model):
                 scheme_account__scheme=activation.scheme,
                 active_link=True
             ).count()
-            if not matches and activation.VOP_STATUS == VopActivation.ACTIVATED:
+            if not matches and activation.status == VopActivation.ACTIVATED:
                 send_deactivation.delay(activation)
 
     @classmethod
