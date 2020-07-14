@@ -126,15 +126,6 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     month = serializers.IntegerField(source='expiry_month')
     token = None
 
-    @staticmethod
-    def get_membership_cards(obj):
-        return [
-            {'id': mcard_id, 'active_link': active_link}
-            for mcard_id, active_link in PaymentCardSchemeEntry.objects.filter(
-                payment_card_account=obj, active_link=True
-            ).values_list('scheme_account_id', 'active_link')
-        ]
-
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('psp_token', 'user_set', 'scheme_account_set')
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
@@ -163,7 +154,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
         return {
             "id": instance.id,
-            "membership_cards": self.get_membership_cards(instance),
+            "membership_cards": instance.pll_links,
             "status": status,
             "card": {
                 "first_six_digits": str(instance.pan_start),

@@ -230,6 +230,7 @@ class PaymentCardAccount(models.Model):
     consents = JSONField(default=list)
     hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)
     formatted_images = JSONField(default=dict, blank=True)
+    pll_links = JSONField(default=list)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
