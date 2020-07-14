@@ -748,6 +748,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
+            enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
@@ -761,6 +762,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
         else:
+            if auth_fields:
+                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
             if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
