@@ -491,41 +491,41 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
-    def _filter_tier_images(tier, images: dict):
-        tier_type_image = str(Image.TIER)
-        filtered_images = [
-            image
-            for img_type, image in images.items()
-            if img_type != tier_type_image
-        ]
-        try:
-            tier_image = images[tier_type_image][str(tier)]
-        except KeyError:
-            tier_image = None
-
-        if tier_image:
-            filtered_images.append(tier_image)
-        return filtered_images
-
-    @staticmethod
-    def _get_images(instance: 'SchemeAccount') -> dict:
+    def _get_images(instance: 'SchemeAccount', tier: str) -> list:
         today = arrow.utcnow().datetime.timestamp()
+        tier_type_image = str(Image.TIER)
         account_images = {
             k: v['payload']
             for k, v in instance.formatted_images.items()
-            if check_active_image(v.get('validity', {}), today)
+            if k != Image.TIER and check_active_image(v.get('validity', {}), today)
+        }
+        account_tier_images = {
+            k: v['payload']
+            for k, v in instance.formatted_images.get(tier_type_image, {}).items()
+            if v and check_active_image(v.get('validity', {}), today)
         }
 
         base_images = {
             k: v['payload']
             for k, v in instance.scheme.formatted_images.items()
+            if k != Image.TIER and check_active_image(v.get('validity', {}), today)
+        }
+        base_tier_images = {
+            k: v['payload']
+            for k, v in instance.scheme.formatted_images.get(tier_type_image, {}).items()
             if v and check_active_image(v.get('validity', {}), today)
         }
 
-        return {
-            image_type: account_images.get(image_type, image)
-            for image_type, image in base_images.items()
-        }
+        filtered_images = [
+            account_images.get(image_type, base_image)
+            for image_type, base_image in base_images.items()
+        ]
+
+        tier_image = account_tier_images.get(tier) or base_tier_images.get(tier)
+        if tier_image:
+            filtered_images.append(tier_image)
+
+        return filtered_images
 
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:
@@ -559,9 +559,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
-            reward_tier = instance.balances[0]['reward_tier']
+            reward_tier = str(instance.balances[0]['reward_tier'])
         except (ValueError, KeyError):
-            reward_tier = 0
+            reward_tier = '0'
 
         try:
             current_scheme = self.context['view'].current_scheme
@@ -569,8 +569,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
-
-        images = self._filter_tier_images(reward_tier, self._get_images(instance))
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -583,7 +581,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': images,
+            'images': self._get_images(instance, reward_tier),
             'account': {
                 'tier': reward_tier
             },

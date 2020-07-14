@@ -370,13 +370,18 @@ def _update_scheme_images(instance: SchemeImage) -> None:
     query = {
         'scheme': scheme,
         'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
     }
-    formatted_images = {
-        img.image_type_code: img.ubiquity_format()
-        for img in SchemeImage.all_objects.filter(**query).all()
-    }
+    formatted_images = {}
+    tier_images = {}
+    # needs to use SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
+    for img in SchemeImage.all_objects.filter(**query).all():
+        if img.image_type_code == Image.TIER:
+            tier_images[img.reward_tier] = img
+        else:
+            formatted_images[img.image_type_code] = img
 
+    formatted_images[Image.TIER] = tier_images
     scheme.formatted_images = formatted_images
     scheme.save(update_fields=['formatted_images'])
 
@@ -402,13 +407,22 @@ class SchemeAccountImage(Image):
 
 @receiver(signals.post_save, sender=SchemeAccountImage)
 def update_scheme_account_images_on_save(sender, instance, created, **kwargs):
-    if instance.status == Image.DRAFT or instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER] or \
+       instance.status == Image.DRAFT:
         return
 
     accounts_to_update = []
-    formatted_image = {instance.image_type_code: instance.ubiquity_format()}
+
     for scheme_account in instance.scheme_accounts.all():
-        scheme_account.formatted_images.update(formatted_image)
+        if instance.image_type_code == Image.TIER:
+            formatted_image = {instance.reward_tier: instance.ubiquity_format()}
+            tier_images = scheme_account.formatted_images.get(Image.TIER, {})
+            tier_images.update(formatted_image)
+            scheme_account.formatted_images.update(tier_images)
+        else:
+            formatted_image = {instance.image_type_code: instance.ubiquity_format()}
+            scheme_account.formatted_images.update(formatted_image)
+
         accounts_to_update.append(scheme_account)
 
     SchemeAccountImage.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
@@ -416,14 +430,18 @@ def update_scheme_account_images_on_save(sender, instance, created, **kwargs):
 
 @receiver(signals.post_delete, sender=SchemeAccountImage)
 def update_scheme_account_images_on_delete(sender, instance, **kwargs):
-    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER] or \
+       instance.status == Image.DRAFT:
         return
 
     accounts_to_update = []
     for scheme_account in instance.scheme_accounts.all():
         try:
-            del scheme_account.formatted_images[instance.image_type_code]
-        except ValueError:
+            if instance.image_type_code == Image.TIER:
+                del scheme_account.formatted_images[instance.image_type_code][instance.reward_tier]
+            else:
+                del scheme_account.formatted_images[instance.image_type_code]
+        except (KeyError, ValueError):
             pass
         else:
             accounts_to_update.append(scheme_account)

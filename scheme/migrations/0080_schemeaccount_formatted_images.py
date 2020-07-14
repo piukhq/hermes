@@ -35,15 +35,20 @@ def format_base_images(apps, schema_editor):
     Scheme = apps.get_model('scheme', 'Scheme')
     query = {
         'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
     }
 
     for scheme in Scheme.objects.all():
-        formatted_images = {
-            img.image_type_code: _format_image_for_ubiquity(img)
-            for img in scheme.images.filter(**query).all()
-        }
+        formatted_images = {}
+        tier_images = {}
+        for img in scheme.images.filter(**query).all():
+            formatted_image = _format_image_for_ubiquity(img)
+            if img.image_type_code == Image.TIER:
+                tier_images[img.reward_tier] = formatted_image
+            else:
+                formatted_images[img.image_type_code] = formatted_image
 
+        formatted_images[Image.TIER] = tier_images
         scheme.formatted_images = formatted_images
         scheme.save(update_fields=['formatted_images'])
 
@@ -58,11 +63,24 @@ def format_account_images(apps, schema_editor):
 
     accounts = {}
     for img in SchemeAccountImage.objects.filter(**query).all():
-        formatted_image = {img.image_type_code: _format_image_for_ubiquity(img)}
+        if img.image_type_code == Image.TIER:
+            formatted_image = {img.reward_tier: _format_image_for_ubiquity(img)}
+        else:
+            formatted_image = {img.image_type_code: _format_image_for_ubiquity(img)}
+
         for account in img.scheme_accounts.all():
             if account.id in accounts:
-                accounts[account.id].formatted_images.update(formatted_image)
+                update_account = accounts[account.id]
+                if img.image_type_code == Image.TIER:
+                    tier_images = update_account.formatted_images.get(Image.TIER, {})
+                    tier_images.update(formatted_image)
+                    update_account.update(tier_images)
+                else:
+                    update_account.formatted_images.update(formatted_image)
             else:
+                if img.image_type_code == Image.TIER:
+                    formatted_image = {img.image_type_code: formatted_image}
+
                 account.formatted_images.update(formatted_image)
                 accounts.update({account.id: account})
 
