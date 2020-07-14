@@ -80,8 +80,8 @@ class Image(models.Model):
 
             },
             'validity': {
-                'start_date': self.start_date.timestamp(),
-                'end_date': self.end_date.timestamp()
+                'start_date': self.start_date.timestamp() if self.start_date else None,
+                'end_date': self.end_date.timestamp() if self.end_date else None
             }
         }
 

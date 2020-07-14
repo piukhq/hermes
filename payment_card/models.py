@@ -71,7 +71,7 @@ class PaymentCardAccountImage(Image):
 
 @receiver(signals.post_save, sender=PaymentCardAccountImage)
 def update_payment_card_account_images_on_save(sender, instance, created, **kwargs):
-    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO] and instance.status == Image.PUBLISHED:
+    if instance.status == Image.DRAFT or instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
         return
 
     accounts_to_update = []

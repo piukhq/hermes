@@ -367,15 +367,16 @@ class SchemeImage(Image):
 
 def _update_scheme_images(instance: SchemeImage) -> None:
     scheme = instance.scheme
-    formatted_images = {}
-    tier_images = {}
-    for img in scheme.images.all():
-        if img.image_type_code in [Image.HERO, Image.ICON, Image.ALT_HERO]:
-            formatted_images[img.image_type_code] = img.ubiquity_format()
-        elif img.image_type_code == Image.TIER:
-            tier_images[img.reward_tier] = img.ubiquity_format()
+    query = {
+        'scheme': scheme,
+        'status': Image.PUBLISHED,
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
+    }
+    formatted_images = {
+        img.image_type_code: img.ubiquity_format()
+        for img in SchemeImage.all_objects.filter(**query).all()
+    }
 
-    formatted_images[Image.TIER] = tier_images
     scheme.formatted_images = formatted_images
     scheme.save(update_fields=['formatted_images'])
 
@@ -397,6 +398,37 @@ class SchemeAccountImage(Image):
 
     def __str__(self):
         return self.description
+
+
+@receiver(signals.post_save, sender=SchemeAccountImage)
+def update_scheme_account_images_on_save(sender, instance, created, **kwargs):
+    if instance.status == Image.DRAFT or instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+        return
+
+    accounts_to_update = []
+    formatted_image = {instance.image_type_code: instance.ubiquity_format()}
+    for scheme_account in instance.scheme_accounts.all():
+        scheme_account.formatted_images.update(formatted_image)
+        accounts_to_update.append(scheme_account)
+
+    SchemeAccountImage.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
+
+
+@receiver(signals.post_delete, sender=SchemeAccountImage)
+def update_scheme_account_images_on_delete(sender, instance, **kwargs):
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+        return
+
+    accounts_to_update = []
+    for scheme_account in instance.scheme_accounts.all():
+        try:
+            del scheme_account.formatted_images[instance.image_type_code]
+        except ValueError:
+            pass
+        else:
+            accounts_to_update.append(scheme_account)
+
+    SchemeAccountImage.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
 
 
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
@@ -515,6 +547,7 @@ class SchemeAccount(models.Model):
     transactions = JSONField(default=dict, null=True, blank=True)
     main_answer = models.CharField(max_length=250, blank=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
+    formatted_images = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):

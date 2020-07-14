@@ -508,6 +508,26 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return filtered_images
 
     @staticmethod
+    def _get_images(instance: 'SchemeAccount') -> dict:
+        today = arrow.utcnow().datetime.timestamp()
+        account_images = {
+            k: v['payload']
+            for k, v in instance.formatted_images.items()
+            if check_active_image(v.get('validity', {}), today)
+        }
+
+        base_images = {
+            k: v['payload']
+            for k, v in instance.scheme.formatted_images.items()
+            if v and check_active_image(v.get('validity', {}), today)
+        }
+
+        return {
+            image_type: account_images.get(image_type, image)
+            for image_type, image in base_images.items()
+        }
+
+    @staticmethod
     def get_translated_status(instance: 'SchemeAccount') -> dict:
         status = instance.status
         if status in instance.SYSTEM_ACTION_REQUIRED:
@@ -550,7 +570,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
 
-        images = self._filter_tier_images(reward_tier, scheme.formatted_images)
+        images = self._filter_tier_images(reward_tier, self._get_images(instance))
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
