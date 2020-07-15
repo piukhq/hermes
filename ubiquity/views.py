@@ -756,8 +756,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
+            required_questions = {question["type"] for question in scheme.get_required_questions}
+            answer_type = set(validated_data).intersection(required_questions).pop()
+
             account.schemeaccountcredentialanswer_set.all().delete()
-            account.main_answer = ""
+            account.main_answer = validated_data[answer_type]
             account.set_async_join_status()
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
@@ -953,6 +956,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
+
+        required_questions = {question["type"] for question in scheme.get_required_questions}
+        answer_type = set(enrol_fields).intersection(required_questions).pop()
+
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
             "fatface",
@@ -989,7 +996,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account = SchemeAccount(
                 order=0,
                 scheme_id=scheme.id,
-                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
+                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+                main_answer=enrol_fields[answer_type]
             )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
