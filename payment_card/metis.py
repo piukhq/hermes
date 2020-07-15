@@ -1,12 +1,8 @@
-from typing import TYPE_CHECKING
-
 import arrow
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
+from payment_card.models import PaymentCardAccount
 from payment_card.tasks import metis_request
-
-if TYPE_CHECKING:
-    from payment_card.models import PaymentCardAccount
 
 
 def _generate_card_json(account: 'PaymentCardAccount', retry_id: int = -1) -> dict:
