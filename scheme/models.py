@@ -801,11 +801,13 @@ class SchemeAccount(models.Model):
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         if old_status != self.status:
             update_fields.append("status")
-            # Update active_link status
-            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         if update_fields:
             self.save(update_fields=update_fields)
+
+        # Update active_link status
+        if old_status != self.status:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
 
