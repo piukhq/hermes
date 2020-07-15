@@ -134,15 +134,17 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     def _get_images(instance: PaymentCardAccount):
         today = arrow.utcnow().datetime.timestamp()
         account_images = {
-            k: v['payload']
-            for k, v in instance.formatted_images.items()
-            if check_active_image(v.get('validity', {}), today)
+            image_type: image['payload']
+            for image_type, images in instance.formatted_images.items()
+            for image in images.values()
+            if image and check_active_image(image.get('validity', {}), today)
         }
 
         base_images = {
-            k: v['payload']
-            for k, v in instance.payment_card.formatted_images.items()
-            if v and check_active_image(v.get('validity', {}), today)
+            image_type: image['payload']
+            for image_type, images in instance.payment_card.formatted_images.items()
+            for image in images.values()
+            if image and check_active_image(image.get('validity', {}), today)
         }
 
         return [
@@ -491,37 +493,48 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
-    def _get_images(instance: 'SchemeAccount', tier: str) -> list:
+    def _get_tier_image(account_tier_images: dict, base_tier_images: dict, today: int, tier: str) -> dict:
+        valid_account_tier_images = {
+            k: v['payload']
+            for k, v in account_tier_images.items()
+            if v and check_active_image(v.get('validity', {}), today)
+        }
+        valid_base_tier_images = {
+            k: v['payload']
+            for k, v in base_tier_images.items()
+            if v and check_active_image(v.get('validity', {}), today)
+        }
+        return valid_account_tier_images.get(tier) or valid_base_tier_images.get(tier)
+
+    def _get_images(self, instance: 'SchemeAccount', tier: str) -> list:
         today = arrow.utcnow().datetime.timestamp()
         tier_type_image = str(Image.TIER)
-        account_images = {
+        account_images = instance.formatted_images
+        base_images = instance.scheme.formatted_images
+
+        valid_account_images = {
             k: v['payload']
-            for k, v in instance.formatted_images.items()
+            for k, v in account_images.items()
             if k != Image.TIER and check_active_image(v.get('validity', {}), today)
-        }
-        account_tier_images = {
-            k: v['payload']
-            for k, v in instance.formatted_images.get(tier_type_image, {}).items()
-            if v and check_active_image(v.get('validity', {}), today)
         }
 
-        base_images = {
+        valid_base_images = {
             k: v['payload']
-            for k, v in instance.scheme.formatted_images.items()
+            for k, v in base_images.items()
             if k != Image.TIER and check_active_image(v.get('validity', {}), today)
-        }
-        base_tier_images = {
-            k: v['payload']
-            for k, v in instance.scheme.formatted_images.get(tier_type_image, {}).items()
-            if v and check_active_image(v.get('validity', {}), today)
         }
 
         filtered_images = [
-            account_images.get(image_type, base_image)
-            for image_type, base_image in base_images.items()
+            valid_account_images.get(image_type, base_image)
+            for image_type, base_image in valid_base_images.items()
         ]
 
-        tier_image = account_tier_images.get(tier) or base_tier_images.get(tier)
+        tier_image = self._get_tier_image(
+            account_tier_images=account_images.get(tier_type_image, {}),
+            base_tier_images=base_images.get(tier_type_image, {}),
+            today=today,
+            tier=tier
+        )
         if tier_image:
             filtered_images.append(tier_image)
 

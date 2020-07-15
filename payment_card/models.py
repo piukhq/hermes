@@ -5,13 +5,12 @@ from enum import IntEnum
 from bulk_update.helper import bulk_update
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, signals
+from django.dispatch import receiver
 from django.utils import timezone
 
 from common.models import Image
 from scheme.models import SchemeAccount
-from django.db.models import signals
-from django.dispatch import receiver
 
 
 class Issuer(models.Model):
@@ -39,13 +38,16 @@ def _update_payment_card_images(instance: PaymentCardImage) -> None:
     payment_card = instance.payment_card
     query = {
         'payment_card': payment_card,
-        'status': Image.PUBLISHED
+        'status': Image.PUBLISHED,
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
     }
-    formatted_images = {
-        img.image_type_code: img.ubiquity_format()
-        for img in PaymentCardImage.all_objects.filter(**query).all()
-        if img.image_type_code in [Image.HERO, Image.ICON, Image.ALT_HERO]
-    }
+    formatted_images = {}
+    # using PaymentCardImage.all_objects instead of payment_card.images to bypass ActivePaymentCardImageManager
+    for img in PaymentCardImage.all_objects.filter(**query).all():
+        if img.image_type_code not in formatted_images:
+            formatted_images[img.image_type_code] = {}
+
+        formatted_images[img.image_type_code][img.id] = img.ubiquity_format()
 
     payment_card.formatted_images = formatted_images
     payment_card.save(update_fields=['formatted_images'])
@@ -69,35 +71,35 @@ class PaymentCardAccountImage(Image):
                                                    blank=True)
 
 
-@receiver(signals.post_save, sender=PaymentCardAccountImage)
-def update_payment_card_account_images_on_save(sender, instance, created, **kwargs):
-    if instance.status == Image.DRAFT or instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+@receiver(signals.m2m_changed, sender=PaymentCardAccountImage.payment_card_accounts.through)
+def update_payment_card_account_images_on_save(sender, instance, action, **kwargs):
+    wrong_image_type = instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]
+    wrong_action = action != "post_add"
+    image_is_draft = instance.status == Image.DRAFT
+
+    if wrong_action or image_is_draft or wrong_image_type:
         return
 
-    accounts_to_update = []
-    formatted_image = {instance.image_type_code: instance.ubiquity_format()}
+    formatted_image = instance.ubiquity_format()
     for payment_card_account in instance.payment_card_accounts.all():
-        payment_card_account.formatted_images.update(formatted_image)
-        accounts_to_update.append(payment_card_account)
+        images_to_update = payment_card_account.formatted_images.get(instance.image_type_code, {})
+        images_to_update[instance.id] = formatted_image
+        payment_card_account.formatted_images[instance.image_type_code] = images_to_update
+        payment_card_account.save(update_fields=['formatted_images'])
 
-    PaymentCardAccount.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
 
-
-@receiver(signals.post_delete, sender=PaymentCardAccountImage)
+@receiver(signals.pre_delete, sender=PaymentCardAccountImage)
 def update_payment_card_account_images_on_delete(sender, instance, **kwargs):
     if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
         return
 
-    accounts_to_update = []
     for payment_card_account in instance.payment_card_accounts.all():
         try:
-            del payment_card_account.formatted_images[instance.image_type_code]
-        except ValueError:
+            del payment_card_account.formatted_images[str(instance.image_type_code)][str(instance.id)]
+        except (KeyError, TypeError):
             pass
         else:
-            accounts_to_update.append(payment_card_account)
-
-    PaymentCardAccount.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
+            payment_card_account.save(update_fields=['formatted_images'])
 
 
 class PaymentCard(models.Model):
@@ -299,12 +301,12 @@ class AuthTransaction(models.Model):
 
 
 class PaymentStatus(IntEnum):
-    PURCHASE_PENDING = 0       # Starting payment process but no purchase request has yet been made to Spreedly
-    PURCHASE_FAILED = 1        # Purchase request to Spreedly has failed
-    AUTHORISED = 2             # Purchase request to Spreedly was successful but Join is not complete
-    SUCCESSFUL = 3             # Purchase request to Spreedly was successful and Join is completed with active card
-    VOID_REQUIRED = 4          # Purchase request requires Voiding when Join fails
-    VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
+    PURCHASE_PENDING = 0  # Starting payment process but no purchase request has yet been made to Spreedly
+    PURCHASE_FAILED = 1  # Purchase request to Spreedly has failed
+    AUTHORISED = 2  # Purchase request to Spreedly was successful but Join is not complete
+    SUCCESSFUL = 3  # Purchase request to Spreedly was successful and Join is completed with active card
+    VOID_REQUIRED = 4  # Purchase request requires Voiding when Join fails
+    VOID_SUCCESSFUL = 5  # Successfully Voided a purchase
 
 
 def _generate_tx_ref() -> str:

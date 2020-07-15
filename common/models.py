@@ -86,7 +86,7 @@ class Image(models.Model):
         }
 
 
-def check_active_image(validity: dict, date: datetime) -> bool:
+def check_active_image(validity: dict, date: int) -> bool:
     start = validity.get('start_date')
     end = validity.get('end_date')
 

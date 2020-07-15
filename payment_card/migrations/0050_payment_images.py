@@ -38,14 +38,20 @@ def format_base_images(apps, schema_editor):
         'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
     }
 
+    payment_cards = []
     for payment_card in PaymentCard.objects.all():
-        formatted_images = {
-            img.image_type_code: _format_image_for_ubiquity(img)
-            for img in payment_card.images.filter(**query).all()
-        }
+        formatted_images = {}
+        # using PaymentCardImage.all_objects instead of payment_card.images to bypass ActivePaymentCardImageManager
+        for img in payment_card.images.filter(**query).all():
+            if img.image_type_code not in formatted_images:
+                formatted_images[img.image_type_code] = {}
+
+            formatted_images[img.image_type_code][img.id] = _format_image_for_ubiquity(img)
 
         payment_card.formatted_images = formatted_images
-        payment_card.save(update_fields=['formatted_images'])
+        payment_cards.append(payment_card)
+
+    PaymentCard.objects.bulk_update(payment_cards, ['formatted_images'])
 
 
 def format_account_images(apps, schema_editor):
@@ -58,13 +64,15 @@ def format_account_images(apps, schema_editor):
 
     accounts = {}
     for img in PaymentCardAccountImage.objects.filter(**query).all():
-        formatted_image = {img.image_type_code: _format_image_for_ubiquity(img)}
+        formatted_image = _format_image_for_ubiquity(img)
         for account in img.payment_card_accounts.all():
             if account.id in accounts:
-                accounts[account.id].formatted_images.update(formatted_image)
+                images_to_update = account.formatted_images.get(img.image_type_code, {})
+                images_to_update[img.id] = formatted_image
+                accounts[account.id].formatted_images[img.image_type_code] = images_to_update
             else:
-                account.formatted_images.update(formatted_image)
-                accounts.update({account.id: account})
+                account.formatted_images[img.image_type_code] = {img.id: formatted_image}
+                accounts[account.id] = account
 
     PaymentCardAccount.all_objects.bulk_update(list(accounts.values()), ['formatted_images'], batch_size=1000)
 

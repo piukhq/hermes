@@ -30,7 +30,7 @@ def revert_populate_pll_links(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('payment_card', '0050_auto_20200710_1416'),
+        ('payment_card', '0050_payment_images'),
     ]
 
     operations = [
