@@ -212,8 +212,8 @@ class AutoLinkOnCreationMixin:
                     cards_by_scheme_ids[scheme_id] = scheme_account_id
                     instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
 
-        if instances_to_bulk_create:
-            PaymentCardSchemeEntry.objects.bulk_create([link for link in instances_to_bulk_create.values()])
+        for link in instances_to_bulk_create.values():
+            link.save()
 
 
 class PaymentCardCreationMixin:
