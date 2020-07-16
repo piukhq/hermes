@@ -748,7 +748,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
-            self.replace_with_enrol_fields(request, account, enrol_fields, scheme)
+            self._replace_with_enrol_fields(request, account, enrol_fields, scheme)
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -770,7 +770,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
     @staticmethod
-    def replace_with_enrol_fields(req, account: SchemeAccount, enrol_fields: dict, scheme: Scheme):
+    def _replace_with_enrol_fields(req, account: SchemeAccount, enrol_fields: dict, scheme: Scheme):
         enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=enrol_fields,
