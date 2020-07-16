@@ -300,24 +300,24 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         """
         DO NOT USE - NOT FOR APP ACCESS
         """
-        id = request.data.get('id', None)
+        card_id = request.data.get('id', None)
         token = request.data.get('token', None)
 
-        if not (id or token):
+        if not (card_id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
 
         new_status_code = int(request.data['status'])
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
             raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
-        if id:
-            payment_card_account = get_object_or_404(PaymentCardAccount, id=int(id))
+        if card_id:
+            payment_card_account = get_object_or_404(PaymentCardAccount, id=int(card_id))
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
-            payment_card_account.save()
+            payment_card_account.save(update_fields=['status'])
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
