@@ -756,11 +756,19 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 permit=request.channels_permit,
                 scheme_id=account.scheme_id
             )
+
+            # Some schemes will provide a main answer during enrol, which should be saved
+            # e.g harvey nichols email
             required_questions = {question["type"] for question in scheme.get_required_questions}
-            answer_type = set(validated_data).intersection(required_questions).pop()
+            answer_types = set(validated_data).intersection(required_questions)
+            account.main_answer = ""
+            if answer_types:
+                if len(answer_types) > 1:
+                    raise ParseError("Only one type of main answer should be provided")
+                answer_type = answer_types.pop()
+                account.main_answer = validated_data[answer_type]
 
             account.schemeaccountcredentialanswer_set.all().delete()
-            account.main_answer = validated_data[answer_type]
             account.set_async_join_status()
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
