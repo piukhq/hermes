@@ -392,15 +392,22 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.send_to_intercom(new_status_code, scheme_account)
 
         scheme_account.status = new_status_code
-        scheme_account.save(update_fields=['status'])
+        scheme_account.save(update_fields=['status', 'main_answer'])
 
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
         if new_status_code != previous_status:
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
-            Payment.process_payment_success(scheme_account)
-        elif new_status_code not in pending_statuses:
-            Payment.process_payment_void(scheme_account)
+
+            # delete main answer credential if an async join failed
+            if (previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS
+                    and new_status_code != SchemeAccount.ACTIVE):
+                scheme_account.main_answer = ""
+
+            if new_status_code == SchemeAccount.ACTIVE:
+                Payment.process_payment_success(scheme_account)
+            elif new_status_code not in pending_statuses:
+                Payment.process_payment_void(scheme_account)
 
         return Response({
             'id': scheme_account.id,
