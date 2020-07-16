@@ -163,6 +163,15 @@ class TestResources(APITestCase):
             auth_field=True
         )
 
+        cls.wallet_only_scheme = SchemeFactory()
+        cls.wallet_only_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.wallet_only_scheme,
+                                                                   manual_question=True)
+        cls.scheme_bundle_association_put = SchemeBundleAssociationFactory(
+            scheme=cls.wallet_only_scheme,
+            bundle=cls.bundle,
+            status=SchemeBundleAssociation.ACTIVE
+        )
+
         cls.test_hades_transactions = [
             {
                 'id': 1,
@@ -523,6 +532,54 @@ class TestResources(APITestCase):
         self.assertDictEqual(resp.data, create_data)
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
+
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('analytics.api._get_today_datetime')
+    def test_link_user_to_existing_wallet_only_card(self, mock_date, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+
+        existing_answer_value = "1234554321"
+        existing_scheme_account = SchemeAccountFactory(scheme=self.wallet_only_scheme,
+                                                       card_number=existing_answer_value)
+        SchemeAccountCredentialAnswer(scheme_account=existing_scheme_account, question=self.wallet_only_question,
+                                      answer=existing_answer_value)
+        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
+
+        new_user = UserFactory(client=self.client_app, external_id="testexternalid")
+        headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(new_user))}
+        payload = {
+            "membership_plan": self.wallet_only_scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": self.wallet_only_question.label,
+                            "value": existing_answer_value
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **headers)
+        self.assertEqual(resp.status_code, 200)
+        card_id = resp.json()["id"]
+
+        user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account).values_list('user_id',
+                                                                                                           flat=True)
+        self.assertIn(self.user.id, user_links)
+        self.assertIn(new_user.id, user_links)
+
+        # check card is in get membership_cards response
+        resp = self.client.get(reverse('membership-cards'), content_type='application/json', **headers)
+        self.assertEqual(resp.status_code, 200)
+        card_ids = [card["id"] for card in resp.json()]
+        self.assertIn(card_id, card_ids)
 
     def test_membership_card_creation_consents(self):
         factory = RequestFactory()
