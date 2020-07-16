@@ -748,19 +748,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
-            enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
-            validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
-                data=enrol_fields,
-                scheme_account=account,
-                user=request.user,
-                permit=request.channels_permit,
-                scheme_id=account.scheme_id
-            )
-            account.schemeaccountcredentialanswer_set.all().delete()
-            account.main_answer = ""
-            account.set_async_join_status()
-            async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
-
+            self._replace_with_enrol_fields(request, account, enrol_fields, scheme)
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -780,6 +768,31 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             self.auto_link_to_payment_cards(request.user, account)
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _replace_with_enrol_fields(req, account: SchemeAccount, enrol_fields: dict, scheme: Scheme):
+        enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
+        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
+            data=enrol_fields,
+            scheme_account=account,
+            user=req.user,
+            permit=req.channels_permit,
+            scheme_id=account.scheme_id
+        )
+
+        # Some schemes will provide a main answer during enrol, which should be saved
+        # e.g harvey nichols email
+        required_questions = {question["type"] for question in scheme.get_required_questions}
+        answer_types = set(validated_data).intersection(required_questions)
+        account.main_answer = ""
+        if answer_types:
+            if len(answer_types) > 1:
+                raise ParseError("Only one type of main answer should be provided")
+            account.main_answer = validated_data[answer_types.pop()]
+
+        account.schemeaccountcredentialanswer_set.all().delete()
+        account.set_async_join_status()
+        async_join.delay(account.id, req.user.id, serializer, scheme.id, validated_data)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -953,6 +966,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
+
+        # Some schemes will provide a main answer during enrol, which should be saved
+        # e.g harvey nichols email
+        required_questions = {question["type"] for question in scheme.get_required_questions}
+        answer_types = set(enrol_fields).intersection(required_questions)
+        main_answer = ""
+        if answer_types:
+            if len(answer_types) > 1:
+                raise ParseError("Only one type of main answer should be provided")
+            main_answer = enrol_fields[answer_types.pop()]
+
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
             "fatface",
@@ -989,7 +1013,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account = SchemeAccount(
                 order=0,
                 scheme_id=scheme.id,
-                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
+                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+                main_answer=main_answer
             )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
