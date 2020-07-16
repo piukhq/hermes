@@ -799,14 +799,15 @@ class SchemeAccount(models.Model):
             balance, vouchers = self._update_cached_balance(cache_key)
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
-        if old_status != self.status:
+        status_update = old_status != self.status
+        if status_update:
             update_fields.append("status")
 
         if update_fields:
             self.save(update_fields=update_fields)
 
         # Update active_link status
-        if old_status != self.status:
+        if status_update:
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
