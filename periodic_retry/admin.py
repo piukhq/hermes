@@ -9,7 +9,7 @@ from .models import PeriodicRetry
 
 
 def add_visa_active_user(modeladmin, request, queryset):
-    payment_card_account = PaymentCardAccount.objects.filter(status=1, payment_card_account__slug='visa')
+    payment_card_account = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
     for visa_card in payment_card_account:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'payment_card.metis', "retry_enrol",
