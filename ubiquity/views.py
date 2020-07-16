@@ -765,8 +765,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if answer_types:
                 if len(answer_types) > 1:
                     raise ParseError("Only one type of main answer should be provided")
-                answer_type = answer_types.pop()
-                account.main_answer = validated_data[answer_type]
+                account.main_answer = validated_data[answer_types.pop()]
 
             account.schemeaccountcredentialanswer_set.all().delete()
             account.set_async_join_status()
@@ -965,8 +964,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                                   ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
 
+        # Some schemes will provide a main answer during enrol, which should be saved
+        # e.g harvey nichols email
         required_questions = {question["type"] for question in scheme.get_required_questions}
-        answer_type = set(enrol_fields).intersection(required_questions).pop()
+        answer_types = set(enrol_fields).intersection(required_questions)
+        main_answer = ""
+        if answer_types:
+            if len(answer_types) > 1:
+                raise ParseError("Only one type of main answer should be provided")
+            main_answer = enrol_fields[answer_types.pop()]
 
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
@@ -1005,7 +1011,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 order=0,
                 scheme_id=scheme.id,
                 status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-                main_answer=enrol_fields[answer_type]
+                main_answer=main_answer
             )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(

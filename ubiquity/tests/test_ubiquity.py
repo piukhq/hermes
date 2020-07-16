@@ -531,12 +531,6 @@ class TestResources(APITestCase):
             "membership_plan": self.scheme.id,
             "account":
                 {
-                    "add_fields": [
-                        {
-                            "column": "barcode",
-                            "value": "3038401022657083"
-                        }
-                    ],
                     "enrol_fields": [
                         {
                             "column": "last_name",
@@ -572,14 +566,60 @@ class TestResources(APITestCase):
 
         consents = view._extract_consent_data(scheme=self.scheme, field='enrol_fields', data=payload)
 
-        self.assertEqual(
-            payload['account']['enrol_fields'],
-            [{
-                "column": "last_name",
-                "value": "Test"
-            }]
-        )
         self.assertEqual(consents, {'consents': [{'id': consent.id, 'value': 'true'}]})
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_join', autospec=True)
+    @patch('payment_card.payment.get_secret_key', autospec=True)
+    def test_membership_card_enrol_with_main_answer(self, mock_secret, mock_async_join, mock_async_balance):
+        mock_secret.return_value = "test_secret"
+        external_id = "anothertest@user.com"
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
+
+        consent_label = "Consent 1"
+        consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
+
+        ThirdPartyConsentLink.objects.create(consent_label=consent_label,
+                                             client_app=self.client_app,
+                                             scheme=self.scheme,
+                                             consent=consent,
+                                             add_field=False,
+                                             auth_field=False,
+                                             register_field=True,
+                                             enrol_field=True)
+
+        main_answer = "1111111111111111111"
+
+        payload = {
+            "account": {
+                "enrol_fields": [
+                    {
+                        "column": BARCODE,
+                        "value": main_answer
+                    },
+                    {
+                        "column": LAST_NAME,
+                        "value": "New last name"
+                    },
+                    {
+                        "column": consent_label,
+                        "value": "True"
+                    },
+                ]
+            },
+            "membership_plan": self.scheme.id
+        }
+        response = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            **auth_headers
+        )
+
+        self.assertEqual(response.status_code, 201)
+        scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
+        self.assertEqual(scheme_account.main_answer, main_answer)
 
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api')
@@ -1572,6 +1612,65 @@ class TestResources(APITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
+        self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
+        self.assertTrue(mock_async_join.delay.called)
+        self.assertTrue(mock_async_balance.delay.called)
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_join', autospec=True)
+    @patch('payment_card.payment.get_secret_key', autospec=True)
+    def test_replace_mcard_with_enrol_fields_including_main_answer(
+            self, mock_secret, mock_async_join, mock_async_balance
+    ):
+        mock_secret.return_value = "test_secret"
+        self.scheme_account.status = SchemeAccount.ENROL_FAILED
+        self.scheme_account.save(update_fields=["status"])
+
+        consent_label = "Consent 1"
+        consent = ConsentFactory.create(scheme=self.scheme, journey=JourneyTypes.JOIN.value)
+
+        ThirdPartyConsentLink.objects.create(consent_label=consent_label,
+                                             client_app=self.client_app,
+                                             scheme=self.scheme,
+                                             consent=consent,
+                                             add_field=False,
+                                             auth_field=False,
+                                             register_field=True,
+                                             enrol_field=True)
+
+        main_answer = "1111111111111111111"
+
+        payload = {
+            "account": {
+                "enrol_fields": [
+                    {
+                        "column": BARCODE,
+                        "value": main_answer
+                    },
+                    {
+                        "column": LAST_NAME,
+                        "value": "New last name"
+                    },
+                    {
+                        "column": PAYMENT_CARD_HASH,
+                        "value": self.pcard_hash1
+                    },
+                    {
+                        "column": consent_label,
+                        "value": "True"
+                    },
+                ]
+            },
+            "membership_plan": self.scheme_account.scheme_id
+        }
+
+        resp = self.client.put(reverse('membership-card', args=[self.scheme_account.id]), data=json.dumps(payload),
+                               content_type='application/json', **self.auth_headers, **self.version_header)
+
+        self.assertEqual(resp.status_code, 200)
+        self.scheme_account.refresh_from_db()
+        self.assertEqual(self.scheme_account.main_answer, main_answer)
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
