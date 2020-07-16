@@ -31,7 +31,6 @@ if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
     from django.db.models import QuerySet
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -430,7 +429,7 @@ class UpdateCredentialsMixin:
     @staticmethod
     def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
         if questions is None:
-            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme)\
+            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme) \
                 .values("id", "type").all()
 
         serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
@@ -476,19 +475,13 @@ class UpdateCredentialsMixin:
 
     @staticmethod
     def card_with_same_data_already_exists(account: SchemeAccount, scheme_id: int, main_answer: str) -> bool:
-        query = {
-            'scheme_account__scheme_id': scheme_id,
-            'scheme_account__is_deleted': False,
-            'answer': main_answer
-        }
-        exclude = {
-            'scheme_account': account
-        }
-
-        if SchemeAccountCredentialAnswer.objects.filter(**query).exclude(**exclude).exists():
-            return True
-
-        return False
+        return SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account__scheme_id=scheme_id,
+            scheme_account__is_deleted=False,
+            answer=main_answer
+        ).exclude(
+            scheme_account=account
+        ).exists()
 
     @staticmethod
     def _get_new_answers(add_fields: dict, auth_fields: dict) -> t.Tuple[dict, str]:

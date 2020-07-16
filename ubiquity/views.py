@@ -17,11 +17,11 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError, API
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from rustyjeff import rsa_decrypt_base64
 from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
@@ -156,11 +156,11 @@ class AutoLinkOnCreationMixin:
             payment_card_to_link = payment_card_ids.difference(excluded)
             scheme_account_id = account.id
 
-            PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id,
-                                       payment_card_account_id=pcard_id).get_instance_with_active_status()
-                for pcard_id in payment_card_to_link
-            ])
+            for pcard_id in payment_card_to_link:
+                PaymentCardSchemeEntry(
+                    scheme_account_id=scheme_account_id,
+                    payment_card_account_id=pcard_id
+                ).get_instance_with_active_status().save()
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,
@@ -212,8 +212,8 @@ class AutoLinkOnCreationMixin:
                     cards_by_scheme_ids[scheme_id] = scheme_account_id
                     instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
 
-        if instances_to_bulk_create:
-            PaymentCardSchemeEntry.objects.bulk_create([link for link in instances_to_bulk_create.values()])
+        for link in instances_to_bulk_create.values():
+            link.save()
 
 
 class PaymentCardCreationMixin:
@@ -683,13 +683,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
-        if (
-            manual_question_type and manual_question_type in update_fields
-            and self.card_with_same_data_already_exists(
+        if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
                 account,
                 account.scheme_id,
                 update_fields[manual_question_type]
-            )
         ):
             account.status = account.FAILED_UPDATE
             account.save()
@@ -748,6 +745,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
+            enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
                 data=enrol_fields,
                 scheme_account=account,
@@ -761,6 +759,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
 
         else:
+            if auth_fields:
+                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
             if self.card_with_same_data_already_exists(account, scheme.id, main_answer):

@@ -733,12 +733,7 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        saved = self._received_balance_checks(old_status)
-        # Update active_link status
-        if self.status != old_status:
-            if not saved:
-                self.save(update_fields=['status'])
-            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
+        self._received_balance_checks(old_status)
         return points
 
     def _received_balance_checks(self, old_status):
@@ -752,8 +747,6 @@ class SchemeAccount(models.Model):
             queryset.all().delete()
 
         if self.status != SchemeAccount.PENDING:
-            self.save(update_fields=['status'])
-            saved = True
             self.call_analytics(self.user_set.all(), old_status)
         return saved
 
@@ -815,26 +808,38 @@ class SchemeAccount(models.Model):
         self._update_barcode(questions_ids)
         self.save(update_fields=['barcode', 'card_number'])
 
+    def check_balance_and_vouchers(self, balance=None, vouchers=None):
+        update_fields = []
+
+        if balance and balance != self.balances:
+            self.balances = balance
+            update_fields.append("balances")
+
+        if vouchers and vouchers != self.vouchers:
+            self.vouchers = vouchers
+            update_fields.append("vouchers")
+
+        return update_fields
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
+        old_status = self.status
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
 
         if not balance:
             balance, vouchers = self._update_cached_balance(cache_key)
 
-        needs_save = False
+        update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
+        if old_status != self.status:
+            update_fields.append("status")
 
-        if balance != self.balances and balance:
-            self.balances = balance
-            needs_save = True
+        if update_fields:
+            self.save(update_fields=update_fields)
 
-        if vouchers != self.vouchers and vouchers:
-            self.vouchers = vouchers
-            needs_save = True
-
-        if needs_save:
-            self.save(update_fields=['balances', 'vouchers'])
+        # Update active_link status
+        if old_status != self.status:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
 
