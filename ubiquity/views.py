@@ -683,14 +683,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
-        if (
-                manual_question_type and manual_question_type in update_fields
-                and self.card_with_same_data_already_exists(
+        card_with_same_data_already_exists = self.card_with_same_data_already_exists(
             account,
             account.scheme_id,
             update_fields[manual_question_type]
         )
-        ):
+
+        if manual_question_type and manual_question_type in update_fields and card_with_same_data_already_exists:
             account.status = account.FAILED_UPDATE
             account.save()
             return account
