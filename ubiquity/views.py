@@ -946,16 +946,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
         scheme_account.update_barcode_and_card_number(self.scheme_questions)
 
-        if auth_fields:
-            if account_created:
-                scheme_account.set_pending()
+        if account_created:
+            scheme_account.set_pending()
+            if auth_fields:
                 async_link.delay(auth_fields, scheme_account.id, user.id)
             else:
-                auth_fields = auth_fields or {}
-                self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+                async_add_field_only_link.delay(scheme_account.id)
         else:
-            scheme_account.set_pending()
-            async_add_field_only_link.delay(scheme_account.id)
+            auth_fields = auth_fields or {}
+            self._handle_existing_scheme_account(scheme_account, user, auth_fields)
 
         return scheme_account, return_status
 
