@@ -1,10 +1,11 @@
+import arrow
 from django.contrib import admin
 
-from .models import PeriodicRetry
 from payment_card.models import PaymentCardAccount
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+from .models import PeriodicRetry
 
 
 def add_visa_active_user(modeladmin, request, queryset):
@@ -24,7 +25,17 @@ add_visa_active_user.short_description = "Add Visa Enrolments"
 
 
 def enrol_visa_user(modeladmin, request, queryset):
-    queryset.update(status=0)
+    count = 0
+    for entry in queryset:
+        count += 1
+        update_time = arrow.utcnow().shift(seconds=int(count/5))
+
+        if entry.max_retry_attempts - entry.retry_count < 1:
+            entry.max_retry_attempts = entry.retry_count + 1
+
+        entry.next_retry_after = update_time.datetime
+        entry.status = 0
+        entry.save()
 
 
 enrol_visa_user.short_description = "Trigger Retry"
