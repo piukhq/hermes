@@ -374,7 +374,7 @@ def _update_scheme_images(instance: SchemeImage) -> None:
     }
     formatted_images = {}
     tier_images = {}
-    # needs to use SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
+    # using SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
     for img in SchemeImage.all_objects.filter(**query).all():
         formatted_img = img.ubiquity_format()
         if img.image_type_code == Image.TIER:
@@ -448,9 +448,9 @@ def update_scheme_account_images_on_delete(sender, instance, **kwargs):
     for scheme_account in instance.scheme_accounts.all():
         try:
             if instance.image_type_code == Image.TIER:
-                del scheme_account.formatted_images['tier_images'][instance.reward_tier][instance.id]
+                del scheme_account.formatted_images['tier_images'][str(instance.reward_tier)][str(instance.id)]
             else:
-                del scheme_account.formatted_images['images'][instance.image_type_code][instance.id]
+                del scheme_account.formatted_images['images'][str(instance.image_type_code)][str(instance.id)]
         except (KeyError, ValueError):
             pass
         else:
