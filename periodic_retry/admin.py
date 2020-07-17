@@ -37,12 +37,14 @@ def trigger_retry(modeladmin, request, queryset):
         count += 1
         update_time = arrow.utcnow().shift(seconds=int(count/5))
 
-        if entry.max_retry_attempts - entry.retry_count < 1:
-            entry.max_retry_attempts = entry.retry_count + 1
+        if entry.status != PeriodicRetryStatus.SUCCESSFUL:
+            # Never retry a successful response
+            if entry.max_retry_attempts - entry.retry_count < 1:
+                entry.max_retry_attempts = entry.retry_count + 1
 
-        entry.next_retry_after = update_time.datetime
-        entry.status = 0
-        entry.save()
+            entry.next_retry_after = update_time.datetime
+            entry.status = PeriodicRetryStatus.REQUIRED
+            entry.save()
 
 
 trigger_retry.short_description = "Trigger Retry"
