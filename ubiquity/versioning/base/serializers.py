@@ -13,7 +13,7 @@ from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from common.models import Image, check_active_image
+from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
@@ -493,48 +493,41 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
-    def _get_tier_image(account_tier_images: dict, base_tier_images: dict, today: int, tier: str) -> dict:
-        valid_account_tier_images = {
-            k: v['payload']
-            for k, v in account_tier_images.items()
-            if v and check_active_image(v.get('validity', {}), today)
-        }
-        valid_base_tier_images = {
-            k: v['payload']
-            for k, v in base_tier_images.items()
-            if v and check_active_image(v.get('validity', {}), today)
-        }
-        return valid_account_tier_images.get(tier) or valid_base_tier_images.get(tier)
+    def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
+        images = {}
+        for image_type in ['images', 'tier_images']:
+            valid_account_images = {
+                image_type: image['payload']
+                for image_type, images in account_images.get(image_type, {}).items()
+                for image in images.values()
+                if image and check_active_image(image.get('validity', {}), today)
+            }
+            valid_base_images = {
+                image_type: image['payload']
+                for image_type, images in base_images.get(image_type, {}).items()
+                for image in images.values()
+                if image and check_active_image(image.get('validity', {}), today)
+            }
+            images[image_type] = {
+                'valid_account_images': valid_account_images,
+                'valid_base_images': valid_base_images
+            }
+
+        return images.values()
 
     def _get_images(self, instance: 'SchemeAccount', tier: str) -> list:
         today = arrow.utcnow().datetime.timestamp()
-        tier_type_image = str(Image.TIER)
         account_images = instance.formatted_images
         base_images = instance.scheme.formatted_images
-
-        valid_account_images = {
-            k: v['payload']
-            for k, v in account_images.items()
-            if k != Image.TIER and check_active_image(v.get('validity', {}), today)
-        }
-
-        valid_base_images = {
-            k: v['payload']
-            for k, v in base_images.items()
-            if k != Image.TIER and check_active_image(v.get('validity', {}), today)
-        }
+        images, tier_images = self._filter_valid_images(account_images, base_images, today)
 
         filtered_images = [
-            valid_account_images.get(image_type, base_image)
-            for image_type, base_image in valid_base_images.items()
+            images['valid_account_images'].get(image_type, base_image)
+            for image_type, base_image in images['valid_base_images'].items()
         ]
 
-        tier_image = self._get_tier_image(
-            account_tier_images=account_images.get(tier_type_image, {}),
-            base_tier_images=base_images.get(tier_type_image, {}),
-            today=today,
-            tier=tier
-        )
+        tier_image = (tier_images['valid_account_images'].get(tier, None) or
+                      tier_images['valid_base_images'].get(tier, None))
         if tier_image:
             filtered_images.append(tier_image)
 
