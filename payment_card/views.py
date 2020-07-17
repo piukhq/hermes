@@ -323,6 +323,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 task.status = PeriodicRetryStatus.REQUIRED
                 task.save()
             elif response_state == "Failed":
+                task.results += [{"retry_message": response_message, "retry_status": response_status}]
                 task.status = PeriodicRetryStatus.FAILED
                 task.save()
             elif response_state == "Success":
@@ -388,9 +389,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 # make any soft links active for payment_card_account
                 PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account})
 
-            if response_state:
-                # Only metis agents which send a response state will be retried
-                self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
+        if response_state:
+            # Only metis agents which send a response state will be retried
+            self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
 
         return Response({
             'id': payment_card_account.id,
