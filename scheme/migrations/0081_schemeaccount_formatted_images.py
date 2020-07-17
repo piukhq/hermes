@@ -93,7 +93,7 @@ def revert_format_images(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0079_schemeaccount_pll_links'),
+        ('scheme', '0080_auto_20200716_1535'),
     ]
 
     operations = [
