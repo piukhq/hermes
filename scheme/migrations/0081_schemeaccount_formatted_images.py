@@ -38,19 +38,28 @@ def format_base_images(apps, schema_editor):
         'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
     }
 
+    schemes = []
     for scheme in Scheme.objects.all():
         formatted_images = {}
         tier_images = {}
+        # needs to use SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
         for img in scheme.images.filter(**query).all():
-            formatted_image = _format_image_for_ubiquity(img)
+            formatted_img = _format_image_for_ubiquity(img)
             if img.image_type_code == Image.TIER:
-                tier_images[img.reward_tier] = formatted_image
-            else:
-                formatted_images[img.image_type_code] = formatted_image
+                if img.reward_tier not in tier_images:
+                    tier_images[img.reward_tier] = {}
 
-        formatted_images[Image.TIER] = tier_images
-        scheme.formatted_images = formatted_images
-        scheme.save(update_fields=['formatted_images'])
+                tier_images[img.reward_tier][img.id] = formatted_img
+            else:
+                if img.image_type_code not in formatted_images:
+                    formatted_images[img.image_type_code] = {}
+
+                formatted_images[img.image_type_code][img.id] = formatted_img
+
+        scheme.formatted_images = {'images': formatted_images, 'tier_images': tier_images}
+        schemes.append(scheme)
+
+    Scheme.objects.bulk_update(schemes, ['formatted_images'])
 
 
 def format_account_images(apps, schema_editor):
@@ -63,26 +72,26 @@ def format_account_images(apps, schema_editor):
 
     accounts = {}
     for img in SchemeAccountImage.objects.filter(**query).all():
-        if img.image_type_code == Image.TIER:
-            formatted_image = {img.reward_tier: _format_image_for_ubiquity(img)}
-        else:
-            formatted_image = {img.image_type_code: _format_image_for_ubiquity(img)}
-
+        formatted_image = _format_image_for_ubiquity(img)
         for account in img.scheme_accounts.all():
-            if account.id in accounts:
-                update_account = accounts[account.id]
-                if img.image_type_code == Image.TIER:
-                    tier_images = update_account.formatted_images.get(Image.TIER, {})
-                    tier_images.update(formatted_image)
-                    update_account.update(tier_images)
-                else:
-                    update_account.formatted_images.update(formatted_image)
-            else:
-                if img.image_type_code == Image.TIER:
-                    formatted_image = {img.image_type_code: formatted_image}
+            if account.id not in accounts:
+                accounts[account.id] = account
 
-                account.formatted_images.update(formatted_image)
-                accounts.update({account.id: account})
+            scheme_account = accounts[account.id]
+            if img.image_type_code == Image.TIER:
+                account_tier_images = scheme_account.formatted_images.get('tier_images', {})
+                if img.reward_tier not in account_tier_images:
+                    account_tier_images[img.reward_tier] = {}
+
+                account_tier_images[img.reward_tier][img.id] = formatted_image
+                scheme_account.formatted_images.update({'tier_images': account_tier_images})
+            else:
+                account_images = scheme_account.formatted_images.get('images', {})
+                if img.image_type_code not in account_images:
+                    account_images[img.image_type_code] = {}
+
+                account_images[img.image_type_code][img.id] = formatted_image
+                scheme_account.formatted_images.update({'images': account_images})
 
     SchemeAccount.all_objects.bulk_update(list(accounts.values()), ['formatted_images'], batch_size=1000)
 

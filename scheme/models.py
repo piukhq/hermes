@@ -376,13 +376,19 @@ def _update_scheme_images(instance: SchemeImage) -> None:
     tier_images = {}
     # needs to use SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
     for img in SchemeImage.all_objects.filter(**query).all():
+        formatted_img = img.ubiquity_format()
         if img.image_type_code == Image.TIER:
-            tier_images[img.reward_tier] = img.ubiquity_format()
-        else:
-            formatted_images[img.image_type_code] = img.ubiquity_format()
+            if img.reward_tier not in tier_images:
+                tier_images[img.reward_tier] = {}
 
-    formatted_images[Image.TIER] = tier_images
-    scheme.formatted_images = formatted_images
+            tier_images[img.reward_tier][img.id] = formatted_img
+        else:
+            if img.image_type_code not in formatted_images:
+                formatted_images[img.image_type_code] = {}
+
+            formatted_images[img.image_type_code][img.id] = formatted_img
+
+    scheme.formatted_images = {'images': formatted_images, 'tier_images': tier_images}
     scheme.save(update_fields=['formatted_images'])
 
 
@@ -405,48 +411,50 @@ class SchemeAccountImage(Image):
         return self.description
 
 
-@receiver(signals.post_save, sender=SchemeAccountImage)
-def update_scheme_account_images_on_save(sender, instance, created, **kwargs):
-    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER] or \
-       instance.status == Image.DRAFT:
+@receiver(signals.m2m_changed, sender=SchemeAccountImage.scheme_accounts.through)
+def update_scheme_account_images_on_save(sender, instance, action, **kwargs):
+    wrong_image_type = instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
+    wrong_action = action != "post_add"
+    image_is_draft = instance.status == Image.DRAFT
+
+    if wrong_action or image_is_draft or wrong_image_type:
         return
 
-    accounts_to_update = []
-
+    formatted_image = instance.ubiquity_format()
     for scheme_account in instance.scheme_accounts.all():
         if instance.image_type_code == Image.TIER:
-            formatted_image = {instance.reward_tier: instance.ubiquity_format()}
-            tier_images = scheme_account.formatted_images.get(Image.TIER, {})
-            tier_images.update(formatted_image)
-            scheme_account.formatted_images.update(tier_images)
+            account_tier_images = scheme_account.formatted_images.get('tier_images', {})
+            if instance.reward_tier not in account_tier_images:
+                account_tier_images[instance.reward_tier] = {}
+
+            account_tier_images[instance.reward_tier][instance.id] = formatted_image
+            scheme_account.formatted_images.update({'tier_images': account_tier_images})
         else:
-            formatted_image = {instance.image_type_code: instance.ubiquity_format()}
-            scheme_account.formatted_images.update(formatted_image)
+            account_images = scheme_account.formatted_images.get('images', {})
+            if instance.image_type_code not in account_images:
+                account_images[instance.image_type_code] = {}
 
-        accounts_to_update.append(scheme_account)
+            account_images[instance.image_type_code][instance.id] = formatted_image
+            scheme_account.formatted_images.update({'images': account_images})
 
-    SchemeAccountImage.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
+        scheme_account.save(update_fields=['formatted_images'])
 
 
-@receiver(signals.post_delete, sender=SchemeAccountImage)
+@receiver(signals.pre_delete, sender=SchemeAccountImage)
 def update_scheme_account_images_on_delete(sender, instance, **kwargs):
-    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER] or \
-       instance.status == Image.DRAFT:
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]:
         return
 
-    accounts_to_update = []
     for scheme_account in instance.scheme_accounts.all():
         try:
             if instance.image_type_code == Image.TIER:
-                del scheme_account.formatted_images[instance.image_type_code][instance.reward_tier]
+                del scheme_account.formatted_images['tier_images'][instance.reward_tier][instance.id]
             else:
-                del scheme_account.formatted_images[instance.image_type_code]
+                del scheme_account.formatted_images['images'][instance.image_type_code][instance.id]
         except (KeyError, ValueError):
             pass
         else:
-            accounts_to_update.append(scheme_account)
-
-    SchemeAccountImage.all_objects.bulk_update(accounts_to_update, ['formatted_images'])
+            scheme_account.save(update_fields=['formatted_images'])
 
 
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
