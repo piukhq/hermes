@@ -81,14 +81,11 @@ class PaymentCardSchemeEntry(models.Model):
     @classmethod
     def update_active_link_status(cls, query):
         links = cls.objects.filter(**query)
-        bulk_update = []
         for link in links:
             current_state = link.active_link
             update_link = link.get_instance_with_active_status()
             if current_state != update_link.active_link:
-                bulk_update.append(update_link)
-        if bulk_update:
-            cls.objects.bulk_update(bulk_update, ['active_link'])
+                update_link.save(update_fields=['active_link'])
 
     @classmethod
     def update_soft_links(cls, query):

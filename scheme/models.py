@@ -505,10 +505,10 @@ class SchemeAccount(models.Model):
     JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD, REGISTRATION_FAILED, ENROL_FAILED,
                             ACCOUNT_ALREADY_EXISTS]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
-                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
+                            PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, GENERAL_ERROR,
+                            JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
     JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
@@ -529,10 +529,10 @@ class SchemeAccount(models.Model):
     # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
     vouchers = JSONField(default=dict, null=True, blank=True)
-    card_number = models.CharField(max_length=250, blank=True, default='')
-    barcode = models.CharField(max_length=250, blank=True, default='')
+    card_number = models.CharField(max_length=250, blank=True, db_index=True, default='')
+    barcode = models.CharField(max_length=250, blank=True, db_index=True, default='')
     transactions = JSONField(default=dict, null=True, blank=True)
-    main_answer = models.CharField(max_length=250, blank=True, default='')
+    main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
 
     @property
@@ -701,12 +701,7 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        saved = self._received_balance_checks(old_status)
-        # Update active_link status
-        if self.status != old_status:
-            if not saved:
-                self.save(update_fields=['status'])
-            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
+        self._received_balance_checks(old_status)
         return points
 
     def _received_balance_checks(self, old_status):
@@ -720,8 +715,6 @@ class SchemeAccount(models.Model):
             queryset.all().delete()
 
         if self.status != SchemeAccount.PENDING:
-            self.save(update_fields=['status'])
-            saved = True
             self.call_analytics(self.user_set.all(), old_status)
         return saved
 
@@ -783,26 +776,39 @@ class SchemeAccount(models.Model):
         self._update_barcode(questions_ids)
         self.save(update_fields=['barcode', 'card_number'])
 
+    def check_balance_and_vouchers(self, balance=None, vouchers=None):
+        update_fields = []
+
+        if balance and balance != self.balances:
+            self.balances = balance
+            update_fields.append("balances")
+
+        if vouchers and vouchers != self.vouchers:
+            self.vouchers = vouchers
+            update_fields.append("vouchers")
+
+        return update_fields
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
+        old_status = self.status
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
 
         if not balance:
             balance, vouchers = self._update_cached_balance(cache_key)
 
-        needs_save = False
+        update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
+        status_update = old_status != self.status
+        if status_update:
+            update_fields.append("status")
 
-        if balance != self.balances and balance:
-            self.balances = balance
-            needs_save = True
+        if update_fields:
+            self.save(update_fields=update_fields)
 
-        if vouchers != self.vouchers and vouchers:
-            self.vouchers = vouchers
-            needs_save = True
-
-        if needs_save:
-            self.save(update_fields=['balances', 'vouchers'])
+        # Update active_link status
+        if status_update:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
 
