@@ -8,7 +8,14 @@ from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 from .models import PeriodicRetry
 
 
-def add_visa_active_user(modeladmin, request, queryset):
+def caution_line_break(modeladmin, request, queryset):
+    pass
+
+
+caution_line_break.short_description = "--- Caution one time Data Migration:"
+
+
+def add_visa_enrolments(modeladmin, request, queryset):
     payment_card_account = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
     for visa_card in payment_card_account:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
@@ -21,10 +28,10 @@ def add_visa_active_user(modeladmin, request, queryset):
         )
 
 
-add_visa_active_user.short_description = "Add Visa Enrolments"
+add_visa_enrolments.short_description = "Add Visa Enrolments"
 
 
-def enrol_visa_user(modeladmin, request, queryset):
+def trigger_retry(modeladmin, request, queryset):
     count = 0
     for entry in queryset:
         count += 1
@@ -38,7 +45,7 @@ def enrol_visa_user(modeladmin, request, queryset):
         entry.save()
 
 
-enrol_visa_user.short_description = "Trigger Retry"
+trigger_retry.short_description = "Trigger Retry"
 
 
 def activate_visa_user(modeladmin, request, queryset):
@@ -51,14 +58,23 @@ def activate_visa_user(modeladmin, request, queryset):
             defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
         )
 
-        PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'ubiquity.tasks', "retry_activation",
-            context={"activation_id": vop_activation.id},
-            retry_kwargs={"max_retry_attempts": 1,
-                          "results": [{"caused_by": "migration script"}],
-                          "status": PeriodicRetryStatus.PENDING
-                          }
-        )
+        if created:
+            # If we have an activation record it implies the user has already migrated
+            # and should either have activated successfully or already have a retry entry
+            data = {
+                'payment_token': vop_activation.payment_card_account.psp_token,
+                'partner_slug': 'visa',
+                'merchant_slug': vop_activation.scheme.slug
+            }
+
+            PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+                'ubiquity.tasks', "retry_activation",
+                context={"activation_id": vop_activation.id, "post_data": data},
+                retry_kwargs={"max_retry_attempts": 1,
+                              "results": [{"caused_by": "migration script"}],
+                              "status": PeriodicRetryStatus.PENDING
+                              }
+            )
 
 
 activate_visa_user.short_description = "Add Visa Activations"
@@ -70,4 +86,4 @@ class PeriodicRetryAdmin(admin.ModelAdmin):
                     'created_on',)
     readonly_fields = ('created_on', 'modified_on',)
     search_fields = ('id', 'status', 'task_group', 'function', 'module',)
-    actions = [enrol_visa_user, add_visa_active_user, activate_visa_user]
+    actions = [trigger_retry, caution_line_break, add_visa_enrolments, activate_visa_user]
