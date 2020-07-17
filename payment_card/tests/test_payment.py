@@ -1,6 +1,8 @@
 from unittest.mock import patch, MagicMock
 
 import requests
+from django.conf import settings
+from django.urls import reverse
 from faker import Factory
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import BLAKE2sHash
@@ -11,8 +13,9 @@ from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
+from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.tests.factories import UserFactory, ClientApplicationFactory, OrganisationFactory
 
 TEST_HASH = "testhash"
@@ -35,7 +38,7 @@ class TestPayment(APITestCase):
     def setUp(self):
         fake = Factory.create()
         self.organisation = OrganisationFactory(name=fake.text(max_nb_chars=100))
-        self.client = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
+        self.client_app = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
         self.user = UserFactory()
         self.scheme_account = SchemeAccountFactory()
         test_hash = BLAKE2sHash().new(obj=TEST_HASH, key=TEST_SECRET)
@@ -448,3 +451,57 @@ class TestPayment(APITestCase):
         self.assertTrue(mock_void.called)
         self.assertTrue(mock_capture_message.called)
         self.assertEqual(mock_capture_message.call_count, 1)
+
+    @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    @patch.object(Payment, "process_payment_void")
+    @patch.object(Payment, "process_payment_success")
+    def test_successful_join_processes_successful_payment(
+            self, mock_payment_success, mock_payment_void, *_
+    ):
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        user_set = str(self.user.id)
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        data = {
+            'status': SchemeAccount.ACTIVE,
+            'journey': 'join',
+            'user_info': {'user_set': user_set}
+        }
+        response = self.client.post(reverse("change_account_status", args=[scheme_account.id]),
+                                    data, format='json', **auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertTrue(mock_payment_success.called)
+        self.assertFalse(mock_payment_void.called)
+
+    @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    @patch.object(Payment, "process_payment_void")
+    @patch.object(Payment, "process_payment_success")
+    def test_failed_join_voids_payment(
+            self, mock_payment_success, mock_payment_void, *_
+    ):
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+        user_set = str(self.user.id)
+
+        auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        data = {
+            'status': SchemeAccount.ENROL_FAILED,
+            'journey': 'join',
+            'user_info': {'user_set': user_set}
+        }
+        response = self.client.post(reverse("change_account_status", args=[scheme_account.id]),
+                                    data, format='json', **auth_headers)
+
+        self.assertEqual(response.status_code, 200)
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
+        self.assertTrue(mock_payment_void.called)
+        self.assertFalse(mock_payment_success.called)
