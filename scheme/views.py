@@ -390,10 +390,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         # method that sends data to Mnemosyne
         self.send_to_intercom(new_status_code, scheme_account)
-
-        scheme_account.status = new_status_code
-        scheme_account.save(update_fields=['status', 'main_answer'])
-
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
         if new_status_code != previous_status:
@@ -408,6 +404,9 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                 Payment.process_payment_success(scheme_account)
             elif new_status_code not in pending_statuses:
                 Payment.process_payment_void(scheme_account)
+
+        scheme_account.status = new_status_code
+        scheme_account.save(update_fields=['status', 'main_answer'])
 
         return Response({
             'id': scheme_account.id,
