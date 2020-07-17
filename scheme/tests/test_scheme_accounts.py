@@ -436,6 +436,35 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data, ['Invalid status code sent.'])
 
+    @patch('analytics.api.requests.post')
+    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
+    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
+    def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, mock_notify_rollback, *_):
+        client_app = ClientApplicationFactory(name='barclays')
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        user = UserFactory(client=client_app)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user)
+        user_set = str(user.id)
+
+        scheme_account.main_answer = "Somemainanswer"
+        scheme_account.save()
+
+        data = {
+            'status': SchemeAccount.ENROL_FAILED,
+            'journey': 'join',
+            'user_info': {'user_set': user_set}
+        }
+        response = self.client.post(reverse("change_account_status", args=[scheme_account.id]),
+                                    data, format='json', **self.auth_service_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['id'], scheme_account.id)
+        self.assertEqual(response.data['status'], SchemeAccount.ENROL_FAILED)
+
+        scheme_account.refresh_from_db()
+        self.assertEqual(scheme_account.main_answer, "")
+        self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
+        self.assertFalse(mock_notify_rollback.called)
+
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
     @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback, *_):
