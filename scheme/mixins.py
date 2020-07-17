@@ -346,6 +346,7 @@ class SchemeAccountJoinMixin:
             scheme_account.status = SchemeAccount.REGISTRATION_FAILED
         else:
             scheme_account.status = SchemeAccount.ENROL_FAILED
+            scheme_account.main_answer = ""
         scheme_account.save()
         sentry_sdk.capture_exception()
 
