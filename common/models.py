@@ -86,6 +86,9 @@ def check_active_image(validity: dict, date: int) -> bool:
     end = validity.get('end_date')
 
     if start is not None and start <= date:
-        return end is not None and date >= end
+        if end is not None and date >= end:
+            return False
+        else:
+            return True
     else:
         return False
