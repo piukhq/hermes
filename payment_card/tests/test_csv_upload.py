@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APITestCase
 
@@ -20,7 +22,9 @@ class TestCSVUpload(APITestCase):
 
         super(TestCSVUpload, cls).setUpClass()
 
-    def test_CSV_upload(self):
+    @patch.object(PaymentCardAccountImage, 'ubiquity_format')
+    def test_CSV_upload(self, ubiquity_format):
+        ubiquity_format.return_value = ''
         csv_file = SimpleUploadedFile("file.csv", content=bytes(self.user.email, "utf-8"), content_type="text/csv")
 
         self.client.post(

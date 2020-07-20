@@ -58,3 +58,37 @@ class Image(models.Model):
 
     class Meta:
         abstract = True
+
+    def ubiquity_format(self) -> dict:
+        try:
+            encoding = self.encoding or self.image.name.split('.')[-1].replace('/', '')
+        except (IndexError, AttributeError):
+            encoding = None
+
+        return {
+            'payload': {
+                'id': self.id,
+                'type': self.image_type_code,
+                'url': self.image.url,
+                'description': self.description,
+                'encoding': encoding,
+
+            },
+            'validity': {
+                'start_date': self.start_date.timestamp() if self.start_date else None,
+                'end_date': self.end_date.timestamp() if self.end_date else None
+            }
+        }
+
+
+def check_active_image(validity: dict, date: int) -> bool:
+    start = validity.get('start_date')
+    end = validity.get('end_date')
+
+    if start is not None and start <= date:
+        if end is not None and date >= end:
+            return False
+        else:
+            return True
+    else:
+        return False
