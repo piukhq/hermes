@@ -60,13 +60,10 @@ class Image(models.Model):
         abstract = True
 
     def ubiquity_format(self) -> dict:
-        if self.encoding:
-            encoding = self.encoding
-        else:
-            try:
-                encoding = self.image.name.split('.')[-1].replace('/', '')
-            except (IndexError, AttributeError):
-                encoding = None
+        try:
+            encoding = self.encoding or self.image.name.split('.')[-1].replace('/', '')
+        except (IndexError, AttributeError):
+            encoding = None
 
         return {
             'payload': {
@@ -89,9 +86,6 @@ def check_active_image(validity: dict, date: int) -> bool:
     end = validity.get('end_date')
 
     if start is not None and start <= date:
-        if end is not None and date >= end:
-            return False
-        else:
-            return True
+        return end is not None and date >= end
     else:
         return False

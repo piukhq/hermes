@@ -7,13 +7,10 @@ from common.models import Image
 
 
 def _format_image_for_ubiquity(img):
-    if img.encoding:
-        encoding = img.encoding
-    else:
-        try:
-            encoding = img.image.name.split('.')[-1].replace('/', '')
-        except (IndexError, AttributeError):
-            encoding = None
+    try:
+        encoding = img.encoding or img.image.name.split('.')[-1].replace('/', '')
+    except (IndexError, AttributeError):
+        encoding = None
 
     return {
         'payload': {
@@ -41,7 +38,6 @@ def format_base_images(apps, schema_editor):
     payment_cards = []
     for payment_card in PaymentCard.objects.all():
         formatted_images = {}
-        # using PaymentCardImage.all_objects instead of payment_card.images to bypass ActivePaymentCardImageManager
         for img in payment_card.images.filter(**query).all():
             if img.image_type_code not in formatted_images:
                 formatted_images[img.image_type_code] = {}

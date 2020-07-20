@@ -98,14 +98,14 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry):
     mcard_needs_update = False
     for i, link in enumerate(mcard.pll_links):
         if link['id'] == instance.payment_card_account_id:
-            mcard.pll_links.pop(i)
+            del mcard.pll_links[i]
             mcard_needs_update = True
 
     pcard = instance.payment_card_account
     pcard_needs_update = False
     for i, link in enumerate(pcard.pll_links):
         if link['id'] == instance.scheme_account_id:
-            pcard.pll_links.pop(i)
+            del pcard.pll_links[i]
             pcard_needs_update = True
 
     if mcard_needs_update:

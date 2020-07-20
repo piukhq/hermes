@@ -7,13 +7,10 @@ from common.models import Image
 
 
 def _format_image_for_ubiquity(img):
-    if img.encoding:
-        encoding = img.encoding
-    else:
-        try:
-            encoding = img.image.name.split('.')[-1].replace('/', '')
-        except (IndexError, AttributeError):
-            encoding = None
+    try:
+        encoding = img.encoding or img.image.name.split('.')[-1].replace('/', '')
+    except (IndexError, AttributeError):
+        encoding = None
 
     return {
         'payload': {
@@ -42,7 +39,6 @@ def format_base_images(apps, schema_editor):
     for scheme in Scheme.objects.all():
         formatted_images = {}
         tier_images = {}
-        # needs to use SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
         for img in scheme.images.filter(**query).all():
             formatted_img = _format_image_for_ubiquity(img)
             if img.image_type_code == Image.TIER:
