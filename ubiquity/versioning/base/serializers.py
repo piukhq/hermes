@@ -13,10 +13,9 @@ from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
-from common.models import Image
+from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
-from payment_card.serializers import (CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer,
-                                      get_images_for_payment_card_account)
+from payment_card.serializers import CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
@@ -127,29 +126,37 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
     month = serializers.IntegerField(source='expiry_month')
     token = None
 
-    @staticmethod
-    def get_membership_cards(obj):
-        return [
-            {'id': mcard_id, 'active_link': active_link}
-            for mcard_id, active_link in PaymentCardSchemeEntry.objects.filter(
-                payment_card_account=obj, active_link=True
-            ).values_list('scheme_account_id', 'active_link')
-        ]
-
     class Meta(PaymentCardAccountSerializer.Meta):
         exclude = ('psp_token', 'user_set', 'scheme_account_set')
         read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
 
     @staticmethod
-    def _get_images(instance):
-        return get_images_for_payment_card_account(instance, serializer_class=UbiquityImageSerializer,
-                                                   add_type=False)
+    def _get_images(instance: PaymentCardAccount):
+        today = arrow.utcnow().datetime.timestamp()
+        account_images = {
+            image_type: image['payload']
+            for image_type, images in instance.formatted_images.items()
+            for image in images.values()
+            if image and check_active_image(image.get('validity', {}), today)
+        }
+
+        base_images = {
+            image_type: image['payload']
+            for image_type, images in instance.payment_card.formatted_images.items()
+            for image in images.values()
+            if image and check_active_image(image.get('validity', {}), today)
+        }
+
+        return [
+            account_images.get(image_type, image)
+            for image_type, image in base_images.items()
+        ]
 
     def to_representation(self, instance):
         status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
         return {
             "id": instance.id,
-            "membership_cards": self.get_membership_cards(instance),
+            "membership_cards": instance.pll_links,
             "status": status,
             "card": {
                 "first_six_digits": str(instance.pan_start),
@@ -486,20 +493,44 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
-    def _filter_tier_images(tier, images: dict):
-        tier_type_image = str(Image.TIER)
-        filtered_images = [
-            image
-            for img_type, image in images.items()
-            if img_type != tier_type_image
-        ]
-        try:
-            tier_image = images[tier_type_image][str(tier)]
-        except KeyError:
-            tier_image = None
+    def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
+        images = {}
+        for image_type in ['images', 'tier_images']:
+            valid_account_images = {
+                image_type: image['payload']
+                for image_type, images in account_images.get(image_type, {}).items()
+                for image in images.values()
+                if image and check_active_image(image.get('validity', {}), today)
+            }
+            valid_base_images = {
+                image_type: image['payload']
+                for image_type, images in base_images.get(image_type, {}).items()
+                for image in images.values()
+                if image and check_active_image(image.get('validity', {}), today)
+            }
+            images[image_type] = {
+                'valid_account_images': valid_account_images,
+                'valid_base_images': valid_base_images
+            }
 
+        return images.values()
+
+    def _get_images(self, instance: 'SchemeAccount', tier: str) -> list:
+        today = arrow.utcnow().datetime.timestamp()
+        account_images = instance.formatted_images
+        base_images = instance.scheme.formatted_images
+        images, tier_images = self._filter_valid_images(account_images, base_images, today)
+
+        filtered_images = [
+            images['valid_account_images'].get(image_type, base_image)
+            for image_type, base_image in images['valid_base_images'].items()
+        ]
+
+        tier_image = (tier_images['valid_account_images'].get(tier, None) or
+                      tier_images['valid_base_images'].get(tier, None))
         if tier_image:
             filtered_images.append(tier_image)
+
         return filtered_images
 
     @staticmethod
@@ -534,9 +565,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
-            reward_tier = instance.balances[0]['reward_tier']
+            reward_tier = str(instance.balances[0]['reward_tier'])
         except (ValueError, KeyError):
-            reward_tier = 0
+            reward_tier = '0'
 
         try:
             current_scheme = self.context['view'].current_scheme
@@ -544,8 +575,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
-
-        images = self._filter_tier_images(reward_tier, scheme.formatted_images)
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -558,7 +587,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': images,
+            'images': self._get_images(instance, reward_tier),
             'account': {
                 'tier': reward_tier
             },
