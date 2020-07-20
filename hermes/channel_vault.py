@@ -7,11 +7,9 @@ import requests
 from django.conf import settings
 from requests.adapters import HTTPAdapter
 from rest_framework import exceptions
-from rest_framework.exceptions import ValidationError
 from shared_config_storage.vault.secrets import VaultError, read_vault
 from urllib3 import Retry
 
-from ubiquity.tests.jeff_mock import MockRetrySession
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +35,9 @@ class SecretKeyName(str, Enum):
     SPREEDLY_GATEWAY_TOKEN = "SPREEDLY_GATEWAY_TOKEN"
 
 
-class JeffDecryptionURL(str, Enum):
-    PAYMENT_CARD = settings.JEFF_URL + '/channel/{}/paymentcard'
-    MEMBERSHIP_CARD = settings.JEFF_URL + '/channel/{}/membershipcard'
+class KeyType(str, Enum):
+    PRIVATE_KEY = "private_key"
+    PUBLIC_KEY = "public_key"
 
 
 class ChannelVault:
@@ -57,7 +55,6 @@ class ChannelVault:
 
             if config['TESTING'] is False and 'migrate' not in sys.argv:
                 self._load_secrets()
-                self.load_secrets_in_jeff()
 
         except KeyError as e:
             logger.exception(f"Failed to initialize ChannelVault - Vault Exception {e}")
@@ -70,21 +67,6 @@ class ChannelVault:
     @property
     def secret_keys(self):
         return self.all_secrets["secret_keys"]
-
-    def load_secrets_in_jeff(self):
-        if not settings.JEFF_URL:
-            logger.warning('JEFF_URL not configured. Using MockJeffDecryption instead.')
-            return None
-
-        session = retry_session(backoff_factor=2.5)
-        base_url = settings.JEFF_URL + '/channel/{}/load'
-        for channel, value in self.all_secrets['bundle_secrets'].items():
-            if 'private_key' in value:
-                try:
-                    response = session.post(base_url.format(channel), json={'key': value['private_key']})
-                    response.raise_for_status()
-                except (requests.HTTPError, requests.RequestException) as e:
-                    raise VaultError(f"Failed to load secrets into Jeff - Vault Exception {e}") from e
 
     def _load_secrets(self):
         """
@@ -160,26 +142,3 @@ def get_secret_key(secret: str):
         err_msg = f"{e} not found in vault"
         logger.exception(err_msg)
         raise VaultError(err_msg)
-
-
-def decrypt_values_with_jeff(base_url: JeffDecryptionURL, bundle_id: str, values: dict) -> dict:
-    if settings.JEFF_URL:
-        session = retry_session()
-    else:
-        logger.warning('Currently using MockJeffDecryption instead of Jeff for decryption.')
-        session = MockRetrySession(get_key_func=get_key)
-
-    url = base_url.value.format(bundle_id)
-    try:
-        response = session.post(url, json=values)
-        # if jeff has been restarted we need to reload the keys
-        if response.status_code == 412:
-            channel_vault.load_secrets_in_jeff()
-            response = session.post(url, json=values)
-
-        response.raise_for_status()
-    except (requests.HTTPError, requests.RequestException) as e:
-        logger.exception(e)
-        raise ValidationError('failed decryption of sensitive fields.')
-
-    return response.json()

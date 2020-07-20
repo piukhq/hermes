@@ -6,7 +6,8 @@ from bulk_update.helper import bulk_update
 from common.models import Image
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import F, Q, signals
+from django.dispatch import receiver
 from django.utils import timezone
 from scheme.models import SchemeAccount
 
@@ -32,12 +33,72 @@ class PaymentCardImage(Image):
     payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images', on_delete=models.CASCADE)
 
 
+def _update_payment_card_images(instance: PaymentCardImage) -> None:
+    payment_card = instance.payment_card
+    query = {
+        'payment_card': payment_card,
+        'status': Image.PUBLISHED,
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
+    }
+    formatted_images = {}
+    # using PaymentCardImage.all_objects instead of payment_card.images to bypass ActivePaymentCardImageManager
+    for img in PaymentCardImage.all_objects.filter(**query).all():
+        if img.image_type_code not in formatted_images:
+            formatted_images[img.image_type_code] = {}
+
+        formatted_images[img.image_type_code][img.id] = img.ubiquity_format()
+
+    payment_card.formatted_images = formatted_images
+    payment_card.save(update_fields=['formatted_images'])
+
+
+@receiver(signals.post_save, sender=PaymentCardImage)
+def update_payment_card_images_on_save(sender, instance, created, **kwargs):
+    _update_payment_card_images(instance)
+
+
+@receiver(signals.post_delete, sender=PaymentCardImage)
+def update_payment_card_images_on_delete(sender, instance, **kwargs):
+    _update_payment_card_images(instance)
+
+
 class PaymentCardAccountImage(Image):
     objects = ActivePaymentCardImageManager()
     payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True, on_delete=models.SET_NULL)
     payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='payment_card_accounts_set',
+                                                   related_name='images',
                                                    blank=True)
+
+
+@receiver(signals.m2m_changed, sender=PaymentCardAccountImage.payment_card_accounts.through)
+def update_payment_card_account_images_on_save(sender, instance, action, **kwargs):
+    wrong_image_type = instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]
+    wrong_action = action != "post_add"
+    image_is_draft = instance.status == Image.DRAFT
+
+    if wrong_action or image_is_draft or wrong_image_type:
+        return
+
+    formatted_image = instance.ubiquity_format()
+    for payment_card_account in instance.payment_card_accounts.all():
+        images_to_update = payment_card_account.formatted_images.get(instance.image_type_code, {})
+        images_to_update[instance.id] = formatted_image
+        payment_card_account.formatted_images[instance.image_type_code] = images_to_update
+        payment_card_account.save(update_fields=['formatted_images'])
+
+
+@receiver(signals.pre_delete, sender=PaymentCardAccountImage)
+def update_payment_card_account_images_on_delete(sender, instance, **kwargs):
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO]:
+        return
+
+    for payment_card_account in instance.payment_card_accounts.all():
+        try:
+            del payment_card_account.formatted_images[str(instance.image_type_code)][str(instance.id)]
+        except (KeyError, TypeError):
+            pass
+        else:
+            payment_card_account.save(update_fields=['formatted_images'])
 
 
 class PaymentCard(models.Model):
@@ -101,6 +162,7 @@ class PaymentCard(models.Model):
     system = models.CharField(max_length=40, choices=SYSTEMS)
     type = models.CharField(max_length=40, choices=TYPES)
     token_method = models.IntegerField(default=TokenMethod.COPY, choices=TokenMethod.CHOICES)
+    formatted_images = JSONField(default=dict, blank=True)
 
     def __str__(self):
         return self.name
@@ -168,6 +230,8 @@ class PaymentCardAccount(models.Model):
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
     hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)
+    formatted_images = JSONField(default=dict, blank=True)
+    pll_links = JSONField(default=list)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()

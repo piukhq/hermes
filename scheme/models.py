@@ -15,7 +15,6 @@ from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
 from django.db import models
 from django.db.models import F, Q, signals
-from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
@@ -366,36 +365,30 @@ class SchemeImage(Image):
     scheme = models.ForeignKey('scheme.Scheme', related_name='images', on_delete=models.CASCADE)
 
 
-def _format_image_for_ubiquity(img: SchemeImage) -> dict:
-    if img.encoding:
-        encoding = img.encoding
-    else:
-        try:
-            encoding = img.image.name.split('.')[-1].replace('/', '')
-        except (IndexError, AttributeError):
-            encoding = None
-
-    return {
-        'id': img.id,
-        'type': img.image_type_code,
-        'url': img.image.url,
-        'description': img.description,
-        'encoding': encoding
-    }
-
-
 def _update_scheme_images(instance: SchemeImage) -> None:
     scheme = instance.scheme
+    query = {
+        'scheme': scheme,
+        'status': Image.PUBLISHED,
+        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
+    }
     formatted_images = {}
     tier_images = {}
-    for img in scheme.images.all():
-        if img.image_type_code in [Image.HERO, Image.ICON, Image.ALT_HERO]:
-            formatted_images[img.image_type_code] = _format_image_for_ubiquity(img)
-        elif img.image_type_code == Image.TIER:
-            tier_images[img.reward_tier] = _format_image_for_ubiquity(img)
+    # using SchemeImage.all_objects instead of scheme.images to bypass ActiveSchemeImageManager
+    for img in SchemeImage.all_objects.filter(**query).all():
+        formatted_img = img.ubiquity_format()
+        if img.image_type_code == Image.TIER:
+            if img.reward_tier not in tier_images:
+                tier_images[img.reward_tier] = {}
 
-    formatted_images[Image.TIER] = tier_images
-    scheme.formatted_images = formatted_images
+            tier_images[img.reward_tier][img.id] = formatted_img
+        else:
+            if img.image_type_code not in formatted_images:
+                formatted_images[img.image_type_code] = {}
+
+            formatted_images[img.image_type_code][img.id] = formatted_img
+
+    scheme.formatted_images = {'images': formatted_images, 'tier_images': tier_images}
     scheme.save(update_fields=['formatted_images'])
 
 
@@ -416,6 +409,52 @@ class SchemeAccountImage(Image):
 
     def __str__(self):
         return self.description
+
+
+@receiver(signals.m2m_changed, sender=SchemeAccountImage.scheme_accounts.through)
+def update_scheme_account_images_on_save(sender, instance, action, **kwargs):
+    wrong_image_type = instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
+    wrong_action = action != "post_add"
+    image_is_draft = instance.status == Image.DRAFT
+
+    if wrong_action or image_is_draft or wrong_image_type:
+        return
+
+    formatted_image = instance.ubiquity_format()
+    for scheme_account in instance.scheme_accounts.all():
+        if instance.image_type_code == Image.TIER:
+            account_tier_images = scheme_account.formatted_images.get('tier_images', {})
+            if instance.reward_tier not in account_tier_images:
+                account_tier_images[instance.reward_tier] = {}
+
+            account_tier_images[instance.reward_tier][instance.id] = formatted_image
+            scheme_account.formatted_images.update({'tier_images': account_tier_images})
+        else:
+            account_images = scheme_account.formatted_images.get('images', {})
+            if instance.image_type_code not in account_images:
+                account_images[instance.image_type_code] = {}
+
+            account_images[instance.image_type_code][instance.id] = formatted_image
+            scheme_account.formatted_images.update({'images': account_images})
+
+        scheme_account.save(update_fields=['formatted_images'])
+
+
+@receiver(signals.pre_delete, sender=SchemeAccountImage)
+def update_scheme_account_images_on_delete(sender, instance, **kwargs):
+    if instance.image_type_code not in [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]:
+        return
+
+    for scheme_account in instance.scheme_accounts.all():
+        try:
+            if instance.image_type_code == Image.TIER:
+                del scheme_account.formatted_images['tier_images'][str(instance.reward_tier)][str(instance.id)]
+            else:
+                del scheme_account.formatted_images['images'][str(instance.image_type_code)][str(instance.id)]
+        except (KeyError, ValueError):
+            pass
+        else:
+            scheme_account.save(update_fields=['formatted_images'])
 
 
 class ActiveSchemeIgnoreQuestionManager(BulkUpdateManager):
@@ -505,10 +544,10 @@ class SchemeAccount(models.Model):
     JOIN_ACTION_REQUIRED = [JOIN, CARD_NOT_REGISTERED, PRE_REGISTERED_CARD, REGISTRATION_FAILED, ENROL_FAILED,
                             ACCOUNT_ALREADY_EXISTS]
     USER_ACTION_REQUIRED = [INVALID_CREDENTIALS, INVALID_MFA, INCOMPLETE, LOCKED_BY_ENDSITE, VALIDATION_ERROR,
-                            PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, LINK_LIMIT_EXCEEDED,
-                            GENERAL_ERROR, JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
+                            PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, GENERAL_ERROR,
+                            JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED,
+                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
     JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
@@ -529,11 +568,12 @@ class SchemeAccount(models.Model):
     # ubiquity fields
     balances = JSONField(default=dict, null=True, blank=True)
     vouchers = JSONField(default=dict, null=True, blank=True)
-    card_number = models.CharField(max_length=250, blank=True, default='')
-    barcode = models.CharField(max_length=250, blank=True, default='')
+    card_number = models.CharField(max_length=250, blank=True, db_index=True, default='')
+    barcode = models.CharField(max_length=250, blank=True, db_index=True, default='')
     transactions = JSONField(default=dict, null=True, blank=True)
-    main_answer = models.CharField(max_length=250, blank=True, default='')
+    main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
+    formatted_images = JSONField(default=dict, null=True, blank=True)
 
     @property
     def status_name(self):
@@ -701,12 +741,7 @@ class SchemeAccount(models.Model):
         except ConnectionError:
             self.status = SchemeAccount.MIDAS_UNREACHABLE
 
-        saved = self._received_balance_checks(old_status)
-        # Update active_link status
-        if self.status != old_status:
-            if not saved:
-                self.save(update_fields=['status'])
-            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
+        self._received_balance_checks(old_status)
         return points
 
     def _received_balance_checks(self, old_status):
@@ -720,8 +755,6 @@ class SchemeAccount(models.Model):
             queryset.all().delete()
 
         if self.status != SchemeAccount.PENDING:
-            self.save(update_fields=['status'])
-            saved = True
             self.call_analytics(self.user_set.all(), old_status)
         return saved
 
@@ -783,26 +816,39 @@ class SchemeAccount(models.Model):
         self._update_barcode(questions_ids)
         self.save(update_fields=['barcode', 'card_number'])
 
+    def check_balance_and_vouchers(self, balance=None, vouchers=None):
+        update_fields = []
+
+        if balance and balance != self.balances:
+            self.balances = balance
+            update_fields.append("balances")
+
+        if vouchers and vouchers != self.vouchers:
+            self.vouchers = vouchers
+            update_fields.append("vouchers")
+
+        return update_fields
+
     def get_cached_balance(self, user_consents=None):
         cache_key = 'scheme_{}'.format(self.pk)
+        old_status = self.status
         balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
 
         if not balance:
             balance, vouchers = self._update_cached_balance(cache_key)
 
-        needs_save = False
+        update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
+        status_update = old_status != self.status
+        if status_update:
+            update_fields.append("status")
 
-        if balance != self.balances and balance:
-            self.balances = balance
-            needs_save = True
+        if update_fields:
+            self.save(update_fields=update_fields)
 
-        if vouchers != self.vouchers and vouchers:
-            self.vouchers = vouchers
-            needs_save = True
-
-        if needs_save:
-            self.save(update_fields=['balances', 'vouchers'])
+        # Update active_link status
+        if status_update:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
 
@@ -1185,7 +1231,7 @@ class SchemeAccountCredentialAnswer(models.Model):
         unique_together = ("scheme_account", "question")
 
 
-@receiver(pre_save, sender=SchemeAccountCredentialAnswer)
+@receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         try:

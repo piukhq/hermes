@@ -3,8 +3,9 @@ from typing import TYPE_CHECKING
 from rest_framework import serializers
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
+from rustyjeff import rsa_decrypt_base64
 
-from hermes.channel_vault import get_secret_key, SecretKeyName, decrypt_values_with_jeff, JeffDecryptionURL
+from hermes.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
 from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
@@ -62,8 +63,16 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         )
 
     def to_representation(self, data: dict) -> dict:
-        values_to_decrypt = {key: data[key] for key in self.FIELDS_TO_DECRYPT}
-        data.update(
-            decrypt_values_with_jeff(JeffDecryptionURL.PAYMENT_CARD, self.context['bundle_id'], values_to_decrypt)
+        values_to_decrypt = [data[key] for key in self.FIELDS_TO_DECRYPT]
+        rsa_key_pem = get_key(
+            bundle_id=self.context['bundle_id'],
+            key_type=KeyType.PRIVATE_KEY
         )
+
+        try:
+            decrypted_values = zip(self.FIELDS_TO_DECRYPT, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+        except ValueError as e:
+            raise ValueError("Failed to decrypt sensitive fields") from e
+
+        data.update(decrypted_values)
         return super().to_representation(data)

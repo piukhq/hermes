@@ -1,4 +1,3 @@
-import binascii
 import logging
 import re
 import typing as t
@@ -33,8 +32,6 @@ from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreati
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -157,11 +154,11 @@ class AutoLinkOnCreationMixin:
             payment_card_to_link = payment_card_ids.difference(excluded)
             scheme_account_id = account.id
 
-            PaymentCardSchemeEntry.objects.bulk_create([
-                PaymentCardSchemeEntry(scheme_account_id=scheme_account_id,
-                                       payment_card_account_id=pcard_id).get_instance_with_active_status()
-                for pcard_id in payment_card_to_link
-            ])
+            for pcard_id in payment_card_to_link:
+                PaymentCardSchemeEntry(
+                    scheme_account_id=scheme_account_id,
+                    payment_card_account_id=pcard_id
+                ).get_instance_with_active_status().save()
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,
@@ -213,8 +210,8 @@ class AutoLinkOnCreationMixin:
                     cards_by_scheme_ids[scheme_id] = scheme_account_id
                     instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
 
-        if instances_to_bulk_create:
-            PaymentCardSchemeEntry.objects.bulk_create([link for link in instances_to_bulk_create.values()])
+        for link in instances_to_bulk_create.values():
+            link.save()
 
 
 class PaymentCardCreationMixin:
@@ -604,7 +601,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         'PUT': LinkMembershipCardSerializer
     }
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
-    rsa_cipher = RSACipher()
 
     def get_queryset(self):
         query = {}
@@ -690,13 +686,14 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if question["manual_question"]:
                 manual_question_type = question["type"]
 
-        if manual_question_type and manual_question_type in update_fields:
-            if self.card_with_same_data_already_exists(
-                    account, account.scheme_id, update_fields[manual_question_type]
-            ):
-                account.status = account.FAILED_UPDATE
-                account.save()
-                return account
+        if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
+                account,
+                account.scheme_id,
+                update_fields[manual_question_type]
+        ):
+            account.status = account.FAILED_UPDATE
+            account.save()
+            return account
 
         self.update_credentials(account, update_fields, scheme_questions)
 
@@ -751,19 +748,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
-            validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
-                data=enrol_fields,
-                scheme_account=account,
-                user=request.user,
-                permit=request.channels_permit,
-                scheme_id=account.scheme_id
-            )
-            account.schemeaccountcredentialanswer_set.all().delete()
-            account.main_answer = ""
-            account.set_async_join_status()
-            async_join.delay(account.id, user_id, serializer, scheme.id, validated_data)
-
+            self._replace_with_enrol_fields(request, account, enrol_fields, scheme)
         else:
+            if auth_fields:
+                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
             if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
@@ -771,15 +760,39 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 account.save()
             else:
                 self.replace_credentials_and_scheme(account, new_answers, scheme)
-
-            account.set_pending()
-            async_balance.delay(account.id)
+                account.update_barcode_and_card_number()
+                account.set_pending()
+                async_balance.delay(account.id)
 
         if is_auto_link(request):
             self.auto_link_to_payment_cards(request.user, account)
 
-        account.update_barcode_and_card_number()
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _replace_with_enrol_fields(req, account: SchemeAccount, enrol_fields: dict, scheme: Scheme):
+        enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
+        validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
+            data=enrol_fields,
+            scheme_account=account,
+            user=req.user,
+            permit=req.channels_permit,
+            scheme_id=account.scheme_id
+        )
+
+        # Some schemes will provide a main answer during enrol, which should be saved
+        # e.g harvey nichols email
+        required_questions = {question["type"] for question in scheme.get_required_questions}
+        answer_types = set(validated_data).intersection(required_questions)
+        account.main_answer = ""
+        if answer_types:
+            if len(answer_types) > 1:
+                raise ParseError("Only one type of main answer should be provided")
+            account.main_answer = validated_data[answer_types.pop()]
+
+        account.schemeaccountcredentialanswer_set.all().delete()
+        account.set_async_join_status()
+        async_join.delay(account.id, req.user.id, serializer, scheme.id, validated_data)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -835,38 +848,32 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 field_type = label_to_type[item['column']]
                 self._filter_sensitive_fields(field_content, encrypted_fields, field_type, item, api_version)
 
+            if encrypted_fields:
+                field_content.update(
+                    self._decrypt_sensitive_fields(
+                        self.request.channels_permit.bundle_id,
+                        encrypted_fields
+                    )
+                )
         except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
 
-        if encrypted_fields:
-            field_content.update(
-                self._decrypt_sensitive_fields(
-                    self.request.channels_permit.bundle_id,
-                    encrypted_fields
-                )
-            )
-
         return field_content
 
     @staticmethod
-    def _decrypt_field(rsa_cipher: RSACipher, bundle_id: str, key_val: tuple):
-        rsa_key = get_key(
+    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
+        rsa_key_pem = get_key(
             bundle_id=bundle_id,
-            key_type="rsa_key"
+            key_type=KeyType.PRIVATE_KEY
         )
         try:
-            decrypted_val = rsa_cipher.decrypt(key_val[1], rsa_key=rsa_key)
-        except binascii.Error:
-            sentry_sdk.capture_exception()
-            raise ValidationError(f'field: [{key_val[0]}] is not encrypted correctly.')
+            decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+        except ValueError as e:
+            raise ValueError("Failed to decrypt sensitive feilds") from e
 
-        return decrypted_val
-
-    @staticmethod
-    def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
-        # TODO: jeff only supports password field for membership cards for now.
-        return decrypt_values_with_jeff(JeffDecryptionURL.MEMBERSHIP_CARD, bundle_id, fields)
+        fields.update(decrypted_values)
+        return fields
 
     @staticmethod
     def _filter_sensitive_fields(field_content: dict, encrypted_fields: dict, field_type: dict, item: dict,
@@ -945,16 +952,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
         scheme_account.update_barcode_and_card_number(self.scheme_questions)
 
-        if auth_fields:
-            if account_created:
-                scheme_account.set_pending()
+        if account_created:
+            scheme_account.set_pending()
+            if auth_fields:
                 async_link.delay(auth_fields, scheme_account.id, user.id)
             else:
-                auth_fields = auth_fields or {}
-                self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+                async_add_field_only_link.delay(scheme_account.id)
         else:
-            scheme_account.set_pending()
-            async_add_field_only_link.delay(scheme_account.id)
+            auth_fields = auth_fields or {}
+            self._handle_existing_scheme_account(scheme_account, user, auth_fields)
 
         return scheme_account, return_status
 
@@ -962,6 +968,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_join_route(user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
+
+        # Some schemes will provide a main answer during enrol, which should be saved
+        # e.g harvey nichols email
+        required_questions = {question["type"] for question in scheme.get_required_questions}
+        answer_types = set(enrol_fields).intersection(required_questions)
+        main_answer = ""
+        if answer_types:
+            if len(answer_types) > 1:
+                raise ParseError("Only one type of main answer should be provided")
+            main_answer = enrol_fields[answer_types.pop()]
+
         # PLR logic will be revisited before going live in other applications
         plr_slugs = [
             "fatface",
@@ -998,7 +1015,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account = SchemeAccount(
                 order=0,
                 scheme_id=scheme.id,
-                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS
+                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+                main_answer=main_answer
             )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
@@ -1062,7 +1080,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
-        except KeyError as e:
+        except (KeyError, ValueError) as e:
             logger.exception(e)
             raise ParseError()
 

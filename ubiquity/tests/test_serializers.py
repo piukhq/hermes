@@ -6,68 +6,63 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from hermes.channel_vault import SecretKeyName, channel_vault
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
-from ubiquity.tests.jeff_mock import MockRetrySession
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
 
-private_key = ('-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAA'
-               'AAAAAABAAACFwAAAAdzc2gtcn\nNhAAAAAwEAAQAAAgEAsaRcsffAfiNtg90N4nsNai+aebw310s3Ok4OR'
-               'W8/SUBMkBhnjxoW\nixdcOj50A8JyadrIKWhxIFKsVX5vJcYTGo7i//c/nwHl08HhtT7pPFzYOM7vaXl+b'
-               '/tacQ\n7YZP5VlGtem458J46F9iKGZGQm+9qV+RXGbr+BMCYb9panMJYIPUlDf8HOp0AqBZHXf9b0\n1YT'
-               'SnrZaAAVwKuTUwGd/8qs6C9IQxizNic9Kjurg5dsVQwqtmZhB8B92YPWLZ5DRMF5XVc\nmxsU1QdY9LbGT'
-               'Pqf7TXcg9mf85aKHSkP6BvqppG5L2ASnx/OQfARMUabgqkaJLfZg6kFu5\nn3hgwmO2GF7zUkqYqVs7RzK'
-               '61q8nyh3iM6AUgOPTXh10t63sN0sMF+zDllcJD62ZPLObAj\nS6kbAEVdY1vpy8NereKTrT5W+XAM3VYJr'
-               'MwUd3xo3KgnKe8W+lW8Qo2fWYVA898PoH8jdZ\nWJJDYgVB8O0ZCW6+i4uXc03lxDRSkMQpQInbBsvwS3f'
-               'fc9iUVJloGsb108pQCH/gwFVR0O\nmXSJjKsTMadrORiLHltrAuWCyZgYeV9Ikwd0FYTp2Aa4v19jQZSRN'
-               'iH21PPeOwR2p/9vpk\nxuty8XqYd1kLfJ0rueJsTDYOyxeSzd4MHY/iI895jJ4Diu5/7Vx2E882tLgEgQx'
-               'VdI4kFj\ncAAAdIeR8WnHkfFpwAAAAHc3NoLXJzYQAAAgEAsaRcsffAfiNtg90N4nsNai+aebw310s3\nO'
-               'k4ORW8/SUBMkBhnjxoWixdcOj50A8JyadrIKWhxIFKsVX5vJcYTGo7i//c/nwHl08HhtT\n7pPFzYOM7va'
-               'Xl+b/tacQ7YZP5VlGtem458J46F9iKGZGQm+9qV+RXGbr+BMCYb9panMJYI\nPUlDf8HOp0AqBZHXf9b01'
-               'YTSnrZaAAVwKuTUwGd/8qs6C9IQxizNic9Kjurg5dsVQwqtmZ\nhB8B92YPWLZ5DRMF5XVcmxsU1QdY9Lb'
-               'GTPqf7TXcg9mf85aKHSkP6BvqppG5L2ASnx/OQf\nARMUabgqkaJLfZg6kFu5n3hgwmO2GF7zUkqYqVs7R'
-               'zK61q8nyh3iM6AUgOPTXh10t63sN0\nsMF+zDllcJD62ZPLObAjS6kbAEVdY1vpy8NereKTrT5W+XAM3VY'
-               'JrMwUd3xo3KgnKe8W+l\nW8Qo2fWYVA898PoH8jdZWJJDYgVB8O0ZCW6+i4uXc03lxDRSkMQpQInbBsvwS'
-               '3ffc9iUVJ\nloGsb108pQCH/gwFVR0OmXSJjKsTMadrORiLHltrAuWCyZgYeV9Ikwd0FYTp2Aa4v19jQZ\n'
-               'SRNiH21PPeOwR2p/9vpkxuty8XqYd1kLfJ0rueJsTDYOyxeSzd4MHY/iI895jJ4Diu5/7V\nx2E882tLgE'
-               'gQxVdI4kFjcAAAADAQABAAACAQCH+PtK7gzVgGCvcmDSXsYh5VYkoEFN9jDL\n3DtoQoL6mtD/6u45xwpC'
-               'ZRsfKfa7efcBt4lGyL7ustleh2ykST0OMxjmPGbiWx2EPP97MD\nBvF9IZiawP3AM/y/GqYGaax2LSPG0q'
-               'PKIj1SANCtg7t71vQh1Rj61X0BYeuMzmruJCelTM\nNGwKOlroAmEn6j49iFfXp9dfzMyO/5qf+pAuxgpV'
-               'wWKo8Z4NUvXw6k5znq2Ow2c+7cl7q+\nOs3ShLhyexmlPE5jGLZNsyj69qjMh6q5+Yy4kWW9NrMMTMpjD6'
-               '8xR00ROrG45ZzbWAkUx6\nEhSp52IOH2ARPph1LwCiZA4MPS5/qf1J47Dg/lAd+GfJz+7tg1wsUTNDaEVS'
-               'hNpJRuKqbj\n3ECFLcM1knSZcAqj1D8+meBI0Fw4oe1tfH6PesYmTPlCgpNb/ra94T1acrWm1T0wopWA6V'
-               '\nY6XJ9va+mYXqM5Ly+LUG+lXZSo4Hhyys8HQ7FfNcepEKU9H1MhcR5w+oxPutkeyE3+28T9\nE5FoDI2p'
-               'eBhbyGGMklbB9uuAeCTYsK0COkDWZt+gYKIv2PHXVTJxcd2TbGsXG301GfRueT\nT9JwyCheI0W7l30doM'
-               'YxpCNVlknHNJ790GBERgKvghY9jc1E1T1IQG+elfgRbUiI+uM7Yg\nrikwMaRN7/oSRFI+b5oQAAAQBtmh'
-               '+H734PeSEynYqipJ8F+V0+r20Hcf9KFP/HSjzhPPNH\nbXxW0wKKCYk4lNG5nV2TVaJdgkzQxuVr6/foQU'
-               'vITzsEIerIzeQec8xtPS2CnBvi8xyhZu\nUU/qLJISAymEfbqOn4Hu+Bej+TVWZcAPzQeHEXQh3vvY5gAx'
-               'gxiAzaJI0G5+8jmU7OzGpE\nIipYmOPavSnJZN6jl10DEfwUQxST66QN6G8vSDpmCPXpujBgm8hgNBw9yJ'
-               'Kq0zA6ZMpIdr\n7WJJ8m3xVyM0AVLbiWrFEOxQUvbyZviVmg3aeOmktYci7S9AhhTVwS4iTT7BGq5gdxZ4'
-               'Xt\nh2a8y8Cb9n0lftjNAAABAQDimmtzuW9DDrNulg9If3nYsRthemCE/mtEiR3dby85rnxQsY\nXYLOgx'
-               '11mrGNG3xTrWq4MxxJGjHeRyg65hLfdTfoQXI5FSv8IbT4GptOrL0rHHZp15ARE5\nh+gZDuiBwxt7+/8K'
-               '8EouhCeWzWDr2JfvqcrBl9UbNxrma+FBpVCxHYLVKzfGzwE5ZFjIxX\nWSz1YnVlKJDlY+NWilW1Ln2B/3'
-               '94j+J7rqAGX9wlZ7r0TdEvqPK3o00TE7G8yA9dIFHuje\nyEt5p63tBDg88jpg6OJ0wTmMVg7rsvdsUC4A'
-               'iVp7aG4d8c/u1v3TyWiM6VGQ4F8OGpExvg\nsRkDcQXz81l37VAAABAQDIr+xTUPHLqQ30vPeeN89UboTq'
-               'pTUnPk54bHpaF9EhtysvMWqL\n8BWWbO/I+Sp104FG07fL3DrfFqjVioZ5nn1dEls0woBoEjlZ3gBV9xqu'
-               'Vy2KHaV694o0o/\nBWwVW0hbgITSntu4xvo3ajQG40tdckZcGgOEVrosC9sJ00UczxljSH3uI1evWxESof'
-               'C1zK\nhADENYgqNVJY44tcrF77j0tOQbtamyl6BLDA/9xrotSECGVH0ekWEh9dhXS3CxSgiJLUs4\nmoAh'
-               '0wW/oHwHlCZQVHCxU6B56Qt/SApfWk97GLMBi9tCDawHuBdivBcNM4xtGpog33HeuQ\nZtWRYsDZBz7bAA'
-               'AADXRlc3RAYmluay5jb20BAgMEBQ==\n-----END OPENSSH PRIVATE KEY-----')
+private_key = (
+    '-----BEGIN RSA PRIVATE KEY-----\nMIIJJwIBAAKCAgEAr4Exi9NZlKwjFn8G6tapAGjEvn/E77Nbq0UZfiGFfsf3O'
+    '9Qu\ndno8l8iuqUMIq2LZLFntijNgp7gu2jeRaeF3+ti0D7D+vp9XqNO4bWHi7DhBsSzO\nD6do3qn5q1iw9fNLcVwDFM4'
+    'PVqFn6bl1CkmIcQLEVeLWBeK5/UWXoPM5XI+gwQNJ\nAc9wMlayw4o0ohCi25vqyOlcXL5yi/S9kpnyh0f8rPp3i7KG3F2'
+    'izKNexiHouW7t\nuzTAhXUk85NHFLB/UyZwKeirBmaJnqk6SwVZrtsle0ixXwVVF4lLoJmtNRRzYOFp\nMtEbnKqtYFsVy'
+    'a3T6ZokdPdw/8VjsrSVnjHeW133oKmzxvmNqFVTRr1+uQNYNoxz\nd5HlSR2ttotYS+/TrH4XVV50lJzaEjZZuTbvGUn31'
+    'vlr1aAeemEC7dmUF+DjGgPA\noYBfgtnCg1h7qEGhVN3k4RvAX+7kPuwcefQ7pVxFg4RDJxf9bT2Ev6ldKLeDDe7A\nuTV'
+    'HJyAQaW1XHbE32Mz4Rhaz/CCReuLZzJJT9CD6YiZcRkVso0DL5wGkoz3kAUE5\nTXzbQ7z7ot4yruBO1JcirUQHdKjTXWz'
+    'b1v0SvmJIr+urYXTV3D3ejE62ym8u8P9K\njrit4ULSerafjCg+pxXk1H5M76hdbqh9nUBjLtIpjxeiT/XDBoMUiicmbr8'
+    'CAwEA\nAQKCAgAgHdtMRDP7cfjF0B8a8IdizMlcNxN57e+TiwScQVQlnEBREYYjJkFaYV4d\nGWhHvMITTK2cgcRpTNo+E'
+    'rcokhsbq3Zf/LrRdWVcPspcMfKN2cmju5hF4xPc02we\nAA/6IjinGPhzYTYLW2QhsE+Lv2MZkzEMqoMR9qikgYy65meT2'
+    'bDIQWqlyykz/Quf\nnvX8xmCXIZQ4igPd8PgTRok+f6+TNAg4O2mPBe+J+hSlsCvSxDfLX1Jf1Mp6YbKO\nZGA4mAfk1n7'
+    'mHG7XsAH1J/DD88mypuXYBrh2tAobUYOmcxjwQrrOetF+fCe6Zr1t\niZ2WF5pVAGE1imaCV8Pj2woaNfQDpKmY51Bgn+v'
+    '3bOs0QV4JBl8Tw5Bn6ocn/I8w\nn0kAxB/FmSwJbqOXgY5yZIlIJQdrEabahh/8n72HETH/I+iDXgAYFTH2yQe8ZfCD\nL'
+    'ySqd2uaauDYhTue3FaIvkdYmSa2brMpVkmoTZSGoHwrMxaddYXPfFL779IjP7/9\nDGNuWuQen0LgJMCRH1zJWF+aJojrd'
+    'uMwy0WImh/KxmcjfOiTgg5DgV1gbkcVfjYP\n1YrW2BRHSKvwB+U9i4UE+HmK0ztIA50+U9SHOXpOsWkSJfrjCKVPR4uLV'
+    'PseboW8\n1UYuSWX39LSYhTNNFBs3XxwW+Mn069ReiXi05Vo73qA/asDp6QKCAQEA3aMTVaOo\nl8Vli3rdSU8cK3UtkUO'
+    '3bA3oRzVLizUIIiMnY0ifK5OWMpk1nv/MGw3DWXKoLUYW\nRJxkq5n/QpgmCEmIQHyuOT+auZCdQW/4+NmwdubtB8l+8AD'
+    'L5vh14633zw5UH+JV\neb7zXGBeUQQ4W8GeIm85nkcNWOuiBvR8vL3aPG/K5mSMARxfNR4IYFjI3z0vlMNX\nZcEUqhIpw'
+    'kVVbyc1bibp0v7Q5vfqh4O9EhqKxj0eULPehWmphxTKakgGHFswR6Bs\nuOno55r/8Orv9mG3tN6jPxq43gpJkzhZvuhIk'
+    'EunnndwKcr953YBnACdETm/gkRC\nm1TSC1votYgJgwKCAQEAyrcX7a69kot173bsCQCqN+tbZ6mEnadW2qEI/e0AtgFt\n'
+    'J+vr04bY8zV8R4Zlcyavog4G4ZxDv/VKx7kkbQaXIwtMRqtJIXWkw/C6O1YwmGB1\ny0/DaG03ydtr6npXQonjJF+tYv2n'
+    'sKBdCoO9FXQkoZ1XP2Ip9Ghv+X5JPQHEXFs5\nYqv4eZ4vbOFsQW0TG5EJqaLoBPbg675SdBrCF4+fNPeicWVi1qIzaU9Y'
+    '44Isl/DO\neyrU8mchO4r93xtQ3Qe9/v184reUBCT7mpNOOkwpocyxFhtXlIDrcBH/glPYfZxE\n5H1rw20yUho7bN/yHd'
+    'Kem78HJmKtJYLyxLENTdYNFQKCAQBaE2vJM2FShWQ2orGK\nmL8/Hjltv1KtdJ2BSzSvl9b9YMIiRKKD6FBzsfar7xP5rs'
+    'dE9CdLdx+XtOPpJgYq\n/4D9fz0D0GhSVfpBDngK30IViQuB12pf7tFLI1e7QCFRbiO3oAAqkSbh+uwXEAdk\n780j5XWq'
+    'Uv/cxs2y5NkN8JE9d/9Y7qpMpnKMBQbgpJsM5SiGKezLjfRYI3eNgyI7\nlUgai5nYcbI4EV2/cOR9PNo7oFPkK3TFocR+'
+    '/ilq/9UgCrOJFLpzccyd/lqsvj7k\nn+b0gFRUCuPXwrl9bDrovU8kGm1bT5QJAEuygJBeYIRY7ZroJEsj2zAixv8ypKDY'
+    '\nHjiXAoIBAGeJZqZWRqsPoffh9KKQfWA8TJ5AneRr8NePwmj3YRKU3eyy+es7B5oI\n6mYZxb0vuCr8IRWgW5YysbQa4v'
+    'jwkccrYRUDLUHytWoCjQv7dKyPL/rczYCLsB/g\ne1jyjZkFlkcguw1BYyG6dmsFaFEJ1h/ZnhNYjvcvVGnIz51iRqmpSk'
+    'EUdr+fRLfG\n1yT/ke/Vf2ruMrU+ZxjhR3nXpOSlzXofNQ/X6ciYZcvW5B6ngSFFtCCCeusoM3gX\nAJ2wdPe/mZIgZGXj'
+    'v6zyOrPzotPxzJ3AT35sDqphwl6mQquNKZjWdPWC/cR+BGKc\n1VdBdoc26R3BTuSTJ75uCJLfn1zvBBUCggEAFB/rtevJ'
+    'gxy8PFR3gsxDZ/riULOP\nb82x9GKu97loKIyC35ry5IQLGi42F28jGOHqDcRi+2wwYdJwIbfmku4+VOhpLVkZ\nko90qz'
+    '8YoTx8JSacU2nOn9q+hARH+NZNzWsfug7//WYOIialRjKevHL1XZEG6pqi\n5KEwABBDkTWUFc4UMeHm2A8ptpvVR5bHsh'
+    '2jntdtx+pI9NlayftxUQuuSff+LAST\nxA6j6PnkpnyK886MgDwXnT5WzLos6k+uoDVtqTgGz57eltaTeOLacHyNhAiHwC'
+    'lQ\nfstd3HfzpQW4Vde0qPGmWY5LlkMt8gBu7yJsCL0M0abDl2JQgyHCkNBO6Q==\n-----END RSA PRIVATE KEY-----'
+)
 
 mock_secrets = {
     'bundle_secrets': {
         'com.barclays.test': {
             'private_key': private_key,
             'public_key': (
-                'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxpFyx98B+I22D3Q3iew1qL5p5vDfXSzc6Tg5Fbz9JQEy'
-                'QGGePGhaLF1w6PnQDwnJp2sgpaHEgUqxVfm8lxhMajuL/9z+fAeXTweG1Puk8XNg4zu9peX5v+1pxDthk/l'
-                'WUa16bjnwnjoX2IoZkZCb72pX5FcZuv4EwJhv2lqcwlgg9SUN/wc6nQCoFkdd/1vTVhNKetloABXAq5NTAZ'
-                '3/yqzoL0hDGLM2Jz0qO6uDl2xVDCq2ZmEHwH3Zg9YtnkNEwXldVybGxTVB1j0tsZM+p/tNdyD2Z/zloodKQ'
-                '/oG+qmkbkvYBKfH85B8BExRpuCqRokt9mDqQW7mfeGDCY7YYXvNSSpipWztHMrrWryfKHeIzoBSA49NeHXS'
-                '3rew3SwwX7MOWVwkPrZk8s5sCNLqRsARV1jW+nLw16t4pOtPlb5cAzdVgmszBR3fGjcqCcp7xb6VbxCjZ9Z'
-                'hUDz3w+gfyN1lYkkNiBUHw7RkJbr6Li5dzTeXENFKQxClAidsGy/BLd99z2JRUmWgaxvXTylAIf+DAVVHQ6'
-                'ZdImMqxMxp2s5GIseW2sC5YLJmBh5X0iTB3QVhOnYBri/X2NBlJE2IfbU8947BHan/2+mTG63Lxeph3WQt8'
-                'nSu54mxMNg7LF5LN3gwdj+Ijz3mMngOK7n/tXHYTzza0uASBDFV0jiQWNw== test@bink.com')
+                'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCvgTGL01mUrCMWfwbq1qkAaMS+f8Tvs1urRRl+IYV+x/c'
+                '71C52ejyXyK6pQwirYtksWe2KM2CnuC7aN5Fp4Xf62LQPsP6+n1eo07htYeLsOEGxLM4Pp2jeqfmrWLD180'
+                'txXAMUzg9WoWfpuXUKSYhxAsRV4tYF4rn9RZeg8zlcj6DBA0kBz3AyVrLDijSiEKLbm+rI6VxcvnKL9L2Sm'
+                'fKHR/ys+neLsobcXaLMo17GIei5bu27NMCFdSTzk0cUsH9TJnAp6KsGZomeqTpLBVmu2yV7SLFfBVUXiUug'
+                'ma01FHNg4Wky0Rucqq1gWxXJrdPpmiR093D/xWOytJWeMd5bXfegqbPG+Y2oVVNGvX65A1g2jHN3keVJHa2'
+                '2i1hL79OsfhdVXnSUnNoSNlm5Nu8ZSffW+WvVoB56YQLt2ZQX4OMaA8ChgF+C2cKDWHuoQaFU3eThG8Bf7u'
+                'Q+7Bx59DulXEWDhEMnF/1tPYS/qV0ot4MN7sC5NUcnIBBpbVcdsTfYzPhGFrP8IJF64tnMklP0IPpiJlxGR'
+                'WyjQMvnAaSjPeQBQTlNfNtDvPui3jKu4E7UlyKtRAd0qNNdbNvW/RK+Ykiv66thdNXcPd6MTrbKby7w/0qO'
+                'uK3hQtJ6tp+MKD6nFeTUfkzvqF1uqH2dQGMu0imPF6JP9cMGgxSKJyZuvw== test@bink.com'
+            )
         }
     },
     'secret_keys': {
@@ -92,7 +87,6 @@ class TestSerializersV1_2(APITestCase):
         pass
 
     @patch.object(channel_vault, 'all_secrets', mock_secrets)
-    @patch('hermes.channel_vault.retry_session', MockRetrySession)
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
         hash1 = 'hash1'
@@ -126,3 +120,41 @@ class TestSerializersV1_2(APITestCase):
         serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
 
         self.assertTrue(expected_data.items() < serialized_data.items())
+
+    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    def test_payment_card_translation_serializer_raises_error_for_incorrect_encryption(self):
+        serializer = PaymentCardTranslationSerializerV1_2
+        hash1 = 'hash1'
+        data = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'hash': 'aGFzaDE=',
+            'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
+            'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
+            'month': self.rsa.encrypt(12, pub_key=self.pub_key),
+            'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
+        }
+
+        # Test base64 encoded but the value is not encrypted
+        with self.assertRaises(ValueError) as e:
+            serializer(data, context={'bundle_id': self.bundle_id}).data
+
+        self.assertEqual(e.exception.args[0], 'Failed to decrypt sensitive fields')
+
+        data = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
+            'first_six_digits': '555555',
+            'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
+            'month': self.rsa.encrypt(12, pub_key=self.pub_key),
+            'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
+        }
+
+        # Test value is not encrypted or base64 encoded
+        with self.assertRaises(ValueError) as e:
+            serializer(data, context={'bundle_id': self.bundle_id}).data
+
+        self.assertEqual(e.exception.args[0], 'Failed to decrypt sensitive fields')

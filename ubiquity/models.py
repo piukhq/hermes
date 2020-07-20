@@ -120,15 +120,11 @@ class PaymentCardSchemeEntry(models.Model):
     @classmethod
     def update_active_link_status(cls, query):
         links = cls.objects.filter(**query)
-        bulk_update = []
         for link in links:
             current_state = link.active_link
             update_link = link.get_instance_with_active_status()
             if current_state != update_link.active_link:
-                bulk_update.append(update_link)
-        if bulk_update:
-            cls.objects.bulk_update(bulk_update, ['active_link'])
-            for updated in bulk_update:
+                update_link.save(update_fields=['active_link'])
                 cls.vop_activate_check(updated)
 
     @classmethod
@@ -150,21 +146,40 @@ class PaymentCardSchemeEntry(models.Model):
         cls.update_active_link_status(query)
 
 
-def _remove_pll_link(instance):
+def _remove_pll_link(instance: PaymentCardSchemeEntry):
     mcard = instance.scheme_account
+    mcard_needs_update = False
     for i, link in enumerate(mcard.pll_links):
         if link['id'] == instance.payment_card_account_id:
-            mcard.pll_links.pop(i)
-            mcard.save(update_fields=['pll_links'])
+            del mcard.pll_links[i]
+            mcard_needs_update = True
+
+    pcard = instance.payment_card_account
+    pcard_needs_update = False
+    for i, link in enumerate(pcard.pll_links):
+        if link['id'] == instance.scheme_account_id:
+            del pcard.pll_links[i]
+            pcard_needs_update = True
+
+    if mcard_needs_update:
+        mcard.save(update_fields=['pll_links'])
+    if pcard_needs_update:
+        pcard.save(update_fields=['pll_links'])
 
 
 @receiver(signals.post_save, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_save(sender, instance, created, **kwargs):
     if instance.active_link:
-        new_link = {'id': instance.payment_card_account_id, 'active_link': instance.active_link}
         mcard = instance.scheme_account
-        mcard.pll_links.append(new_link)
-        mcard.save(update_fields=['pll_links'])
+        if instance.payment_card_account_id not in [link['id'] for link in mcard.pll_links]:
+            mcard.pll_links.append({'id': instance.payment_card_account_id, 'active_link': instance.active_link})
+            mcard.save(update_fields=['pll_links'])
+
+        pcard = instance.payment_card_account
+        if instance.scheme_account_id not in [link['id'] for link in pcard.pll_links]:
+            pcard.pll_links.append({'id': instance.scheme_account_id, 'active_link': instance.active_link})
+            pcard.save(update_fields=['pll_links'])
+
     elif not created:
         _remove_pll_link(instance)
 

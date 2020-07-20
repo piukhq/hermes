@@ -341,37 +341,32 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         'response_message',
         'retry_id'
         """
-        id = request.data.get('id', None)
+        card_id = request.data.get('id', None)
         token = request.data.get('token', None)
-        response_status = request.data.get('response_status', None)
-        response_message = request.data.get('response_message', None)
-        response_state = request.data.get('response_state', None)
-        retry_id = request.data.get('retry_id', None)
-        response_action = request.data.get('response_action', "Add")
-        new_status_code = request.data.get('status', None)
 
-        if new_status_code:
-            new_status_code = int(new_status_code)
-
-        if not (id or token):
+        if not (card_id or token):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
 
-        if id:
-            payment_card_account = get_object_or_404(PaymentCardAccount, id=int(id))
+        new_status_code = int(request.data['status'])
+        if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
+            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
+
+        if card_id:
+            payment_card_account = get_object_or_404(PaymentCardAccount, id=int(card_id))
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
         if response_action == "Delete":
             # Retry with delete action is only called for providers which support it eg VOP path
             retry_task = "retry_delete_payment_card"
-            self._process_retries(retry_task, response_state, retry_id, response_message, response_status, id)
+            self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
 
             return Response({
                 'id': payment_card_account.id
             })
 
         return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
-                                  response_message, response_status, id)
+                                  response_message, response_status, card_id)
 
     def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
                       response_message, response_status, id):
@@ -383,7 +378,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
 
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
-            payment_card_account.save()
+            payment_card_account.save(update_fields=['status'])
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
