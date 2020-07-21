@@ -3,6 +3,7 @@ omit = *migrations*
        *test*
        *templates*
        payment_card/admin.py
+       periodic_retry/admin.py
        ubiquity/admin.py
        user/admin.py
        scheme/admin.py
@@ -16,6 +17,7 @@ omit = *migrations*
        hermes/wsgi.py
        hermes/runners.py
        hermes/middleware.py
+       hermes/vop_tasks.py
        ubiquity/influx_audit.py
        manage.py
        setup.py
