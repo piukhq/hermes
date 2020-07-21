@@ -12,8 +12,7 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Q, Count
-from hermes.channel_vault import decrypt_values_with_jeff, JeffDecryptionURL
-from hermes.channel_vault import get_key, get_secret_key, SecretKeyName
+from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card import metis
@@ -27,11 +26,14 @@ from rest_framework.exceptions import NotFound, ParseError, ValidationError, API
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rustyjeff import rsa_decrypt_base64
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
+from shared_config_storage.credentials.encryption import BLAKE2sHash
+from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
