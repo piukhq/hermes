@@ -565,9 +565,9 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
-            reward_tier = str(instance.balances[0]['reward_tier'])
+            reward_tier = instance.balances[0]['reward_tier']
         except (ValueError, KeyError):
-            reward_tier = '0'
+            reward_tier = 0
 
         try:
             current_scheme = self.context['view'].current_scheme
@@ -587,7 +587,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': self._get_images(instance, reward_tier),
+            'images': self._get_images(instance, str(reward_tier)),
             'account': {
                 'tier': reward_tier
             },
