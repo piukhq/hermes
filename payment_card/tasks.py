@@ -5,12 +5,11 @@ import arrow
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from requests import request, HTTPError
-
 from hermes.tasks import RetryTaskStore
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
+from requests import request, HTTPError
 from scheme.models import SchemeAccount
 
 

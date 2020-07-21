@@ -1,5 +1,7 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.core.exceptions import ObjectDoesNotExist
+from hermes.vop_tasks import vop_activate_request, send_deactivation
 from django.db.models import signals
 from django.dispatch import receiver
 
@@ -22,25 +24,49 @@ class PaymentCardAccountEntry(models.Model):
         unique_together = ("payment_card_account", "user")
 
 
-class PaymentCardSchemeEntry(models.Model):
-    UNDEFINED = 0
+class VopActivation(models.Model):
     ACTIVATING = 1
     DEACTIVATING = 2
     ACTIVATED = 3
+    DEACTIVATED = 4
 
     VOP_STATUS = (
-        (UNDEFINED, 'undefined'),
         (ACTIVATING, 'activating'),
         (DEACTIVATING, 'deactivating'),
-        (ACTIVATED, 'activated')
+        (ACTIVATED, 'activated'),
+        (DEACTIVATED, 'deactivated'),
     )
+
+    activation_id = models.CharField(null=True, blank=True, max_length=60)
+    payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.PROTECT,
+                                             verbose_name="Associated VOP Payment Card Account")
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT, verbose_name="Associated Scheme")
+    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status')
+
+    @classmethod
+    def find_activations_matching_links(cls, links):
+        """Find activations matching links in the list"""
+        activations = {}
+        for link in links:
+            try:
+                activation = cls.objects.get(
+                    payment_card_account=link.payment_card_account,
+                    scheme=link.scheme_account.scheme,
+                    status=cls.ACTIVATED
+                )
+                activations[activation.id] = activation
+            except ObjectDoesNotExist:
+                pass
+        return activations
+
+
+class PaymentCardSchemeEntry(models.Model):
 
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Membership Card Account")
     active_link = models.BooleanField(default=False)
-    vop_link = models.IntegerField(choices=VOP_STATUS, default=0, help_text='The status of VOP card activation')
 
     class Meta:
         unique_together = ("payment_card_account", "scheme_account")
@@ -61,6 +87,7 @@ class PaymentCardSchemeEntry(models.Model):
         self.active_link = self.computed_active_link
         if called_status != self.active_link:
             self.save()
+            self.vop_activate_check()
 
     @property
     def computed_active_link(self):
@@ -70,6 +97,18 @@ class PaymentCardSchemeEntry(models.Model):
                 not self.scheme_account.is_deleted:
             return True
         return False
+
+    def vop_activate_check(self):
+        if self.payment_card_account.payment_card.slug == "visa" and self.active_link:
+            # use get_or_create to ensure we avoid race conditions
+            vop_activation, created = VopActivation.objects.get_or_create(
+                payment_card_account=self.payment_card_account,
+                scheme=self.scheme_account.scheme,
+                defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
+            )
+            if created or vop_activation.status == VopActivation.DEACTIVATED\
+                    or vop_activation.status == VopActivation.DEACTIVATING:
+                vop_activate_request(vop_activation)
 
     def get_instance_with_active_status(self):
         """ Returns the instance of its self after having first set the corrected active_link status
@@ -86,6 +125,20 @@ class PaymentCardSchemeEntry(models.Model):
             update_link = link.get_instance_with_active_status()
             if current_state != update_link.active_link:
                 update_link.save(update_fields=['active_link'])
+                update_link.vop_activate_check()
+
+    @classmethod
+    def deactivate_activations(cls, activations: dict):
+        """If an activation cannot be supported by an active link then deactivate it if activated"""
+        for activation in activations.values():
+            # check if any entries require the activation - deactivate if not used
+            matches = cls.objects.filter(
+                payment_card_account=activation.payment_card_account,
+                scheme_account__scheme=activation.scheme,
+                active_link=True
+            ).count()
+            if not matches and activation.status == VopActivation.ACTIVATED:
+                send_deactivation.delay(activation)
 
     @classmethod
     def update_soft_links(cls, query):

@@ -26,6 +26,7 @@ from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializ
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
 
+
 if t.TYPE_CHECKING:
     from user.models import CustomUser
     from rest_framework.serializers import Serializer

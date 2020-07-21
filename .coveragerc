@@ -3,24 +3,29 @@ omit = *migrations*
        *test*
        *templates*
        payment_card/admin.py
+       periodic_retry/admin.py
        ubiquity/admin.py
        user/admin.py
        scheme/admin.py
        common/admin.py
        hermes/tasks.py
+       hermes/fixtures/setupdb.py
        payment_card/tasks.py
+       payment_card/payment_card_scheme_account.py
        ubiquity/tasks.py
        user/exceptions.py
        hermes/wsgi.py
        hermes/runners.py
        hermes/middleware.py
+       hermes/vop_tasks.py
        ubiquity/influx_audit.py
        manage.py
        setup.py
        daedalus_messaging/broker.py
        daedalus_messaging/message_config.py
        daedalus_messaging/signals.py
+       gunicorn.py
 branch = True
 
 [report]
-fail_under = 85
+fail_under = 84
