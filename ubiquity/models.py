@@ -125,7 +125,7 @@ class PaymentCardSchemeEntry(models.Model):
             update_link = link.get_instance_with_active_status()
             if current_state != update_link.active_link:
                 update_link.save(update_fields=['active_link'])
-                cls.vop_activate_check(updated_link)
+                update_link.vop_activate_check()
 
     @classmethod
     def deactivate_activations(cls, activations: dict):
