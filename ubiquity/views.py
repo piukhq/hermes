@@ -4,6 +4,7 @@ import typing as t
 from functools import partial
 from pathlib import Path
 
+import analytics
 import arrow
 import requests
 import sentry_sdk
@@ -11,17 +12,6 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Q, Count
-from requests import request
-from rest_framework import serializers, status
-from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
-from rest_framework.generics import get_object_or_404
-from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
-from rustyjeff import rsa_decrypt_base64
-from shared_config_storage.credentials.encryption import BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
-
-import analytics
 from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
@@ -30,16 +20,26 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from requests import request
+from rest_framework import serializers, status
+from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
+from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+from rustyjeff import rsa_decrypt_base64
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
+from shared_config_storage.credentials.encryption import BLAKE2sHash
+from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.influx_audit import audit
-from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
+                             VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
                             async_add_field_only_link, deleted_payment_card_cleanup)
@@ -410,9 +410,14 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
             cards_to_unlink.append(card.id)
 
-        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
+        # VOP deactivate
+        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete)
+        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
+        activations = VopActivation.find_activations_matching_links(vop_links)
+        links_to_remove.delete()
         SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
         SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
+        PaymentCardSchemeEntry.deactivate_activations(activations)
 
     @staticmethod
     def _delete_payment_cards(user: CustomUser) -> None:
@@ -817,10 +822,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             entries_query = entries_query.filter(user_id=request.user.id)
 
         entries_query.delete()
+        activations = VopActivation.find_activations_matching_links(pll_links)
         pll_links.delete()
 
         if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, delete_date, 'delete')
+
+        PaymentCardSchemeEntry.deactivate_activations(activations)
 
         return Response({}, status=status.HTTP_200_OK)
 
@@ -1222,8 +1230,11 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
         except PaymentCardSchemeEntry.DoesNotExist:
             raise NotFound('The link that you are trying to delete does not exist.')
-
+        # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
+        # in list with activated status - if so call deactivate and then delete link
+        activations = VopActivation.find_activations_matching_links([link])
         link.delete()
+        PaymentCardSchemeEntry.deactivate_activations(activations)
         return pcard, mcard
 
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:

@@ -56,6 +56,7 @@ LOCAL_APPS = (
     'order',
     'ubiquity',
     'daedalus_messaging',
+    'periodic_retry'
 )
 
 INSTALLED_APPS = (
@@ -307,6 +308,11 @@ LOGGING = {
             'handlers': ['console'],
             'propagate': False,
         },
+        'hermes': {
+            'level': MASTER_LOG_LEVEL,
+            'handlers': ['console'],
+            'propagate': False,
+        }
     },
 }
 

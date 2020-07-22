@@ -1,8 +1,12 @@
 import importlib
 import json
+import logging
 
 from celery import shared_task
 from django_redis import get_redis_connection
+from periodic_retry.models import RetryTaskList
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task
@@ -15,7 +19,7 @@ def retry_tasks():
 
 class RetryTaskStore:
 
-    def __init__(self, task_list="retrytasks", retry_name="retries", retry_results="errors"):
+    def __init__(self, task_list=RetryTaskList.DEFAULT, retry_name="retries", retry_results="errors"):
 
         self.task_list = task_list
         self.retry_name = retry_name

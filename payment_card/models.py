@@ -3,13 +3,12 @@ import uuid
 from enum import IntEnum
 
 from bulk_update.helper import bulk_update
+from common.models import Image
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.utils import timezone
-
-from common.models import Image
 from scheme.models import SchemeAccount
 
 
