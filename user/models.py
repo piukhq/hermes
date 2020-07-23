@@ -19,7 +19,7 @@ from hashids import Hashids
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation, SchemeAccountEntry, PaymentCardAccountEntry
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
 
