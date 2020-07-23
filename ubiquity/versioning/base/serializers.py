@@ -147,10 +147,16 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
             if image and check_active_image(image.get('validity', {}), today)
         }
 
-        return [
+        filtered_images = [
             account_images.get(image_type, image)
             for image_type, image in base_images.items()
         ]
+
+        if not settings.NO_AZURE_STORAGE:
+            for image in filtered_images:
+                image['url'] = settings.HERMES_STATIC_URL + image['url']
+
+        return filtered_images
 
     def to_representation(self, instance):
         status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
@@ -530,6 +536,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                       tier_images['valid_base_images'].get(tier, None))
         if tier_image:
             filtered_images.append(tier_image)
+
+        if not settings.NO_AZURE_STORAGE:
+            for image in filtered_images:
+                image['url'] = settings.HERMES_STATIC_URL + image['url']
 
         return filtered_images
 

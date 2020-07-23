@@ -69,7 +69,7 @@ class Image(models.Model):
             'payload': {
                 'id': self.id,
                 'type': self.image_type_code,
-                'url': self.image.url,
+                'url': self.image.name,
                 'description': self.description,
                 'encoding': encoding,
 
