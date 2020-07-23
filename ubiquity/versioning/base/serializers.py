@@ -1,6 +1,6 @@
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
-from urllib.parse import urljoin
+from os.path import join
 
 import arrow
 import jwt
@@ -35,7 +35,7 @@ def _add_base_media_url(image: dict) -> dict:
     else:
         base_url = settings.AZURE_CUSTOM_DOMAIN
 
-    image['url'] = urljoin(base_url, image['url'])
+    image['url'] = join(base_url, image['url'])
     return image
 
 
