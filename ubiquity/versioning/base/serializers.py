@@ -1,5 +1,6 @@
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
+from urllib.parse import urljoin
 
 import arrow
 import jwt
@@ -30,10 +31,11 @@ if t.TYPE_CHECKING:
 
 def _add_base_media_url(image: dict) -> dict:
     if settings.NO_AZURE_STORAGE:
-        image['url'] = settings.MEDIA_URL + image['url']
+        base_url = settings.MEDIA_URL
     else:
-        image['url'] = settings.AZURE_CUSTOM_DOMAIN + image['url']
+        base_url = settings.AZURE_CUSTOM_DOMAIN
 
+    image['url'] = urljoin(base_url, image['url'])
     return image
 
 
