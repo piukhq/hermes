@@ -28,6 +28,15 @@ if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
 
 
+def _add_base_media_url(image: dict) -> dict:
+    if settings.NO_AZURE_STORAGE:
+        image['url'] = settings.MEDIA_URL + image['url']
+    else:
+        image['url'] = settings.AZURE_CUSTOM_DOMAIN + image['url']
+
+    return image
+
+
 class MembershipTransactionsMixin:
 
     @staticmethod
@@ -147,16 +156,10 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
             if image and check_active_image(image.get('validity', {}), today)
         }
 
-        filtered_images = [
-            account_images.get(image_type, image)
+        return [
+            _add_base_media_url(account_images.get(image_type, image))
             for image_type, image in base_images.items()
         ]
-
-        if not settings.NO_AZURE_STORAGE:
-            for image in filtered_images:
-                image['url'] = settings.HERMES_STATIC_URL + image['url']
-
-        return filtered_images
 
     def to_representation(self, instance):
         status = 'active' if instance.status == PaymentCardAccount.ACTIVE else 'pending'
@@ -528,18 +531,14 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
 
         filtered_images = [
-            images['valid_account_images'].get(image_type, base_image)
+            _add_base_media_url(images['valid_account_images'].get(image_type, base_image))
             for image_type, base_image in images['valid_base_images'].items()
         ]
 
         tier_image = (tier_images['valid_account_images'].get(tier, None) or
                       tier_images['valid_base_images'].get(tier, None))
         if tier_image:
-            filtered_images.append(tier_image)
-
-        if not settings.NO_AZURE_STORAGE:
-            for image in filtered_images:
-                image['url'] = settings.HERMES_STATIC_URL + image['url']
+            filtered_images.append(_add_base_media_url(tier_image))
 
         return filtered_images
 
