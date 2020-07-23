@@ -16,7 +16,7 @@ def _format_image_for_ubiquity(img):
         'payload': {
             'id': img.id,
             'type': img.image_type_code,
-            'url': img.image.url,
+            'url': img.image.name,
             'description': img.description,
             'encoding': encoding,
 
