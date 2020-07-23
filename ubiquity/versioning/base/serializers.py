@@ -1,5 +1,6 @@
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
+from os.path import join
 
 import arrow
 import jwt
@@ -26,6 +27,16 @@ from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
+
+
+def _add_base_media_url(image: dict) -> dict:
+    if settings.NO_AZURE_STORAGE:
+        base_url = settings.MEDIA_URL
+    else:
+        base_url = settings.AZURE_CUSTOM_DOMAIN
+
+    image['url'] = join(base_url, image['url'])
+    return image
 
 
 class MembershipTransactionsMixin:
@@ -148,7 +159,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         }
 
         return [
-            account_images.get(image_type, image)
+            _add_base_media_url(account_images.get(image_type, image))
             for image_type, image in base_images.items()
         ]
 
@@ -522,14 +533,14 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
 
         filtered_images = [
-            images['valid_account_images'].get(image_type, base_image)
+            _add_base_media_url(images['valid_account_images'].get(image_type, base_image))
             for image_type, base_image in images['valid_base_images'].items()
         ]
 
         tier_image = (tier_images['valid_account_images'].get(tier, None) or
                       tier_images['valid_base_images'].get(tier, None))
         if tier_image:
-            filtered_images.append(tier_image)
+            filtered_images.append(_add_base_media_url(tier_image))
 
         return filtered_images
 

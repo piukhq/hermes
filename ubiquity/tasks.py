@@ -1,18 +1,20 @@
 import typing as t
 
+import arrow
 import requests
+import sentry_sdk
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
+from hermes.vop_tasks import activate, deactivate
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
-from hermes.vop_tasks import activate, deactivate
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -189,3 +191,29 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
     pll_links.delete()
+
+
+def _send_data_to_atlas(consent: dict) -> None:
+    url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
+    }
+    data = {
+        'email': consent['email'],
+        'ubiquity_join_date': arrow.get(consent['timestamp']).format("YYYY-MM-DD hh:mm:ss")
+    }
+    requests.post(url=url, headers=headers, json=data)
+
+
+@shared_task
+def deleted_service_cleanup(user_id: int, consent: dict) -> None:
+    user = CustomUser.all_objects.get(id=user_id)
+    user.serviceconsent.delete()
+    user.delete_membership_cards()
+    user.delete_payment_cards()
+
+    try:  # send user info to be persisted in Atlas
+        _send_data_to_atlas(consent)
+    except Exception:
+        sentry_sdk.capture_exception()

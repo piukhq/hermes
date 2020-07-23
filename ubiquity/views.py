@@ -4,36 +4,34 @@ import typing as t
 from functools import partial
 from pathlib import Path
 
-import analytics
 import arrow
 import requests
-import sentry_sdk
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError
 from django.db.models import Q, Count
-from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
-from hermes.channels import Permit
-from hermes.settings import Version
-from payment_card import metis
-from payment_card.enums import PaymentCardRoutes
-from payment_card.models import PaymentCardAccount
-from payment_card.payment import get_nominated_pcard
-from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from requests import request
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rustyjeff import rsa_decrypt_base64
+from shared_config_storage.credentials.encryption import BLAKE2sHash
+from shared_config_storage.credentials.utils import AnswerTypeChoices
+
+import analytics
+from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
+from hermes.channels import Permit
+from hermes.settings import Version
+from payment_card.enums import PaymentCardRoutes
+from payment_card.models import PaymentCardAccount
+from payment_card.payment import get_nominated_pcard
+from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
-from shared_config_storage.credentials.encryption import BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
@@ -42,7 +40,7 @@ from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, Sc
                              VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
-                            async_add_field_only_link, deleted_payment_card_cleanup)
+                            async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
@@ -53,7 +51,6 @@ from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
-    from django.http import HttpResponse
     from rest_framework.serializers import Serializer
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
@@ -87,19 +84,6 @@ def detect_and_handle_escaped_unicode(credentials_dict):
         credentials_dict["password"] = password
 
     return credentials_dict
-
-
-def send_data_to_atlas(response: 'HttpResponse') -> None:
-    url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY)
-    }
-    data = {
-        'email': response['consent']['email'],
-        'ubiquity_join_date': arrow.get(response['consent']['timestamp']).format("YYYY-MM-DD hh:mm:ss")
-    }
-    request("POST", url=url, headers=headers, json=data)
 
 
 def check_join_with_pay(enrol_fields: dict, user_id: int):
@@ -373,19 +357,11 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         try:
             response = self.get_serializer_by_request(request.user.serviceconsent).data
-            request.user.serviceconsent.delete()
         except ServiceConsent.DoesNotExist:
             raise NotFound
 
-        self._delete_membership_cards(request.user)
-        self._delete_payment_cards(request.user)
-
         request.user.soft_delete()
-
-        try:  # send user info to be persisted in Atlas
-            send_data_to_atlas(response)
-        except Exception:
-            sentry_sdk.capture_exception()
+        deleted_service_cleanup.delay(request.user.id, response['consent'])
         return Response(response)
 
     def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
@@ -399,40 +375,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             raise ParseError
 
         return consent
-
-    @staticmethod
-    def _delete_membership_cards(user: CustomUser) -> None:
-        cards_to_delete = []
-        cards_to_unlink = []
-        for card in user.scheme_account_set.all():
-            if card.user_set.count() == 1:
-                cards_to_delete.append(card.id)
-
-            cards_to_unlink.append(card.id)
-
-        # VOP deactivate
-        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete)
-        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-        activations = VopActivation.find_activations_matching_links(vop_links)
-        links_to_remove.delete()
-        SchemeAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
-        SchemeAccountEntry.objects.filter(user_id=user.id, scheme_account_id__in=cards_to_unlink).delete()
-        PaymentCardSchemeEntry.deactivate_activations(activations)
-
-    @staticmethod
-    def _delete_payment_cards(user: CustomUser) -> None:
-        cards_to_delete = []
-        cards_to_unlink = []
-        for card in user.payment_card_account_set.all():
-            if card.user_set.count() == 1:
-                cards_to_delete.append(card.id)
-                metis.delete_payment_card(card)
-
-            cards_to_unlink.append(card.id)
-
-        PaymentCardSchemeEntry.objects.filter(scheme_account_id__in=cards_to_delete).delete()
-        PaymentCardAccount.objects.filter(id__in=cards_to_delete).update(is_deleted=True)
-        PaymentCardAccountEntry.objects.filter(user_id=user.id, payment_card_account_id__in=cards_to_unlink).delete()
 
 
 class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, PaymentCardCreationMixin,
