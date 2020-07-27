@@ -205,11 +205,12 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_issuer(_):
-        return Issuer.objects.values('id').get(name='Barclays')['id']
+        return Issuer.get_barclays_issuer()
 
-    def get_payment_card(self, obj):
+    @staticmethod
+    def get_payment_card(obj):
         slug = bin_to_provider(str(obj['first_six_digits']))
-        return PaymentCard.objects.values('id').get(slug=slug)['id']
+        return PaymentCard.get_by_slug(slug)
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
