@@ -1,14 +1,16 @@
 import base64
 import uuid
 from enum import IntEnum
+from functools import lru_cache
 
 from bulk_update.helper import bulk_update
-from common.models import Image
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.utils import timezone
+
+from common.models import Image
 from scheme.models import SchemeAccount
 
 
@@ -18,6 +20,19 @@ class Issuer(models.Model):
 
     def __str__(self):
         return self.name
+
+    @classmethod
+    @lru_cache(maxsize=1)
+    def get_barclays_issuer(cls):
+        return cls.objects.values_list('id', flat=True).get(name='Barclays')
+
+
+def clear_issuer_lru_cache(sender, **kwargs):
+    sender.get_barclays_issuer.cache_clear()
+
+
+signals.post_save.connect(clear_issuer_lru_cache, sender=Issuer)
+signals.post_delete.connect(clear_issuer_lru_cache, sender=Issuer)
 
 
 class ActivePaymentCardImageManager(models.Manager):
@@ -174,6 +189,19 @@ class PaymentCard(models.Model):
     @property
     def images(self):
         return PaymentCardImage.objects.filter(payment_card=self.id)
+
+    @classmethod
+    @lru_cache(maxsize=32)
+    def get_by_slug(cls, slug: str) -> int:
+        return cls.objects.values_list('id', flat=True).get(slug=slug)
+
+
+def clear_payment_card_lru_cache(sender, **kwargs):
+    sender.get_by_slug.cache_clear()
+
+
+signals.post_save.connect(clear_payment_card_lru_cache, sender=PaymentCard)
+signals.post_delete.connect(clear_payment_card_lru_cache, sender=PaymentCard)
 
 
 class PaymentCardAccountManager(models.Manager):

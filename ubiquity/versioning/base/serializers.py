@@ -189,27 +189,39 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
         }
 
 
-class PaymentCardTranslationSerializer(serializers.Serializer):
-    pan_start = serializers.CharField(source='first_six_digits')
-    pan_end = serializers.CharField(source='last_four_digits')
-    issuer = serializers.SerializerMethodField()
-    payment_card = serializers.SerializerMethodField()
-    name_on_card = serializers.CharField()
-    token = serializers.CharField()
-    fingerprint = serializers.CharField()
-    expiry_year = serializers.IntegerField(source='year')
-    expiry_month = serializers.IntegerField(source='month')
-    country = serializers.CharField(required=False, default='UK')
-    order = serializers.IntegerField(required=False, default=0)
-    currency_code = serializers.CharField(required=False, default='GBP')
+class PaymentCardTranslationSerializer:
+    def __init__(self, data, context=None):
+        self.context = context or {}
+        self.formatted_data = self.to_representation(data)
 
     @staticmethod
     def get_issuer(_):
-        return Issuer.objects.values('id').get(name='Barclays')['id']
+        return Issuer.get_barclays_issuer()
 
-    def get_payment_card(self, obj):
+    @staticmethod
+    def get_payment_card(obj):
         slug = bin_to_provider(str(obj['first_six_digits']))
-        return PaymentCard.objects.values('id').get(slug=slug)['id']
+        return PaymentCard.get_by_slug(slug)
+
+    def to_representation(self, data):
+        return {
+            'pan_start': data['first_six_digits'],
+            'pan_end': data['last_four_digits'],
+            'issuer': self.get_issuer(data),
+            'payment_card': self.get_payment_card(data),
+            'name_on_card': data['name_on_card'],
+            'token': data['token'],
+            'fingerprint': data['fingerprint'],
+            'expiry_year': int(data['year']),
+            'expiry_month': int(data['month']),
+            'country': data.get('country', 'UK'),
+            'order': int(data.get('order', '0')),
+            'currency_code': data.get('currency_code', 'GBP')
+        }
+
+    @property
+    def data(self):
+        return self.formatted_data
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
