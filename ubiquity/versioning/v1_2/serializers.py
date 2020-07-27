@@ -45,8 +45,6 @@ class MembershipPlanSerializer(base_serializers.MembershipPlanSerializer):
 
 
 class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSerializer):
-    hash = serializers.SerializerMethodField()
-
     FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
 
     @staticmethod
@@ -69,4 +67,6 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
             raise ValueError("Failed to decrypt sensitive fields") from e
 
         data.update(decrypted_values)
-        return super().to_representation(data)
+        formatted_data = super().to_representation(data)
+        formatted_data['hash'] = self.get_hash(data)
+        return formatted_data
