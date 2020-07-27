@@ -193,13 +193,13 @@ class PaymentCard(models.Model):
 
     @classmethod
     @lru_cache(maxsize=32)
-    def get_by_fist_six(cls, first_six_digits: str) -> int:
+    def get_by_pan_first_six(cls, first_six_digits: str) -> int:
         slug = bin_to_provider(first_six_digits)
         return cls.objects.values_list('id', flat=True).get(slug=slug)
 
 
 def clear_payment_card_lru_cache(sender, **kwargs):
-    sender.get_by_fist_six.cache_clear()
+    sender.get_by_pan_first_six.cache_clear()
 
 
 signals.post_save.connect(clear_payment_card_lru_cache, sender=PaymentCard)

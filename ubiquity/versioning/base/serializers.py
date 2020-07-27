@@ -208,7 +208,7 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_payment_card(obj):
-        return PaymentCard.get_by_fist_six(str(obj['first_six_digits']))
+        return PaymentCard.get_by_pan_first_six(str(obj['first_six_digits']))
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
