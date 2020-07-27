@@ -192,10 +192,7 @@ class PaymentCardSerializer(PaymentCardAccountSerializer):
 class PaymentCardTranslationSerializer:
     def __init__(self, data, context=None):
         self.context = context or {}
-        try:
-            self.formatted_data = self.to_representation(data)
-        except (KeyError, ValueError):
-            raise ParserError
+        self.formatted_data = self.to_representation(data)
 
     @staticmethod
     def get_issuer(_):
