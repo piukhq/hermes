@@ -194,7 +194,7 @@ class PaymentCardTranslationSerializer:
         self.context = context or {}
         try:
             self.formatted_data = self.to_representation(data)
-        except KeyError:
+        except (KeyError, ValueError):
             raise ParserError
 
     @staticmethod
@@ -215,10 +215,10 @@ class PaymentCardTranslationSerializer:
             'name_on_card': data['name_on_card'],
             'token': data['token'],
             'fingerprint': data['fingerprint'],
-            'expiry_year': data['year'],
-            'expiry_month': data['month'],
+            'expiry_year': int(data['year']),
+            'expiry_month': int(data['month']),
             'country': data.get('country', 'UK'),
-            'order': data.get('order', 0),
+            'order': int(data.get('order', '0')),
             'currency_code': data.get('currency_code', 'GBP')
         }
 
