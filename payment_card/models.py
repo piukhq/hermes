@@ -330,12 +330,12 @@ class AuthTransaction(models.Model):
 
 
 class PaymentStatus(IntEnum):
-    PURCHASE_PENDING = 0  # Starting payment process but no purchase request has yet been made to Spreedly
-    PURCHASE_FAILED = 1  # Purchase request to Spreedly has failed
-    AUTHORISED = 2  # Purchase request to Spreedly was successful but Join is not complete
-    SUCCESSFUL = 3  # Purchase request to Spreedly was successful and Join is completed with active card
-    VOID_REQUIRED = 4  # Purchase request requires Voiding when Join fails
-    VOID_SUCCESSFUL = 5  # Successfully Voided a purchase
+    PURCHASE_PENDING = 0       # Starting payment process but no purchase request has yet been made to Spreedly
+    PURCHASE_FAILED = 1        # Purchase request to Spreedly has failed
+    AUTHORISED = 2             # Purchase request to Spreedly was successful but Join is not complete
+    SUCCESSFUL = 3             # Purchase request to Spreedly was successful and Join is completed with active card
+    VOID_REQUIRED = 4          # Purchase request requires Voiding when Join fails
+    VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
 
 
 def _generate_tx_ref() -> str:
