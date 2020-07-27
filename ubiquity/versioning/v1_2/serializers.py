@@ -1,12 +1,10 @@
 from typing import TYPE_CHECKING
 
 from rest_framework import serializers
-from shared_config_storage.credentials.encryption import BLAKE2sHash
-from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 from rustyjeff import rsa_decrypt_base64
+from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from hermes.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
-from payment_card.models import PaymentCard
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
 
@@ -50,10 +48,6 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     hash = serializers.SerializerMethodField()
 
     FIELDS_TO_DECRYPT = ['month', 'year', 'last_four_digits', 'first_six_digits', 'hash']
-
-    def get_payment_card(self, obj: dict) -> list:
-        slug = bin_to_provider(obj['first_six_digits'])
-        return PaymentCard.objects.values_list('id', flat=True).get(slug=slug)
 
     @staticmethod
     def get_hash(obj: dict) -> str:

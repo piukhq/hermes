@@ -12,7 +12,6 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
-from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -205,11 +204,11 @@ class PaymentCardTranslationSerializer(serializers.Serializer):
 
     @staticmethod
     def get_issuer(_):
-        return Issuer.objects.values('id').get(name='Barclays')['id']
+        return Issuer.get_barclays_issuer()
 
-    def get_payment_card(self, obj):
-        slug = bin_to_provider(str(obj['first_six_digits']))
-        return PaymentCard.objects.values('id').get(slug=slug)['id']
+    @staticmethod
+    def get_payment_card(obj):
+        return PaymentCard.get_by_fist_six(str(obj['first_six_digits']))
 
 
 class PaymentCardUpdateSerializer(serializers.Serializer):
