@@ -238,7 +238,7 @@ class RetrieveLoyaltyID(APIView):
         return JsonResponse(response_data, safe=False)
 
 
-class RetrievePaymentCardUserInfo(View):
+class RetrievePaymentCardUserInfo(APIView):
     authentication_classes = (ServiceAuthentication,)
 
     @staticmethod
