@@ -1,6 +1,7 @@
 import arrow
 from django.contrib import admin
 from django.utils.html import format_html
+
 from payment_card import models
 from ubiquity.models import PaymentCardAccountEntry
 
@@ -9,6 +10,9 @@ from ubiquity.models import PaymentCardAccountEntry
 class PaymentCardAdmin(admin.ModelAdmin):
     list_display = ('name', 'id', 'is_active',)
     list_filter = ('is_active',)
+
+
+admin.site.register(models.Issuer)
 
 
 @admin.register(models.PaymentCardImage)
@@ -98,6 +102,7 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
     scheme accounts ie it used to associate a scheme with a user.
 
     """
+
     class Meta:
         proxy = True
         verbose_name = "Payment Card Account to User Association"
@@ -106,7 +111,6 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 
 @admin.register(PaymentCardUserAssociation)
 class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
-
     list_display = ('payment_card_account', 'user', 'payment_card_account_link', 'user_link', 'card_status',
                     'card_is_deleted', 'card_created')
     search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',

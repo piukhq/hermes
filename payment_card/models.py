@@ -9,7 +9,6 @@ from django.db import models
 from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.utils import timezone
-from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from common.models import Image
 from scheme.models import SchemeAccount
@@ -193,13 +192,12 @@ class PaymentCard(models.Model):
 
     @classmethod
     @lru_cache(maxsize=32)
-    def get_by_pan_first_six(cls, first_six_digits: str) -> int:
-        slug = bin_to_provider(first_six_digits)
+    def get_by_slug(cls, slug: str) -> int:
         return cls.objects.values_list('id', flat=True).get(slug=slug)
 
 
 def clear_payment_card_lru_cache(sender, **kwargs):
-    sender.get_by_pan_first_six.cache_clear()
+    sender.get_by_slug.cache_clear()
 
 
 signals.post_save.connect(clear_payment_card_lru_cache, sender=PaymentCard)
@@ -330,12 +328,12 @@ class AuthTransaction(models.Model):
 
 
 class PaymentStatus(IntEnum):
-    PURCHASE_PENDING = 0       # Starting payment process but no purchase request has yet been made to Spreedly
-    PURCHASE_FAILED = 1        # Purchase request to Spreedly has failed
-    AUTHORISED = 2             # Purchase request to Spreedly was successful but Join is not complete
-    SUCCESSFUL = 3             # Purchase request to Spreedly was successful and Join is completed with active card
-    VOID_REQUIRED = 4          # Purchase request requires Voiding when Join fails
-    VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
+    PURCHASE_PENDING = 0  # Starting payment process but no purchase request has yet been made to Spreedly
+    PURCHASE_FAILED = 1  # Purchase request to Spreedly has failed
+    AUTHORISED = 2  # Purchase request to Spreedly was successful but Join is not complete
+    SUCCESSFUL = 3  # Purchase request to Spreedly was successful and Join is completed with active card
+    VOID_REQUIRED = 4  # Purchase request requires Voiding when Join fails
+    VOID_SUCCESSFUL = 5  # Successfully Voided a purchase
 
 
 def _generate_tx_ref() -> str:
