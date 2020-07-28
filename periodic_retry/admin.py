@@ -19,7 +19,7 @@ def add_visa_enrolments(modeladmin, request, queryset):
     active_visa_cards = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
     for visa_card in active_visa_cards:
         visa_card.token = visa_card.psp_token
-        visa_card.save()
+        visa_card.save(update_fields=["token"])
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'payment_card.metis', "retry_enrol",
             context={"card_id": visa_card.id},
