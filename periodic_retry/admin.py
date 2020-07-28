@@ -16,7 +16,8 @@ caution_line_break.short_description = "--- Caution one time Data Migration:"
 
 
 def add_visa_enrolments(modeladmin, request, queryset):
-    active_visa_cards = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
+    active_visa_cards = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa').values(
+        'id', 'token', 'psp_token')
     for visa_card in active_visa_cards:
         visa_card.token = visa_card.psp_token
         visa_card.save(update_fields=["token"])
@@ -53,12 +54,15 @@ trigger_retry.short_description = "Trigger Retry"
 
 
 def activate_visa_user(modeladmin, request, queryset):
-    payment_card_scheme = PaymentCardSchemeEntry.objects.filter(payment_card_account__payment_card__slug='visa',
-                                                                active_link=True)
-    for entry in payment_card_scheme:
+    linked_visa_cards = PaymentCardSchemeEntry.objects.filter(
+        payment_card_account__payment_card__slug='visa', active_link=True
+    ).values(
+        'payment_card_account', 'scheme_account'
+    )
+    for link in linked_visa_cards:
         vop_activation, created = VopActivation.objects.get_or_create(
-            payment_card_account=entry.payment_card_account,
-            scheme=entry.scheme_account.scheme,
+            payment_card_account=link.payment_card_account,
+            scheme=link.scheme_account.scheme,
             defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
         )
 
