@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
-from hermes.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
+from ubiquity.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
 

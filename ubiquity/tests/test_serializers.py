@@ -4,7 +4,7 @@ from unittest.mock import patch
 from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
-from hermes.channel_vault import SecretKeyName, channel_vault
+from ubiquity.channel_vault import SecretKeyName
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
@@ -86,7 +86,8 @@ class TestSerializersV1_2(APITestCase):
     def tearDownClass(cls):
         pass
 
-    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
+    @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
         hash1 = 'hash1'
@@ -121,7 +122,8 @@ class TestSerializersV1_2(APITestCase):
 
         self.assertTrue(expected_data.items() < serialized_data.items())
 
-    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
+    @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     def test_payment_card_translation_serializer_raises_error_for_incorrect_encryption(self):
         serializer = PaymentCardTranslationSerializerV1_2
         hash1 = 'hash1'

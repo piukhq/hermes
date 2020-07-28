@@ -20,7 +20,7 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
+from ubiquity.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card.enums import PaymentCardRoutes
