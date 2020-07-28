@@ -1,7 +1,7 @@
 import arrow
 from django.contrib import admin
 
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, PaymentCard
 from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 from ubiquity.models import PaymentCardSchemeEntry, VopActivation
@@ -16,14 +16,16 @@ caution_line_break.short_description = "--- Caution one time Data Migration:"
 
 
 def add_visa_enrolments(modeladmin, request, queryset):
-    active_visa_cards = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa').values(
-        'id', 'token', 'psp_token')
-    for visa_card in active_visa_cards:
-        visa_card.token = visa_card.psp_token
-        visa_card.save(update_fields=["token"])
+    visa_card = PaymentCard.objects.get(slug='visa')
+    visa_card.token_method = PaymentCard.TokenMethod.COPY
+    visa_card.save()
+    active_visa_accounts = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
+    for visa_account in active_visa_accounts:
+        visa_account.token = visa_account.psp_token
+        visa_account.save(update_fields=["token"])
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'payment_card.metis', "retry_enrol",
-            context={"card_id": visa_card.id},
+            context={"card_id": visa_account.id},
             retry_kwargs={"max_retry_attempts": 1,
                           "results": [{"caused_by": "migration script"}],
                           "status": PeriodicRetryStatus.PENDING
@@ -56,8 +58,6 @@ trigger_retry.short_description = "Trigger Retry"
 def activate_visa_user(modeladmin, request, queryset):
     linked_visa_cards = PaymentCardSchemeEntry.objects.filter(
         payment_card_account__payment_card__slug='visa', active_link=True
-    ).values(
-        'payment_card_account', 'scheme_account'
     )
     for link in linked_visa_cards:
         vop_activation, created = VopActivation.objects.get_or_create(
