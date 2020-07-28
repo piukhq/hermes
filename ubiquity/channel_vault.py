@@ -47,14 +47,14 @@ def load_secrets(config):
     Secrets contained in _all_secrets is separated by bundle-specific secrets and general secret keys.
 
     Example:
-        _all_secrets = {
-            "bundle_secrets": {
-                "com.bink.wallet": {"key": "value"}
-            },
-            "secret_keys": {
-                "PCARD_HASH_SECRET": "some secret"
-            }
-        }
+
+    _bundle_secrets = {
+        "com.bink.wallet": {"key": "value"}
+    }
+    _secret_keys = {
+        "PCARD_HASH_SECRET": "some secret"
+    }
+
 
     """
     global loaded
