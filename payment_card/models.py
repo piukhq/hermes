@@ -272,6 +272,7 @@ class PaymentCardAccount(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.token:
+
             self.token = PaymentCard.TokenMethod.dispatch(self.payment_card.token_method, self.psp_token)
         super().save(*args, **kwargs)
 

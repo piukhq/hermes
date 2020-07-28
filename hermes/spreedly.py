@@ -3,7 +3,7 @@ import logging
 import requests
 from django.conf import settings
 
-from hermes.channel_vault import get_secret_key, SecretKeyName
+from ubiquity.channel_vault import get_secret_key, SecretKeyName
 
 
 class SpreedlyError(Exception):

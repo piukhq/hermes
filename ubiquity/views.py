@@ -20,7 +20,7 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from hermes.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
+from ubiquity.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card.enums import PaymentCardRoutes
@@ -741,6 +741,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
+        if scheme_account.status in SchemeAccount.JOIN_PENDING:
+            error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
+            return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
         scheme_slug = scheme_account.scheme.slug
         scheme_account_id = scheme_account.id
         delete_date = arrow.utcnow().format()

@@ -551,6 +551,8 @@ class SchemeAccount(models.Model):
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
     JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
+    # below is for all the join in progress statuses, its planned to split these for enrol and registration
+    JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')

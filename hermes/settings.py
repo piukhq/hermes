@@ -73,7 +73,8 @@ INSTALLED_APPS = (
     'mail_templated',
     'anymail',
     'storages',
-) + LOCAL_APPS
+    *LOCAL_APPS
+)
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
@@ -512,9 +513,7 @@ VAULT_CONFIG = dict(
     LOCAL_CHANNEL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", "False"),
     LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_channels.json"),
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
-    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
-
-    TESTING=TESTING
+    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys")
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
