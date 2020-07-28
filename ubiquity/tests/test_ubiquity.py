@@ -677,6 +677,7 @@ class TestResources(APITestCase):
         self.assertEqual(response.status_code, 201)
         scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
         self.assertEqual(scheme_account.main_answer, main_answer)
+        self.assertIn(scheme_account.status, SchemeAccount.JOIN_PENDING)
 
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api')
@@ -797,6 +798,17 @@ class TestResources(APITestCase):
         resp2 = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                  **self.auth_headers)
         self.assertEqual(resp2.status_code, 201)
+
+    def test_membership_card_delete_error_on_pending_join_mcard(self):
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, scheme=self.scheme)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.user)
+
+        resp = self.client.delete(reverse('membership-card', args=[scheme_account.id]),
+                                  content_type='application/json', **self.auth_headers)
+
+        self.assertEqual(resp.status_code, 405)
+        self.assertEqual(resp.json(), {"join_pending": "Membership card cannot be deleted until the "
+                                                       "Join process has completed."})
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -1344,6 +1356,8 @@ class TestResources(APITestCase):
         resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
                                           content_type='application/json', **auth_headers)
         self.assertEqual(resp_register.status_code, 200)
+        sa.refresh_from_db()
+        self.assertIn(sa.status, SchemeAccount.JOIN_PENDING)
 
     @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):
@@ -1674,6 +1688,7 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.scheme_account.refresh_from_db()
         self.assertEqual(self.scheme_account.status, SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
+        self.assertIn(self.scheme_account.status, SchemeAccount.JOIN_PENDING)
         self.assertTrue(not self.scheme_account.schemeaccountcredentialanswer_set.all())
         self.assertTrue(mock_async_join.delay.called)
         self.assertTrue(mock_async_balance.delay.called)
