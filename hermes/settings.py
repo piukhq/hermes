@@ -60,20 +60,21 @@ LOCAL_APPS = (
 )
 
 INSTALLED_APPS = (
-                     'django.contrib.auth',
-                     'django.contrib.contenttypes',
-                     'django.contrib.sessions',
-                     'django.contrib.messages',
-                     'django.contrib.staticfiles',
-                     'django_admin_env_notice',
-                     'django.contrib.admin',
-                     'rest_framework',
-                     'corsheaders',
-                     'colorful',
-                     'mail_templated',
-                     'anymail',
-                     'storages',
-                 ) + LOCAL_APPS
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django_admin_env_notice',
+    'django.contrib.admin',
+    'rest_framework',
+    'corsheaders',
+    'colorful',
+    'mail_templated',
+    'anymail',
+    'storages',
+    *LOCAL_APPS
+)
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
