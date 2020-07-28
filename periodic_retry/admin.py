@@ -18,6 +18,8 @@ caution_line_break.short_description = "--- Caution one time Data Migration:"
 def add_visa_enrolments(modeladmin, request, queryset):
     payment_card_account = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
     for visa_card in payment_card_account:
+        payment_card_account.token = payment_card_account.psp_token
+        payment_card_account.save()
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
             'payment_card.metis', "retry_enrol",
             context={"card_id": visa_card.id},
