@@ -8,7 +8,7 @@ from rest_framework.exceptions import APIException
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
 
-from hermes.channel_vault import get_secret_key, SecretKeyName
+from ubiquity.channel_vault import get_secret_key, SecretKeyName
 from hermes.spreedly import Spreedly, SpreedlyError
 from hermes.tasks import RetryTaskStore
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount

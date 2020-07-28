@@ -11,7 +11,6 @@ from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
-from hermes.channel_vault import channel_vault
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
@@ -1843,7 +1842,8 @@ class TestResourcesV1_2(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user))}
         cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
 
-    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
+    @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
@@ -1898,7 +1898,8 @@ class TestResourcesV1_2(APITestCase):
             self.assertEqual(output["password"], expected_outcome)
             self.assertEqual(output["email"], test_email)
 
-    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
+    @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api')
     @patch('ubiquity.views.async_link', autospec=True)
@@ -1938,7 +1939,8 @@ class TestResourcesV1_2(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch.object(channel_vault, 'all_secrets', mock_secrets)
+    @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
+    @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     @patch('analytics.api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('ubiquity.views.async_link', autospec=True)
