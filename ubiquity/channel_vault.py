@@ -43,8 +43,8 @@ class KeyType(str, Enum):
 def load_secrets(config):
     """
     Retrieves security credential values from channel and secret_keys storage vaults and stored
-    in _all_secrets which is used as a cache.
-    Secrets contained in _all_secrets is separated by bundle-specific secrets and general secret keys.
+    in _bundle_secrets and _secret_keys which are used as a cache.
+    Secrets contained in _bundle_secrets and _secret_keys are bundle-specific.
 
     Example:
 
