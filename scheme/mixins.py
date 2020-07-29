@@ -293,7 +293,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 analytics.update_scheme_account_attribute(
                     scheme_account,
                     user,
-                    dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
+                    old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                )
 
     def save_consents(
         self,
