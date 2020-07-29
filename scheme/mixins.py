@@ -220,8 +220,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         data["id"] = scheme_account.id
         return resp
 
-    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str
-                                ) -> SchemeCredentialQuestion:
+    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str) -> SchemeCredentialQuestion:
         if not hasattr(self, 'scheme_questions'):
             return scheme_account.question(question_type)
 
@@ -233,12 +232,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_new_account(
-        self,
-        user: 'CustomUser',
-        data: dict,
-        answer_type: str
-    ) -> SchemeAccount:
+    def _create_new_account(self, user: 'CustomUser', data: dict, answer_type: str) -> SchemeAccount:
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
                 scheme_id=data['scheme'],
@@ -280,11 +274,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         return scheme_account
 
     @staticmethod
-    def analytics_update(
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        acc_created: bool
-    ) -> None:
+    def analytics_update(user: 'CustomUser', scheme_account: 'SchemeAccount', acc_created: bool) -> None:
         if user.client_id == settings.BINK_CLIENT_ID:
             if acc_created:
                 analytics.update_scheme_account_attribute(scheme_account, user)
@@ -296,12 +286,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
                 )
 
-    def save_consents(
-        self,
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        data: dict
-    ) -> None:
+    def save_consents(self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict) -> None:
         if 'consents' in data:
             if hasattr(self, 'current_scheme'):
                 scheme = self.current_scheme
