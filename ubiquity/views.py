@@ -1,7 +1,6 @@
 import logging
 import re
 import typing as t
-from functools import partial
 from pathlib import Path
 
 import arrow
@@ -20,7 +19,6 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 import analytics
-from ubiquity.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card.enums import PaymentCardRoutes
@@ -35,6 +33,7 @@ from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
+from ubiquity.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
 from ubiquity.influx_audit import audit
 from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
                              VopActivation)
@@ -485,25 +484,10 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             user_filter=True
         )
 
-    @staticmethod
-    def serialize_pcard(serializer, account):
-        data = serializer(account).data
-        return data
-
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
         accounts = list(self.filter_queryset(self.get_queryset()))
-
-        if len(accounts) >= 2:
-            serialize_account = partial(
-                self.serialize_pcard,
-                self.get_serializer_class_by_request()
-            )
-            with settings.THREAD_POOL_EXECUTOR(max_workers=settings.THREAD_POOL_EXECUTOR_MAX_WORKERS) as executor:
-                response = list(executor.map(serialize_account, accounts))
-        else:
-            response = self.get_serializer_by_request(accounts, many=True).data
-
+        response = self.get_serializer_by_request(accounts, many=True).data
         return Response(response, status=200)
 
     @censor_and_decorate
