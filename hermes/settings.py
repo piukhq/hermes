@@ -22,9 +22,7 @@ from sentry_sdk.integrations.django import DjangoIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
-from hermes.threading import DjangoThreadPoolExecutor
 from hermes.version import __version__
-from ubiquity.tests.utils import MockThreadPool
 
 read_env()
 
@@ -520,8 +518,3 @@ CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 CSRF_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
-
-POOL_EXECUTOR_MAX_WORKERS = int(env_var("POOL_EXECUTOR_MAX_WORKERS", "1"))
-THREAD_POOL_EXECUTOR_MAX_WORKERS = int(env_var("THREAD_POOL_EXECUTOR_MAX_WORKERS", "1"))
-
-THREAD_POOL_EXECUTOR = MockThreadPool if TESTING else DjangoThreadPoolExecutor
