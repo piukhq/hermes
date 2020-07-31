@@ -594,17 +594,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
-            updated_account = self._handle_registration_route(request.user, request.channels_permit,
-                                                              account, registration_fields, scheme_questions)
+            updated_account = self._handle_registration_route(request.user, request.channels_permit, account,
+                                                              scheme, registration_fields, scheme_questions)
         else:
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
-            updated_account = self._handle_update_fields(account, update_fields, scheme_questions)
+            updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions)
 
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
-    def _handle_update_fields(self, account: SchemeAccount, update_fields: dict, scheme_questions: list
+    def _handle_update_fields(self, account: SchemeAccount, scheme: Scheme, update_fields: dict, scheme_questions: list
                               ) -> SchemeAccount:
         if 'consents' in update_fields:
             del update_fields['consents']
@@ -616,7 +616,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
                 account,
-                account.scheme_id,
+                scheme.id,
                 update_fields[manual_question_type]
         ):
             account.status = account.FAILED_UPDATE
@@ -630,16 +630,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return account
 
     @staticmethod
-    def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount,
+    def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount, scheme: Scheme,
                                    registration_fields: dict, scheme_questions: list) -> SchemeAccount:
         check_join_with_pay(registration_fields, user.id)
         manual_answer = account.card_number
         if manual_answer:
             main_credential = manual_answer
-            question_type = [question["type"] for question in scheme_questions if question["manual_question"]][0]
+            question_type = next(question["type"] for question in scheme_questions if question["manual_question"])
         else:
             main_credential = account.barcode
-            question_type = [question["type"] for question in scheme_questions if question["scan_question"]][0]
+            question_type = next(question["type"] for question in scheme_questions if question["scan_question"])
         registration_data = {
             question_type: main_credential,
             **registration_fields,
@@ -650,7 +650,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account=account,
             user=user,
             permit=permit,
-            scheme_id=account.scheme_id
+            join_scheme=scheme
         )
         account.set_async_join_status()
         async_registration.delay(user.id, serializer, account.id, validated_data, delete_balance=True)
