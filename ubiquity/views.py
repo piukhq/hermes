@@ -705,7 +705,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account=account,
             user=req.user,
             permit=req.channels_permit,
-            scheme_id=account.scheme_id
+            join_scheme=account.scheme
         )
 
         # Some schemes will provide a main answer during enrol, which should be saved
@@ -956,7 +956,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account=scheme_account,
             user=user,
             permit=channels_permit,
-            scheme_id=scheme.id,
+            join_scheme=scheme,
         )
 
         if newly_created:

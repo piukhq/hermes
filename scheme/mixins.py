@@ -17,7 +17,7 @@ from rest_framework.exceptions import ValidationError
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE
+from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion)
@@ -459,6 +459,10 @@ class UpdateCredentialsMixin:
         updated_types = []
         for question_id, answer_and_type in question_id_and_data.items():
             question_type, new_answer = answer_and_type
+
+            if question_type in ENCRYPTED_CREDENTIALS:
+                new_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(str(new_answer)).decode("utf-8")
+
             if question_id in existing_credentials:
                 credential = existing_credentials[question_id]
 
@@ -468,7 +472,6 @@ class UpdateCredentialsMixin:
 
                 credential.answer = new_answer
                 update_credentials.append(credential)
-                updated_types.append(question_type)
 
             else:
                 create_credentials.append(
@@ -478,6 +481,8 @@ class UpdateCredentialsMixin:
                         answer=new_answer
                     )
                 )
+
+            updated_types.append(question_type)
 
         if create_credentials:
             SchemeAccountCredentialAnswer.objects.bulk_create(create_credentials)
