@@ -424,39 +424,12 @@ class SchemeAccountJoinMixin:
 
 
 class UpdateCredentialsMixin:
-
     @staticmethod
-    def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
-        if questions is None:
-            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).values("id", "type").all()
-
-        serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        if 'consents' in data:
-            del data['consents']
-
-        question_id_from_type = {
-            question["type"]: question["id"]
-            for question in questions
-        }
-
-        main_answer = scheme_account.main_answer
-        existing_credentials = {
-            credential.question_id: credential
-            for credential in SchemeAccountCredentialAnswer.objects.filter(
-                question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
-                scheme_account=scheme_account
-            ).all()
-        }
-        question_id_and_data = {
-            question_id_from_type[k]: (k, v)
-            for k, v in data.items()
-        }
-
+    def _update_credentials(scheme_account, question_id_and_data, existing_credentials):
         create_credentials = []
         update_credentials = []
         updated_types = []
+        main_answer = scheme_account.main_answer
         for question_id, answer_and_type in question_id_and_data.items():
             question_type, new_answer = answer_and_type
 
@@ -489,6 +462,38 @@ class UpdateCredentialsMixin:
         if update_credentials:
             SchemeAccountCredentialAnswer.objects.bulk_update(update_credentials, ['answer'])
 
+        return updated_types
+
+    def update_credentials(self, scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
+        if questions is None:
+            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).values("id", "type").all()
+
+        serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if 'consents' in data:
+            del data['consents']
+
+        question_id_from_type = {
+            question["type"]: question["id"]
+            for question in questions
+        }
+        existing_credentials = {
+            credential.question_id: credential
+            for credential in SchemeAccountCredentialAnswer.objects.filter(
+                question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
+                scheme_account=scheme_account
+            ).all()
+        }
+        question_id_and_data = {
+            question_id_from_type[k]: (k, v)
+            for k, v in data.items()
+        }
+        updated_types = self._update_credentials(
+            scheme_account=scheme_account,
+            question_id_and_data=question_id_and_data,
+            existing_credentials=existing_credentials
+        )
         return {'updated': updated_types}
 
     def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
