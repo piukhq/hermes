@@ -431,8 +431,7 @@ class UpdateCredentialsMixin:
     @staticmethod
     def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
         if questions is None:
-            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme) \
-                .values("id", "type").all()
+            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).only("id", "type")
 
         serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
         serializer.is_valid(raise_exception=True)
@@ -441,7 +440,7 @@ class UpdateCredentialsMixin:
             del data['consents']
 
         question_id_from_type = {
-            question["type"]: question["id"]
+            question.type: question.id
             for question in questions
         }
 
