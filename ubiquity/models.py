@@ -70,7 +70,6 @@ class VopActivation(models.Model):
         return activations
 
 
-
 class PaymentCardSchemeEntry(models.Model):
 
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
