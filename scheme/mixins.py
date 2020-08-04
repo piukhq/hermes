@@ -425,7 +425,11 @@ class SchemeAccountJoinMixin:
 
 class UpdateCredentialsMixin:
     @staticmethod
-    def _update_credentials(scheme_account, question_id_and_data, existing_credentials):
+    def _update_credentials(
+            scheme_account: SchemeAccount,
+            question_id_and_data: dict,
+            existing_credentials: dict
+    ) -> list:
         create_credentials = []
         update_credentials = []
         updated_types = []
@@ -486,8 +490,8 @@ class UpdateCredentialsMixin:
             ).all()
         }
         question_id_and_data = {
-            question_id_from_type[k]: (k, v)
-            for k, v in data.items()
+            question_id_from_type[question_type]: (question_type, answer)
+            for question_type, answer in data.items()
         }
         updated_types = self._update_credentials(
             scheme_account=scheme_account,
