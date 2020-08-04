@@ -11,6 +11,7 @@ verify_ssl = true
 [dev-packages]
 flake8 = "*"
 black = "==19.10b0"
+coverage = "*"
 
 [packages]
 arrow = "*"
@@ -34,7 +35,7 @@ redis = "*"
 dictfilter = "*"
 influxdb = "*"
 celery = "*"
-Django = "==2.2.11"
+Django = "==2.2.14"
 factory_boy = "*"
 Pillow = "*"
 PyJWT = "*"
@@ -45,3 +46,4 @@ fakeredis = "*"
 shared-config-storage = "*"
 psycopg2-binary = "*"
 rusty-jeff = "*"
+librabbitmq = "*"
