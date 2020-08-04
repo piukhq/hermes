@@ -1047,22 +1047,25 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if not provided_consent_keys:
             return {'consents': []}
 
+        consents = self._build_consents(data_provided, provided_consent_keys)
+
+        # remove consents information from provided credentials data
+        data['account'][field] = [item for item in data_provided if item['column'] not in provided_consent_keys]
+
+        return {'consents': consents}
+
+    def _build_consents(self, data_provided, provided_consent_keys):
         provided_consent_data = {
             item['column']: item for item in data_provided if item['column'] in provided_consent_keys
         }
 
-        consents = [
+        return [
             {
                 'id': link.consent_id,
                 'value': provided_consent_data[link.consent_label]['value']
             }
             for link in self.consent_links if provided_consent_data.get(link.consent_label)
         ]
-
-        # remove consents information from provided credentials data
-        data['account'][field] = [item for item in data_provided if item['column'] not in provided_consent_keys]
-
-        return {'consents': consents}
 
     @staticmethod
     def match_consents(consent_links, data_provided):
