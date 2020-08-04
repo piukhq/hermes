@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
@@ -7,6 +9,7 @@ from django.dispatch import receiver
 from hermes.vop_tasks import vop_activate_request, send_deactivation
 
 logger = logging.getLogger(__name__)
+
 
 class SchemeAccountEntry(models.Model):
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -62,7 +65,7 @@ class VopActivation(models.Model):
         return activations
 
     class Meta:
-        UniqueConstraint(fields=['payment_card_account', 'scheme'], name='unique_activation')
+        models.UniqueConstraint(fields=['payment_card_account', 'scheme'], name='unique_activation')
 
 
 class PaymentCardSchemeEntry(models.Model):

@@ -64,9 +64,9 @@ def load_secrets(config):
     if loaded:
         logger.info(f"Tried to load the vault secrets more than once, ignoring the request.")
 
-    elif config['LOCAL_CHANNEL_SECRETS']:
+    elif config.get('LOCAL_CHANNEL_SECRETS'):
         logger.info(f"JWT bundle secrets - from local file {config['LOCAL_SECRETS_PATH']}")
-        with open(config.LOCAL_SECRETS_PATH) as fp:
+        with open(config['LOCAL_SECRETS_PATH']) as fp:
             all_secrets = json.load(fp)
 
         _bundle_secrets = all_secrets['bundle_secrets']
