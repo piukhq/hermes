@@ -634,7 +634,7 @@ class SchemeAccount(models.Model):
 
     def get_auth_credentials(self) -> Dict[str, str]:
         answer_instances = self.schemeaccountcredentialanswer_set.filter(
-            question_id__in=self.scheme.questions.filter(auth_field=True, manual_question=False).values("id")
+            question__auth_field=True, question__manual_question=False, question__scheme_id=self.scheme_id
         ).select_related("question")
         return {
             answer.question.type: self._get_decrypted_answer(answer)
