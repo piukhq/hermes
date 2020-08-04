@@ -20,18 +20,20 @@ def add_visa_enrolments(modeladmin, request, queryset):
     visa_card = PaymentCard.objects.get(slug='visa')
     visa_card.token_method = PaymentCard.TokenMethod.COPY
     visa_card.save()
-    active_visa_accounts = PaymentCardAccount.objects.filter(status=1, payment_card__slug='visa')
-    for visa_account in active_visa_accounts:
+    visa_accounts = PaymentCardAccount.objects.filter(payment_card__slug='visa')
+    for visa_account in visa_accounts:
         visa_account.token = visa_account.psp_token
         visa_account.save(update_fields=["token"])
-        PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'payment_card.metis', "retry_enrol",
-            context={"card_id": visa_account.id},
-            retry_kwargs={"max_retry_attempts": 1,
-                          "results": [{"caused_by": "migration script"}],
-                          "status": PeriodicRetryStatus.PENDING
-                          }
-        )
+
+        if visa_account.status == PaymentCardAccount.ACTIVE:
+            PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+                'payment_card.metis', "retry_enrol",
+                context={"card_id": visa_account.id},
+                retry_kwargs={"max_retry_attempts": 1,
+                              "results": [{"caused_by": "migration script"}],
+                              "status": PeriodicRetryStatus.PENDING
+                              }
+            )
 
 
 add_visa_enrolments.short_description = "Add Visa Enrolments"
@@ -98,7 +100,9 @@ activate_visa_user.short_description = "Add Visa Activations"
 @admin.register(PeriodicRetry)
 class PeriodicRetryAdmin(admin.ModelAdmin):
     list_display = ('id', 'task_group', 'function', 'status', 'retry_count', 'max_retry_attempts', 'next_retry_after',
-                    'created_on',)
+                    'created_on', 'modified_on')
+    list_filter = ('function', 'status', 'retry_count')
     readonly_fields = ('created_on', 'modified_on',)
-    search_fields = ('id', 'status', 'task_group', 'function', 'module',)
+    search_fields = ('id', 'status', 'task_group', 'function', 'module', 'data', 'results')
+    list_per_page = 500
     actions = [trigger_retry, caution_line_break, add_visa_enrolments, activate_visa_user]
