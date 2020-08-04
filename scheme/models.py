@@ -253,7 +253,8 @@ class Scheme(models.Model):
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
         ).values('id', 'type')
 
-    def get_question_type_dict(self, question_list):
+    @staticmethod
+    def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
         return {
             question.label: {
                 "type": question.type,
