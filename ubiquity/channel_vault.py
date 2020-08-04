@@ -62,7 +62,7 @@ def load_secrets(config):
     global _secret_keys
 
     if loaded:
-        logger.info(f"Tried to load the vault secrets more than once, ignoring the request.")
+        logger.info("Tried to load the vault secrets more than once, ignoring the request.")
 
     elif config['LOCAL_CHANNEL_SECRETS']:
         logger.info(f"JWT bundle secrets - from local file {config['LOCAL_SECRETS_PATH']}")

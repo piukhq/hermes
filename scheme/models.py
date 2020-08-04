@@ -879,11 +879,10 @@ class SchemeAccount(models.Model):
             earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
         )
 
-        earn_target_value = voucher_scheme._get_earn_target_value(
-            voucher_fields=voucher_fields,
-            voucher_scheme=voucher_scheme
+        earn_target_value = voucher_scheme.get_earn_target_value(
+            voucher_fields=voucher_fields
         )
-        earn_value = voucher_scheme._get_earn_value(
+        earn_value = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields,
             earn_target_value=earn_target_value
         )
@@ -1375,18 +1374,16 @@ class VoucherScheme(models.Model):
             vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]
 
-    @staticmethod
-    def _get_earn_target_value(voucher_fields: Dict, voucher_scheme) -> int:
+    def get_earn_target_value(self, voucher_fields: Dict) -> int:
         """
         Get the target value from the incoming voucher, or voucher scheme if it's been set, or set to zero
 
         :param voucher_fields: Incoming voucher dict
-        :param voucher_scheme: VoucherScheme instance
         :return: earn target value
         """
         earn_target_value = (
                 voucher_fields.get("target_value")
-                or voucher_scheme.earn_target_value
+                or self.earn_target_value
                 or 0
         )
         earn_target_value = int(earn_target_value)
@@ -1394,10 +1391,12 @@ class VoucherScheme(models.Model):
         return earn_target_value
 
     @staticmethod
-    def _get_earn_value(voucher_fields: Dict, earn_target_value: int) -> [Decimal, int]:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: int) -> [Decimal, int]:
         """
         Get the value from the incoming voucher. If it's None and of type 'stamps' then assume
-        it's been completed and set to the earn target value, otherwise return the value of the field
+        it's been completed and set to the earn target value, otherwise return the value of the field.
+        This can't necessarily be done in Midas, as Midas may not know what the earn target value is
+        if the third-party API doesn't supply it.
 
         :param voucher_fields: Incoming voucher dict
         :param earn_target_value: The target number of stamps to complete

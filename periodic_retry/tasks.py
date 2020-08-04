@@ -208,7 +208,7 @@ class PeriodicRetryHandler:
             periodic_retry_obj = PeriodicRetry.objects.get(pk=data["task_id"])
         except KeyError:
             logger.exception(
-                f"PeriodicRetry improperly set. Missing 'task_id' in data when calling task."
+                "PeriodicRetry improperly set. Missing 'task_id' in data when calling task."
             )
             return
 
