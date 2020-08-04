@@ -48,6 +48,11 @@ class VopActivation(models.Model):
     scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT, verbose_name="Associated Scheme")
     status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status')
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['payment_card_account', 'scheme'], name='unique_activation')
+        ]
+
     @classmethod
     def find_activations_matching_links(cls, links):
         """Find activations matching links in the list"""
@@ -64,8 +69,6 @@ class VopActivation(models.Model):
                 pass
         return activations
 
-    class Meta:
-        models.UniqueConstraint(fields=['payment_card_account', 'scheme'], name='unique_activation')
 
 
 class PaymentCardSchemeEntry(models.Model):
