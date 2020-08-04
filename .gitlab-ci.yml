@@ -11,7 +11,7 @@ tests:
   image: binkhq/python:3.7
   script:
     - apt update && apt -y install git
-    - pip install pipenv
+    - pip install pipenv coverage
     - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - coverage run --source='.' manage.py test -v 2
