@@ -1,10 +1,11 @@
 import arrow
 from django.contrib import admin
-
+from django.db import IntegrityError
 from payment_card.models import PaymentCardAccount, PaymentCard
 from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+
 from .models import PeriodicRetry
 
 
@@ -60,29 +61,35 @@ def activate_visa_user(modeladmin, request, queryset):
         payment_card_account__payment_card__slug='visa', active_link=True
     )
     for link in linked_visa_cards:
-        vop_activation, created = VopActivation.objects.get_or_create(
-            payment_card_account=link.payment_card_account,
-            scheme=link.scheme_account.scheme,
-            defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
-        )
 
-        if created:
-            # If we have an activation record it implies the user has already migrated
-            # and should either have activated successfully or already have a retry entry
-            data = {
-                'payment_token': vop_activation.payment_card_account.psp_token,
-                'partner_slug': 'visa',
-                'merchant_slug': vop_activation.scheme.slug
-            }
-
-            PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-                'ubiquity.tasks', "retry_activation",
-                context={"activation_id": vop_activation.id, "post_data": data},
-                retry_kwargs={"max_retry_attempts": 1,
-                              "results": [{"caused_by": "migration script"}],
-                              "status": PeriodicRetryStatus.PENDING
-                              }
+        try:
+            vop_activation, created = VopActivation.objects.get_or_create(
+                payment_card_account=link.payment_card_account,
+                scheme=link.scheme_account.scheme,
+                defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
             )
+
+            if created:
+                # If we have an activation record it implies the user has already migrated
+                # and should either have activated successfully or already have a retry entry
+                data = {
+                    'payment_token': vop_activation.payment_card_account.psp_token,
+                    'partner_slug': 'visa',
+                    'merchant_slug': vop_activation.scheme.slug
+                }
+
+                PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
+                    'ubiquity.tasks', "retry_activation",
+                    context={"activation_id": vop_activation.id, "post_data": data},
+                    retry_kwargs={"max_retry_attempts": 1,
+                                  "results": [{"caused_by": "migration script"}],
+                                  "status": PeriodicRetryStatus.PENDING
+                                  }
+                )
+
+        except IntegrityError:
+            # Unlikey to occur in migration unless command issued on multiple pods - no error if already activated
+            pass
 
 
 activate_visa_user.short_description = "Add Visa Activations"

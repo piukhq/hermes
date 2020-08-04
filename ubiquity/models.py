@@ -1,10 +1,12 @@
 from django.contrib.postgres.fields import ArrayField
-from django.db import models
 from django.core.exceptions import ObjectDoesNotExist
-from hermes.vop_tasks import vop_activate_request, send_deactivation
+from django.db import IntegrityError
+from django.db import models
 from django.db.models import signals
 from django.dispatch import receiver
+from hermes.vop_tasks import vop_activate_request, send_deactivation
 
+logger = logging.getLogger(__name__)
 
 class SchemeAccountEntry(models.Model):
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -59,6 +61,9 @@ class VopActivation(models.Model):
                 pass
         return activations
 
+    class Meta:
+        UniqueConstraint(fields=['payment_card_account', 'scheme'], name='unique_activation')
+
 
 class PaymentCardSchemeEntry(models.Model):
 
@@ -101,14 +106,20 @@ class PaymentCardSchemeEntry(models.Model):
     def vop_activate_check(self):
         if self.payment_card_account.payment_card.slug == "visa" and self.active_link:
             # use get_or_create to ensure we avoid race conditions
-            vop_activation, created = VopActivation.objects.get_or_create(
-                payment_card_account=self.payment_card_account,
-                scheme=self.scheme_account.scheme,
-                defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
-            )
-            if created or vop_activation.status == VopActivation.DEACTIVATED\
-                    or vop_activation.status == VopActivation.DEACTIVATING:
-                vop_activate_request(vop_activation)
+            try:
+                vop_activation, created = VopActivation.objects.get_or_create(
+                    payment_card_account=self.payment_card_account,
+                    scheme=self.scheme_account.scheme,
+                    defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
+                )
+                if created or vop_activation.status == VopActivation.DEACTIVATED\
+                        or vop_activation.status == VopActivation.DEACTIVATING:
+                    vop_activate_request(vop_activation)
+
+            except IntegrityError:
+                logger.info(f'Ubiguity.models.PaymentCardSchemeEntry.vop_activate_check: integrity error prevented'
+                            f'- 2nd activation possible race condition, '
+                            f' card_id: {self.payment_card_account.id} scheme: {self.scheme_account.scheme.id}')
 
     def get_instance_with_active_status(self):
         """ Returns the instance of its self after having first set the corrected active_link status
