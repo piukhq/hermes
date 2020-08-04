@@ -43,7 +43,7 @@ def titled_filter(title):
 
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ('payment_card', 'user_email', 'pan_start', 'pan_end', 'is_deleted', 'created',)
+    list_display = ('payment_card', 'status', 'user_email', 'pan_start', 'pan_end', 'is_deleted', 'created',)
     list_filter = (('payment_card__name', titled_filter('payment card')),
                    'status',
                    ('issuer__name', titled_filter('issuer')),
