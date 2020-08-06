@@ -395,7 +395,8 @@ class SchemeAccountJoinMixin:
         user.profile.save()
 
     @staticmethod
-    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str) -> None:
+    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str
+                        ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
             SchemeAccountCredentialAnswer.objects.update_or_create(
