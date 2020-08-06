@@ -283,7 +283,7 @@ class SchemeAccountJoinMixin:
         return validated_data, serializer, scheme_account
 
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
-                            serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
+                            serializer: 'Serializer', channel: str) -> t.Tuple[dict, int, SchemeAccount]:
 
         scheme_account.update_barcode_and_card_number()
         try:
@@ -297,7 +297,7 @@ class SchemeAccountJoinMixin:
             if data.get('save_user_information'):
                 self.save_user_profile(data['credentials'], user)
 
-            self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id)
+            self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id, channel)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
@@ -395,7 +395,7 @@ class SchemeAccountJoinMixin:
         user.profile.save()
 
     @staticmethod
-    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int) -> None:
+    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -414,7 +414,8 @@ class SchemeAccountJoinMixin:
             'credentials': encrypted_credentials,
             'user_id': user_id,
             'status': scheme_account.status,
-            'journey_type': JourneyTypes.JOIN.value
+            'journey_type': JourneyTypes.JOIN.value,
+            'channel': channel
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug), json=data, headers=headers)

@@ -146,7 +146,7 @@ class TestTasks(TestCase):
         scheme_account_id = self.link_entry.scheme_account.id
         user_id = self.link_entry.user_id
 
-        async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}})
+        async_registration(user_id, JoinSerializer, scheme_account_id, {"credentials": {}}, self.bundle.bundle_id)
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)

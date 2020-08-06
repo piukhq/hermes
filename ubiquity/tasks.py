@@ -94,16 +94,16 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
-               validated_data: dict) -> None:
+               validated_data: dict, channel: str) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
 
 @shared_task
 def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
-                       validated_data: dict, delete_balance=False) -> None:
+                       validated_data: dict, channel: str, delete_balance=False) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     if delete_balance:
@@ -111,7 +111,7 @@ def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id
         scheme_account.delete_saved_balance()
 
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
-                                                 scheme_account, serializer)
+                                                 scheme_account, serializer, channel)
 
 
 @shared_task
