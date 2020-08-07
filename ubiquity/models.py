@@ -92,7 +92,10 @@ class PaymentCardSchemeEntry(models.Model):
         # and delete the older ones
         # todo check if we should use the autolink selection and also prefer active links
 
-        same_scheme_links.delete()
+        if same_scheme_links:
+            same_scheme_links.delete()
+            self.payment_card_account.refresh_from_db()
+
         called_status = self.active_link
         self.active_link = self.computed_active_link
         if called_status != self.active_link:
@@ -202,8 +205,7 @@ def update_pll_links_on_save(sender, instance, created, **kwargs):
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_delete(sender, instance, **kwargs):
-    if instance.active_link:
-        _remove_pll_link(instance)
+    _remove_pll_link(instance)
 
 
 class ServiceConsent(models.Model):
