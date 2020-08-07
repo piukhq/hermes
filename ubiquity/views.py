@@ -589,7 +589,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account = self.get_object()
         self.log_update(account.pk)
         scheme = account.scheme
-        scheme_questions = scheme.questions.all().values()
+        scheme_questions = scheme.questions.all()
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
@@ -611,8 +611,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         manual_question_type = None
         for question in scheme_questions:
-            if question["manual_question"]:
-                manual_question_type = question["type"]
+            if question.manual_question:
+                manual_question_type = question.type
 
         if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
                 account,
@@ -636,10 +636,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         manual_answer = account.card_number
         if manual_answer:
             main_credential = manual_answer
-            question_type = next(question["type"] for question in scheme_questions if question["manual_question"])
+            question_type = next(question.type for question in scheme_questions if question.manual_question)
         else:
             main_credential = account.barcode
-            question_type = next(question["type"] for question in scheme_questions if question["scan_question"])
+            question_type = next(question.type for question in scheme_questions if question.scan_question)
         registration_data = {
             question_type: main_credential,
             **registration_fields,
@@ -851,14 +851,14 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         except (ValueError, Scheme.DoesNotExist):
             raise ParseError
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(
-            self.request.data, scheme=scheme, scheme_questions=scheme_questions.values()
+            self.request.data, scheme=scheme, scheme_questions=scheme_questions
         )
         return scheme, auth_fields, enrol_fields, add_fields, scheme_questions
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
                                         auth_fields: dict) -> None:
-        existing_answers = scheme_account.get_auth_fields()
+        existing_answers = scheme_account.get_auth_credentials()
         for k, v in existing_answers.items():
             provided_value = auth_fields.get(k)
 
@@ -883,8 +883,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             # If it already exists, nothing else needs to be done here.
             pass
 
-    def _handle_create_link_route(self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
-                                  ) -> t.Tuple[SchemeAccount, int]:
+    def _handle_create_link_route(
+        self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
+    ) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme.id, 'order': 0, **add_fields}
         serializer = self.get_validated_data(data, user, scheme=scheme)
@@ -1002,16 +1003,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _get_manual_question(scheme_slug, scheme_questions):
         for question in scheme_questions:
-            if question["manual_question"]:
-                return question["type"]
+            if question.manual_question:
+                return question.type
 
         raise SchemeCredentialQuestion.DoesNotExist(
             f'could not find the manual question for scheme: {scheme_slug}.'
         )
 
-    def _collect_credentials_answers(self, data: dict, scheme: Scheme, scheme_questions: list
-                                     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
-
+    def _collect_credentials_answers(
+        self, data: dict, scheme: Scheme, scheme_questions: list
+    ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
         try:
             label_to_type = scheme.get_question_type_dict(scheme_questions)
             fields = {}
@@ -1041,34 +1042,38 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return fields['add_fields'], fields['authorise_fields'], None
 
     def _extract_consent_data(self, scheme: Scheme, field: str, data: dict) -> dict:
-        if not data['account'].get(field):
+        data_provided = data['account'].get(field)
+
+        if not data_provided:
             return {}
 
-        client_app = self.request.channels_permit.client
-        data_provided = data['account'][field]
+        if not hasattr(self, "consent_links") or not self.consent_links:
+            client_app = self.request.channels_permit.client
+            self.consent_links = ThirdPartyConsentLink.objects.filter(scheme=scheme, client_app=client_app)
 
-        consent_links = ThirdPartyConsentLink.objects.filter(scheme=scheme, client_app=client_app)
-        provided_consent_keys = self.match_consents(consent_links, data_provided)
-
+        provided_consent_keys = self.match_consents(self.consent_links, data_provided)
         if not provided_consent_keys:
             return {'consents': []}
 
-        provided_consent_data = {
-            item['column']: item for item in data_provided if item['column'] in provided_consent_keys
-        }
-
-        consents = [
-            {
-                'id': link.consent_id,
-                'value': provided_consent_data[link.consent_label]['value']
-            }
-            for link in consent_links if provided_consent_data.get(link.consent_label)
-        ]
+        consents = self._build_consents(data_provided, provided_consent_keys)
 
         # remove consents information from provided credentials data
         data['account'][field] = [item for item in data_provided if item['column'] not in provided_consent_keys]
 
         return {'consents': consents}
+
+    def _build_consents(self, data_provided, provided_consent_keys):
+        provided_consent_data = {
+            item['column']: item for item in data_provided if item['column'] in provided_consent_keys
+        }
+
+        return [
+            {
+                'id': link.consent_id,
+                'value': provided_consent_data[link.consent_label]['value']
+            }
+            for link in self.consent_links if provided_consent_data.get(link.consent_label)
+        ]
 
     @staticmethod
     def match_consents(consent_links, data_provided):
