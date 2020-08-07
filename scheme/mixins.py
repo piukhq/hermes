@@ -13,19 +13,17 @@ from django.utils import timezone
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import get_object_or_404
 
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE
+from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion)
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
-
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
@@ -303,10 +301,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 class SchemeAccountJoinMixin:
     @staticmethod
     def validate(data: dict, scheme_account: 'SchemeAccount', user: 'CustomUser', permit: 'Permit',
-                 scheme_id: int, serializer_class=UbiquityJoinSerializer):
-        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+                 join_scheme: Scheme, serializer_class=UbiquityJoinSerializer):
 
-        if permit and permit.is_scheme_suspended(scheme_id):
+        if permit and permit.is_scheme_suspended(join_scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         serializer = serializer_class(data=data, context={
@@ -315,10 +312,10 @@ class SchemeAccountJoinMixin:
         })
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        validated_data['scheme'] = scheme_id
+        validated_data['scheme'] = join_scheme.id
 
         if not scheme_account:
-            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, scheme_id)
+            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, join_scheme.id)
 
         if 'consents' in validated_data:
             consent_data = validated_data['consents']
@@ -472,12 +469,53 @@ class SchemeAccountJoinMixin:
 
 
 class UpdateCredentialsMixin:
-
     @staticmethod
-    def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
+    def _update_credentials(
+            scheme_account: SchemeAccount,
+            question_id_and_data: dict,
+            existing_credentials: dict
+    ) -> list:
+        create_credentials = []
+        update_credentials = []
+        updated_types = []
+        main_answer = scheme_account.main_answer
+        for question_id, answer_and_type in question_id_and_data.items():
+            question_type, new_answer = answer_and_type
+
+            if question_type in ENCRYPTED_CREDENTIALS:
+                new_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(str(new_answer)).decode("utf-8")
+
+            if question_id in existing_credentials:
+                credential = existing_credentials[question_id]
+
+                if credential.answer == main_answer and new_answer != main_answer:
+                    scheme_account.main_answer = new_answer
+                    scheme_account.save(update_fields=['main_answer'])
+
+                credential.answer = new_answer
+                update_credentials.append(credential)
+
+            else:
+                create_credentials.append(
+                    SchemeAccountCredentialAnswer(
+                        question_id=question_id,
+                        scheme_account=scheme_account,
+                        answer=new_answer
+                    )
+                )
+
+            updated_types.append(question_type)
+
+        if create_credentials:
+            SchemeAccountCredentialAnswer.objects.bulk_create(create_credentials)
+        if update_credentials:
+            SchemeAccountCredentialAnswer.objects.bulk_update(update_credentials, ['answer'])
+
+        return updated_types
+
+    def update_credentials(self, scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
         if questions is None:
-            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme) \
-                .values("id", "type").all()
+            questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).values("id", "type").all()
 
         serializer = UpdateCredentialSerializer(data=data, context={'questions': questions})
         serializer.is_valid(raise_exception=True)
@@ -489,26 +527,23 @@ class UpdateCredentialsMixin:
             question["type"]: question["id"]
             for question in questions
         }
-
-        updated_credentials = []
-        main_answer = scheme_account.main_answer
-        for credential_type in data.keys():
-            new_answer = data[credential_type]
-            answer, created = SchemeAccountCredentialAnswer.objects.get_or_create(
-                question_id=question_id_from_type[credential_type],
-                scheme_account=scheme_account,
-                defaults={'answer': new_answer}
-            )
-            if answer.answer == main_answer and new_answer != main_answer:
-                # the answer being updated is also saved as the main credential, so we need to update that too.
-                scheme_account.main_answer = new_answer
-                scheme_account.save()
-            if not created:  # an existing answer is being updated
-                answer.answer = new_answer
-                answer.save()
-            updated_credentials.append(credential_type)
-
-        return {'updated': updated_credentials}
+        existing_credentials = {
+            credential.question_id: credential
+            for credential in SchemeAccountCredentialAnswer.objects.filter(
+                question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
+                scheme_account=scheme_account
+            ).all()
+        }
+        question_id_and_data = {
+            question_id_from_type[question_type]: (question_type, answer)
+            for question_type, answer in data.items()
+        }
+        updated_types = self._update_credentials(
+            scheme_account=scheme_account,
+            question_id_and_data=question_id_and_data,
+            existing_credentials=existing_credentials
+        )
+        return {'updated': updated_types}
 
     def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
         self._check_required_data_presence(scheme, data)
