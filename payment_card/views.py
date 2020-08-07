@@ -310,7 +310,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if not retry_id:
             # First time call back
             if response_state == "Retry":
-                self._new_retry(retry_task, 10, card_id,
+                self._new_retry(retry_task, 100, card_id,
                                 PeriodicRetryStatus.REQUIRED, response_message, response_status)
             elif response_state == "Failed":
                 # Just save retry info for manual retry without invoking retry attempt
