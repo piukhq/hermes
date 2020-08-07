@@ -7,7 +7,7 @@ import arrow
 import requests
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Count
 from rest_framework import serializers, status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
@@ -873,7 +873,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if provided_value != v:
                 raise ParseError('This card already exists, but the provided credentials do not match.')
 
-        SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        try:
+            # required to rollback transactions when running into an expected IntegrityError
+            # tests will fail without this as TestCase already wraps tests in an atomic
+            # block and will not know how to correctly rollback otherwise
+            with transaction.atomic():
+                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+        except IntegrityError:
+            # If it already exists, nothing else needs to be done here.
+            pass
 
     def _handle_create_link_route(self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
                                   ) -> t.Tuple[SchemeAccount, int]:

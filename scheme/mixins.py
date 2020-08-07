@@ -8,7 +8,7 @@ import requests
 import sentry_sdk
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from requests import RequestException
 from rest_framework import serializers, status
@@ -157,33 +157,70 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer = self.get_validated_data(data, user)
         return self.create_account_with_valid_data(serializer, user)
 
-    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser'
-                                       ) -> t.Tuple[SchemeAccount, dict, bool]:
-        account_created = False
+    def create_account_with_valid_data(
+            self, serializer: 'Serializer', user: 'CustomUser'
+    ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
-        try:
-            query = {
-                'scheme_id': data['scheme']
-            }
-            if answer_type == CARD_NUMBER:
-                query['card_number'] = data[answer_type]
-            elif answer_type == BARCODE:
-                query['barcode'] = data[answer_type]
-            else:
-                query['main_answer'] = data[answer_type]
 
-            scheme_account = SchemeAccount.objects.filter(**query).get()
-            return scheme_account, data, account_created
+        if answer_type == CARD_NUMBER:
+            main_answer = 'card_number'
+        elif answer_type == BARCODE:
+            main_answer = 'barcode'
+        else:
+            main_answer = 'main_answer'
 
-        except SchemeAccount.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type)
+        scheme_account = SchemeAccount.objects.filter(
+            scheme_id=data['scheme']
+        ).annotate(
+            belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id)),
+            matched_main_answer=Count(
+                main_answer, filter=Q(**{main_answer: data[answer_type]})
+            )
+        ).order_by(
+            '-matched_main_answer', '-belongs_to_this_user'
+        ).first()
 
-        data['id'] = scheme_account.id
-        return scheme_account, data, account_created
+        return self._match_scheme_account(user, scheme_account, data, answer_type)
 
-    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str
-                                ) -> SchemeCredentialQuestion:
+    def _match_scheme_account(
+        self,
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        data: dict,
+        answer_type: str
+    ) -> t.Tuple['SchemeAccount', dict, bool]:
+        account_created = False
+
+        # Creates new acc if there are no existing cards for a scheme
+        if scheme_account is None:
+            account_created = True
+            scheme_account = self._create_new_account(user, data, answer_type)
+
+            resp = (scheme_account, data, account_created)
+
+        # Found an account with a matching main answer
+        elif scheme_account.matched_main_answer:
+            # handle_existing_scheme_account is called after this function
+            # to check if auth_fields match and link to user if not linked already
+            resp = (scheme_account, data, account_created)
+
+        # Found account belonging to this user that is in join state
+        elif (scheme_account.belongs_to_this_user
+                and scheme_account.status in SchemeAccount.JOIN_ACTION_REQUIRED):
+            scheme_account = self._update_join_account(user, scheme_account, data, answer_type)
+            resp = (scheme_account, data, account_created)
+
+        # No account belongs to this user that is not in a JOIN_ACTION_REQUIRED state
+        else:
+            account_created = True
+            scheme_account = self._create_new_account(user, data, answer_type)
+            resp = (scheme_account, data, account_created)
+
+        data["id"] = scheme_account.id
+        return resp
+
+    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str) -> SchemeCredentialQuestion:
         if not hasattr(self, 'scheme_questions'):
             return scheme_account.question(question_type)
 
@@ -195,44 +232,35 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_account(self, user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
-        account_created = False  # Required for /ubiquity
-
+    def _create_new_account(self, user: 'CustomUser', data: dict, answer_type: str) -> SchemeAccount:
         with transaction.atomic():
-            scheme_account_updated = False
-            try:
-                scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id,
-                    scheme_id=data['scheme'],
-                    status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
-                    is_deleted=False
-                )
+            scheme_account = SchemeAccount.objects.create(
+                scheme_id=data['scheme'],
+                order=data['order'],
+                status=SchemeAccount.WALLET_ONLY,
+                main_answer=data[answer_type],
+            )
+            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
+            SchemeAccountCredentialAnswer.objects.create(
+                scheme_account=scheme_account,
+                question=self._get_question_from_type(scheme_account, answer_type),
+                answer=data[answer_type],
+            )
+            self.analytics_update(user, scheme_account, acc_created=True)
+            self.save_consents(user, scheme_account, data)
+        return scheme_account
 
-                scheme_account.order = data['order']
-                scheme_account.status = SchemeAccount.WALLET_ONLY
-                scheme_account.save()
-                scheme_account_updated = True
-
-            except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data['scheme'],
-                    order=data['order'],
-                    status=SchemeAccount.WALLET_ONLY,
-                    main_answer=data[answer_type],
-                )
-
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-                account_created = True
-
-            finally:
-                if user.client_id == settings.BINK_CLIENT_ID:
-                    if scheme_account_updated:
-                        analytics.update_scheme_account_attribute(
-                            scheme_account,
-                            user,
-                            dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
-                    elif account_created:
-                        analytics.update_scheme_account_attribute(scheme_account, user)
+    def _update_join_account(
+        self,
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        data: dict,
+        answer_type: str
+    ) -> SchemeAccount:
+        with transaction.atomic():
+            scheme_account.order = data['order']
+            scheme_account.status = SchemeAccount.WALLET_ONLY
+            scheme_account.save()
 
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
@@ -240,19 +268,36 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 answer=data[answer_type],
             )
 
-            if 'consents' in data:
-                if hasattr(self, 'current_scheme'):
-                    scheme = self.current_scheme
-                else:
-                    scheme = scheme_account.scheme
+            self.analytics_update(user, scheme_account, acc_created=False)
+            self.save_consents(user, scheme_account, data)
 
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
-                UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
-                for user_consent in user_consents:
-                    user_consent.status = ConsentStatus.SUCCESS
-                    user_consent.save()
+        return scheme_account
 
-        return scheme_account, account_created
+    @staticmethod
+    def analytics_update(user: 'CustomUser', scheme_account: 'SchemeAccount', acc_created: bool) -> None:
+        if user.client_id == settings.BINK_CLIENT_ID:
+            if acc_created:
+                analytics.update_scheme_account_attribute(scheme_account, user)
+            else:
+                # Assume an update of a join account
+                analytics.update_scheme_account_attribute(
+                    scheme_account,
+                    user,
+                    old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                )
+
+    def save_consents(self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict) -> None:
+        if 'consents' in data:
+            if hasattr(self, 'current_scheme'):
+                scheme = self.current_scheme
+            else:
+                scheme = scheme_account.scheme
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
+            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
 
 
 class SchemeAccountJoinMixin:
