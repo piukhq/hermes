@@ -8,24 +8,22 @@ import requests
 import sentry_sdk
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.utils import timezone
 from requests import RequestException
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import get_object_or_404
 
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE
+from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion)
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
-
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
@@ -157,33 +155,70 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         serializer = self.get_validated_data(data, user)
         return self.create_account_with_valid_data(serializer, user)
 
-    def create_account_with_valid_data(self, serializer: 'Serializer', user: 'CustomUser'
-                                       ) -> t.Tuple[SchemeAccount, dict, bool]:
-        account_created = False
+    def create_account_with_valid_data(
+            self, serializer: 'Serializer', user: 'CustomUser'
+    ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
-        try:
-            query = {
-                'scheme_id': data['scheme']
-            }
-            if answer_type == CARD_NUMBER:
-                query['card_number'] = data[answer_type]
-            elif answer_type == BARCODE:
-                query['barcode'] = data[answer_type]
-            else:
-                query['main_answer'] = data[answer_type]
 
-            scheme_account = SchemeAccount.objects.filter(**query).get()
-            return scheme_account, data, account_created
+        if answer_type == CARD_NUMBER:
+            main_answer = 'card_number'
+        elif answer_type == BARCODE:
+            main_answer = 'barcode'
+        else:
+            main_answer = 'main_answer'
 
-        except SchemeAccount.DoesNotExist:
-            scheme_account, account_created = self._create_account(user, data, answer_type)
+        scheme_account = SchemeAccount.objects.filter(
+            scheme_id=data['scheme']
+        ).annotate(
+            belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id)),
+            matched_main_answer=Count(
+                main_answer, filter=Q(**{main_answer: data[answer_type]})
+            )
+        ).order_by(
+            '-matched_main_answer', '-belongs_to_this_user'
+        ).first()
 
-        data['id'] = scheme_account.id
-        return scheme_account, data, account_created
+        return self._match_scheme_account(user, scheme_account, data, answer_type)
 
-    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str
-                                ) -> SchemeCredentialQuestion:
+    def _match_scheme_account(
+        self,
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        data: dict,
+        answer_type: str
+    ) -> t.Tuple['SchemeAccount', dict, bool]:
+        account_created = False
+
+        # Creates new acc if there are no existing cards for a scheme
+        if scheme_account is None:
+            account_created = True
+            scheme_account = self._create_new_account(user, data, answer_type)
+
+            resp = (scheme_account, data, account_created)
+
+        # Found an account with a matching main answer
+        elif scheme_account.matched_main_answer:
+            # handle_existing_scheme_account is called after this function
+            # to check if auth_fields match and link to user if not linked already
+            resp = (scheme_account, data, account_created)
+
+        # Found account belonging to this user that is in join state
+        elif (scheme_account.belongs_to_this_user
+                and scheme_account.status in SchemeAccount.JOIN_ACTION_REQUIRED):
+            scheme_account = self._update_join_account(user, scheme_account, data, answer_type)
+            resp = (scheme_account, data, account_created)
+
+        # No account belongs to this user that is not in a JOIN_ACTION_REQUIRED state
+        else:
+            account_created = True
+            scheme_account = self._create_new_account(user, data, answer_type)
+            resp = (scheme_account, data, account_created)
+
+        data["id"] = scheme_account.id
+        return resp
+
+    def _get_question_from_type(self, scheme_account: SchemeAccount, question_type: str) -> SchemeCredentialQuestion:
         if not hasattr(self, 'scheme_questions'):
             return scheme_account.question(question_type)
 
@@ -195,44 +230,35 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_account(self, user: 'CustomUser', data: dict, answer_type: str) -> t.Tuple[SchemeAccount, bool]:
-        account_created = False  # Required for /ubiquity
-
+    def _create_new_account(self, user: 'CustomUser', data: dict, answer_type: str) -> SchemeAccount:
         with transaction.atomic():
-            scheme_account_updated = False
-            try:
-                scheme_account = SchemeAccount.objects.get(
-                    user_set__id=user.id,
-                    scheme_id=data['scheme'],
-                    status__in=SchemeAccount.JOIN_ACTION_REQUIRED,
-                    is_deleted=False
-                )
+            scheme_account = SchemeAccount.objects.create(
+                scheme_id=data['scheme'],
+                order=data['order'],
+                status=SchemeAccount.WALLET_ONLY,
+                main_answer=data[answer_type],
+            )
+            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
+            SchemeAccountCredentialAnswer.objects.create(
+                scheme_account=scheme_account,
+                question=self._get_question_from_type(scheme_account, answer_type),
+                answer=data[answer_type],
+            )
+            self.analytics_update(user, scheme_account, acc_created=True)
+            self.save_consents(user, scheme_account, data)
+        return scheme_account
 
-                scheme_account.order = data['order']
-                scheme_account.status = SchemeAccount.WALLET_ONLY
-                scheme_account.save()
-                scheme_account_updated = True
-
-            except SchemeAccount.DoesNotExist:
-                scheme_account = SchemeAccount.objects.create(
-                    scheme_id=data['scheme'],
-                    order=data['order'],
-                    status=SchemeAccount.WALLET_ONLY,
-                    main_answer=data[answer_type],
-                )
-
-                SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
-                account_created = True
-
-            finally:
-                if user.client_id == settings.BINK_CLIENT_ID:
-                    if scheme_account_updated:
-                        analytics.update_scheme_account_attribute(
-                            scheme_account,
-                            user,
-                            dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN))
-                    elif account_created:
-                        analytics.update_scheme_account_attribute(scheme_account, user)
+    def _update_join_account(
+        self,
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        data: dict,
+        answer_type: str
+    ) -> SchemeAccount:
+        with transaction.atomic():
+            scheme_account.order = data['order']
+            scheme_account.status = SchemeAccount.WALLET_ONLY
+            scheme_account.save()
 
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
@@ -240,28 +266,44 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 answer=data[answer_type],
             )
 
-            if 'consents' in data:
-                if hasattr(self, 'current_scheme'):
-                    scheme = self.current_scheme
-                else:
-                    scheme = scheme_account.scheme
+            self.analytics_update(user, scheme_account, acc_created=False)
+            self.save_consents(user, scheme_account, data)
 
-                user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
-                UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
-                for user_consent in user_consents:
-                    user_consent.status = ConsentStatus.SUCCESS
-                    user_consent.save()
+        return scheme_account
 
-        return scheme_account, account_created
+    @staticmethod
+    def analytics_update(user: 'CustomUser', scheme_account: 'SchemeAccount', acc_created: bool) -> None:
+        if user.client_id == settings.BINK_CLIENT_ID:
+            if acc_created:
+                analytics.update_scheme_account_attribute(scheme_account, user)
+            else:
+                # Assume an update of a join account
+                analytics.update_scheme_account_attribute(
+                    scheme_account,
+                    user,
+                    old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
+                )
+
+    def save_consents(self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict) -> None:
+        if 'consents' in data:
+            if hasattr(self, 'current_scheme'):
+                scheme = self.current_scheme
+            else:
+                scheme = scheme_account.scheme
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
+            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
+            for user_consent in user_consents:
+                user_consent.status = ConsentStatus.SUCCESS
+                user_consent.save()
 
 
 class SchemeAccountJoinMixin:
     @staticmethod
     def validate(data: dict, scheme_account: 'SchemeAccount', user: 'CustomUser', permit: 'Permit',
-                 scheme_id: int, serializer_class=UbiquityJoinSerializer):
-        join_scheme = get_object_or_404(Scheme.objects, id=scheme_id)
+                 join_scheme: Scheme, serializer_class=UbiquityJoinSerializer):
 
-        if permit and permit.is_scheme_suspended(scheme_id):
+        if permit and permit.is_scheme_suspended(join_scheme.id):
             raise serializers.ValidationError('This scheme is temporarily unavailable.')
 
         serializer = serializer_class(data=data, context={
@@ -270,10 +312,10 @@ class SchemeAccountJoinMixin:
         })
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        validated_data['scheme'] = scheme_id
+        validated_data['scheme'] = join_scheme.id
 
         if not scheme_account:
-            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, scheme_id)
+            scheme_account = SchemeAccountJoinMixin.create_join_account(validated_data, user, join_scheme.id)
 
         if 'consents' in validated_data:
             consent_data = validated_data['consents']
@@ -427,9 +469,51 @@ class SchemeAccountJoinMixin:
 
 
 class UpdateCredentialsMixin:
-
     @staticmethod
-    def update_credentials(scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
+    def _update_credentials(
+            scheme_account: SchemeAccount,
+            question_id_and_data: dict,
+            existing_credentials: dict
+    ) -> list:
+        create_credentials = []
+        update_credentials = []
+        updated_types = []
+        main_answer = scheme_account.main_answer
+        for question_id, answer_and_type in question_id_and_data.items():
+            question_type, new_answer = answer_and_type
+
+            if question_type in ENCRYPTED_CREDENTIALS:
+                new_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(str(new_answer)).decode("utf-8")
+
+            if question_id in existing_credentials:
+                credential = existing_credentials[question_id]
+
+                if credential.answer == main_answer and new_answer != main_answer:
+                    scheme_account.main_answer = new_answer
+                    scheme_account.save(update_fields=['main_answer'])
+
+                credential.answer = new_answer
+                update_credentials.append(credential)
+
+            else:
+                create_credentials.append(
+                    SchemeAccountCredentialAnswer(
+                        question_id=question_id,
+                        scheme_account=scheme_account,
+                        answer=new_answer
+                    )
+                )
+
+            updated_types.append(question_type)
+
+        if create_credentials:
+            SchemeAccountCredentialAnswer.objects.bulk_create(create_credentials)
+        if update_credentials:
+            SchemeAccountCredentialAnswer.objects.bulk_update(update_credentials, ['answer'])
+
+        return updated_types
+
+    def update_credentials(self, scheme_account: SchemeAccount, data: dict, questions=None) -> dict:
         if questions is None:
             questions = SchemeCredentialQuestion.objects.filter(scheme=scheme_account.scheme).only("id", "type")
 
@@ -443,26 +527,23 @@ class UpdateCredentialsMixin:
             question.type: question.id
             for question in questions
         }
-
-        updated_credentials = []
-        main_answer = scheme_account.main_answer
-        for credential_type in data.keys():
-            new_answer = data[credential_type]
-            answer, created = SchemeAccountCredentialAnswer.objects.get_or_create(
-                question_id=question_id_from_type[credential_type],
-                scheme_account=scheme_account,
-                defaults={'answer': new_answer}
-            )
-            if answer.answer == main_answer and new_answer != main_answer:
-                # the answer being updated is also saved as the main credential, so we need to update that too.
-                scheme_account.main_answer = new_answer
-                scheme_account.save()
-            if not created:  # an existing answer is being updated
-                answer.answer = new_answer
-                answer.save()
-            updated_credentials.append(credential_type)
-
-        return {'updated': updated_credentials}
+        existing_credentials = {
+            credential.question_id: credential
+            for credential in SchemeAccountCredentialAnswer.objects.filter(
+                question_id__in=[question_id_from_type[credential_type] for credential_type in data.keys()],
+                scheme_account=scheme_account
+            ).all()
+        }
+        question_id_and_data = {
+            question_id_from_type[question_type]: (question_type, answer)
+            for question_type, answer in data.items()
+        }
+        updated_types = self._update_credentials(
+            scheme_account=scheme_account,
+            question_id_and_data=question_id_and_data,
+            existing_credentials=existing_credentials
+        )
+        return {'updated': updated_types}
 
     def replace_credentials_and_scheme(self, scheme_account: SchemeAccount, data: dict, scheme: Scheme) -> dict:
         self._check_required_data_presence(scheme, data)
