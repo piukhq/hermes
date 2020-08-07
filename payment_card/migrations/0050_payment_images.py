@@ -22,8 +22,8 @@ def _format_image_for_ubiquity(img):
 
         },
         'validity': {
-            'start_date': img.start_date.timestamp(),
-            'end_date': img.end_date.timestamp()
+            'start_date': img.start_date.timestamp() if img.start_date else None,
+            'end_date': img.end_date.timestamp() if img.end_date else None
         }
     }
 
