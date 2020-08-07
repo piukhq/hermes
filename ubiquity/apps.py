@@ -14,4 +14,4 @@ class UbiquityConfig(AppConfig):
         if settings.TESTING is False and not ('migrate' in sys.argv or 'collectstatic' in sys.argv):
             load_secrets(settings.VAULT_CONFIG)
         else:
-            logger.info(f"Vault not initialised as this is either a test, a migration, or statics collection")
+            logger.info("Vault not initialised as this is either a test, a migration, or statics collection")
