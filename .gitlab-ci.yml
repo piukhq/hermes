@@ -8,12 +8,10 @@ stages:
 
 tests:
   stage: tests
-  image: olympus.azurecr.io/python:3.7
+  image: binkhq/python:3.7
   script:
-    - mkdir -p /root/.ssh
-    - echo $DEPLOY_KEY | base64 -d > /root/.ssh/id_rsa
-    - chmod 600 /root/.ssh/id_rsa
-    - ssh-keyscan git.bink.com > /root/.ssh/known_hosts
+    - apt update && apt -y install git
+    - pip install pipenv coverage
     - pipenv install --system --deploy --ignore-pipfile
     - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
     - coverage run --source='.' manage.py test -v 2
@@ -25,15 +23,17 @@ tests:
 
 complexity:
   stage: tests
-  image: olympus.azurecr.io/python:3.7
+  image: binkhq/python:3.7
   script:
+    - pip install xenon
     - xenon --max-average A --max-modules B --max-absolute B .
 
 flake8:
   stage: tests
-  image: olympus.azurecr.io/python:3.7
+  image: binkhq/python:3.7
   script:
-    - flake8 *
+    - pip install flake8
+    - flake8
 
 build-develop:
   stage: build
