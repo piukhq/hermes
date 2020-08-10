@@ -5,6 +5,7 @@ import sre_constants
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
 from enum import IntEnum
+from typing import Dict, Iterable
 
 import arrow
 import requests
@@ -252,11 +253,12 @@ class Scheme(models.Model):
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
         ).values('id', 'type')
 
-    def get_question_type_dict(self, question_list):
+    @staticmethod
+    def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
         return {
-            question["label"]: {
-                "type": question["type"],
-                "answer_type": question["answer_type"]
+            question.label: {
+                "type": question.type,
+                "answer_type": question.answer_type
             }
             for question in question_list
         }
@@ -630,14 +632,21 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def get_auth_fields(self):
-        credentials = self._collect_credentials()
-        link_fields = [field.type for field in self.scheme.link_questions]
+    def get_auth_credentials(self) -> Dict[str, str]:
+        answer_instances = self.schemeaccountcredentialanswer_set.filter(
+            question__auth_field=True, question__manual_question=False, question__scheme_id=self.scheme_id
+        ).select_related("question")
         return {
-            k: v
-            for k, v in credentials.items()
-            if k in link_fields
+            answer.question.type: self._get_decrypted_answer(answer)
+            for answer in answer_instances
         }
+
+    @staticmethod
+    def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
+        answer = answer_instance.answer
+        if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
+            answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+        return answer
 
     def credentials(self):
         credentials = self._collect_credentials()
@@ -803,20 +812,95 @@ class SchemeAccount(models.Model):
 
     def update_barcode_and_card_number(self, scheme_questions=None):
         if scheme_questions is not None:
-            questions_ids = {
-                question.type: question.id
-                for question in scheme_questions
+            questions = [
+                question for question in scheme_questions
                 if question.type in [CARD_NUMBER, BARCODE]
-            }
+            ]
         else:
-            questions_ids = {
-                question['type']: question['id']
-                for question in self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE]).values('type', 'id')
-            }
+            questions = [
+                question for question in
+                self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE])
+            ]
 
-        self._update_card_number(questions_ids)
-        self._update_barcode(questions_ids)
+        answers = self.schemeaccountcredentialanswer_set.filter(
+            question__id__in=[q.id for q in questions]
+        ).select_related("question")
+
+        card_number = None
+        barcode = None
+        for answer in answers:
+            if answer.question.type == CARD_NUMBER:
+                card_number = answer
+            elif answer.question.type == BARCODE:
+                barcode = answer
+
+        self._update_barcode_and_card_number(
+            card_number,
+            answers=answers,
+            questions=questions,
+            primary_cred_type=CARD_NUMBER
+        )
+        self._update_barcode_and_card_number(
+            barcode,
+            answers=answers,
+            questions=questions,
+            primary_cred_type=BARCODE
+        )
+
         self.save(update_fields=['barcode', 'card_number'])
+
+    def _update_barcode_and_card_number(
+        self,
+        primary_cred: 'SchemeAccountCredentialAnswer',
+        answers: Iterable['SchemeAccountCredentialAnswer'],
+        questions: Iterable['SchemeCredentialQuestion'],
+        primary_cred_type: str
+    ) -> None:
+        """
+        Updates the given primary credential of either card number or barcode. The non-provided (secondary)
+        credential is also updated if the scheme question and conversion regex exists for the scheme.
+        """
+        if not answers:
+            setattr(self, primary_cred_type, '')
+            return
+
+        if not primary_cred:
+            return
+
+        type_to_update_info = {
+            CARD_NUMBER: {
+                "regex": self.scheme.barcode_regex,
+                "prefix": self.scheme.barcode_prefix,
+                "secondary_cred_type": BARCODE
+            },
+            BARCODE: {
+                "regex": self.scheme.card_number_regex,
+                "prefix": self.scheme.card_number_prefix,
+                "secondary_cred_type": CARD_NUMBER
+            },
+        }
+
+        setattr(self, primary_cred_type, primary_cred.answer)
+
+        secondary_question_exists = (
+            type_to_update_info[primary_cred_type]["secondary_cred_type"]
+            in [q.type for q in questions]
+        )
+        if secondary_question_exists and type_to_update_info[primary_cred_type]["regex"]:
+            try:
+                regex_match = re.search(type_to_update_info[primary_cred_type]["regex"], primary_cred.answer)
+            except sre_constants.error:
+                setattr(self, type_to_update_info[primary_cred_type]["secondary_cred_type"], '')
+                return None
+            if regex_match:
+                try:
+                    setattr(
+                        self,
+                        type_to_update_info[primary_cred_type]["secondary_cred_type"],
+                        type_to_update_info[primary_cred_type]["prefix"] + regex_match.group(1)
+                    )
+                except IndexError:
+                    pass
 
     def check_balance_and_vouchers(self, balance=None, vouchers=None):
         update_fields = []
@@ -987,60 +1071,6 @@ class SchemeAccount(models.Model):
             user_id = self.user_set.order_by('date_joined').values('id').first().get('id')
 
         return user_id
-
-    def _update_barcode(self, questions_ids):
-        barcode = self.schemeaccountcredentialanswer_set.filter(
-            question__id__in=questions_ids.values()
-        ).values('question__type', 'answer').order_by('question__type').first()
-
-        if not barcode:
-            self.barcode = ''
-            return None
-
-        if barcode['question__type'] == BARCODE:
-            self.barcode = barcode['answer']
-
-        elif barcode['question__type'] == CARD_NUMBER and self.scheme.barcode_regex:
-            try:
-                regex_match = re.search(self.scheme.barcode_regex, barcode['answer'])
-            except sre_constants.error:
-                self.barcode = ''
-                return None
-            if regex_match:
-                try:
-                    self.barcode = self.scheme.barcode_prefix + regex_match.group(1)
-                except IndexError:
-                    pass
-
-        else:
-            self.barcode = ''
-
-    def _update_card_number(self, questions_ids):
-        card_number = self.schemeaccountcredentialanswer_set.filter(
-            question__id__in=questions_ids.values()
-        ).values('question__type', 'answer').order_by('-question__type').first()
-
-        if not card_number:
-            self.card_number = ''
-            return None
-
-        if card_number['question__type'] == CARD_NUMBER:
-            self.card_number = card_number['answer']
-
-        elif card_number['question__type'] == BARCODE and self.scheme.card_number_regex:
-            try:
-                regex_match = re.search(self.scheme.card_number_regex, card_number['answer'])
-            except sre_constants.error:
-                self.card_number = ''
-                return None
-            if regex_match:
-                try:
-                    self.card_number = self.scheme.card_number_prefix + regex_match.group(1)
-                except IndexError:
-                    pass
-
-        else:
-            self.card_number = ''
 
     @property
     def barcode_answer(self):

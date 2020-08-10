@@ -435,17 +435,17 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
                 send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, date_time_now, 'link')
 
-    def send_to_intercom(self, new_status_code, scheme_account):
+    def send_to_intercom(self, new_status_code: int, scheme_account: SchemeAccount) -> None:
         try:
             # use the more accurate user_set if provided
             user_set_from_midas = self.request.data['user_info']['user_set']
-            user_ids = [int(user_id) for user_id in user_set_from_midas.split(',')]
+            users = CustomUser.objects.filter(
+                id__in=[int(user_id) for user_id in user_set_from_midas.split(',')]
+            ).all()
         except KeyError:
-            user_ids = [user.id for user in scheme_account.user_set.all()]
+            users = scheme_account.user_set.all()
 
-        for user_id in user_ids:
-            user = CustomUser.objects.get(id=user_id)
-
+        for user in users:
             if user.client_id == settings.BINK_CLIENT_ID:
                 if 'event_name' in self.request.data:
                     analytics.post_event(
@@ -805,13 +805,14 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             raise NotFound('Scheme does not exist.')
 
         scheme_account = request.data.get('scheme_account')
+        scheme = get_object_or_404(Scheme.objects, pk=scheme_id)
 
         validated_data, serializer, new_scheme_account = SchemeAccountJoinMixin.validate(
             data=request.data,
             scheme_account=scheme_account,
             user=request.user,
             permit=request.channels_permit,
-            scheme_id=scheme_id,
+            join_scheme=scheme,
             serializer_class=self.get_serializer_class()
         )
 
