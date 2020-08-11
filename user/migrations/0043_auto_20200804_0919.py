@@ -26,7 +26,8 @@ def add_read_write_group(apps, schema_editor):
         Q(codename__startswith='delete'),
         Q(codename__endswith='customuser') |
         Q(codename__endswith='group') |
-        Q(codename__endswith='permission')
+        Q(codename__endswith='permission') |
+        Q(codename__endswith='customuserconsent')
     )
     entry_data = [{"group_id": new_group.id, "permission_id": p.pk} for p in permissions]
     ThroughModel = new_group.permissions.through
