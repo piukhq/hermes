@@ -945,8 +945,8 @@ class SchemeAccount(models.Model):
         * expiry_date: int, optional
         * code: str, optional
         * type: int, required
-        * value: Decimal or int, optional
-        * target_value: Decimal or int, optional
+        * value: float, optional
+        * target_value: float, optional
         """
         return [
             self.make_single_voucher(voucher_fields) for voucher_fields in vouchers
@@ -962,10 +962,10 @@ class SchemeAccount(models.Model):
             earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
         )
 
-        earn_target_value = voucher_scheme.get_earn_target_value(
+        earn_target_value: float = voucher_scheme.get_earn_target_value(
             voucher_fields=voucher_fields
         )
-        earn_value = voucher_scheme.get_earn_value(
+        earn_value: float = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields,
             earn_target_value=earn_target_value
         )
@@ -1350,8 +1350,8 @@ class VoucherScheme(models.Model):
     earn_target_value_help_text = (
         "Enter a value in this field if the merchant scheme does not return an earn.target_value for the voucher"
     )
-    earn_target_value = models.IntegerField(blank=True, null=True, verbose_name="Earn Target Value",
-                                            help_text=earn_target_value_help_text)
+    earn_target_value = models.FloatField(blank=True, null=True, verbose_name="Earn Target Value",
+                                          help_text=earn_target_value_help_text)
 
     burn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
     burn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
@@ -1403,24 +1403,24 @@ class VoucherScheme(models.Model):
             vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]
 
-    def get_earn_target_value(self, voucher_fields: Dict) -> int:
+    def get_earn_target_value(self, voucher_fields: Dict) -> float:
         """
         Get the target value from the incoming voucher, or voucher scheme if it's been set, or set to zero
 
         :param voucher_fields: Incoming voucher dict
         :return: earn target value
         """
-        earn_target_value = (
-                voucher_fields.get("target_value")
-                or self.earn_target_value
-                or 0
-        )
-        earn_target_value = int(earn_target_value)
+        earn_target_value = voucher_fields.get("target_value") or self.earn_target_value
+
+        if not earn_target_value:
+            raise ValueError("Earn target value must be set (cannot be None or zero)")
+
+        earn_target_value = float(earn_target_value)
 
         return earn_target_value
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: int) -> [Decimal, int]:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
         """
         Get the value from the incoming voucher. If it's None and of type 'stamps' then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.
@@ -1432,10 +1432,10 @@ class VoucherScheme(models.Model):
         :return: earn value
         """
         if voucher_fields.get("type") == vouchers.VoucherType.STAMPS.value:
-            earn_value: [int, None] = voucher_fields.get("value")
+            earn_value = voucher_fields.get("value")
             if earn_value is None:
                 earn_value = earn_target_value
         else:
             earn_value = voucher_fields.get("value", 0)  # The original behaviour for all types
 
-        return earn_value
+        return float(earn_value)
