@@ -8,7 +8,7 @@ import requests
 import sentry_sdk
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q, Count
+from django.db.models import Q
 from django.utils import timezone
 from requests import RequestException
 from rest_framework import serializers, status
@@ -160,60 +160,36 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
     ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
-
-        if answer_type == CARD_NUMBER:
-            main_answer = 'card_number'
-        elif answer_type == BARCODE:
-            main_answer = 'barcode'
-        else:
-            main_answer = 'main_answer'
-
-        scheme_account = SchemeAccount.objects.filter(
-            scheme_id=data['scheme']
-        ).annotate(
-            belongs_to_this_user=Count('user_set', filter=Q(user_set__id=user.id)),
-            matched_main_answer=Count(
-                main_answer, filter=Q(**{main_answer: data[answer_type]})
-            )
-        ).order_by(
-            '-matched_main_answer', '-belongs_to_this_user'
-        ).first()
-
-        return self._match_scheme_account(user, scheme_account, data, answer_type)
-
-    def _match_scheme_account(
-        self,
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        data: dict,
-        answer_type: str
-    ) -> t.Tuple['SchemeAccount', dict, bool]:
         account_created = False
 
-        # Creates new acc if there are no existing cards for a scheme
-        if scheme_account is None:
-            account_created = True
-            scheme_account = self._create_new_account(user, data, answer_type)
-
+        try:
+            join_account = user.scheme_account_set.get(
+                scheme_id=data['scheme'],
+                status__in=SchemeAccount.JOIN_ACTION_REQUIRED
+            )
+            scheme_account = self._update_join_account(user, join_account, data, answer_type)
             resp = (scheme_account, data, account_created)
 
-        # Found an account with a matching main answer
-        elif scheme_account.matched_main_answer:
-            # handle_existing_scheme_account is called after this function
-            # to check if auth_fields match and link to user if not linked already
-            resp = (scheme_account, data, account_created)
+        except SchemeAccount.DoesNotExist:
 
-        # Found account belonging to this user that is in join state
-        elif (scheme_account.belongs_to_this_user
-                and scheme_account.status in SchemeAccount.JOIN_ACTION_REQUIRED):
-            scheme_account = self._update_join_account(user, scheme_account, data, answer_type)
-            resp = (scheme_account, data, account_created)
+            if answer_type in [CARD_NUMBER, BARCODE]:
+                main_answer = answer_type
+            else:
+                main_answer = 'main_answer'
 
-        # No account belongs to this user that is not in a JOIN_ACTION_REQUIRED state
-        else:
-            account_created = True
-            scheme_account = self._create_new_account(user, data, answer_type)
-            resp = (scheme_account, data, account_created)
+            try:
+                scheme_account = SchemeAccount.objects.get(**{
+                    'scheme_id': data['scheme'],
+                    main_answer: data[answer_type]
+                })
+            except SchemeAccount.DoesNotExist:
+                account_created = True
+                scheme_account = self._create_new_account(user, data, answer_type)
+                resp = (scheme_account, data, account_created)
+            else:
+                # handle_existing_scheme_account is called after this function
+                # to check if auth_fields match and link to user if not linked already
+                resp = (scheme_account, data, account_created)
 
         data["id"] = scheme_account.id
         return resp
@@ -249,11 +225,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         return scheme_account
 
     def _update_join_account(
-        self,
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        data: dict,
-        answer_type: str
+            self,
+            user: 'CustomUser',
+            scheme_account: 'SchemeAccount',
+            data: dict,
+            answer_type: str
     ) -> SchemeAccount:
         with transaction.atomic():
             scheme_account.order = data['order']
