@@ -225,11 +225,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
         return scheme_account
 
     def _update_join_account(
-            self,
-            user: 'CustomUser',
-            scheme_account: 'SchemeAccount',
-            data: dict,
-            answer_type: str
+        self,
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        data: dict,
+        answer_type: str
     ) -> SchemeAccount:
         with transaction.atomic():
             scheme_account.order = data['order']
