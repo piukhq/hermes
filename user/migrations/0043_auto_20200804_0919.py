@@ -19,7 +19,7 @@ def add_read_only_group(apps, schema_editor):
 def add_read_write_group(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
     Permission = apps.get_model("auth", "Permission")
-    new_group = Group.objects.create(name="Read/Write Only")
+    new_group = Group.objects.create(name="Read/Write")
     permissions = Permission.objects.exclude(
         Q(codename__startswith='add') |
         Q(codename__startswith='change') |
@@ -44,7 +44,7 @@ def revert_migration_read_only(apps, schema_editor):
 def revert_migration(apps, schema_editor):
     Group = apps.get_model('auth', 'Group')
     Group.objects.filter(
-        name=u'Read/Write Only',
+        name=u'Read/Write',
     ).delete()
 
 
