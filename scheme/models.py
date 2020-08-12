@@ -1417,7 +1417,7 @@ class VoucherScheme(models.Model):
         if earn_target_value is None:
             earn_target_value = self.earn_target_value
             if earn_target_value is None:
-                raise ValueError("Earn target value must be set (cannot be None)")
+                raise ValueError("Earn target value must be set in voucher or voucher scheme config (cannot be None)")
 
         return float(earn_target_value)
 
