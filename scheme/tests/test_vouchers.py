@@ -145,6 +145,7 @@ class TestVouchers(TestCase):
             "code": "abc123",
             "type": vouchers.VoucherType.ACCUMULATOR.value,
             "value": 300,
+            "target_value": 400,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
@@ -159,7 +160,7 @@ class TestVouchers(TestCase):
                     "suffix": vs.earn_suffix,
                     "currency": vs.earn_currency,
                     "value": 300,
-                    "target_value": 0,
+                    "target_value": 400,
                 },
                 "burn": {
                     "type": vs.burn_type,
@@ -188,6 +189,7 @@ class TestVouchers(TestCase):
             "code": "abc123",
             "type": vouchers.VoucherType.ACCUMULATOR.value,
             "value": 300,
+            "target_value": 0,
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
@@ -237,12 +239,13 @@ class TestVouchers(TestCase):
         earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
 
         # THEN
-        assert isinstance(earn_target_value, int)
+        assert isinstance(earn_target_value, float)
         assert earn_target_value == 10
 
     def test_get_earn_target_value_from_voucher_scheme(self):
         """
-        Test fetching the target value from the voucher scheme
+        Test fetching the target value from the voucher scheme: voucher's target_value and value are
+        both None
         """
         # GIVEN
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG, earn_type=VoucherScheme.EARNTYPE_STAMPS)
@@ -252,29 +255,25 @@ class TestVouchers(TestCase):
         earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
 
         # THEN
-        assert isinstance(earn_target_value, int)
+        assert isinstance(earn_target_value, float)
         assert earn_target_value == 7
 
-    def test_get_default_earn_target_value_of_zero(self):
+    def test_get_earn_target_value_raises_value_error(self):
         """
-        Test fetching the target value when neither the incoming voucher or the voucher scheme
-        have been set
+        Test that fetching the target value, when neither the incoming voucher or the voucher scheme
+        have been set, raises a ValueError
         """
         # GIVEN
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG, earn_type=VoucherScheme.EARNTYPE_STAMPS)
         vs.earn_target_value = None
         voucher_fields = {}
 
-        # WHEN
-        earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
-
         # THEN
-        assert isinstance(earn_target_value, int)
-        assert earn_target_value == 0
+        self.assertRaises(ValueError, vs.get_earn_target_value, voucher_fields)
 
-    def test_get_earn_value_from_voucher(self):
+    def test_get_earn_value_from_voucher_first(self):
         """
-        Test getting the earn value from the incoming voucher
+        Test getting the earn value from the incoming voucher, ahead of the earn_target_voucher
         """
         # GIVEN
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG, earn_type=VoucherScheme.EARNTYPE_STAMPS)
@@ -289,7 +288,7 @@ class TestVouchers(TestCase):
         # THEN
         assert earn_value == expected_value
 
-    def test_get_earn_value_assume_full(self):
+    def test_get_earn_value_assume_voucher_is_full(self):
         """
         Test that the earn value gets set to the earn target value, if the earn value is None.
         """

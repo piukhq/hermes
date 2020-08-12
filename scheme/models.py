@@ -965,7 +965,7 @@ class SchemeAccount(models.Model):
         earn_target_value: float = voucher_scheme.get_earn_target_value(
             voucher_fields=voucher_fields
         )
-        earn_value: float = voucher_scheme.get_earn_value(
+        earn_value: [float, int] = voucher_scheme.get_earn_value(
             voucher_fields=voucher_fields,
             earn_target_value=earn_target_value
         )
@@ -1405,24 +1405,26 @@ class VoucherScheme(models.Model):
 
     def get_earn_target_value(self, voucher_fields: Dict) -> float:
         """
-        Get the target value from the incoming voucher, or voucher scheme if it's been set, or set to zero
+        Get the target value from the incoming voucher, or voucher scheme if it's been set.
+        Raise value exception if no value found from either.
+        Can be set to zero for compatibility with existing voucher code.
 
         :param voucher_fields: Incoming voucher dict
         :return: earn target value
         """
-        earn_target_value = voucher_fields.get("target_value") or self.earn_target_value
+        earn_target_value = voucher_fields.get("target_value")
 
-        if not earn_target_value:
-            raise ValueError("Earn target value must be set (cannot be None or zero)")
+        if earn_target_value is None:
+            earn_target_value = self.earn_target_value
+            if earn_target_value is None:
+                raise ValueError("Earn target value must be set (cannot be None)")
 
-        earn_target_value = float(earn_target_value)
-
-        return earn_target_value
+        return float(earn_target_value)
 
     @staticmethod
-    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> float:
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> [float, int]:
         """
-        Get the value from the incoming voucher. If it's None and of type 'stamps' then assume
+        Get the value from the incoming voucher. If it's None then assume
         it's been completed and set to the earn target value, otherwise return the value of the field.
         This can't necessarily be done in Midas, as Midas may not know what the earn target value is
         if the third-party API doesn't supply it.
@@ -1431,11 +1433,8 @@ class VoucherScheme(models.Model):
         :param earn_target_value: The target number of stamps to complete
         :return: earn value
         """
-        if voucher_fields.get("type") == vouchers.VoucherType.STAMPS.value:
-            earn_value = voucher_fields.get("value")
-            if earn_value is None:
-                earn_value = earn_target_value
-        else:
-            earn_value = voucher_fields.get("value", 0)  # The original behaviour for all types
+        earn_value = voucher_fields.get("value")
+        if earn_value is None:
+            earn_value = earn_target_value
 
-        return float(earn_value)
+        return earn_value
