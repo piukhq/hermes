@@ -24,7 +24,7 @@ class Issuer(models.Model):
     @classmethod
     @lru_cache(maxsize=1)
     def get_barclays_issuer(cls):
-        return cls.objects.values_list('id', flat=True).get(name='Barclays')
+        return cls.objects.get(name='Barclays')
 
 
 def clear_issuer_lru_cache(sender, **kwargs):
@@ -193,7 +193,7 @@ class PaymentCard(models.Model):
     @classmethod
     @lru_cache(maxsize=32)
     def get_by_slug(cls, slug: str) -> int:
-        return cls.objects.values_list('id', flat=True).get(slug=slug)
+        return cls.objects.get(slug=slug)
 
 
 def clear_payment_card_lru_cache(sender, **kwargs):
