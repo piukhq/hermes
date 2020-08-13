@@ -274,7 +274,7 @@ class PaymentCardCreationMixin:
                 context={'bundle_id': bundle_id}
             ).data
 
-            if allowed_issuers and int(pcard_data['issuer']) not in allowed_issuers:
+            if allowed_issuers and pcard_data['issuer'].id not in allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
             consent = request_data['account']['consents']
@@ -431,9 +431,8 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             raise ParseError('cannot override fingerprint.')
 
         pcard_data['token'] = account.token
-        new_card_data = PaymentCardReplaceSerializer(data=pcard_data)
-        new_card_data.is_valid(raise_exception=True)
-        PaymentCardAccount.objects.filter(pk=account.pk).update(**new_card_data.validated_data)
+        pcard_data['psp_token'] = account.psp_token
+        PaymentCardAccount.objects.filter(pk=account.pk).update(**pcard_data)
         # todo should we replace the consent too?
 
         account.refresh_from_db()
