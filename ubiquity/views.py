@@ -42,8 +42,8 @@ from ubiquity.tasks import (async_link, async_all_balance, async_join, async_reg
                             async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
-                                                  PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
-                                                  PaymentCardSerializer, MembershipTransactionsMixin,
+                                                  PaymentCardConsentSerializer, PaymentCardSerializer,
+                                                  MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
                                                   TransactionSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
@@ -611,9 +611,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 manual_question_type = question.type
 
         if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
-                account,
-                scheme.id,
-                update_fields[manual_question_type]
+            account,
+            scheme.id,
+            update_fields[manual_question_type]
         ):
             account.status = account.FAILED_UPDATE
             account.save()
@@ -880,7 +880,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             pass
 
     def _handle_create_link_route(
-            self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
+        self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme.id, 'order': 0, **add_fields}
@@ -1007,7 +1007,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         )
 
     def _collect_credentials_answers(
-            self, data: dict, scheme: Scheme, scheme_questions: list
+        self, data: dict, scheme: Scheme, scheme_questions: list
     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
         try:
             label_to_type = scheme.get_question_type_dict(scheme_questions)
