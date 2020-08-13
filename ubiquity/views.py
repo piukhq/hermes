@@ -254,7 +254,7 @@ class PaymentCardCreationMixin:
     def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
         if new_hash and not card.hash:
             card.hash = new_hash
-            card.save()
+            card.save(update_fields=['hash'])
 
     @staticmethod
     def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
