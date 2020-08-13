@@ -205,9 +205,8 @@ class PaymentCardCreationMixin:
     def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> PaymentCardAccount:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
-        pcard.refresh_from_db()
         pcard.consents = serializer.validated_data
-        pcard.save()
+        pcard.save(update_fields=['consents'])
         return pcard
 
     @staticmethod
