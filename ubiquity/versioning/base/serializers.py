@@ -207,8 +207,8 @@ class PaymentCardTranslationSerializer:
         return {
             'pan_start': data['first_six_digits'],
             'pan_end': data['last_four_digits'],
-            'issuer': self.get_issuer(data),
-            'payment_card': self.get_payment_card(data),
+            'issuer_id': self.get_issuer(data),
+            'payment_card_id': self.get_payment_card(data),
             'name_on_card': data['name_on_card'],
             'token': data['token'],
             'fingerprint': data['fingerprint'],

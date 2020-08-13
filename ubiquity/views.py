@@ -258,13 +258,11 @@ class PaymentCardCreationMixin:
 
     @staticmethod
     def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
-        if account.is_deleted:
-            account.is_deleted = False
-            account.save()
-
-        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
-        for scheme_account in account.scheme_account_set.all():
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        try:
+            with transaction.atomic():
+                PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+        except IntegrityError:
+            pass
 
     @staticmethod
     def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int], version: 'Version',
@@ -884,7 +882,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             pass
 
     def _handle_create_link_route(
-        self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
+            self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
 
         data = {'scheme': scheme.id, 'order': 0, **add_fields}
@@ -1011,7 +1009,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         )
 
     def _collect_credentials_answers(
-        self, data: dict, scheme: Scheme, scheme_questions: list
+            self, data: dict, scheme: Scheme, scheme_questions: list
     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
         try:
             label_to_type = scheme.get_question_type_dict(scheme_questions)
