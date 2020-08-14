@@ -528,6 +528,7 @@ class VoucherSchemeAdmin(admin.ModelAdmin):
                 "earn_prefix",
                 "earn_suffix",
                 "earn_type",
+                "earn_target_value",
             )
         }),
         ("Burn", {

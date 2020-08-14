@@ -3,14 +3,16 @@ import re
 import socket
 import sre_constants
 import uuid
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from typing import Dict, Iterable
 
 import arrow
 import requests
+from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
+from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
@@ -19,9 +21,6 @@ from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
-
-from analytics.api import update_scheme_account_attribute_new_status, update_scheme_account_attribute
-from common.models import Image
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -939,8 +938,8 @@ class SchemeAccount(models.Model):
         * expiry_date: int, optional
         * code: str, optional
         * type: int, required
-        * value: Decimal, optional
-        * target_value: Decimal, optional
+        * value: float, optional
+        * target_value: float, optional
         """
         return [
             self.make_single_voucher(voucher_fields) for voucher_fields in vouchers
@@ -956,6 +955,14 @@ class SchemeAccount(models.Model):
             earn_type=VoucherScheme.earn_type_from_voucher_type(voucher_type),
         )
 
+        earn_target_value: float = voucher_scheme.get_earn_target_value(
+            voucher_fields=voucher_fields
+        )
+        earn_value: [float, int] = voucher_scheme.get_earn_value(
+            voucher_fields=voucher_fields,
+            earn_target_value=earn_target_value
+        )
+
         issue_date = arrow.get(voucher_fields["issue_date"]) if "issue_date" in voucher_fields else None
         redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
@@ -966,8 +973,8 @@ class SchemeAccount(models.Model):
         headline = vouchers.apply_template(
             headline_template,
             voucher_scheme=voucher_scheme,
-            earn_value=voucher_fields.get("value", 0),
-            earn_target_value=voucher_fields.get("target_value", 0),
+            earn_value=earn_value,
+            earn_target_value=earn_target_value,
         )
 
         body_text = voucher_scheme.get_body_text(state)
@@ -979,8 +986,8 @@ class SchemeAccount(models.Model):
                 "prefix": voucher_scheme.earn_prefix,
                 "suffix": voucher_scheme.earn_suffix,
                 "currency": voucher_scheme.earn_currency,
-                "value": voucher_fields.get("value", 0),
-                "target_value": voucher_fields.get("target_value", 0),
+                "value": earn_value,
+                "target_value": earn_target_value,
             },
             "burn": {
                 "currency": voucher_scheme.burn_currency,
@@ -1333,6 +1340,11 @@ class VoucherScheme(models.Model):
     earn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
     earn_suffix = models.CharField(max_length=50, blank=True, verbose_name="Suffix")
     earn_type = models.CharField(max_length=50, choices=EARN_TYPES, verbose_name="Earn Type")
+    earn_target_value_help_text = (
+        "Enter a value in this field if the merchant scheme does not return an earn.target_value for the voucher"
+    )
+    earn_target_value = models.FloatField(blank=True, null=True, verbose_name="Earn Target Value",
+                                          help_text=earn_target_value_help_text)
 
     burn_currency = models.CharField(max_length=50, blank=True, verbose_name="Currency")
     burn_prefix = models.CharField(max_length=50, blank=True, verbose_name="Prefix")
@@ -1383,3 +1395,39 @@ class VoucherScheme(models.Model):
             vouchers.VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
             vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]
+
+    def get_earn_target_value(self, voucher_fields: Dict) -> float:
+        """
+        Get the target value from the incoming voucher, or voucher scheme if it's been set.
+        Raise value exception if no value found from either.
+        Can be set to zero for compatibility with existing voucher code.
+
+        :param voucher_fields: Incoming voucher dict
+        :return: earn target value
+        """
+        earn_target_value = voucher_fields.get("target_value")
+
+        if earn_target_value is None:
+            earn_target_value = self.earn_target_value
+            if earn_target_value is None:
+                raise ValueError("Earn target value must be set in voucher or voucher scheme config (cannot be None)")
+
+        return float(earn_target_value)
+
+    @staticmethod
+    def get_earn_value(voucher_fields: Dict, earn_target_value: float) -> [float, int]:
+        """
+        Get the value from the incoming voucher. If it's None then assume
+        it's been completed and set to the earn target value, otherwise return the value of the field.
+        This can't necessarily be done in Midas, as Midas may not know what the earn target value is
+        if the third-party API doesn't supply it.
+
+        :param voucher_fields: Incoming voucher dict
+        :param earn_target_value: The target number of stamps to complete
+        :return: earn value
+        """
+        earn_value = voucher_fields.get("value")
+        if earn_value is None:
+            earn_value = earn_target_value
+
+        return earn_value
