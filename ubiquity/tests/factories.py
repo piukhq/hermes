@@ -8,7 +8,7 @@ from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, Sch
 from user.tests.factories import UserFactory
 
 
-class PaymentCardAccountEntryFactory(factory.DjangoModelFactory):
+class PaymentCardAccountEntryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = PaymentCardAccountEntry
 
@@ -16,7 +16,7 @@ class PaymentCardAccountEntryFactory(factory.DjangoModelFactory):
     payment_card_account = factory.SubFactory(PaymentCardAccountFactory)
 
 
-class PaymentCardSchemeEntryFactory(factory.DjangoModelFactory):
+class PaymentCardSchemeEntryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = PaymentCardSchemeEntry
 
@@ -24,7 +24,7 @@ class PaymentCardSchemeEntryFactory(factory.DjangoModelFactory):
     scheme_account = factory.SubFactory(SchemeAccountFactory)
 
 
-class SchemeAccountEntryFactory(factory.DjangoModelFactory):
+class SchemeAccountEntryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = SchemeAccountEntry
 
@@ -32,7 +32,7 @@ class SchemeAccountEntryFactory(factory.DjangoModelFactory):
     scheme_account = factory.SubFactory(SchemeAccountFactory)
 
 
-class ServiceConsentFactory(factory.DjangoModelFactory):
+class ServiceConsentFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ServiceConsent
 

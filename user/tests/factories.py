@@ -13,7 +13,7 @@ fake = Factory.create()
 fake.seed(12345)
 
 
-class UserFactory(factory.DjangoModelFactory):
+class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.CustomUser
 
@@ -46,7 +46,7 @@ class UserProfileFactory(factory.Factory):
     gender = 'male'
 
 
-class SettingFactory(factory.DjangoModelFactory):
+class SettingFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Setting
         django_get_or_create = ('slug',)
@@ -56,7 +56,7 @@ class SettingFactory(factory.DjangoModelFactory):
     default_value = '0'
 
 
-class UserSettingFactory(factory.DjangoModelFactory):
+class UserSettingFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.UserSetting
 
@@ -65,7 +65,7 @@ class UserSettingFactory(factory.DjangoModelFactory):
     value = fake.text(max_nb_chars=255)
 
 
-class MarketingCodeFactory(factory.DjangoModelFactory):
+class MarketingCodeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.MarketingCode
 
@@ -76,14 +76,14 @@ class MarketingCodeFactory(factory.DjangoModelFactory):
     partner = fake.text(max_nb_chars=100)
 
 
-class OrganisationFactory(factory.DjangoModelFactory):
+class OrganisationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Organisation
 
     name = fake.text(max_nb_chars=100)
 
 
-class ClientApplicationFactory(factory.DjangoModelFactory):
+class ClientApplicationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ClientApplication
 
@@ -91,7 +91,7 @@ class ClientApplicationFactory(factory.DjangoModelFactory):
     organisation = factory.SubFactory(OrganisationFactory)
 
 
-class ClientApplicationBundleFactory(factory.DjangoModelFactory):
+class ClientApplicationBundleFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ClientApplicationBundle
 

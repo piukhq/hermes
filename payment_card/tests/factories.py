@@ -14,7 +14,7 @@ fake = Factory.create()
 fake.seed(12345)
 
 
-class IssuerFactory(factory.DjangoModelFactory):
+class IssuerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Issuer
         django_get_or_create = ('name',)
@@ -22,7 +22,7 @@ class IssuerFactory(factory.DjangoModelFactory):
     name = fake.word()
 
 
-class PaymentCardFactory(factory.DjangoModelFactory):
+class PaymentCardFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCard
         django_get_or_create = ('slug',)
@@ -36,7 +36,7 @@ class PaymentCardFactory(factory.DjangoModelFactory):
     type = models.PaymentCard.MASTERCARD
 
 
-class PaymentCardAccountFactory(factory.DjangoModelFactory):
+class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccount
 
@@ -53,7 +53,7 @@ class PaymentCardAccountFactory(factory.DjangoModelFactory):
     fingerprint = FuzzyAttribute(uuid.uuid4)
 
 
-class PaymentCardImageFactory(factory.DjangoModelFactory):
+class PaymentCardImageFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardImage
 
@@ -71,7 +71,7 @@ class PaymentCardImageFactory(factory.DjangoModelFactory):
     end_date = timezone.make_aware(datetime(2200, 1, 1))
 
 
-class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
+class PaymentCardAccountImageFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCardAccountImage
 
@@ -95,6 +95,6 @@ class PaymentCardAccountImageFactory(factory.DjangoModelFactory):
     status = models.PaymentCardAccountImage.PUBLISHED
 
 
-class PaymentAuditFactory(factory.DjangoModelFactory):
+class PaymentAuditFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = PaymentAudit
