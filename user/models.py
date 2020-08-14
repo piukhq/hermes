@@ -249,22 +249,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return 'id: {} - {}'.format(self.id, self.email) or str(self.uid)
 
-    # Maybe required?
-    def get_group_permissions(self, obj=None):
-        return set()
-
-    def get_all_permissions(self, obj=None):
-        return set()
-
-    def has_perm(self, perm, obj=None):
-        return True
-
-    def has_perms(self, perm_list, obj=None):
-        return True
-
-    def has_module_perms(self, app_label):
-        return True
-
     def create_token(self, bundle_id=''):
         if not bundle_id:
             # This will raise an exception if more than one bundle has the same client_Id

@@ -836,13 +836,11 @@ class SchemeAccount(models.Model):
         self._update_barcode_and_card_number(
             card_number,
             answers=answers,
-            questions=questions,
             primary_cred_type=CARD_NUMBER
         )
         self._update_barcode_and_card_number(
             barcode,
             answers=answers,
-            questions=questions,
             primary_cred_type=BARCODE
         )
 
@@ -852,12 +850,11 @@ class SchemeAccount(models.Model):
         self,
         primary_cred: 'SchemeAccountCredentialAnswer',
         answers: Iterable['SchemeAccountCredentialAnswer'],
-        questions: Iterable['SchemeCredentialQuestion'],
         primary_cred_type: str
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
-        credential is also updated if the scheme question and conversion regex exists for the scheme.
+        credential is also updated if the conversion regex exists for the scheme.
         """
         if not answers:
             setattr(self, primary_cred_type, '')
@@ -881,11 +878,7 @@ class SchemeAccount(models.Model):
 
         setattr(self, primary_cred_type, primary_cred.answer)
 
-        secondary_question_exists = (
-            type_to_update_info[primary_cred_type]["secondary_cred_type"]
-            in [q.type for q in questions]
-        )
-        if secondary_question_exists and type_to_update_info[primary_cred_type]["regex"]:
+        if type_to_update_info[primary_cred_type]["regex"]:
             try:
                 regex_match = re.search(type_to_update_info[primary_cred_type]["regex"], primary_cred.answer)
             except sre_constants.error:
