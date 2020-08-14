@@ -239,8 +239,8 @@ class TestVouchers(TestCase):
         earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
 
         # THEN
-        assert isinstance(earn_target_value, float)
-        assert earn_target_value == 10
+        self.assertIsInstance(earn_target_value, float)
+        self.assertEqual(10, earn_target_value)
 
     def test_get_earn_target_value_from_voucher_scheme(self):
         """
@@ -255,8 +255,8 @@ class TestVouchers(TestCase):
         earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
 
         # THEN
-        assert isinstance(earn_target_value, float)
-        assert earn_target_value == 7
+        self.assertIsInstance(earn_target_value, float)
+        self.assertEqual(7, earn_target_value)
 
     def test_get_earn_target_value_raises_value_error(self):
         """
@@ -286,7 +286,7 @@ class TestVouchers(TestCase):
         earn_value = vs.get_earn_value(voucher_fields=voucher_fields, earn_target_value=12)
 
         # THEN
-        assert earn_value == expected_value
+        self.assertEqual(expected_value, earn_value)
 
     def test_get_earn_value_assume_voucher_is_full(self):
         """
@@ -304,4 +304,4 @@ class TestVouchers(TestCase):
         earn_value = vs.get_earn_value(voucher_fields=voucher_fields, earn_target_value=earn_target_value)
 
         # THEN
-        assert earn_value == earn_target_value
+        self.assertEqual(earn_target_value, earn_value)
