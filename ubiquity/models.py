@@ -1,5 +1,6 @@
 import logging
 
+import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
@@ -142,9 +143,13 @@ class PaymentCardSchemeEntry(models.Model):
         for link in links:
             current_state = link.active_link
             update_link = link.get_instance_with_active_status()
-            if current_state != update_link.active_link:
-                update_link.save(update_fields=['active_link'])
-                update_link.vop_activate_check()
+            try:
+                if current_state != update_link.active_link:
+                    update_link.save(update_fields=['active_link'])
+                    update_link.vop_activate_check()
+            except django.db.utils.DatabaseError:
+                # Handles race condition for when updating a link that has been deleted
+                pass
 
     @classmethod
     def deactivate_activations(cls, activations: dict):
