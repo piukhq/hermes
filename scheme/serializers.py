@@ -588,7 +588,6 @@ class UbiquityJoinSerializer(JoinSerializer):
     def validate(self, data):
         scheme = self.context['scheme']
         # Validate request join questions
-        # TODO: Check if we can remove this but return the same formatted data
         return self._validate_join_questions(scheme, data)
 
 
