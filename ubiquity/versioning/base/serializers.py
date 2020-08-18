@@ -538,10 +538,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return images.values()
 
-    def _get_images(self, instance: 'SchemeAccount', tier: str) -> list:
+    def _get_images(self, instance: 'SchemeAccount', scheme: 'Scheme', tier: str) -> list:
         today = arrow.utcnow().datetime.timestamp()
         account_images = instance.formatted_images
-        base_images = instance.scheme.formatted_images
+        base_images = scheme.formatted_images
         images, tier_images = self._filter_valid_images(account_images, base_images, today)
 
         filtered_images = [
@@ -610,7 +610,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': self._get_images(instance, str(reward_tier)),
+            'images': self._get_images(instance, scheme, str(reward_tier)),
             'account': {
                 'tier': reward_tier
             },

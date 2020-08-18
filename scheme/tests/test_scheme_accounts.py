@@ -1325,6 +1325,11 @@ class TestAccessTokens(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         super(TestAccessTokens, cls).setUpClass()
 
+    def setUp(self):
+        self.test_scheme_acc_entry = SchemeAccountEntryFactory()
+        self.test_user = self.test_scheme_acc_entry.user
+        self.test_scheme_acc = self.test_scheme_acc_entry.scheme_account
+
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')
     def test_retrieve_scheme_accounts(self, mock_date, mock_update_attr):
@@ -1390,9 +1395,10 @@ class TestAccessTokens(APITestCase):
                                         options=SchemeCredentialQuestion.JOIN,
                                         scan_question=True)
 
-        self.scheme_account.scheme = scheme
+        self.test_scheme_acc.scheme = scheme
+
         credentials = {'barcode': '633204003025524460012345'}
-        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'barcode': '633204003025524460012345',
                                            'card_number': '6332040030255244600'})
 
@@ -1408,10 +1414,10 @@ class TestAccessTokens(APITestCase):
                                         options=SchemeCredentialQuestion.JOIN,
                                         scan_question=True)
 
-        self.scheme_account.scheme = scheme
+        self.test_scheme_acc.scheme = scheme
 
         credentials = {'card_number': '633204003025524460012345'}
-        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'card_number': '633204003025524460012345',
                                            'barcode': '6332040030255244600'})
 
@@ -1422,26 +1428,30 @@ class TestAccessTokens(APITestCase):
                                         options=SchemeCredentialQuestion.JOIN,
                                         manual_question=True)
 
-        self.scheme_account.scheme = scheme
+        self.test_scheme_acc.scheme = scheme
 
         credentials = {'barcode': '633204003025524460012345'}
-        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'barcode': '633204003025524460012345'})
 
     def test_update_or_create_primary_credentials_saves_non_regex_manual_question(self):
         scheme = SchemeFactory(card_number_regex='^([0-9]{19})([0-9]{5})$')
-        SchemeCredentialQuestionFactory(type=EMAIL,
-                                        scheme=scheme,
-                                        options=SchemeCredentialQuestion.JOIN,
-                                        manual_question=True)
+        question = SchemeCredentialQuestionFactory(
+            type=EMAIL,
+            scheme=scheme,
+            options=SchemeCredentialQuestion.JOIN,
+            manual_question=True
+        )
 
-        self.scheme_account.scheme = scheme
+        SchemeCredentialAnswerFactory(scheme_account=self.test_scheme_acc, question=question)
+        self.test_scheme_acc.refresh_from_db()
+        self.test_scheme_acc.scheme = scheme
 
         self.assertFalse(self.scheme_account.manual_answer)
         credentials = {'email': 'testemail@testbink.com'}
-        new_credentials = self.scheme_account.update_or_create_primary_credentials(credentials)
+        new_credentials = self.test_scheme_acc.update_or_create_primary_credentials(credentials)
         self.assertEqual(new_credentials, {'email': 'testemail@testbink.com'})
-        self.assertEqual(self.scheme_account.manual_answer.answer, 'testemail@testbink.com')
+        self.assertEqual(self.test_scheme_acc.manual_answer.answer, 'testemail@testbink.com')
 
 
 class TestSchemeAccountImages(APITestCase):

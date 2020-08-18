@@ -3,7 +3,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from scheme.serializers import ControlSerializer
 from scheme.tests.factories import ControlFactory
-from scheme.models import Control
+from scheme.models import Control, Consent
 from unittest.mock import MagicMock, patch
 
 from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
@@ -173,16 +173,24 @@ class TestUserConsentSerializer(TestCase):
 
     def test_get_user_consents(self):
         consent_data = [
-            {'id': self.consent1.id, 'value': True},
-            {'id': self.consent3.id, 'value': True},
-            {'id': self.consent5.id, 'value': True},
+            {'id': self.consent1.id, 'value': True},    # link
+            {'id': self.consent3.id, 'value': True},    # join
+            {'id': self.consent4.id, 'value': True},    # join
         ]
 
         metadata_keys = ['id', 'check_box', 'text', 'required', 'order', 'journey', 'slug', 'user_email', 'scheme_slug']
 
-        user_consents = UserConsentSerializer.get_user_consents(self.scheme_account, consent_data, self.user)
+        scheme_consents = Consent.objects.filter(
+            scheme=self.scheme_account.scheme.id,
+            journey=JourneyTypes.JOIN.value,
+            check_box=True
+        )
 
-        self.assertEqual(len(user_consents), 3)
+        user_consents = UserConsentSerializer.get_user_consents(
+            self.scheme_account, consent_data, self.user, scheme_consents
+        )
+
+        self.assertEqual(len(user_consents), 2)
         self.assertTrue(all([metadata_keys == list(consent.metadata.keys()) for consent in user_consents]))
 
     def test_validate_consents_success(self):
@@ -192,33 +200,63 @@ class TestUserConsentSerializer(TestCase):
         self.user_consent2.slug = self.consent2.slug
         self.user_consent2.metadata = {'id': self.consent2.id, 'required': self.consent2.required}
 
-        UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
-                                                self.scheme.id,
-                                                JourneyTypes.LINK.value)
+        scheme_consents = Consent.objects.filter(
+            scheme=self.scheme.id,
+            journey=JourneyTypes.LINK.value,
+            check_box=True
+        )
+
+        UserConsentSerializer.validate_consents(
+            [self.user_consent1, self.user_consent2],
+            self.scheme.id,
+            JourneyTypes.LINK.value,
+            scheme_consents
+        )
 
     def test_validate_consents_raises_error_on_incorrect_number_of_consents_provided(self):
+        scheme_consents = Consent.objects.filter(
+            scheme=self.scheme.id,
+            journey=JourneyTypes.LINK.value,
+            check_box=True
+        )
+
         with self.assertRaises(serializers.ValidationError) as e:
-            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2, self.user_consent3],
-                                                    self.scheme.id,
-                                                    JourneyTypes.LINK.value)
+            UserConsentSerializer.validate_consents(
+                [self.user_consent1, self.user_consent2, self.user_consent3],
+                self.scheme.id,
+                JourneyTypes.LINK.value,
+                scheme_consents
+            )
 
         self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
                          e.exception.detail['message'])
 
         with self.assertRaises(serializers.ValidationError) as e:
-            UserConsentSerializer.validate_consents([self.user_consent1],
-                                                    self.scheme.id,
-                                                    JourneyTypes.LINK.value)
+            UserConsentSerializer.validate_consents(
+                [self.user_consent1],
+                self.scheme.id,
+                JourneyTypes.LINK.value,
+                scheme_consents
+            )
 
         self.assertEqual("Incorrect number of consents provided for this scheme and journey type.",
                          e.exception.detail['message'])
 
     def test_validate_consents_raises_error_on_unexpected_consent_slug(self):
+        scheme_consents = Consent.objects.filter(
+            scheme=self.scheme.id,
+            journey=JourneyTypes.LINK.value,
+            check_box=True
+        )
+
         self.user_consent1.slug = 'incorrect_slug'
         with self.assertRaises(serializers.ValidationError) as e:
-            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
-                                                    self.scheme.id,
-                                                    JourneyTypes.LINK.value)
+            UserConsentSerializer.validate_consents(
+                [self.user_consent1, self.user_consent2],
+                self.scheme.id,
+                JourneyTypes.LINK.value,
+                scheme_consents
+            )
 
         self.assertTrue("Unexpected or missing user consents for 'link' request" in e.exception.detail['message'])
 
@@ -231,10 +269,19 @@ class TestUserConsentSerializer(TestCase):
         self.user_consent2.slug = self.consent2.slug
         self.user_consent2.metadata = {'id': self.consent2.id, 'required': self.consent2.required}
 
+        scheme_consents = Consent.objects.filter(
+            scheme=self.scheme.id,
+            journey=JourneyTypes.LINK.value,
+            check_box=True
+        )
+
         with self.assertRaises(serializers.ValidationError) as e:
-            UserConsentSerializer.validate_consents([self.user_consent1, self.user_consent2],
-                                                    self.scheme.id,
-                                                    JourneyTypes.LINK.value)
+            UserConsentSerializer.validate_consents(
+                [self.user_consent1, self.user_consent2],
+                self.scheme.id,
+                JourneyTypes.LINK.value,
+                scheme_consents
+            )
 
         self.assertTrue("The following consents require a value of True:" in e.exception.detail['message'])
         self.assertTrue(
