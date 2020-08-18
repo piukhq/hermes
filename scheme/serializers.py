@@ -112,13 +112,13 @@ class UserConsentSerializer(serializers.Serializer):
     value = serializers.BooleanField()
 
     @staticmethod
-    def get_user_consents(scheme_account, consent_data, user, scheme_consents, scheme_slug=None):
+    def get_user_consents(scheme_account, consent_data, user, scheme_consents, scheme=None):
         """
         Returns UserConsent instances from the data sent by the frontend (Consent id and a value of true/false.)
         if the consent id is available in the provided scheme consents.
         These are not yet saved to the database.
         """
-        scheme_slug = scheme_slug or scheme_account.scheme.slug
+        scheme = scheme or scheme_account.scheme
 
         provided_consents = []
         for data in consent_data:
@@ -136,13 +136,13 @@ class UserConsentSerializer(serializers.Serializer):
 
             user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent_info["consent"].slug,
                                        user=user, created_on=timezone.now(),
-                                       scheme=scheme_account.scheme)
+                                       scheme=scheme)
 
             serializer = ConsentsSerializer(consent_info["consent"])
             user_consent.metadata = serializer.data
             user_consent.metadata.update({
                 'user_email': user.email,
-                'scheme_slug': scheme_slug
+                'scheme_slug': scheme.slug
             })
 
             user_consents.append(user_consent)

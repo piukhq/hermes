@@ -317,7 +317,7 @@ class SchemeAccountJoinMixin:
             )
 
             user_consents = UserConsentSerializer.get_user_consents(
-                scheme_account, consent_data, user, scheme_consents, join_scheme.slug
+                scheme_account, consent_data, user, scheme_consents, join_scheme
             )
             UserConsentSerializer.validate_consents(
                 user_consents, join_scheme.id, JourneyTypes.JOIN.value, scheme_consents
