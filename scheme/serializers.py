@@ -565,6 +565,7 @@ class JoinSerializer(SchemeAnswerSerializer):
     def _validate_join_questions(self, scheme, data):
         request_join_question_types = data.keys()
         data['credentials'] = {}
+
         for question in scheme.join_questions:
             question_type = question.type
             if question_type in request_join_question_types:

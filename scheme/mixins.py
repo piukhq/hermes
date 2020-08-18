@@ -229,7 +229,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 answer=data[answer_type],
             )
             self.analytics_update(user, scheme_account, acc_created=True)
-            self.save_consents(user, scheme_account, data)
+            self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
 
     def _update_join_account(
@@ -251,7 +251,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             )
 
             self.analytics_update(user, scheme_account, acc_created=False)
-            self.save_consents(user, scheme_account, data)
+            self.save_consents(user, scheme_account, data, JourneyTypes.JOIN.value)
 
         return scheme_account
 
@@ -268,7 +268,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
                 )
 
-    def save_consents(self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict) -> None:
+    def save_consents(
+        self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict, journey_type: JourneyTypes
+    ) -> None:
         if 'consents' in data:
             if hasattr(self, 'current_scheme'):
                 scheme = self.current_scheme
@@ -276,14 +278,14 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme = scheme_account.scheme
 
             scheme_consents = Consent.objects.filter(
-                scheme=scheme_account.scheme.id,
-                journey=JourneyTypes.JOIN.value,
+                scheme=scheme_account.scheme_id,
+                journey=journey_type,
                 check_box=True
             )
             user_consents = UserConsentSerializer.get_user_consents(
                 scheme_account, data.pop('consents'), user, scheme_consents
             )
-            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value, scheme_consents)
+            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.LINK.value, scheme_consents)
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
