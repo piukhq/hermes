@@ -559,7 +559,6 @@ class JoinSerializer(SchemeAnswerSerializer):
             raise serializers.ValidationError("Please convert all \"Link\" only credential questions "
                                               "to \"Join & Link\" for scheme: {}".format(scheme))
 
-        # Validate request join questions
         return self._validate_join_questions(scheme, data)
 
     def _validate_join_questions(self, scheme, data):
@@ -587,7 +586,6 @@ class UbiquityJoinSerializer(JoinSerializer):
 
     def validate(self, data):
         scheme = self.context['scheme']
-        # Validate request join questions
         return self._validate_join_questions(scheme, data)
 
 
