@@ -45,7 +45,7 @@ def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
 
 @shared_task
 def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
-    scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
+    scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     try:
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})

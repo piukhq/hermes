@@ -1,6 +1,5 @@
 from copy import copy
 
-from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -113,25 +112,37 @@ class UserConsentSerializer(serializers.Serializer):
     value = serializers.BooleanField()
 
     @staticmethod
-    def get_user_consents(scheme_account, consents, user):
+    def get_user_consents(scheme_account, consent_data, user, scheme_consents, scheme_slug=None):
         """
         Returns UserConsent instances from the data sent by the frontend (Consent id and a value of true/false.)
+        if the consent id is available in the provided scheme consents.
         These are not yet saved to the database.
         """
-        user_consents = []
-        for consent in consents:
-            value = consent['value']
-            consent = get_object_or_404(Consent, pk=consent['id'])
+        scheme_slug = scheme_slug or scheme_account.scheme.slug
 
-            user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent.slug,
+        provided_consents = []
+        for data in consent_data:
+            for consent in scheme_consents:
+                if data["id"] == consent.id:
+                    consent_info = {
+                        "value": data["value"],
+                        "consent": consent
+                    }
+                    provided_consents.append(consent_info)
+
+        user_consents = []
+        for consent_info in provided_consents:
+            value = consent_info['value']
+
+            user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent_info["consent"].slug,
                                        user=user, created_on=timezone.now(),
                                        scheme=scheme_account.scheme)
 
-            serializer = ConsentsSerializer(consent)
+            serializer = ConsentsSerializer(consent_info["consent"])
             user_consent.metadata = serializer.data
             user_consent.metadata.update({
                 'user_email': user.email,
-                'scheme_slug': scheme_account.scheme.slug
+                'scheme_slug': scheme_slug
             })
 
             user_consents.append(user_consent)
@@ -139,11 +150,9 @@ class UserConsentSerializer(serializers.Serializer):
         return user_consents
 
     @staticmethod
-    def validate_consents(user_consents, scheme, journey_type):
-        consents = Consent.objects.filter(scheme=scheme, journey=journey_type, check_box=True)
-
+    def validate_consents(user_consents, scheme, journey_type, scheme_consents):
         # Validate correct number of user_consents provided
-        expected_consents_set = {consent.slug for consent in consents}
+        expected_consents_set = {consent.slug for consent in scheme_consents}
 
         if len(expected_consents_set) != len(user_consents):
             raise serializers.ValidationError({
@@ -574,6 +583,12 @@ class JoinSerializer(SchemeAnswerSerializer):
 class UbiquityJoinSerializer(JoinSerializer):
     save_user_information = serializers.NullBooleanField(required=False)
     order = serializers.IntegerField(required=False)
+
+    def validate(self, data):
+        scheme = self.context['scheme']
+        # Validate request join questions
+        # TODO: Check if we can remove this but return the same formatted data
+        return self._validate_join_questions(scheme, data)
 
 
 class DeleteCredentialSerializer(serializers.Serializer):

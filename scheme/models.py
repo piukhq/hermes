@@ -9,6 +9,8 @@ from typing import Dict, Iterable
 
 import arrow
 import requests
+from django.utils.functional import cached_property
+
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
@@ -226,27 +228,27 @@ class Scheme(models.Model):
 
     formatted_images = JSONField(default=dict, blank=True)
 
-    @property
+    @cached_property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
 
-    @property
+    @cached_property
     def scan_question(self):
         return self.questions.filter(scan_question=True).first()
 
-    @property
+    @cached_property
     def one_question_link(self):
         return self.questions.filter(one_question_link=True).first()
 
-    @property
+    @cached_property
     def join_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.JOIN))
 
-    @property
+    @cached_property
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
-    @property
+    @cached_property
     def get_required_questions(self):
         return self.questions.filter(
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
