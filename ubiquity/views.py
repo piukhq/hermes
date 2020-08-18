@@ -42,8 +42,8 @@ from ubiquity.tasks import (async_link, async_all_balance, async_join, async_reg
                             async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
-                                                  PaymentCardConsentSerializer, PaymentCardReplaceSerializer,
-                                                  PaymentCardSerializer, MembershipTransactionsMixin,
+                                                  PaymentCardConsentSerializer, PaymentCardSerializer,
+                                                  MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
                                                   TransactionSerializer, LinkMembershipCardSerializer)
 from user.models import CustomUser
@@ -205,9 +205,8 @@ class PaymentCardCreationMixin:
     def _create_payment_card_consent(consent_data: dict, pcard: PaymentCardAccount) -> PaymentCardAccount:
         serializer = PaymentCardConsentSerializer(data=consent_data, many=True)
         serializer.is_valid(raise_exception=True)
-        pcard.refresh_from_db()
         pcard.consents = serializer.validated_data
-        pcard.save()
+        pcard.save(update_fields=['consents'])
         return pcard
 
     @staticmethod
@@ -254,17 +253,15 @@ class PaymentCardCreationMixin:
     def _add_hash(new_hash: str, card: PaymentCardAccount) -> None:
         if new_hash and not card.hash:
             card.hash = new_hash
-            card.save()
+            card.save(update_fields=['hash'])
 
     @staticmethod
     def _link_account_to_new_user(account: PaymentCardAccount, user: CustomUser) -> None:
-        if account.is_deleted:
-            account.is_deleted = False
-            account.save()
-
-        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
-        for scheme_account in account.scheme_account_set.all():
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        try:
+            with transaction.atomic():
+                PaymentCardAccountEntry.objects.create(user=user, payment_card_account=account)
+        except IntegrityError:
+            pass
 
     @staticmethod
     def _collect_creation_data(request_data: dict, allowed_issuers: t.List[int], version: 'Version',
@@ -277,7 +274,7 @@ class PaymentCardCreationMixin:
                 context={'bundle_id': bundle_id}
             ).data
 
-            if allowed_issuers and int(pcard_data['issuer']) not in allowed_issuers:
+            if allowed_issuers and pcard_data['issuer'].id not in allowed_issuers:
                 raise ParseError('issuer not allowed for this user.')
 
             consent = request_data['account']['consents']
@@ -434,9 +431,8 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             raise ParseError('cannot override fingerprint.')
 
         pcard_data['token'] = account.token
-        new_card_data = PaymentCardReplaceSerializer(data=pcard_data)
-        new_card_data.is_valid(raise_exception=True)
-        PaymentCardAccount.objects.filter(pk=account.pk).update(**new_card_data.validated_data)
+        pcard_data['psp_token'] = account.psp_token
+        PaymentCardAccount.objects.filter(pk=account.pk).update(**pcard_data)
         # todo should we replace the consent too?
 
         account.refresh_from_db()
@@ -615,9 +611,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 manual_question_type = question.type
 
         if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
-                account,
-                scheme.id,
-                update_fields[manual_question_type]
+            account,
+            scheme.id,
+            update_fields[manual_question_type]
         ):
             account.status = account.FAILED_UPDATE
             account.save()

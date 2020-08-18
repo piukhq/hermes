@@ -7,16 +7,17 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -118,10 +119,7 @@ class ListCreatePaymentCardAccount(APIView):
     #     return Response(message, status=status_code)
 
     def create_payment_card_account(self, data, user, old_account=None):
-        serializer = serializers.CreatePaymentCardAccountSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
+        data['psp_token'] = data.pop('token')
         account = PaymentCardAccount(**data)
         result = self._create_payment_card_account(account, user, old_account)
         if not isinstance(result, PaymentCardAccount):
@@ -131,14 +129,6 @@ class ListCreatePaymentCardAccount(APIView):
 
         self.apply_barclays_images(account)
         return account
-
-    @staticmethod
-    def _link_account_to_new_user(account, user):
-        if account.is_deleted:
-            account.is_deleted = False
-            account.save()
-
-        PaymentCardAccountEntry.objects.get_or_create(user=user, payment_card_account=account)
 
     @staticmethod
     def _create_payment_card_account(new_acc, user, old_account):
