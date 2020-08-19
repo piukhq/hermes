@@ -16,14 +16,14 @@ fake = Factory.create()
 fake.seed(123456)
 
 
-class CategoryFactory(factory.DjangoModelFactory):
+class CategoryFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Category
 
     name = fake.safe_color_name()
 
 
-class SchemeFactory(factory.DjangoModelFactory):
+class SchemeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Scheme
         django_get_or_create = ('slug',)
@@ -46,7 +46,7 @@ class SchemeFactory(factory.DjangoModelFactory):
     barcode_prefix = ''
 
 
-class SchemeBalanceDetailsFactory(factory.DjangoModelFactory):
+class SchemeBalanceDetailsFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeBalanceDetails
 
@@ -55,7 +55,7 @@ class SchemeBalanceDetailsFactory(factory.DjangoModelFactory):
     suffix = fake.slug()
 
 
-class ConsentFactory(factory.DjangoModelFactory):
+class ConsentFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Consent
 
@@ -72,7 +72,7 @@ class ConsentFactory(factory.DjangoModelFactory):
 KEY_CHOICES = [x[0] for x in Control.KEY_CHOICES]
 
 
-class ControlFactory(factory.DjangoModelFactory):
+class ControlFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Control
 
@@ -83,7 +83,7 @@ class ControlFactory(factory.DjangoModelFactory):
     scheme = factory.SubFactory(SchemeFactory)
 
 
-class SchemeBundleAssociationFactory(factory.DjangoModelFactory):
+class SchemeBundleAssociationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeBundleAssociation
 
@@ -92,7 +92,7 @@ class SchemeBundleAssociationFactory(factory.DjangoModelFactory):
     status = models.SchemeBundleAssociation.ACTIVE
 
 
-class SchemeAccountFactory(factory.DjangoModelFactory):
+class SchemeAccountFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccount
 
@@ -101,7 +101,7 @@ class SchemeAccountFactory(factory.DjangoModelFactory):
     order = 0
 
 
-class UserConsentFactory(factory.DjangoModelFactory):
+class UserConsentFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = UserConsent
 
@@ -114,7 +114,7 @@ class UserConsentFactory(factory.DjangoModelFactory):
     status = ConsentStatus.PENDING
 
 
-class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
+class SchemeCredentialQuestionFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeCredentialQuestion
 
@@ -124,7 +124,7 @@ class SchemeCredentialQuestionFactory(factory.DjangoModelFactory):
     third_party_identifier = False
 
 
-class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
+class SchemeCredentialAnswerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccountCredentialAnswer
 
@@ -133,7 +133,7 @@ class SchemeCredentialAnswerFactory(factory.DjangoModelFactory):
     answer = fake.first_name()
 
 
-class SchemeImageFactory(factory.DjangoModelFactory):
+class SchemeImageFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeImage
 
@@ -151,7 +151,7 @@ class SchemeImageFactory(factory.DjangoModelFactory):
     end_date = timezone.make_aware(datetime(2200, 1, 1))
 
 
-class SchemeAccountImageFactory(factory.DjangoModelFactory):
+class SchemeAccountImageFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeAccountImage
 
@@ -175,7 +175,7 @@ class SchemeAccountImageFactory(factory.DjangoModelFactory):
     end_date = timezone.now() + timezone.timedelta(days=1)
 
 
-class ExchangeFactory(factory.DjangoModelFactory):
+class ExchangeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Exchange
 
@@ -192,7 +192,7 @@ class ExchangeFactory(factory.DjangoModelFactory):
     flag_auto_tip_in = 0
 
 
-class SchemeCredentialQuestionChoiceFactory(factory.DjangoModelFactory):
+class SchemeCredentialQuestionChoiceFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeCredentialQuestionChoice
 
@@ -200,7 +200,7 @@ class SchemeCredentialQuestionChoiceFactory(factory.DjangoModelFactory):
     scheme_question = factory.SubFactory(SchemeCredentialQuestionFactory)
 
 
-class SchemeCredentialQuestionChoiceValueFactory(factory.DjangoModelFactory):
+class SchemeCredentialQuestionChoiceValueFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.SchemeCredentialQuestionChoiceValue
 

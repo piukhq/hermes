@@ -20,7 +20,7 @@ from payment_card.payment import Payment, PaymentError
 from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
-                           UserConsent, SchemeCredentialQuestion)
+                           UserConsent, SchemeCredentialQuestion, Consent)
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
@@ -64,8 +64,16 @@ class BaseLinkMixin(object):
 
         if 'consents' in data:
             consent_data = data.pop('consents')
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value)
+            scheme_consents = Consent.objects.filter(
+                scheme=scheme_account.scheme.id,
+                journey=JourneyTypes.LINK.value,
+                check_box=True
+            )
+
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user, scheme_consents)
+            UserConsentSerializer.validate_consents(
+                user_consents, scheme_account.scheme.id, JourneyTypes.LINK.value, scheme_consents
+            )
 
         for answer_type, answer in data.items():
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -221,7 +229,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 answer=data[answer_type],
             )
             self.analytics_update(user, scheme_account, acc_created=True)
-            self.save_consents(user, scheme_account, data)
+            self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
 
     def _update_join_account(
@@ -243,7 +251,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             )
 
             self.analytics_update(user, scheme_account, acc_created=False)
-            self.save_consents(user, scheme_account, data)
+            self.save_consents(user, scheme_account, data, JourneyTypes.JOIN.value)
 
         return scheme_account
 
@@ -260,15 +268,24 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                     old_status=dict(SchemeAccount.STATUSES).get(SchemeAccount.JOIN)
                 )
 
-    def save_consents(self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict) -> None:
+    def save_consents(
+        self, user: 'CustomUser', scheme_account: 'SchemeAccount', data: dict, journey_type: JourneyTypes
+    ) -> None:
         if 'consents' in data:
             if hasattr(self, 'current_scheme'):
                 scheme = self.current_scheme
             else:
                 scheme = scheme_account.scheme
 
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, data.pop('consents'), user)
-            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.ADD.value)
+            scheme_consents = Consent.objects.filter(
+                scheme=scheme_account.scheme_id,
+                journey=journey_type,
+                check_box=True
+            )
+            user_consents = UserConsentSerializer.get_user_consents(
+                scheme_account, data.pop('consents'), user, scheme_consents
+            )
+            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.LINK.value, scheme_consents)
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
@@ -295,8 +312,18 @@ class SchemeAccountJoinMixin:
 
         if 'consents' in validated_data:
             consent_data = validated_data['consents']
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, join_scheme.id, JourneyTypes.JOIN.value)
+            scheme_consents = Consent.objects.filter(
+                scheme=join_scheme.id,
+                journey=JourneyTypes.JOIN.value,
+                check_box=True
+            )
+
+            user_consents = UserConsentSerializer.get_user_consents(
+                scheme_account, consent_data, user, scheme_consents, join_scheme
+            )
+            UserConsentSerializer.validate_consents(
+                user_consents, join_scheme.id, JourneyTypes.JOIN.value, scheme_consents
+            )
 
         return validated_data, serializer, scheme_account
 
@@ -333,9 +360,14 @@ class SchemeAccountJoinMixin:
     def save_consents(serializer, user, scheme_account, scheme_id, data):
         if 'consents' in serializer.validated_data:
             consent_data = serializer.validated_data.pop('consents')
+            scheme_consents = Consent.objects.filter(
+                scheme=scheme_account.scheme.id,
+                journey=JourneyTypes.JOIN.value,
+                check_box=True
+            )
 
-            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user)
-            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value)
+            user_consents = UserConsentSerializer.get_user_consents(scheme_account, consent_data, user, scheme_consents)
+            UserConsentSerializer.validate_consents(user_consents, scheme_id, JourneyTypes.JOIN.value, scheme_consents)
 
             for user_consent in user_consents:
                 user_consent.save()

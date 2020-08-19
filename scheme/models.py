@@ -9,6 +9,8 @@ from typing import Dict, Iterable
 
 import arrow
 import requests
+from django.utils.functional import cached_property
+
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
@@ -226,27 +228,30 @@ class Scheme(models.Model):
 
     formatted_images = JSONField(default=dict, blank=True)
 
-    @property
+    @cached_property
     def manual_question(self):
         return self.questions.filter(manual_question=True).first()
 
-    @property
+    @cached_property
     def scan_question(self):
         return self.questions.filter(scan_question=True).first()
 
-    @property
+    @cached_property
     def one_question_link(self):
         return self.questions.filter(one_question_link=True).first()
 
     @property
     def join_questions(self):
-        return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.JOIN))
+        return {
+            question for question in self.questions.all()
+            if question.options == (question.options | SchemeCredentialQuestion.JOIN)
+        }
 
-    @property
+    @cached_property
     def link_questions(self):
         return self.questions.filter(options=F('options').bitor(SchemeCredentialQuestion.LINK))
 
-    @property
+    @cached_property
     def get_required_questions(self):
         return self.questions.filter(
             Q(manual_question=True) | Q(scan_question=True) | Q(one_question_link=True)
@@ -632,13 +637,17 @@ class SchemeAccount(models.Model):
         return required_credentials.difference(set(credential_types))
 
     def get_auth_credentials(self) -> Dict[str, str]:
-        answer_instances = self.schemeaccountcredentialanswer_set.filter(
-            question__auth_field=True, question__manual_question=False, question__scheme_id=self.scheme_id
-        ).select_related("question")
         return {
             answer.question.type: self._get_decrypted_answer(answer)
-            for answer in answer_instances
+            for answer in self.credential_answers
+            if answer.question.auth_field and answer.question.manual_question is False
         }
+
+    @cached_property
+    def credential_answers(self):
+        return self.schemeaccountcredentialanswer_set.filter(
+            question__scheme_id=self.scheme_id
+        ).select_related("question")
 
     @staticmethod
     def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
@@ -809,21 +818,15 @@ class SchemeAccount(models.Model):
 
         return balance, vouchers
 
-    def update_barcode_and_card_number(self, scheme_questions=None):
-        if scheme_questions is not None:
-            questions = [
-                question for question in scheme_questions
-                if question.type in [CARD_NUMBER, BARCODE]
-            ]
-        else:
-            questions = [
-                question for question in
-                self.scheme.questions.filter(type__in=[CARD_NUMBER, BARCODE])
-            ]
+    def update_barcode_and_card_number(self, scheme=None):
+        if scheme is None:
+            scheme = self.scheme
 
-        answers = self.schemeaccountcredentialanswer_set.filter(
-            question__id__in=[q.id for q in questions]
-        ).select_related("question")
+        answers = {
+            answer
+            for answer in self.credential_answers
+            if answer.question.type in [CARD_NUMBER, BARCODE]
+        }
 
         card_number = None
         barcode = None
@@ -836,12 +839,14 @@ class SchemeAccount(models.Model):
         self._update_barcode_and_card_number(
             card_number,
             answers=answers,
-            primary_cred_type=CARD_NUMBER
+            primary_cred_type=CARD_NUMBER,
+            scheme=scheme,
         )
         self._update_barcode_and_card_number(
             barcode,
             answers=answers,
-            primary_cred_type=BARCODE
+            primary_cred_type=BARCODE,
+            scheme=scheme,
         )
 
         self.save(update_fields=['barcode', 'card_number'])
@@ -850,7 +855,8 @@ class SchemeAccount(models.Model):
         self,
         primary_cred: 'SchemeAccountCredentialAnswer',
         answers: Iterable['SchemeAccountCredentialAnswer'],
-        primary_cred_type: str
+        primary_cred_type: str,
+        scheme: 'Scheme'
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
@@ -865,13 +871,13 @@ class SchemeAccount(models.Model):
 
         type_to_update_info = {
             CARD_NUMBER: {
-                "regex": self.scheme.barcode_regex,
-                "prefix": self.scheme.barcode_prefix,
+                "regex": scheme.barcode_regex,
+                "prefix": scheme.barcode_prefix,
                 "secondary_cred_type": BARCODE
             },
             BARCODE: {
-                "regex": self.scheme.card_number_regex,
-                "prefix": self.scheme.card_number_prefix,
+                "regex": scheme.card_number_regex,
+                "prefix": scheme.card_number_prefix,
                 "secondary_cred_type": CARD_NUMBER
             },
         }

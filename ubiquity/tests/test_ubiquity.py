@@ -13,7 +13,8 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
+    MERCHANT_IDENTIFIER
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -1444,6 +1445,64 @@ class TestResources(APITestCase):
 
         test_scheme_account.get_cached_balance()
         self.assertEqual(mock_get_midas_balance.call_args[1]['journey'], JourneyTypes.UPDATE)
+
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
+    def test_existing_membership_card_creation_success(self, *_):
+        new_external_id = 'Test User mcard creation success'
+        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
+
+        # Test for schemes with additional non user credentials
+        merch_identifier = SchemeCredentialQuestionFactory(
+            scheme=self.scheme,
+            type=MERCHANT_IDENTIFIER,
+            label=MERCHANT_IDENTIFIER,
+            options=SchemeCredentialQuestion.MERCHANT_IDENTIFIER
+        )
+
+        new_answer = SchemeCredentialAnswerFactory(
+            question=merch_identifier,
+            scheme_account=self.scheme_account
+        )
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": self.scheme_account.barcode
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": self.scheme_account_answer.answer
+                        }
+                    ]
+                }
+        }
+
+        auth_header = self._get_auth_header(new_user)
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=self.scheme_account).exists()
+        self.assertTrue(linked)
+
+        # remove additional question/answer from test scheme
+        new_answer.delete()
+        merch_identifier.delete()
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
