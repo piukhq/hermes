@@ -957,7 +957,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         )
 
         scheme_account.save()
-        SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
 
         async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data)
         return scheme_account, status.HTTP_201_CREATED
