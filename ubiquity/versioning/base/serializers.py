@@ -1,4 +1,3 @@
-import logging
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 from os.path import join
@@ -29,8 +28,6 @@ from ubiquity.tasks import async_balance
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
 
-logger = logging.getLogger(__name__)
-
 
 def _add_base_media_url(image: dict) -> dict:
     if settings.NO_AZURE_STORAGE:
@@ -38,11 +35,10 @@ def _add_base_media_url(image: dict) -> dict:
     else:
         base_url = settings.AZURE_CUSTOM_DOMAIN
 
-    if base_url not in image['url']:
-        logger.error('adding base url twice')
-        image['url'] = join(base_url, image['url'])
-
-    return image
+    return {
+        **image,
+        'url': join(base_url, image['url'])
+    }
 
 
 class MembershipTransactionsMixin:
