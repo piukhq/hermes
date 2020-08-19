@@ -941,22 +941,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 )
                 return scheme_account, status.HTTP_201_CREATED
 
-        newly_created = False
-        try:
-            scheme_account = SchemeAccount.objects.get(
-                user_set__id=user.id,
-                scheme_id=scheme.id,
-                status__in=SchemeAccount.JOIN_ACTION_REQUIRED
-            )
-            scheme_account.set_async_join_status()
-        except SchemeAccount.DoesNotExist:
-            newly_created = True
-            scheme_account = SchemeAccount(
-                order=0,
-                scheme_id=scheme.id,
-                status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-                main_answer=main_answer
-            )
+        scheme_account = SchemeAccount(
+            order=0,
+            scheme_id=scheme.id,
+            status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            main_answer=main_answer
+        )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=enrol_fields,
@@ -966,9 +956,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             join_scheme=scheme,
         )
 
-        if newly_created:
-            scheme_account.save()
-            SchemeAccountEntry.objects.get_or_create(user=user, scheme_account=scheme_account)
+        scheme_account.save()
+        SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
 
         async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data)
         return scheme_account, status.HTTP_201_CREATED
