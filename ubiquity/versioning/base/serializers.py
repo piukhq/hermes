@@ -1,3 +1,4 @@
+import logging
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 from os.path import join
@@ -16,7 +17,7 @@ from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 
 from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
-from payment_card.serializers import CreatePaymentCardAccountSerializer, PaymentCardAccountSerializer
+from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
@@ -28,6 +29,8 @@ from ubiquity.tasks import async_balance
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
 
+logger = logging.getLogger(__name__)
+
 
 def _add_base_media_url(image: dict) -> dict:
     if settings.NO_AZURE_STORAGE:
@@ -35,7 +38,10 @@ def _add_base_media_url(image: dict) -> dict:
     else:
         base_url = settings.AZURE_CUSTOM_DOMAIN
 
-    image['url'] = join(base_url, image['url'])
+    if base_url not in image['url']:
+        logger.error('adding base url twice')
+        image['url'] = join(base_url, image['url'])
+
     return image
 
 
@@ -129,17 +135,17 @@ class UbiquityImageSerializer(serializers.Serializer):
             return None
 
 
-class PaymentCardSerializer(PaymentCardAccountSerializer):
-    membership_cards = serializers.SerializerMethodField()
-    first_six_digits = serializers.CharField(source='pan_start')
-    last_four_digits = serializers.CharField(source='pan_end')
-    year = serializers.IntegerField(source='expiry_year')
-    month = serializers.IntegerField(source='expiry_month')
-    token = None
+class PaymentCardSerializer:
+    def __init__(self, data, many=False, context=None):
+        self.context = context or {}
+        if many:
+            self.formatted_data = [self.to_representation(instance) for instance in data]
+        else:
+            self.formatted_data = self.to_representation(data)
 
-    class Meta(PaymentCardAccountSerializer.Meta):
-        exclude = ('psp_token', 'user_set', 'scheme_account_set')
-        read_only_fields = PaymentCardAccountSerializer.Meta.read_only_fields + ('membership_cards',)
+    @property
+    def data(self):
+        return self.formatted_data
 
     @staticmethod
     def _get_images(instance: PaymentCardAccount):
