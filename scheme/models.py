@@ -640,7 +640,7 @@ class SchemeAccount(models.Model):
         return {
             answer.question.type: self._get_decrypted_answer(answer)
             for answer in self.credential_answers
-            if answer.question.auth_field or answer.question.manual_question is False
+            if answer.question.auth_field and answer.question.manual_question is False
         }
 
     @cached_property
