@@ -285,7 +285,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             user_consents = UserConsentSerializer.get_user_consents(
                 scheme_account, data.pop('consents'), user, scheme_consents
             )
-            UserConsentSerializer.validate_consents(user_consents, scheme, JourneyTypes.LINK.value, scheme_consents)
+            UserConsentSerializer.validate_consents(user_consents, scheme, journey_type, scheme_consents)
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
