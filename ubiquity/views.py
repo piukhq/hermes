@@ -880,9 +880,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_link_route(
         self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
-
+        link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
+        auth_fields['consents'] = add_fields['consents'] = link_consents
         serializer = self.get_validated_data(
-            data={'scheme': scheme.id, 'order': 0, **add_fields, 'consents': auth_fields.get('consents', [])},
+            data={'scheme': scheme.id, 'order': 0, **add_fields},
             user=user,
             scheme=scheme
         )
