@@ -880,9 +880,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_link_route(
         self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
-
-        data = {'scheme': scheme.id, 'order': 0, **add_fields}
-        serializer = self.get_validated_data(data, user, scheme=scheme)
+        link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
+        auth_fields['consents'] = add_fields['consents'] = link_consents
+        serializer = self.get_validated_data(
+            data={'scheme': scheme.id, 'order': 0, **add_fields},
+            user=user,
+            scheme=scheme
+        )
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
         scheme_account.update_barcode_and_card_number(scheme=scheme)
