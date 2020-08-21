@@ -882,7 +882,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     ) -> t.Tuple[SchemeAccount, int]:
 
         serializer = self.get_validated_data(
-            data={'scheme': scheme.id, 'order': 0, **add_fields, 'consents': auth_fields.pop('consents', [])},
+            data={'scheme': scheme.id, 'order': 0, **add_fields, 'consents': auth_fields.get('consents', [])},
             user=user,
             scheme=scheme
         )
