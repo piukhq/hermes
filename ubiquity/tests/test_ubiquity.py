@@ -504,16 +504,8 @@ class TestResources(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('analytics.api._get_today_datetime')
-    def test_membership_card_link_with_consents(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_membership_card_link_with_consents(self, *_):
         consent_label = "Test Consent"
         consent = ConsentFactory.create(scheme=self.scheme)
 
