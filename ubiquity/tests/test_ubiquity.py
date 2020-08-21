@@ -504,6 +504,51 @@ class TestResources(APITestCase):
         self.assertTrue(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
+    @patch('ubiquity.views.async_link', autospec=True)
+    def test_membership_card_link_with_consents(self, *_):
+        consent_label = "Test Consent"
+        consent = ConsentFactory.create(scheme=self.scheme)
+
+        ThirdPartyConsentLink.objects.create(consent_label=consent_label,
+                                             client_app=self.client_app,
+                                             scheme=self.scheme,
+                                             consent=consent,
+                                             add_field=False,
+                                             auth_field=True,
+                                             register_field=False,
+                                             enrol_field=False)
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": "barcode",
+                            "value": "3038401022657083"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": "last_name",
+                            "value": "Test"
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 400)
+
+        payload["account"]["authorise_fields"].append({
+            "column": consent_label,
+            "value": "true"
+        })
+
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api.post_event')
@@ -1726,7 +1771,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_join', autospec=True)
     @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_replace_mcard_with_enrol_fields_including_main_answer(
-            self, mock_secret, mock_async_join, mock_async_balance
+        self, mock_secret, mock_async_join, mock_async_balance
     ):
         mock_secret.return_value = "test_secret"
         self.scheme_account.status = SchemeAccount.ENROL_FAILED
