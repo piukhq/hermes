@@ -821,7 +821,8 @@ class Join(SchemeAccountJoinMixin, SwappableSerializerMixin, GenericAPIView):
             user=request.user,
             scheme_id=scheme_id,
             scheme_account=new_scheme_account,
-            serializer=serializer
+            serializer=serializer,
+            channel=request.channels_permit.bundle_id
         )
 
         return Response(message, status=status_code)

@@ -649,7 +649,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             join_scheme=scheme
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, validated_data, delete_balance=True)
+        async_registration.delay(user.id, serializer, account.id, validated_data, permit.bundle_id, delete_balance=True)
         return account
 
     @censor_and_decorate
@@ -716,7 +716,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         account.schemeaccountcredentialanswer_set.all().delete()
         account.set_async_join_status()
-        async_join.delay(account.id, req.user.id, serializer, scheme.id, validated_data)
+        async_join.delay(account.id, req.user.id, serializer, scheme.id, validated_data, req.channels_permit.bundle_id)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -963,7 +963,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         scheme_account.save()
         SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
 
-        async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data)
+        async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data, channels_permit.bundle_id)
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
