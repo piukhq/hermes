@@ -2,11 +2,15 @@ from django.contrib import admin
 from django.http import HttpResponseRedirect, HttpResponse
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
+from django.conf import settings
 
 
 class AADAdminSite(admin.AdminSite):
     @never_cache
     def login(self, request, extra_context=None):
+        if settings.SSO_OFF:
+            return super(AADAdminSite, self).login(request, extra_context)
+
         if request.method == "GET" and self.has_permission(request):
             # Already logged-in, redirect to admin index
             index_path = reverse("admin:index", current_app=self.name)
