@@ -217,3 +217,21 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
         _send_data_to_atlas(consent)
     except Exception:
         sentry_sdk.capture_exception()
+
+
+@shared_task
+def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[SchemeAccount, int]) -> None:
+    if isinstance(membership_card, int):
+        membership_card = SchemeAccount.objects.get(id=membership_card)
+
+    payment_cards_to_link = PaymentCardAccount.objects.filter(
+        user_set__id=user_id
+    ).exclude(
+        scheme_account_set__scheme_id=membership_card.scheme_id
+    ).all()
+
+    for payment_card in payment_cards_to_link:
+        PaymentCardSchemeEntry(
+            scheme_account=membership_card,
+            payment_card_account=payment_card
+        ).get_instance_with_active_status().save()

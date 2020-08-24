@@ -39,7 +39,8 @@ from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, Sc
                              VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
-                            async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup)
+                            async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup,
+                            auto_link_membership_to_payments)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
@@ -118,32 +119,11 @@ class VersionedSerializerMixin:
 class AutoLinkOnCreationMixin:
 
     @staticmethod
-    def auto_link_to_payment_cards(user: CustomUser, account: SchemeAccount) -> None:
-        query = {
-            'user': user
-        }
-        payment_card_ids = {
-            pcard['payment_card_account_id']
-            for pcard in PaymentCardAccountEntry.objects.values('payment_card_account_id').filter(**query)
-        }
-
-        if payment_card_ids:
-            query = {
-                'scheme_account__scheme_id': account.scheme_id,
-                'payment_card_account_id__in': payment_card_ids
-            }
-            excluded = {
-                pcard['payment_card_account_id']
-                for pcard in PaymentCardSchemeEntry.objects.values('payment_card_account_id').filter(**query)
-            }
-            payment_card_to_link = payment_card_ids.difference(excluded)
-            scheme_account_id = account.id
-
-            for pcard_id in payment_card_to_link:
-                PaymentCardSchemeEntry(
-                    scheme_account_id=scheme_account_id,
-                    payment_card_account_id=pcard_id
-                ).get_instance_with_active_status().save()
+    def auto_link_to_payment_cards(user_id: int, membership_card: SchemeAccount) -> None:
+        if membership_card.status == SchemeAccount.ACTIVE:
+            auto_link_membership_to_payments(user_id, membership_card)
+        else:
+            auto_link_membership_to_payments.delay(user_id, membership_card.id)
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,
@@ -1122,7 +1102,7 @@ class ListMembershipCardView(MembershipCardView):
             )
 
         if is_auto_link(request):
-            self.auto_link_to_payment_cards(request.user, account)
+            self.auto_link_to_payment_cards(request.user.id, account)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
