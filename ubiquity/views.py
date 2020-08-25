@@ -9,7 +9,7 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
@@ -518,32 +518,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             user_id=self.request.user.id,
             user_filter=True
         )
-
-    # def get_validated_data(self, data: dict, user, scheme):
-    #     serializer = self.get_serializer(data=data)
-    #     serializer.is_valid(raise_exception=True)
-    #
-    #     if not scheme:
-    #         scheme = Scheme.objects.get(id=data['scheme'])
-    #
-    #     if scheme.url == settings.MY360_SCHEME_URL:
-    #         metadata = {
-    #             'scheme name': scheme.name,
-    #         }
-    #         if user.client_id == settings.BINK_CLIENT_ID:
-    #             analytics.post_event(
-    #                 user,
-    #                 analytics.events.MY360_APP_EVENT,
-    #                 metadata,
-    #                 True
-    #             )
-    #
-    #         raise serializers.ValidationError({
-    #             "non_field_errors": [
-    #                 "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
-    #             ]
-    #         })
-    #     return serializer
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):

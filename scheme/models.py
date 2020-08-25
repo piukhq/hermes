@@ -6,7 +6,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import Dict, Iterable
+from typing import Dict, Iterable, TYPE_CHECKING
 
 import arrow
 import requests
@@ -28,6 +28,20 @@ from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
+
+if TYPE_CHECKING:
+    from user.models import ClientApplicationBundle
+
+BARCODE_TYPES = (
+    (0, 'CODE128 (B or C)'),
+    (1, 'QrCode'),
+    (2, 'AztecCode'),
+    (3, 'Pdf417'),
+    (4, 'EAN (13)'),
+    (5, 'DataMatrix'),
+    (6, "ITF (Interleaved 2 of 5)"),
+    (7, 'Code 39'),
+)
 
 
 class UbiquityBalanceHandler:
@@ -116,17 +130,20 @@ class SchemeBundleAssociation(models.Model):
     bundle = models.ForeignKey('user.ClientApplicationBundle', on_delete=models.CASCADE)
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
 
+    @classmethod
+    @lru_cache(maxsize=2048)
+    def get_bundle_association_by_bundle_id_and_scheme_id(cls, bundle_id: str,scheme_id: int) -> dict:
+        return cls.objects.filter(
+            bundle__bundle_id=bundle_id, scheme_id=scheme_id
+        ).values('status')
 
-BARCODE_TYPES = (
-    (0, 'CODE128 (B or C)'),
-    (1, 'QrCode'),
-    (2, 'AztecCode'),
-    (3, 'Pdf417'),
-    (4, 'EAN (13)'),
-    (5, 'DataMatrix'),
-    (6, "ITF (Interleaved 2 of 5)"),
-    (7, 'Code 39'),
-)
+
+def clear_bundle_association_lru_cache(sender, **kwargs):
+    sender.get_bundle_association_by_bundle_id_and_scheme_id.cache_clear()
+
+
+signals.post_save.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
+signals.post_delete.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
 
 
 class SchemeContent(models.Model):
@@ -273,12 +290,21 @@ class Scheme(models.Model):
     def get_scheme_and_questions_by_scheme_id(cls, scheme_id: int) -> 'Scheme':
         return cls.objects.prefetch_related("questions").get(pk=scheme_id)
 
+    @classmethod
+    @lru_cache(maxsize=256)
+    def get_suspended_schemes_by_bundle(cls, bundle: 'ClientApplicationBundle') -> 'Scheme':
+        return cls.objects.filter(
+            schemebundleassociation__bundle=bundle,
+            schemebundleassociation__status=SchemeBundleAssociation.SUSPENDED,
+        ).all()
+
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
 
 
 def clear_scheme_lru_cache(sender, **kwargs):
     sender.get_scheme_and_questions_by_scheme_id.cache_clear()
+    sender.get_suspended_schemes_by_bundle.cache_clear()
 
 
 signals.post_save.connect(clear_scheme_lru_cache, sender=Scheme)

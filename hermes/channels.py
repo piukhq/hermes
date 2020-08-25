@@ -116,10 +116,6 @@ class Permit:
                 raise exceptions.AuthenticationFailed('Invalid Token')
         return self.looked_up_bundle
 
-    @staticmethod
-    def scheme_suspended(relation=''):
-        return {f'{relation}schemebundleassociation__status': SchemeBundleAssociation.SUSPENDED}
-
     def scheme_query(self, query, allow=None):
         return self.related_model_query(query, '', allow)
 
@@ -133,9 +129,6 @@ class Permit:
         if not user_id:
             raise ValueError("user_id is required when filtering by user")
         return query.filter(user_set__id=user_id)
-
-    def scheme_payment_account_query(self, query, allow=None):
-        return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
 
     def payment_card_account_query(self, query, user_id=None, user_filter=True):
         if user_filter and not self.service_allow_all:
@@ -152,18 +145,14 @@ class Permit:
         suspended = {status_key: SchemeBundleAssociation.SUSPENDED}
         q = Q(**bundle)
 
-        if allow == self.AVAILABLE or allow is None:
+        if allow in [self.AVAILABLE, self.SUSPENDED] or allow is None:
             # By default permit query filter selects only defined schemes which are not inactive
             # thus inactive is the same as not defined
             if self.ubiquity:
                 q = q & Q(**active)
             else:
                 q = q & (Q(**active) | Q(**suspended))
-        elif allow == self.SUSPENDED:
-            if self.ubiquity:
-                q = q & Q(**active)
-            else:
-                q = q & (Q(**active) | Q(**suspended))
+
         elif allow == self.ACTIVE:
             q = q & Q(**active)
 
@@ -194,9 +183,9 @@ class Permit:
         # Scheme status will only be looked up when required and only once per request per scheme
         if scheme_id in self.found_schemes_status:
             return self.found_schemes_status[scheme_id]
-        status_list = SchemeBundleAssociation.objects.filter(
-            bundle__bundle_id=self.bundle_id, scheme_id=scheme_id
-        ).values('status')
+        status_list = SchemeBundleAssociation.get_bundle_association_by_bundle_id_and_scheme_id(
+            bundle_id=self.bundle_id, scheme_id=scheme_id
+        )
         if len(status_list) > 1:
             logger.error(f"Channels id ='{self.bundle_id}' has "
                          f"multiple entries for scheme id '{scheme_id}'")
