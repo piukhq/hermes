@@ -72,9 +72,8 @@ class Permit:
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
         try:
-            self.looked_up_bundle = ClientApplicationBundle.objects.select_related('client').get(
-                bundle_id=self.bundle_id, client__organisation__name=organisation_name
-            )
+            self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
+                self.bundle_id, organisation_name)
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError
