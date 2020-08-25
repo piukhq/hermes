@@ -30,7 +30,7 @@ from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
 
 if TYPE_CHECKING:
-    from user.models import ClientApplicationBundle
+    from user.models import ClientApplicationBundle, ClientApplication
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -1360,6 +1360,19 @@ class ThirdPartyConsentLink(models.Model):
     auth_field = models.BooleanField(default=False)
     register_field = models.BooleanField(default=False)
     enrol_field = models.BooleanField(default=False)
+
+    @classmethod
+    @lru_cache(maxsize=2048)
+    def get_by_scheme_and_client(cls, scheme: Scheme, client_app: 'ClientApplication') -> list:
+        return cls.objects.filter(scheme=scheme, client_app=client_app).all()
+
+
+def clear_third_party_consent_lru_cache(sender, **kwargs):
+    sender.get_by_scheme_and_client.cache_clear()
+
+
+signals.pre_save.connect(clear_third_party_consent_lru_cache, sender=ThirdPartyConsentLink)
+signals.pre_delete.connect(clear_third_party_consent_lru_cache, sender=ThirdPartyConsentLink)
 
 
 class VoucherScheme(models.Model):

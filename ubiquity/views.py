@@ -998,7 +998,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if not hasattr(self, "consent_links") or not self.consent_links:
             client_app = self.request.channels_permit.client
-            self.consent_links = ThirdPartyConsentLink.objects.filter(scheme=scheme, client_app=client_app)
+            self.consent_links = ThirdPartyConsentLink.get_by_scheme_and_client(scheme=scheme, client_app=client_app)
 
         provided_consent_keys = self.match_consents(self.consent_links, data_provided)
         if not provided_consent_keys:
