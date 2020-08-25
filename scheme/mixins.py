@@ -234,29 +234,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
         return scheme_account
 
-    def _update_join_account(
-        self,
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        data: dict,
-        answer_type: str
-    ) -> SchemeAccount:
-        with transaction.atomic():
-            scheme_account.order = data['order']
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save()
-
-            SchemeAccountCredentialAnswer.objects.create(
-                scheme_account=scheme_account,
-                question=self._get_question_from_type(scheme_account, answer_type),
-                answer=data[answer_type],
-            )
-
-            self.analytics_update(user, scheme_account, acc_created=False)
-            self.save_consents(user, scheme_account, data, JourneyTypes.JOIN.value)
-
-        return scheme_account
-
     @staticmethod
     def analytics_update(user: 'CustomUser', scheme_account: 'SchemeAccount', acc_created: bool) -> None:
         if user.client_id == settings.BINK_CLIENT_ID:
