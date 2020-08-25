@@ -837,7 +837,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         auth_fields: dict,
         add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
-
+        return_status = status.HTTP_200_OK
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
         auth_fields['consents'] = add_fields['consents'] = link_consents
 
@@ -845,11 +845,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         serializer.is_valid(raise_exception=True)
 
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, scheme)
-        return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
-        scheme_account.update_barcode_and_card_number()
 
         if account_created:
-            scheme_account.set_pending()
+            return_status = status.HTTP_201_CREATED
+            scheme_account.update_barcode_and_card_number()
             if auth_fields:
                 async_link.delay(auth_fields, scheme_account.id, user.id)
             else:

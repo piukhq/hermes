@@ -162,43 +162,37 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
     def create_account(self, data: dict, user: 'CustomUser') -> t.Tuple[SchemeAccount, dict, bool]:
         serializer = self.get_validated_data(data, user)
         scheme = Scheme.get_scheme_and_questions_by_scheme_id(data['scheme'])
-        return self.create_account_with_valid_data(serializer, user, scheme)
+        return self.create_account_with_valid_data(serializer, user, scheme, SchemeAccount.WALLET_ONLY)
 
     def create_account_with_valid_data(
-            self, serializer: 'Serializer', user: 'CustomUser', scheme: Scheme
+        self,
+        serializer: 'Serializer',
+        user: 'CustomUser',
+        scheme: Scheme,
+        create_status=SchemeAccount.PENDING
     ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
         account_created = False
 
+        if answer_type in [CARD_NUMBER, BARCODE]:
+            main_answer = answer_type
+        else:
+            main_answer = 'main_answer'
+
         try:
-            join_account = user.scheme_account_set.get(
-                scheme=scheme,
-                status__in=SchemeAccount.JOIN_ACTION_REQUIRED
-            )
-            scheme_account = self._update_join_account(user, join_account, data, answer_type)
-            resp = (scheme_account, data, account_created)
-
+            scheme_account = SchemeAccount.objects.get(**{
+                'scheme': scheme,
+                main_answer: data[answer_type]
+            })
         except SchemeAccount.DoesNotExist:
-
-            if answer_type in [CARD_NUMBER, BARCODE]:
-                main_answer = answer_type
-            else:
-                main_answer = 'main_answer'
-
-            try:
-                scheme_account = SchemeAccount.objects.get(**{
-                    'scheme': scheme,
-                    main_answer: data[answer_type]
-                })
-            except SchemeAccount.DoesNotExist:
-                account_created = True
-                scheme_account = self._create_new_account(user, scheme, data, answer_type)
-                resp = (scheme_account, data, account_created)
-            else:
-                # handle_existing_scheme_account is called after this function
-                # to check if auth_fields match and link to user if not linked already
-                resp = (scheme_account, data, account_created)
+            account_created = True
+            scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
+            resp = (scheme_account, data, account_created)
+        else:
+            # handle_existing_scheme_account is called after this function
+            # to check if auth_fields match and link to user if not linked already
+            resp = (scheme_account, data, account_created)
 
         data["id"] = scheme_account.id
         return resp
@@ -215,12 +209,19 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_new_account(self, user: 'CustomUser', scheme: Scheme, data: dict, answer_type: str) -> SchemeAccount:
+    def _create_new_account(
+        self,
+        user: 'CustomUser',
+        scheme: Scheme,
+        data: dict,
+        answer_type: str,
+        create_status: int
+    ) -> SchemeAccount:
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
                 scheme=scheme,
                 order=data['order'],
-                status=SchemeAccount.WALLET_ONLY,
+                status=create_status,
                 main_answer=data[answer_type]
             )
             SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
@@ -483,9 +484,9 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
     @staticmethod
     def _update_credentials(
-            scheme_account: SchemeAccount,
-            question_id_and_data: dict,
-            existing_credentials: dict
+        scheme_account: SchemeAccount,
+        question_id_and_data: dict,
+        existing_credentials: dict
     ) -> list:
         create_credentials = []
         update_credentials = []
