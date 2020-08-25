@@ -1652,6 +1652,9 @@ class TestResources(APITestCase):
         non_deleted_links = SchemeAccountEntry.objects.filter(user_id=user.id).count()
         self.assertEqual(non_deleted_links, 0)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)

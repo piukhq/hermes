@@ -138,8 +138,9 @@ class SchemeBundleAssociation(models.Model):
         ).values('status')
 
 
-def clear_bundle_association_lru_cache(sender, **kwargs):
+def clear_bundle_association_lru_cache(sender, instance, **kwargs):
     sender.get_status_by_bundle_id_and_scheme_id.cache_clear()
+    instance.scheme.get_suspended_schemes_by_bundle.cache_clear()
 
 
 signals.pre_save.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
@@ -304,7 +305,6 @@ class Scheme(models.Model):
 
 def clear_scheme_lru_cache(sender, **kwargs):
     sender.get_scheme_and_questions_by_scheme_id.cache_clear()
-    sender.get_suspended_schemes_by_bundle.cache_clear()
 
 
 signals.post_save.connect(clear_scheme_lru_cache, sender=Scheme)
