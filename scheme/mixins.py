@@ -161,10 +161,11 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
     def create_account(self, data: dict, user: 'CustomUser') -> t.Tuple[SchemeAccount, dict, bool]:
         serializer = self.get_validated_data(data, user)
-        return self.create_account_with_valid_data(serializer, user)
+        scheme = Scheme.get_scheme_and_questions_by_scheme_id(data['scheme'])
+        return self.create_account_with_valid_data(serializer, user, scheme)
 
     def create_account_with_valid_data(
-            self, serializer: 'Serializer', user: 'CustomUser'
+            self, serializer: 'Serializer', user: 'CustomUser', scheme: Scheme
     ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
@@ -172,7 +173,7 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
         try:
             join_account = user.scheme_account_set.get(
-                scheme_id=data['scheme'],
+                scheme=scheme,
                 status__in=SchemeAccount.JOIN_ACTION_REQUIRED
             )
             scheme_account = self._update_join_account(user, join_account, data, answer_type)
@@ -187,12 +188,12 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
             try:
                 scheme_account = SchemeAccount.objects.get(**{
-                    'scheme_id': data['scheme'],
+                    'scheme': scheme,
                     main_answer: data[answer_type]
                 })
             except SchemeAccount.DoesNotExist:
                 account_created = True
-                scheme_account = self._create_new_account(user, data, answer_type)
+                scheme_account = self._create_new_account(user, scheme, data, answer_type)
                 resp = (scheme_account, data, account_created)
             else:
                 # handle_existing_scheme_account is called after this function
@@ -214,19 +215,19 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_new_account(self, user: 'CustomUser', data: dict, answer_type: str) -> SchemeAccount:
+    def _create_new_account(self, user: 'CustomUser', scheme: Scheme, data: dict, answer_type: str) -> SchemeAccount:
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme_id=data['scheme'],
+                scheme=scheme,
                 order=data['order'],
                 status=SchemeAccount.WALLET_ONLY,
-                main_answer=data[answer_type],
+                main_answer=data[answer_type]
             )
             SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=self._get_question_from_type(scheme_account, answer_type),
-                answer=data[answer_type],
+                answer=data[answer_type]
             )
             self.analytics_update(user, scheme_account, acc_created=True)
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
@@ -281,14 +282,15 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 scheme=scheme_account.scheme_id,
                 journey=journey_type,
                 check_box=True
-            )
+            ).all()
             user_consents = UserConsentSerializer.get_user_consents(
                 scheme_account, data.pop('consents'), user, scheme_consents
             )
             UserConsentSerializer.validate_consents(user_consents, scheme, journey_type, scheme_consents)
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
-                user_consent.save()
+
+            UserConsent.objects.bulk_create(user_consents)
 
 
 class SchemeAccountJoinMixin:

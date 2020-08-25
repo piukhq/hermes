@@ -5,16 +5,13 @@ import sre_constants
 import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
+from functools import lru_cache
 from typing import Dict, Iterable
 
 import arrow
 import requests
-from django.utils.functional import cached_property
-
-from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from bulk_update.manager import BulkUpdateManager
 from colorful.fields import RGBColorField
-from common.models import Image
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
@@ -23,6 +20,10 @@ from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
+from django.utils.functional import cached_property
+
+from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
+from common.models import Image
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -267,8 +268,21 @@ class Scheme(models.Model):
             for question in question_list
         }
 
+    @classmethod
+    @lru_cache(maxsize=256)
+    def get_scheme_and_questions_by_scheme_id(cls, scheme_id: int) -> 'Scheme':
+        return cls.objects.prefetch_related("questions").get(pk=scheme_id)
+
     def __str__(self):
         return '{} ({})'.format(self.name, self.company)
+
+
+def clear_scheme_lru_cache(sender, **kwargs):
+    sender.get_scheme_and_questions_by_scheme_id.cache_clear()
+
+
+signals.post_save.connect(clear_scheme_lru_cache, sender=Scheme)
+signals.post_delete.connect(clear_scheme_lru_cache, sender=Scheme)
 
 
 class ConsentsManager(models.Manager):
@@ -818,9 +832,7 @@ class SchemeAccount(models.Model):
 
         return balance, vouchers
 
-    def update_barcode_and_card_number(self, scheme=None):
-        if scheme is None:
-            scheme = self.scheme
+    def update_barcode_and_card_number(self):
 
         answers = {
             answer
@@ -839,14 +851,12 @@ class SchemeAccount(models.Model):
         self._update_barcode_and_card_number(
             card_number,
             answers=answers,
-            primary_cred_type=CARD_NUMBER,
-            scheme=scheme,
+            primary_cred_type=CARD_NUMBER
         )
         self._update_barcode_and_card_number(
             barcode,
             answers=answers,
-            primary_cred_type=BARCODE,
-            scheme=scheme,
+            primary_cred_type=BARCODE
         )
 
         self.save(update_fields=['barcode', 'card_number'])
@@ -855,8 +865,7 @@ class SchemeAccount(models.Model):
         self,
         primary_cred: 'SchemeAccountCredentialAnswer',
         answers: Iterable['SchemeAccountCredentialAnswer'],
-        primary_cred_type: str,
-        scheme: 'Scheme'
+        primary_cred_type: str
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
@@ -871,13 +880,13 @@ class SchemeAccount(models.Model):
 
         type_to_update_info = {
             CARD_NUMBER: {
-                "regex": scheme.barcode_regex,
-                "prefix": scheme.barcode_prefix,
+                "regex": self.scheme.barcode_regex,
+                "prefix": self.scheme.barcode_prefix,
                 "secondary_cred_type": BARCODE
             },
             BARCODE: {
-                "regex": scheme.card_number_regex,
-                "prefix": scheme.card_number_prefix,
+                "regex": self.scheme.card_number_regex,
+                "prefix": self.scheme.card_number_prefix,
                 "secondary_cred_type": CARD_NUMBER
             },
         }
@@ -1203,6 +1212,14 @@ class SchemeCredentialQuestion(models.Model):
 
     def __str__(self):
         return self.type
+
+
+def clear_scheme_lru_cache_on_question_change(sender, instance, **kwargs):
+    instance.scheme.get_scheme_and_questions_by_scheme_id.cache_clear()
+
+
+signals.post_save.connect(clear_scheme_lru_cache_on_question_change, sender=SchemeCredentialQuestion)
+signals.post_delete.connect(clear_scheme_lru_cache_on_question_change, sender=SchemeCredentialQuestion)
 
 
 class SchemeCredentialQuestionChoice(models.Model):

@@ -519,32 +519,31 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             user_filter=True
         )
 
-    def get_validated_data(self, data: dict, user, scheme=None):
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-
-        # my360 schemes should never come through this endpoint
-        if not scheme:
-            scheme = Scheme.objects.get(id=data['scheme'])
-
-        if scheme.url == settings.MY360_SCHEME_URL:
-            metadata = {
-                'scheme name': scheme.name,
-            }
-            if user.client_id == settings.BINK_CLIENT_ID:
-                analytics.post_event(
-                    user,
-                    analytics.events.MY360_APP_EVENT,
-                    metadata,
-                    True
-                )
-
-            raise serializers.ValidationError({
-                "non_field_errors": [
-                    "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
-                ]
-            })
-        return serializer
+    # def get_validated_data(self, data: dict, user, scheme):
+    #     serializer = self.get_serializer(data=data)
+    #     serializer.is_valid(raise_exception=True)
+    #
+    #     if not scheme:
+    #         scheme = Scheme.objects.get(id=data['scheme'])
+    #
+    #     if scheme.url == settings.MY360_SCHEME_URL:
+    #         metadata = {
+    #             'scheme name': scheme.name,
+    #         }
+    #         if user.client_id == settings.BINK_CLIENT_ID:
+    #             analytics.post_event(
+    #                 user,
+    #                 analytics.events.MY360_APP_EVENT,
+    #                 metadata,
+    #                 True
+    #             )
+    #
+    #         raise serializers.ValidationError({
+    #             "non_field_errors": [
+    #                 "Invalid Scheme: {}. Please use /schemes/accounts/my360 endpoint".format(scheme.slug)
+    #             ]
+    #         })
+    #     return serializer
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
@@ -817,7 +816,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             if not self.request.channels_permit.is_scheme_available(int(self.request.data['membership_plan'])):
                 raise ParseError('membership plan not allowed for this user.')
 
-            scheme = Scheme.objects.prefetch_related("questions").get(pk=self.request.data['membership_plan'])
+            scheme = Scheme.get_scheme_and_questions_by_scheme_id(self.request.data['membership_plan'])
             if not self.request.user.is_tester and scheme.test_scheme:
                 raise ParseError('membership plan not allowed for this user.')
 
@@ -858,18 +857,22 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             pass
 
     def _handle_create_link_route(
-        self, user: CustomUser, scheme: Scheme, auth_fields: dict, add_fields: dict
+        self,
+        user: CustomUser,
+        scheme: Scheme,
+        auth_fields: dict,
+        add_fields: dict
     ) -> t.Tuple[SchemeAccount, int]:
+
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
         auth_fields['consents'] = add_fields['consents'] = link_consents
-        serializer = self.get_validated_data(
-            data={'scheme': scheme.id, 'order': 0, **add_fields},
-            user=user,
-            scheme=scheme
-        )
-        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user)
+
+        serializer = self.get_serializer(data={'scheme': scheme.id, 'order': 0, **add_fields})
+        serializer.is_valid(raise_exception=True)
+
+        scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, scheme)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
-        scheme_account.update_barcode_and_card_number(scheme=scheme)
+        scheme_account.update_barcode_and_card_number()
 
         if account_created:
             scheme_account.set_pending()
