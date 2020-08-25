@@ -132,18 +132,18 @@ class SchemeBundleAssociation(models.Model):
 
     @classmethod
     @lru_cache(maxsize=2048)
-    def get_bundle_association_by_bundle_id_and_scheme_id(cls, bundle_id: str,scheme_id: int) -> dict:
+    def get_status_by_bundle_id_and_scheme_id(cls, bundle_id: str, scheme_id: int) -> dict:
         return cls.objects.filter(
             bundle__bundle_id=bundle_id, scheme_id=scheme_id
         ).values('status')
 
 
 def clear_bundle_association_lru_cache(sender, **kwargs):
-    sender.get_bundle_association_by_bundle_id_and_scheme_id.cache_clear()
+    sender.get_status_by_bundle_id_and_scheme_id.cache_clear()
 
 
-signals.post_save.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
-signals.post_delete.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
+signals.pre_save.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
+signals.pre_delete.connect(clear_bundle_association_lru_cache, sender=SchemeBundleAssociation)
 
 
 class SchemeContent(models.Model):

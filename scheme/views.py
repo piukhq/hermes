@@ -394,7 +394,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
             # delete main answer credential if an async join failed
             if (previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-                and new_status_code != SchemeAccount.ACTIVE):
+                    and new_status_code != SchemeAccount.ACTIVE):
                 scheme_account.main_answer = ""
 
             if new_status_code == SchemeAccount.ACTIVE:
