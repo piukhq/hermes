@@ -31,6 +31,7 @@ from ubiquity.models import PaymentCardSchemeEntry
 
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
+    from django.db.models import QuerySet
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -371,6 +372,23 @@ class Consent(models.Model):
 
     class Meta:
         unique_together = ('slug', 'scheme', 'journey')
+
+    @classmethod
+    @lru_cache(maxsize=2048)
+    def get_checkboxes_by_scheme_and_journey_type(cls, scheme: Scheme, journey_type: JourneyTypes) -> 'QuerySet':
+        return cls.objects.filter(
+            scheme=scheme,
+            journey=journey_type,
+            check_box=True
+        ).all()
+
+
+def clear_consent_lru_cache(sender, **kwargs):
+    sender.get_checkboxes_by_scheme_and_journey_type.cache_clear()
+
+
+signals.pre_save.connect(clear_consent_lru_cache, sender=Consent)
+signals.pre_delete.connect(clear_consent_lru_cache, sender=Consent)
 
 
 class Exchange(models.Model):
@@ -1363,7 +1381,7 @@ class ThirdPartyConsentLink(models.Model):
 
     @classmethod
     @lru_cache(maxsize=2048)
-    def get_by_scheme_and_client(cls, scheme: Scheme, client_app: 'ClientApplication') -> list:
+    def get_by_scheme_and_client(cls, scheme: Scheme, client_app: 'ClientApplication') -> 'QuerySet':
         return cls.objects.filter(scheme=scheme, client_app=client_app).all()
 
 

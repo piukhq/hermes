@@ -256,11 +256,10 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             else:
                 scheme = scheme_account.scheme
 
-            scheme_consents = Consent.objects.filter(
-                scheme=scheme_account.scheme_id,
-                journey=journey_type,
-                check_box=True
-            ).all()
+            scheme_consents = Consent.get_checkboxes_by_scheme_and_journey_type(
+                scheme=scheme,
+                journey_type=journey_type
+            )
             user_consents = UserConsentSerializer.get_user_consents(
                 scheme_account, data.pop('consents'), user, scheme_consents
             )
