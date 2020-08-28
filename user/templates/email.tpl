@@ -992,54 +992,14 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                         <div
                                                           style="text-align:
                                                           justify;"><font
-face="arial, sans-serif">No worries,
-                                                          we all have
-                                                          those days
-                                                          where we would
-                                                          forget our
-                                                          heads if it
-                                                          wasn’t screwed
-                                                          on... Let
-                                                          alone our
-                                                          password for
-                                                          one of
-                                                          the hundreds of
-                                                          apps on our
-                                                          phone! </font><br>
-                                                          <br>
-                                                          It was bound
-                                                          to happen
-                                                          sooner or
-                                                          later, but
-                                                          luckily it’s
-                                                          nice and easy
-                                                          to get a new
-                                                          one. Simply
-                                                          click the
-                                                          button above
-                                                          to set a new
-                                                          password now.</div>
+face="arial, sans-serif">Effortlessly reset your Bink App password by selecting “Get a new password”</div>
                                                         <div
                                                           style="text-align:
                                                           justify;"> </div>
                                                         <div
                                                           style="text-align:
                                                           justify;"><font
-face="arial, sans-serif"><br>If
-                                                          you magically
-                                                          remembered
-                                                          your password
-                                                          and no longer
-                                                          need a reset
-                                                          then please
-                                                          ignore this
-                                                          email... If
-                                                          you didn’t
-                                                          request this
-                                                          email please
-                                                          get in touch
-                                                          with us
-                                                          immediately </font><a
+face="arial, sans-serif"><br>If you didn’t request a password reset, please get in touch with us immediately at </font><a
 moz-do-not-send="true"
 href="mailto:support@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Requested"
 target="_blank" style="mso-line-height-rule:
