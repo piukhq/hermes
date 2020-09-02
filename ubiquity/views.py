@@ -40,7 +40,7 @@ from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, Sc
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
                             async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup,
-                            auto_link_membership_to_payments)
+                            auto_link_membership_to_payments, deleted_membership_card_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
@@ -678,37 +678,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-        scheme_slug = scheme_account.scheme.slug
-        scheme_account_id = scheme_account.id
-        delete_date = arrow.utcnow().format()
-
-        pll_links = PaymentCardSchemeEntry.objects.filter(scheme_account_id=scheme_account_id)
-        entries_query = SchemeAccountEntry.objects.filter(scheme_account_id=scheme_account_id)
-
-        if scheme_account.user_set.count() <= 1:
-            scheme_account.is_deleted = True
-            scheme_account.save(update_fields=['is_deleted'])
-
-            if request.user.client_id == settings.BINK_CLIENT_ID:
-                analytics.update_scheme_account_attribute(
-                    scheme_account,
-                    request.user,
-                    old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
-
-        else:
-            m_card_users = scheme_account.user_set.exclude(id=request.user.id).values_list('id', flat=True)
-            pll_links = pll_links.exclude(payment_card_account__user_set__id__in=m_card_users)
-            entries_query = entries_query.filter(user_id=request.user.id)
-
-        entries_query.delete()
-        activations = VopActivation.find_activations_matching_links(pll_links)
-        pll_links.delete()
-
-        if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
-            send_merchant_metrics_for_link_delete.delay(scheme_account_id, scheme_slug, delete_date, 'delete')
-
-        PaymentCardSchemeEntry.deactivate_activations(activations)
-
+        SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()
+        deleted_membership_card_cleanup.delay(scheme_account.id, arrow.utcnow().format(), request.user.id)
         return Response({}, status=status.HTTP_200_OK)
 
     @censor_and_decorate
