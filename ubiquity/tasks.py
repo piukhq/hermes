@@ -14,7 +14,7 @@ from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation, PaymentCardAccountEntry
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -224,10 +224,22 @@ def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[Sche
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
-    payment_cards_to_link = PaymentCardAccount.objects.filter(
-        user_set__id=user_id
+    payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
+        'payment_card_account_id', flat=True
+    )
+
+    allowed_payment_cards = SchemeAccount.all_objects.filter(
+        paymentcardschemeentry__payment_card_account_id__in=payment_cards_in_wallet,
+        is_deleted=False
     ).exclude(
-        scheme_account_set__scheme_id=membership_card.scheme_id
+        scheme_id=membership_card.scheme_id
+    ).values_list(
+        'paymentcardschemeentry__payment_card_account_id', flat=True
+    )
+
+    payment_cards_to_link = PaymentCardAccount.all_objects.filter(
+        id__in=allowed_payment_cards,
+        is_deleted=False
     ).all()
 
     for payment_card in payment_cards_to_link:
