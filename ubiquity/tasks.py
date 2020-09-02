@@ -10,6 +10,7 @@ from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework import serializers
 
+import analytics
 from hermes.vop_tasks import activate, deactivate
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
@@ -195,6 +196,40 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
         pll_links = pll_links.exclude(scheme_account__user_set__id__in=p_card_users)
 
     pll_links.delete()
+
+
+@shared_task
+def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, user_id: int) -> None:
+    scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
+    user = CustomUser.objects.get(id=user_id)
+    scheme_slug = scheme_account.scheme.slug
+
+    pll_links = PaymentCardSchemeEntry.objects.filter(
+        scheme_account_id=scheme_account.id
+    ).prefetch_related('scheme_account')
+    entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+
+    if entries_query.count() <= 0:
+        scheme_account.is_deleted = True
+        scheme_account.save(update_fields=['is_deleted'])
+
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
+
+    else:
+        m_card_users = entries_query.values_list('user_id', flat=True)
+        pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
+
+    activations = VopActivation.find_activations_matching_links(pll_links)
+    pll_links.delete()
+
+    if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+        send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, delete_date, 'delete')
+
+    PaymentCardSchemeEntry.deactivate_activations(activations)
 
 
 def _send_data_to_atlas(consent: dict) -> None:
