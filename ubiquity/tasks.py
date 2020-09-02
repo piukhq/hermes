@@ -221,7 +221,7 @@ def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, us
 
     else:
         m_card_users = entries_query.values_list('user_id', flat=True)
-        pll_links = pll_links.exclude(payment_card_account__paymentcardschemeentry_set__user_id__in=m_card_users)
+        pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
     activations = VopActivation.find_activations_matching_links(pll_links)
     pll_links.delete()

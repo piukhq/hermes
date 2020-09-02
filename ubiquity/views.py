@@ -18,7 +18,6 @@ from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
-import analytics
 from hermes.channels import Permit
 from hermes.settings import Version
 from payment_card.enums import PaymentCardRoutes
@@ -38,9 +37,9 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
                              VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
-                            send_merchant_metrics_for_new_account, send_merchant_metrics_for_link_delete,
-                            async_add_field_only_link, deleted_payment_card_cleanup, deleted_service_cleanup,
-                            auto_link_membership_to_payments, deleted_membership_card_cleanup)
+                            send_merchant_metrics_for_new_account, async_add_field_only_link,
+                            deleted_payment_card_cleanup, deleted_service_cleanup, auto_link_membership_to_payments,
+                            deleted_membership_card_cleanup)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
