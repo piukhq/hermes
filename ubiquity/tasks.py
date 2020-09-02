@@ -228,18 +228,19 @@ def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[Sche
         'payment_card_account_id', flat=True
     )
 
-    allowed_payment_cards = SchemeAccount.all_objects.filter(
-        paymentcardschemeentry__payment_card_account_id__in=payment_cards_in_wallet,
-        is_deleted=False
-    ).exclude(
-        scheme_id=membership_card.scheme_id
+    excluded_payment_cards = PaymentCardSchemeEntry.objects.filter(
+        payment_card_account_id__in=payment_cards_in_wallet,
+        scheme_account__is_deleted=False,
+        scheme_account__scheme_id=membership_card.scheme_id
     ).values_list(
-        'paymentcardschemeentry__payment_card_account_id', flat=True
+        'payment_card_account_id', flat=True
     )
 
     payment_cards_to_link = PaymentCardAccount.all_objects.filter(
-        id__in=allowed_payment_cards,
+        id__in=payment_cards_in_wallet,
         is_deleted=False
+    ).exclude(
+        id__in=excluded_payment_cards
     ).all()
 
     for payment_card in payment_cards_to_link:
