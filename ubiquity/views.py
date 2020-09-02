@@ -642,7 +642,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 async_balance.delay(account.id)
 
         if is_auto_link(request):
-            self.auto_link_to_payment_cards(request.user, account)
+            self.auto_link_to_payment_cards(request.user.id, account)
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
