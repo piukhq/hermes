@@ -1,3 +1,4 @@
+import logging
 import typing as t
 
 import arrow
@@ -5,6 +6,7 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -19,6 +21,8 @@ from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
+
+logger = logging.getLogger(__name__)
 
 
 # Call back retry tasks for activation and deactivation - called from background
@@ -224,6 +228,8 @@ def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[Sche
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
+    # the next three queries are meant to prevent more than one join and to avoid lookups with too many results.
+    # they are executed as a single complex query by django.
     payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
         'payment_card_account_id', flat=True
     )
@@ -243,8 +249,16 @@ def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[Sche
         id__in=excluded_payment_cards
     ).all()
 
+    # we cannot use bulk_create as it would not trigger the signal needed to update the stored pll_links.
     for payment_card in payment_cards_to_link:
-        PaymentCardSchemeEntry(
-            scheme_account=membership_card,
-            payment_card_account=payment_card
-        ).get_instance_with_active_status().save()
+        try:
+            with transaction.atomic():
+                PaymentCardSchemeEntry(
+                    scheme_account=membership_card,
+                    payment_card_account=payment_card
+                ).get_instance_with_active_status().save()
+        except IntegrityError:
+            logger.debug(
+                f'Failed to create a PaymentCardSchemeEntry entry for scheme_account: {membership_card.id}'
+                f' and payment card: {payment_card.id}. The entry already exists.'
+            )
