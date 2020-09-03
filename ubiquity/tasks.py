@@ -1,3 +1,4 @@
+import logging
 import typing as t
 
 import arrow
@@ -5,20 +6,24 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework import serializers
 
+import analytics
 from hermes.vop_tasks import activate, deactivate
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation, PaymentCardAccountEntry
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
+
+logger = logging.getLogger(__name__)
 
 
 # Call back retry tasks for activation and deactivation - called from background
@@ -94,16 +99,16 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
-               validated_data: dict) -> None:
+               validated_data: dict, channel: str) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
 
-    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer)
+    SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
 
 @shared_task
 def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
-                       validated_data: dict, delete_balance=False) -> None:
+                       validated_data: dict, channel: str, delete_balance=False) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     if delete_balance:
@@ -111,7 +116,7 @@ def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id
         scheme_account.delete_saved_balance()
 
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
-                                                 scheme_account, serializer)
+                                                 scheme_account, serializer, channel)
 
 
 @shared_task
@@ -193,6 +198,40 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
     pll_links.delete()
 
 
+@shared_task
+def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, user_id: int) -> None:
+    scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
+    user = CustomUser.objects.get(id=user_id)
+    scheme_slug = scheme_account.scheme.slug
+
+    pll_links = PaymentCardSchemeEntry.objects.filter(
+        scheme_account_id=scheme_account.id
+    ).prefetch_related('scheme_account')
+    entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+
+    if entries_query.count() <= 0:
+        scheme_account.is_deleted = True
+        scheme_account.save(update_fields=['is_deleted'])
+
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
+
+    else:
+        m_card_users = entries_query.values_list('user_id', flat=True)
+        pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
+
+    activations = VopActivation.find_activations_matching_links(pll_links)
+    pll_links.delete()
+
+    if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+        send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, delete_date, 'delete')
+
+    PaymentCardSchemeEntry.deactivate_activations(activations)
+
+
 def _send_data_to_atlas(consent: dict) -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
@@ -217,3 +256,44 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
         _send_data_to_atlas(consent)
     except Exception:
         sentry_sdk.capture_exception()
+
+
+@shared_task
+def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[SchemeAccount, int]) -> None:
+    if isinstance(membership_card, int):
+        membership_card = SchemeAccount.objects.get(id=membership_card)
+
+    # the next three queries are meant to prevent more than one join and to avoid lookups with too many results.
+    # they are executed as a single complex query by django.
+    payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
+        'payment_card_account_id', flat=True
+    )
+
+    excluded_payment_cards = PaymentCardSchemeEntry.objects.filter(
+        payment_card_account_id__in=payment_cards_in_wallet,
+        scheme_account__is_deleted=False,
+        scheme_account__scheme_id=membership_card.scheme_id
+    ).values_list(
+        'payment_card_account_id', flat=True
+    )
+
+    payment_cards_to_link = PaymentCardAccount.all_objects.filter(
+        id__in=payment_cards_in_wallet,
+        is_deleted=False
+    ).exclude(
+        id__in=excluded_payment_cards
+    ).all()
+
+    # we cannot use bulk_create as it would not trigger the signal needed to update the stored pll_links.
+    for payment_card in payment_cards_to_link:
+        try:
+            with transaction.atomic():
+                PaymentCardSchemeEntry(
+                    scheme_account=membership_card,
+                    payment_card_account=payment_card
+                ).get_instance_with_active_status().save()
+        except IntegrityError:
+            logger.debug(
+                f'Failed to create a PaymentCardSchemeEntry entry for scheme_account: {membership_card.id}'
+                f' and payment card: {payment_card.id}. The entry already exists.'
+            )

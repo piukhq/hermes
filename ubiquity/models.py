@@ -61,8 +61,8 @@ class VopActivation(models.Model):
         for link in links:
             try:
                 activation = cls.objects.get(
-                    payment_card_account=link.payment_card_account,
-                    scheme=link.scheme_account.scheme,
+                    payment_card_account_id=link.payment_card_account_id,
+                    scheme_id=link.scheme_account.scheme_id,
                     status=cls.ACTIVATED
                 )
                 activations[activation.id] = activation
@@ -157,8 +157,8 @@ class PaymentCardSchemeEntry(models.Model):
         for activation in activations.values():
             # check if any entries require the activation - deactivate if not used
             matches = cls.objects.filter(
-                payment_card_account=activation.payment_card_account,
-                scheme_account__scheme=activation.scheme,
+                payment_card_account_id=activation.payment_card_account_id,
+                scheme_account__scheme_id=activation.scheme_id,
                 active_link=True
             ).count()
             if not matches and activation.status == VopActivation.ACTIVATED:

@@ -72,9 +72,8 @@ class Permit:
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
         try:
-            self.looked_up_bundle = ClientApplicationBundle.objects.select_related('client').get(
-                bundle_id=self.bundle_id, client__organisation__name=organisation_name
-            )
+            self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
+                self.bundle_id, organisation_name)
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError
@@ -195,9 +194,9 @@ class Permit:
         # Scheme status will only be looked up when required and only once per request per scheme
         if scheme_id in self.found_schemes_status:
             return self.found_schemes_status[scheme_id]
-        status_list = SchemeBundleAssociation.objects.filter(
-            bundle__bundle_id=self.bundle_id, scheme_id=scheme_id
-        ).values('status')
+        status_list = SchemeBundleAssociation.get_status_by_bundle_id_and_scheme_id(
+            bundle_id=self.bundle_id, scheme_id=scheme_id
+        )
         if len(status_list) > 1:
             logger.error(f"Channels id ='{self.bundle_id}' has "
                          f"multiple entries for scheme id '{scheme_id}'")

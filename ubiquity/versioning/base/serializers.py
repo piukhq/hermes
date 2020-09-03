@@ -635,7 +635,7 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
         scheme = self.context['view'].current_scheme
         scheme_questions = self.context['view'].scheme_questions
         if not scheme:
-            scheme = Scheme.objects.get(pk=data['scheme'])
+            scheme = Scheme.get_scheme_and_questions_by_scheme_id(data['scheme'])
 
         if scheme.id != data['scheme']:
             raise serializers.ValidationError("wrong scheme id")

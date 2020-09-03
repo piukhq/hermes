@@ -161,43 +161,38 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
 
     def create_account(self, data: dict, user: 'CustomUser') -> t.Tuple[SchemeAccount, dict, bool]:
         serializer = self.get_validated_data(data, user)
-        return self.create_account_with_valid_data(serializer, user)
+        scheme = Scheme.get_scheme_and_questions_by_scheme_id(data['scheme'])
+        return self.create_account_with_valid_data(serializer, user, scheme, SchemeAccount.WALLET_ONLY)
 
     def create_account_with_valid_data(
-            self, serializer: 'Serializer', user: 'CustomUser'
+        self,
+        serializer: 'Serializer',
+        user: 'CustomUser',
+        scheme: Scheme,
+        create_status=SchemeAccount.PENDING
     ) -> t.Tuple[SchemeAccount, dict, bool]:
         data = serializer.validated_data
         answer_type = serializer.context['answer_type']
         account_created = False
 
+        if answer_type in [CARD_NUMBER, BARCODE]:
+            main_answer = answer_type
+        else:
+            main_answer = 'main_answer'
+
         try:
-            join_account = user.scheme_account_set.get(
-                scheme_id=data['scheme'],
-                status__in=SchemeAccount.JOIN_ACTION_REQUIRED
-            )
-            scheme_account = self._update_join_account(user, join_account, data, answer_type)
-            resp = (scheme_account, data, account_created)
-
+            scheme_account = SchemeAccount.objects.get(**{
+                'scheme': scheme,
+                main_answer: data[answer_type]
+            })
         except SchemeAccount.DoesNotExist:
-
-            if answer_type in [CARD_NUMBER, BARCODE]:
-                main_answer = answer_type
-            else:
-                main_answer = 'main_answer'
-
-            try:
-                scheme_account = SchemeAccount.objects.get(**{
-                    'scheme_id': data['scheme'],
-                    main_answer: data[answer_type]
-                })
-            except SchemeAccount.DoesNotExist:
-                account_created = True
-                scheme_account = self._create_new_account(user, data, answer_type)
-                resp = (scheme_account, data, account_created)
-            else:
-                # handle_existing_scheme_account is called after this function
-                # to check if auth_fields match and link to user if not linked already
-                resp = (scheme_account, data, account_created)
+            account_created = True
+            scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
+            resp = (scheme_account, data, account_created)
+        else:
+            # handle_existing_scheme_account is called after this function
+            # to check if auth_fields match and link to user if not linked already
+            resp = (scheme_account, data, account_created)
 
         data["id"] = scheme_account.id
         return resp
@@ -214,45 +209,29 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             f'Could not find question of type: {question_type} for scheme: {scheme_account.scheme.slug}.'
         )
 
-    def _create_new_account(self, user: 'CustomUser', data: dict, answer_type: str) -> SchemeAccount:
+    def _create_new_account(
+        self,
+        user: 'CustomUser',
+        scheme: Scheme,
+        data: dict,
+        answer_type: str,
+        create_status: int
+    ) -> SchemeAccount:
         with transaction.atomic():
             scheme_account = SchemeAccount.objects.create(
-                scheme_id=data['scheme'],
+                scheme=scheme,
                 order=data['order'],
-                status=SchemeAccount.WALLET_ONLY,
-                main_answer=data[answer_type],
+                status=create_status,
+                main_answer=data[answer_type]
             )
             SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=self._get_question_from_type(scheme_account, answer_type),
-                answer=data[answer_type],
+                answer=data[answer_type]
             )
             self.analytics_update(user, scheme_account, acc_created=True)
             self.save_consents(user, scheme_account, data, JourneyTypes.LINK.value)
-        return scheme_account
-
-    def _update_join_account(
-        self,
-        user: 'CustomUser',
-        scheme_account: 'SchemeAccount',
-        data: dict,
-        answer_type: str
-    ) -> SchemeAccount:
-        with transaction.atomic():
-            scheme_account.order = data['order']
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save()
-
-            SchemeAccountCredentialAnswer.objects.create(
-                scheme_account=scheme_account,
-                question=self._get_question_from_type(scheme_account, answer_type),
-                answer=data[answer_type],
-            )
-
-            self.analytics_update(user, scheme_account, acc_created=False)
-            self.save_consents(user, scheme_account, data, JourneyTypes.JOIN.value)
-
         return scheme_account
 
     @staticmethod
@@ -277,10 +256,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             else:
                 scheme = scheme_account.scheme
 
-            scheme_consents = Consent.objects.filter(
-                scheme=scheme_account.scheme_id,
-                journey=journey_type,
-                check_box=True
+            scheme_consents = Consent.get_checkboxes_by_scheme_and_journey_type(
+                scheme=scheme,
+                journey_type=journey_type
             )
             user_consents = UserConsentSerializer.get_user_consents(
                 scheme_account, data.pop('consents'), user, scheme_consents
@@ -288,7 +266,8 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             UserConsentSerializer.validate_consents(user_consents, scheme, journey_type, scheme_consents)
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
-                user_consent.save()
+
+            UserConsent.objects.bulk_create(user_consents)
 
 
 class SchemeAccountJoinMixin:
@@ -328,7 +307,7 @@ class SchemeAccountJoinMixin:
         return validated_data, serializer, scheme_account
 
     def handle_join_request(self, data: dict, user: 'CustomUser', scheme_id: int, scheme_account: SchemeAccount,
-                            serializer: 'Serializer') -> t.Tuple[dict, int, SchemeAccount]:
+                            serializer: 'Serializer', channel: str) -> t.Tuple[dict, int, SchemeAccount]:
 
         scheme_account.update_barcode_and_card_number()
         try:
@@ -342,7 +321,7 @@ class SchemeAccountJoinMixin:
             if data.get('save_user_information'):
                 self.save_user_profile(data['credentials'], user)
 
-            self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id)
+            self.post_midas_join(scheme_account, data['credentials'], scheme_account.scheme.slug, user.id, channel)
 
             keys_to_remove = ['save_user_information', 'credentials']
             response_dict = {key: value for (key, value) in data.items() if key not in keys_to_remove}
@@ -445,7 +424,8 @@ class SchemeAccountJoinMixin:
         user.profile.save()
 
     @staticmethod
-    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int) -> None:
+    def post_midas_join(scheme_account: SchemeAccount, credentials_dict: dict, slug: str, user_id: int, channel: str
+                        ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
             SchemeAccountCredentialAnswer.objects.update_or_create(
@@ -464,7 +444,8 @@ class SchemeAccountJoinMixin:
             'credentials': encrypted_credentials,
             'user_id': user_id,
             'status': scheme_account.status,
-            'journey_type': JourneyTypes.JOIN.value
+            'journey_type': JourneyTypes.JOIN.value,
+            'channel': channel
         }
         headers = {"transaction": str(uuid.uuid1()), "User-agent": 'Hermes on {0}'.format(socket.gethostname())}
         response = requests.post('{}/{}/register'.format(settings.MIDAS_URL, slug), json=data, headers=headers)
@@ -479,9 +460,9 @@ class SchemeAccountJoinMixin:
 class UpdateCredentialsMixin:
     @staticmethod
     def _update_credentials(
-            scheme_account: SchemeAccount,
-            question_id_and_data: dict,
-            existing_credentials: dict
+        scheme_account: SchemeAccount,
+        question_id_and_data: dict,
+        existing_credentials: dict
     ) -> list:
         create_credentials = []
         update_credentials = []
