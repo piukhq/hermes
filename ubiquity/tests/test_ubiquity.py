@@ -822,6 +822,8 @@ class TestResources(APITestCase):
         self.assertEqual(resp.json(), {"join_pending": "Membership card cannot be deleted until the "
                                                        "Join process has completed."})
 
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_cards_linking(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
