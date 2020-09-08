@@ -1103,12 +1103,31 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
         status_code = status.HTTP_200_OK
-        link, created = PaymentCardSchemeEntry.objects.get_or_create(scheme_account=mcard, payment_card_account=pcard)
-        if created:
-            status_code = status.HTTP_201_CREATED
 
-        link.activate_link()
-        audit.write_to_db(link)
+        try:
+            existing_link = PaymentCardSchemeEntry.objects.get(
+                payment_card_account=pcard,
+                scheme_account__scheme_id=mcard.scheme_id
+            )
+            if existing_link.scheme_account_id != mcard.id:
+                raise PaymentCardSchemeEntry.MultipleObjectsReturned
+            else:
+                link = existing_link
+
+        except PaymentCardSchemeEntry.MultipleObjectsReturned:
+            raise ValidationError({
+                "PLAN_ALREADY_LINKED": (f"Payment card {pcard.id} is already linked to a membership card "
+                                        f"that belongs to the membership plan {mcard.scheme_id}")
+            })
+        except PaymentCardSchemeEntry.DoesNotExist:
+            link = PaymentCardSchemeEntry(
+                scheme_account=mcard, payment_card_account=pcard
+            ).get_instance_with_active_status()
+            link.save()
+            link.vop_activate_check()
+            status_code = status.HTTP_201_CREATED
+            audit.write_to_db(link)
+
         return link, status_code
 
     @staticmethod
