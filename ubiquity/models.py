@@ -3,10 +3,10 @@ import logging
 import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError
-from django.db import models
+from django.db import IntegrityError, models
 from django.db.models import signals
 from django.dispatch import receiver
+
 from hermes.vop_tasks import vop_activate_request, send_deactivation
 
 logger = logging.getLogger(__name__)
@@ -83,25 +83,6 @@ class PaymentCardSchemeEntry(models.Model):
         unique_together = ("payment_card_account", "scheme_account")
         verbose_name = "Payment Card to Membership Card Association"
         verbose_name_plural = "".join([verbose_name, 's'])
-
-    def activate_link(self):
-        same_scheme_links = self.__class__.objects.filter(
-            payment_card_account=self.payment_card_account, scheme_account__scheme=self.scheme_account.scheme
-        ).exclude(pk=self.pk)
-
-        # The autolink rule is to choose the oldest link over current one but for now we will prefer the one requested
-        # and delete the older ones
-        # todo check if we should use the autolink selection and also prefer active links
-
-        if same_scheme_links:
-            same_scheme_links.delete()
-            self.payment_card_account.refresh_from_db()
-
-        called_status = self.active_link
-        self.active_link = self.computed_active_link
-        if called_status != self.active_link:
-            self.save()
-            self.vop_activate_check()
 
     @property
     def computed_active_link(self):
