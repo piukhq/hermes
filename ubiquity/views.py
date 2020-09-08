@@ -119,13 +119,16 @@ class AutoLinkOnCreationMixin:
 
     @staticmethod
     def auto_link_to_payment_cards(user_id: int, membership_card: SchemeAccount) -> None:
-        payment_cards_in_wallet = list(
-            PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list('payment_card_account_id', flat=True)
+        payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
+            'payment_card_account_id', flat=True
         )
-        if membership_card.status == SchemeAccount.ACTIVE:
-            auto_link_membership_to_payments(payment_cards_in_wallet, membership_card)
-        else:
-            auto_link_membership_to_payments.delay(payment_cards_in_wallet, membership_card.id)
+
+        if payment_cards_in_wallet:
+
+            if membership_card.status == SchemeAccount.ACTIVE:
+                auto_link_membership_to_payments(payment_cards_in_wallet, membership_card)
+            else:
+                auto_link_membership_to_payments.delay(payment_cards_in_wallet, membership_card.id)
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser,
