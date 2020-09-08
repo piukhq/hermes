@@ -17,7 +17,7 @@ from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation, PaymentCardAccountEntry
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -260,7 +260,6 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
 
 @shared_task
 def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
-
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
