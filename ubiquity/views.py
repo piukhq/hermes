@@ -1124,6 +1124,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
                 scheme_account=mcard, payment_card_account=pcard
             ).get_instance_with_active_status()
             link.save()
+            link.vop_activate_check()
             status_code = status.HTTP_201_CREATED
             audit.write_to_db(link)
 
