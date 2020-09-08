@@ -17,7 +17,7 @@ from payment_card.models import PaymentCardAccount
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
-from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation, PaymentCardAccountEntry
+from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.models import CustomUser
 
 if t.TYPE_CHECKING:
@@ -259,18 +259,14 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
 
 
 @shared_task
-def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[SchemeAccount, int]) -> None:
+def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
-    # the next three queries are meant to prevent more than one join and to avoid lookups with too many results.
+    # the next two queries are meant to prevent more than one join and to avoid lookups with too many results.
     # they are executed as a single complex query by django.
-    payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
-        'payment_card_account_id', flat=True
-    )
-
     excluded_payment_cards = PaymentCardSchemeEntry.objects.filter(
-        payment_card_account_id__in=payment_cards_in_wallet,
+        payment_card_account_id__in=payment_cards_to_link,
         scheme_account__is_deleted=False,
         scheme_account__scheme_id=membership_card.scheme_id
     ).values_list(
@@ -278,7 +274,7 @@ def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[Sche
     )
 
     payment_cards_to_link = PaymentCardAccount.all_objects.filter(
-        id__in=payment_cards_in_wallet,
+        id__in=payment_cards_to_link,
         is_deleted=False
     ).exclude(
         id__in=excluded_payment_cards
