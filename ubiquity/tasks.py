@@ -259,16 +259,12 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
 
 
 @shared_task
-def auto_link_membership_to_payments(user_id: int, membership_card: t.Union[SchemeAccount, int]) -> None:
+def auto_link_membership_to_payments(payment_cards_in_wallet: list, membership_card: t.Union[SchemeAccount, int]) -> None:
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
-    # the next three queries are meant to prevent more than one join and to avoid lookups with too many results.
+    # the next two queries are meant to prevent more than one join and to avoid lookups with too many results.
     # they are executed as a single complex query by django.
-    payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
-        'payment_card_account_id', flat=True
-    )
-
     excluded_payment_cards = PaymentCardSchemeEntry.objects.filter(
         payment_card_account_id__in=payment_cards_in_wallet,
         scheme_account__is_deleted=False,
