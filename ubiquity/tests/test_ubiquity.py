@@ -828,21 +828,21 @@ class TestResources(APITestCase):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
         SchemeAccountEntryFactory(user=self.user, scheme_account=scheme_account_2)
-        PaymentCardSchemeEntry.objects.create(payment_card_account=payment_card_account,
-                                              scheme_account=self.scheme_account)
+
+        params = [
+            payment_card_account.id,
+            self.scheme_account.id
+        ]
+        resp = self.client.patch(reverse('membership-link', args=params), **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+
         params = [
             payment_card_account.id,
             scheme_account_2.id
         ]
         resp = self.client.patch(reverse('membership-link', args=params), **self.auth_headers)
-        self.assertEqual(resp.status_code, 201)
-
-        links_data = PaymentCardSerializer(payment_card_account).data['membership_cards']
-        for link in links_data:
-            if link['id'] == self.scheme_account.id:
-                self.assertEqual(link['active_link'], False)
-            elif link['id'] == scheme_account_2.id:
-                self.assertEqual(link['active_link'], True)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('PLAN_ALREADY_LINKED', resp.json())
 
     """refactor for VOP changes
     def test_membership_card_delete_does_not_delete_link_for_cards_shared_between_users(self):
