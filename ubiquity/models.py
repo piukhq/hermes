@@ -72,7 +72,6 @@ class VopActivation(models.Model):
 
 
 class PaymentCardSchemeEntry(models.Model):
-
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -87,9 +86,9 @@ class PaymentCardSchemeEntry(models.Model):
     @property
     def computed_active_link(self):
         if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
-                not self.payment_card_account.is_deleted and \
-                self.scheme_account.status == self.scheme_account.ACTIVE and \
-                not self.scheme_account.is_deleted:
+            not self.payment_card_account.is_deleted and \
+            self.scheme_account.status == self.scheme_account.ACTIVE and \
+            not self.scheme_account.is_deleted:
             return True
         return False
 
@@ -102,8 +101,8 @@ class PaymentCardSchemeEntry(models.Model):
                     scheme=self.scheme_account.scheme,
                     defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
                 )
-                if created or vop_activation.status == VopActivation.DEACTIVATED\
-                        or vop_activation.status == VopActivation.DEACTIVATING:
+                if created or vop_activation.status == VopActivation.DEACTIVATED \
+                    or vop_activation.status == VopActivation.DEACTIVATING:
                     vop_activate_request(vop_activation)
 
             except IntegrityError:
@@ -152,45 +151,39 @@ class PaymentCardSchemeEntry(models.Model):
 
 
 def _remove_pll_link(instance: PaymentCardSchemeEntry):
-    mcard = instance.scheme_account
-    mcard_needs_update = False
-    for i, link in enumerate(mcard.pll_links):
-        if link['id'] == instance.payment_card_account_id:
-            del mcard.pll_links[i]
-            mcard_needs_update = True
+    def _remove_deleted_link_from_card(card_to_update, linked_card_id):
+        card_to_update.refresh_from_db(fields=['pll_links'])
+        card_needs_update = False
+        for i, link in enumerate(card_to_update.pll_links):
+            if link['id'] == linked_card_id:
+                del card_to_update.pll_links[i]
+                card_needs_update = True
 
-    pcard = instance.payment_card_account
-    pcard_needs_update = False
-    for i, link in enumerate(pcard.pll_links):
-        if link['id'] == instance.scheme_account_id:
-            del pcard.pll_links[i]
-            pcard_needs_update = True
+        if card_needs_update:
+            card_to_update.save(update_fields=['pll_links'])
 
-    if mcard_needs_update:
-        mcard.save(update_fields=['pll_links'])
-    if pcard_needs_update:
-        pcard.save(update_fields=['pll_links'])
+    _remove_deleted_link_from_card(instance.scheme_account, instance.payment_card_account_id)
+    _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account)
 
 
 @receiver(signals.post_save, sender=PaymentCardSchemeEntry)
-def update_pll_links_on_save(sender, instance, created, **kwargs):
+def update_pll_links_on_save(instance, created, **kwargs):
     if instance.active_link:
-        mcard = instance.scheme_account
-        if instance.payment_card_account_id not in [link['id'] for link in mcard.pll_links]:
-            mcard.pll_links.append({'id': instance.payment_card_account_id, 'active_link': instance.active_link})
-            mcard.save(update_fields=['pll_links'])
+        def _add_new_link_to_card(card_to_update, linked_card_id):
+            card_to_update.refresh_from_db(fields=['pll_links'])
+            if linked_card_id not in [link['id'] for link in card_to_update.pll_links]:
+                card_to_update.pll_links.append({'id': linked_card_id, 'active_link': True})
+                card_to_update.save(update_fields=['pll_links'])
 
-        pcard = instance.payment_card_account
-        if instance.scheme_account_id not in [link['id'] for link in pcard.pll_links]:
-            pcard.pll_links.append({'id': instance.scheme_account_id, 'active_link': instance.active_link})
-            pcard.save(update_fields=['pll_links'])
+        _add_new_link_to_card(instance.scheme_account, instance.payment_card_account_id)
+        _add_new_link_to_card(instance.payment_card_account, instance.scheme_account)
 
     elif not created:
         _remove_pll_link(instance)
 
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
-def update_pll_links_on_delete(sender, instance, **kwargs):
+def update_pll_links_on_delete(instance, **kwargs):
     _remove_pll_link(instance)
 
 
