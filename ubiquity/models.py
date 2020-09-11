@@ -1,4 +1,5 @@
 import logging
+from typing import Union, Type, TYPE_CHECKING
 
 import django
 from django.contrib.postgres.fields import ArrayField
@@ -8,6 +9,10 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from hermes.vop_tasks import vop_activate_request, send_deactivation
+
+if TYPE_CHECKING:
+    from scheme.models import SchemeAccount
+    from payment_card.models import PaymentCardAccount
 
 logger = logging.getLogger(__name__)
 
@@ -150,8 +155,11 @@ class PaymentCardSchemeEntry(models.Model):
         cls.update_active_link_status(query)
 
 
-def _remove_pll_link(instance: PaymentCardSchemeEntry):
-    def _remove_deleted_link_from_card(card_to_update, linked_card_id):
+def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
+    def _remove_deleted_link_from_card(
+        card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
+        linked_card_id: Type[int]
+    ):
         card_to_update.refresh_from_db(fields=['pll_links'])
         card_needs_update = False
         for i, link in enumerate(card_to_update.pll_links):
@@ -163,27 +171,30 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry):
             card_to_update.save(update_fields=['pll_links'])
 
     _remove_deleted_link_from_card(instance.scheme_account, instance.payment_card_account_id)
-    _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account)
+    _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account_id)
 
 
 @receiver(signals.post_save, sender=PaymentCardSchemeEntry)
-def update_pll_links_on_save(instance, created, **kwargs):
+def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **kwargs) -> None:
     if instance.active_link:
-        def _add_new_link_to_card(card_to_update, linked_card_id):
+        def _add_new_link_to_card(
+            card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
+            linked_card_id: Type[int]
+        ):
             card_to_update.refresh_from_db(fields=['pll_links'])
             if linked_card_id not in [link['id'] for link in card_to_update.pll_links]:
                 card_to_update.pll_links.append({'id': linked_card_id, 'active_link': True})
                 card_to_update.save(update_fields=['pll_links'])
 
         _add_new_link_to_card(instance.scheme_account, instance.payment_card_account_id)
-        _add_new_link_to_card(instance.payment_card_account, instance.scheme_account)
+        _add_new_link_to_card(instance.payment_card_account, instance.scheme_account_id)
 
     elif not created:
         _remove_pll_link(instance)
 
 
 @receiver(signals.post_delete, sender=PaymentCardSchemeEntry)
-def update_pll_links_on_delete(instance, **kwargs):
+def update_pll_links_on_delete(instance: PaymentCardSchemeEntry, **kwargs) -> None:
     _remove_pll_link(instance)
 
 
