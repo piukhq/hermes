@@ -159,7 +159,7 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     def _remove_deleted_link_from_card(
         card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
         linked_card_id: Type[int]
-    ):
+    ) -> None:
         card_to_update.refresh_from_db(fields=['pll_links'])
         card_needs_update = False
         for i, link in enumerate(card_to_update.pll_links):
@@ -180,7 +180,7 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
         def _add_new_link_to_card(
             card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
             linked_card_id: Type[int]
-        ):
+        ) -> None:
             card_to_update.refresh_from_db(fields=['pll_links'])
             if linked_card_id not in [link['id'] for link in card_to_update.pll_links]:
                 card_to_update.pll_links.append({'id': linked_card_id, 'active_link': True})

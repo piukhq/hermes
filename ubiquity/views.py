@@ -39,7 +39,8 @@ from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, Sc
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, async_add_field_only_link,
                             deleted_payment_card_cleanup, deleted_service_cleanup, auto_link_membership_to_payments,
-                            deleted_membership_card_cleanup)
+                            deleted_membership_card_cleanup, _update_one_card_with_many_new_pll_links,
+                            _update_many_cards_with_one_new_pll_link, UpdateCardType)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
@@ -180,8 +181,27 @@ class AutoLinkOnCreationMixin:
                     cards_by_scheme_ids[scheme_id] = scheme_account_id
                     instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
 
-        for link in instances_to_bulk_create.values():
-            link.save()
+        pll_activated_membership_cards = [
+            link.scheme_account_id
+            for link in instances_to_bulk_create.values()
+            if link.active_link is True
+        ]
+
+        PaymentCardSchemeEntry.objects.bulk_create(
+            instances_to_bulk_create.values(),
+            batch_size=100,
+            ignore_conflicts=True
+        )
+
+        _update_one_card_with_many_new_pll_links(
+            account,
+            pll_activated_membership_cards
+        )
+        _update_many_cards_with_one_new_pll_link(
+            UpdateCardType.MEMBERSHIP_CARD,
+            pll_activated_membership_cards,
+            account.id
+        )
 
 
 class PaymentCardCreationMixin:

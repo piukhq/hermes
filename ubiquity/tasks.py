@@ -1,12 +1,12 @@
 import logging
 import typing as t
+from enum import Enum
 
 import arrow
 import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from django.db import transaction, IntegrityError
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -24,6 +24,11 @@ if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
 
 logger = logging.getLogger(__name__)
+
+
+class UpdateCardType(Enum):
+    PAYMENT_CARD = PaymentCardAccount
+    MEMBERSHIP_CARD = SchemeAccount
 
 
 # Call back retry tasks for activation and deactivation - called from background
@@ -258,6 +263,39 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
         sentry_sdk.capture_exception()
 
 
+def _update_one_card_with_many_new_pll_links(
+    card_to_update: t.Union[PaymentCardAccount, SchemeAccount],
+    new_links_ids: list
+) -> None:
+    card_to_update.refresh_from_db(fields=['pll_links'])
+    existing_links = [
+        link['id']
+        for link in card_to_update.pll_links
+    ]
+    card_to_update.pll_links.extend(
+        [
+            {'id': card_id, 'active_link': True}
+            for card_id in new_links_ids
+            if card_id not in existing_links
+        ]
+    )
+    card_to_update.save(update_fields=['pll_links'])
+
+
+def _update_many_cards_with_one_new_pll_link(
+    card_model: UpdateCardType,
+    cards_to_update_ids: list,
+    new_link_id: int,
+) -> None:
+    updated_cards = []
+    for card in card_model.value.objects.filter(id__in=cards_to_update_ids).all():
+        if new_link_id not in [link['id'] for link in card.pll_links]:
+            card.pll_links.append({'id': new_link_id, 'active_link': True})
+            updated_cards.append(card)
+
+    card_model.value.objects.bulk_update(updated_cards, ['pll_links'])
+
+
 @shared_task
 def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
     if isinstance(membership_card, int):
@@ -280,16 +318,25 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         id__in=excluded_payment_cards
     ).all()
 
-    # we cannot use bulk_create as it would not trigger the signal needed to update the stored pll_links.
+    link_entries_to_create = []
+    pll_activated_payment_cards = []
     for payment_card in payment_cards_to_link:
-        try:
-            with transaction.atomic():
-                PaymentCardSchemeEntry(
-                    scheme_account=membership_card,
-                    payment_card_account=payment_card
-                ).get_instance_with_active_status().save()
-        except IntegrityError:
-            logger.debug(
-                f'Failed to create a PaymentCardSchemeEntry entry for scheme_account: {membership_card.id}'
-                f' and payment card: {payment_card.id}. The entry already exists.'
-            )
+        entry = PaymentCardSchemeEntry(
+            scheme_account=membership_card,
+            payment_card_account=payment_card
+        ).get_instance_with_active_status()
+        link_entries_to_create.append(entry)
+        if entry.active_link is True:
+            pll_activated_payment_cards.append(payment_card.id)
+
+    PaymentCardSchemeEntry.objects.bulk_create(link_entries_to_create, batch_size=100, ignore_conflicts=True)
+
+    _update_one_card_with_many_new_pll_links(
+        membership_card,
+        pll_activated_payment_cards
+    )
+    _update_many_cards_with_one_new_pll_link(
+        UpdateCardType.PAYMENT_CARD,
+        pll_activated_payment_cards,
+        membership_card.id
+    )
