@@ -11,8 +11,8 @@ from django.dispatch import receiver
 from hermes.vop_tasks import vop_activate_request, send_deactivation
 
 if TYPE_CHECKING:
-    from scheme.models import SchemeAccount
-    from payment_card.models import PaymentCardAccount
+    from scheme.models import SchemeAccount  # noqa
+    from payment_card.models import PaymentCardAccount  # noqa
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +77,7 @@ class VopActivation(models.Model):
 
 
 class PaymentCardSchemeEntry(models.Model):
+
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -91,9 +92,9 @@ class PaymentCardSchemeEntry(models.Model):
     @property
     def computed_active_link(self):
         if self.payment_card_account.status == self.payment_card_account.ACTIVE and \
-            not self.payment_card_account.is_deleted and \
-            self.scheme_account.status == self.scheme_account.ACTIVE and \
-            not self.scheme_account.is_deleted:
+                not self.payment_card_account.is_deleted and \
+                self.scheme_account.status == self.scheme_account.ACTIVE and \
+                not self.scheme_account.is_deleted:
             return True
         return False
 
@@ -106,8 +107,8 @@ class PaymentCardSchemeEntry(models.Model):
                     scheme=self.scheme_account.scheme,
                     defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
                 )
-                if created or vop_activation.status == VopActivation.DEACTIVATED \
-                    or vop_activation.status == VopActivation.DEACTIVATING:
+                if created or vop_activation.status == VopActivation.DEACTIVATED\
+                        or vop_activation.status == VopActivation.DEACTIVATING:
                     vop_activate_request(vop_activation)
 
             except IntegrityError:
