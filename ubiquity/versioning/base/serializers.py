@@ -322,8 +322,6 @@ class TransactionSerializer(serializers.Serializer):
     def get_amounts(self, instance):
         scheme_balances = self._get_scheme_info(instance['scheme_account_id'])
         amounts = []
-        if not hasattr(scheme_balances, 'currency'):
-            return amounts
 
         if scheme_balances.currency in ['GBP', 'EUR', 'USD']:
             amounts.append(
