@@ -340,3 +340,61 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         pll_activated_payment_cards,
         membership_card.id
     )
+
+
+@shared_task
+def auto_link_payment_to_memberships(
+    wallet_scheme_accounts: list,
+    payment_card_account: t.Union[PaymentCardAccount, int],
+    just_created: bool
+) -> None:
+
+    if isinstance(payment_card_account, int):
+        payment_card_account = PaymentCardAccount.objects.get(pk=payment_card_account)
+
+    if isinstance(wallet_scheme_accounts[0], int):
+        wallet_scheme_accounts = SchemeAccount.objects.filter(id__in=wallet_scheme_accounts).all()
+
+    if just_created:
+        already_linked_scheme_ids = []
+    else:
+        already_linked_scheme_ids = PaymentCardSchemeEntry.objects.filter(
+            payment_card_account=payment_card_account
+        ).values_list('scheme_account__scheme_id', flat=True)
+
+    cards_by_scheme_ids = {}
+    instances_to_bulk_create = {}
+
+    for scheme_account in wallet_scheme_accounts:
+        scheme_id = scheme_account.scheme_id
+        link = PaymentCardSchemeEntry(scheme_account=scheme_account, payment_card_account=payment_card_account)
+        if scheme_id not in already_linked_scheme_ids:
+            if scheme_id in cards_by_scheme_ids:
+                if cards_by_scheme_ids[scheme_id] > scheme_account.id:
+                    cards_by_scheme_ids[scheme_id] = scheme_account.id
+                    instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+            else:
+                cards_by_scheme_ids[scheme_id] = scheme_account.id
+                instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+
+    pll_activated_membership_cards = [
+        link.scheme_account_id
+        for link in instances_to_bulk_create.values()
+        if link.active_link is True
+    ]
+
+    PaymentCardSchemeEntry.objects.bulk_create(
+        instances_to_bulk_create.values(),
+        batch_size=100,
+        ignore_conflicts=True
+    )
+
+    _update_one_card_with_many_new_pll_links(
+        payment_card_account,
+        pll_activated_membership_cards
+    )
+    _update_many_cards_with_one_new_pll_link(
+        UpdateCardType.MEMBERSHIP_CARD,
+        pll_activated_membership_cards,
+        payment_card_account.id
+    )

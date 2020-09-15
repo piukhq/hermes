@@ -39,8 +39,7 @@ from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, Sc
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
                             send_merchant_metrics_for_new_account, async_add_field_only_link,
                             deleted_payment_card_cleanup, deleted_service_cleanup, auto_link_membership_to_payments,
-                            deleted_membership_card_cleanup, _update_one_card_with_many_new_pll_links,
-                            _update_many_cards_with_one_new_pll_link, UpdateCardType)
+                            deleted_membership_card_cleanup, auto_link_payment_to_memberships)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
@@ -132,76 +131,27 @@ class AutoLinkOnCreationMixin:
                 auto_link_membership_to_payments.delay(payment_cards_in_wallet, membership_card.id)
 
     @staticmethod
-    def auto_link_to_membership_cards(user: CustomUser,
-                                      account: PaymentCardAccount,
+    def auto_link_to_membership_cards(user: CustomUser, payment_card_account: PaymentCardAccount,
                                       just_created: bool = False) -> None:
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
-        wallet_scheme_accounts = SchemeAccount.objects.values('id', 'scheme_id').filter(
+        wallet_scheme_accounts = SchemeAccount.objects.filter(
             user_set=user, scheme__tier=Scheme.PLL
-        )
+        ).all()
 
-        # Get Membership Card Plans (scheme id) use all wallets which are linked to this Payment Card.
-        already_linked_scheme_ids = []
-
-        if not just_created:
-            already_linked_scheme_ids = [
-                entry['scheme_account__scheme_id']
-                for entry in
-                PaymentCardSchemeEntry.objects.values('scheme_account__scheme_id').filter(
-                    payment_card_account_id=account.id)
-            ]
-
-        # Golden rule is that a payment card can only be linked to one membership plan via any relevant membership card
-        # because in matching a payment card transaction the linked account must only be credited once ie only one
-        # link must be set. If there are many cards in a wallet with the same plan and not previously linked
-        # the preference will be to choose the oldest ie the lowest id.
-        # Once a link is set it is never changed for an older card or for a card in another wallet.
-
-        cards_by_scheme_ids = {}
-        instances_to_bulk_create = {}
-
-        for wsa in wallet_scheme_accounts:
-            scheme_account_id = wsa['id']
-            scheme_id = wsa['scheme_id']
-            # link instance will only be save if in instances_to_bulk_create
-            link = PaymentCardSchemeEntry(scheme_account_id=scheme_account_id, payment_card_account=account)
-            if scheme_id not in already_linked_scheme_ids:
-                # we have a potential new link to a scheme account which does not have a previously linked plan
-                if cards_by_scheme_ids.get(scheme_id):
-                    # however, this scheme account which is a link candidate so we must choose the oldest (lowest id)
-                    # Todo confirm if we should we choose the lowest id which is active or the lowest id if none active
-                    #  at the time of auto-linking ie where x is current if statement
-                    #  (x and (link.active_link or not instances_to_bulk_create[scheme_id].active_link) or
-                    #  (link.active_link and not instances_to_bulk_create[scheme_id].active_link):
-                    if cards_by_scheme_ids[scheme_id] > scheme_account_id:
-                        cards_by_scheme_ids[scheme_id] = scheme_account_id
-                        instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
-                else:
-                    cards_by_scheme_ids[scheme_id] = scheme_account_id
-                    instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
-
-        pll_activated_membership_cards = [
-            link.scheme_account_id
-            for link in instances_to_bulk_create.values()
-            if link.active_link is True
-        ]
-
-        PaymentCardSchemeEntry.objects.bulk_create(
-            instances_to_bulk_create.values(),
-            batch_size=100,
-            ignore_conflicts=True
-        )
-
-        _update_one_card_with_many_new_pll_links(
-            account,
-            pll_activated_membership_cards
-        )
-        _update_many_cards_with_one_new_pll_link(
-            UpdateCardType.MEMBERSHIP_CARD,
-            pll_activated_membership_cards,
-            account.id
-        )
+        if wallet_scheme_accounts:
+            if payment_card_account.status == PaymentCardAccount.ACTIVE:
+                auto_link_payment_to_memberships(
+                    wallet_scheme_accounts,
+                    payment_card_account,
+                    just_created
+                )
+            else:
+                auto_link_payment_to_memberships.delay(
+                    [sa.id for sa in wallet_scheme_accounts],
+                    payment_card_account.id,
+                    just_created
+                )
 
 
 class PaymentCardCreationMixin:
