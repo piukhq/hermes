@@ -496,7 +496,7 @@ class UpdateCredentialsMixin:
             updated_types.append(question_type)
 
         if create_credentials:
-            SchemeAccountCredentialAnswer.objects.bulk_create(create_credentials)
+            SchemeAccountCredentialAnswer.objects.bulk_create(create_credentials, ignore_conflicts=True)
         if update_credentials:
             SchemeAccountCredentialAnswer.objects.bulk_update(update_credentials, ['answer'])
 
