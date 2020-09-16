@@ -2,10 +2,12 @@ import json
 from unittest.mock import patch
 
 from django.conf import settings
-from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
+from django.test import override_settings
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+
+from payment_card.models import PaymentCardAccount
+from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from scheme.models import SchemeBundleAssociation, SchemeAccount
 from scheme.tests.factories import (SchemeAccountFactory, SchemeFactory, SchemeBundleAssociationFactory)
 from ubiquity.models import PaymentCardSchemeEntry
@@ -52,7 +54,6 @@ class LinkAnalyst:
 
 
 def set_up_payment_card():
-
     organisation = OrganisationFactory(name='test_organisation')
     client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
                                           client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
@@ -324,6 +325,9 @@ class TestPaymentAutoLink(APITestCase):
         linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         return resp, linked
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_auto_link(self, *_):
@@ -367,6 +371,9 @@ class TestPaymentAutoLink(APITestCase):
             self.assertIn('id', item)
             self.assertEqual(len(item), 2)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_2_cards_different_plans(self, *_):
@@ -376,6 +383,9 @@ class TestPaymentAutoLink(APITestCase):
         self.assertEqual(len(resp.data['membership_cards']), 0)
         self.assertEqual(len(linked), 2)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_4_cards_same_plan(self, *_):
@@ -387,6 +397,9 @@ class TestPaymentAutoLink(APITestCase):
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p4.id)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_4cards_2users_same_plan(self, *_):
@@ -398,6 +411,9 @@ class TestPaymentAutoLink(APITestCase):
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p5_u4.id)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_4cards_2users_same_plan_other_user_linked(self, *_):
@@ -420,6 +436,9 @@ class TestPaymentAutoLink(APITestCase):
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_auto_link_2_payment_cards(self, *_):
