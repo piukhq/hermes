@@ -620,7 +620,14 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
 
         if instance.vouchers is not None:
-            card_repr["vouchers"] = instance.vouchers
+            vouchers = instance.vouchers
+            for voucher in instance.vouchers:
+                if voucher.get('code'):
+                    if voucher['state'] in ['expired', 'redeemed']:
+                        voucher['code'] = None
+                else:
+                    continue
+            card_repr["vouchers"] = vouchers
 
         return card_repr
 
