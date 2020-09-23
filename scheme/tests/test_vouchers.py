@@ -146,15 +146,6 @@ class TestVouchers(TestCase):
             "value": 300,
             "target_value": 400,
         }
-        # voucher_fields = {
-        #     "issue_date": now,
-        #     "redeem_date": now,
-        #     "expiry_date": now + 1000,
-        #     "code": "abc123",
-        #     "type": vouchers.VoucherType.ACCUMULATOR.value,
-        #     "value": 300,
-        #     "target_value": 400,
-        # }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
         account = SchemeAccount.objects.create(scheme=scheme, order=0)
