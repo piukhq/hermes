@@ -1072,13 +1072,7 @@ class SchemeAccount(models.Model):
             voucher["date_redeemed"] = redeem_date.timestamp
 
         if "code" in voucher_fields:
-            if voucher['state'] in [
-                vouchers.voucher_state_names[vouchers.VoucherState.EXPIRED],
-                vouchers.voucher_state_names[vouchers.VoucherState.REDEEMED]
-            ]:
-                voucher["code"] = None
-            else:
-                voucher["code"] = voucher_fields["code"]
+            voucher["code"] = voucher_fields["code"]
 
         return voucher
 

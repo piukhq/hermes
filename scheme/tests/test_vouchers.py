@@ -140,6 +140,7 @@ class TestVouchers(TestCase):
         now = arrow.utcnow().timestamp
         voucher_fields = {
             "issue_date": now,
+            "redeem_date": now,
             "expiry_date": now + 1000,
             "code": "abc123",
             "type": vouchers.VoucherType.ACCUMULATOR.value,
@@ -170,101 +171,12 @@ class TestVouchers(TestCase):
                 },
                 "code": "abc123",
                 "date_issued": now,
-                "expiry_date": now + 1000,
-                "headline": '£5.00 voucher earned',
-                "body_text": "voucher body",
-                "subtext": "",
-                "state": "issued",
-                "barcode_type": vs.barcode_type,
-                "terms_and_conditions_url": "https://example.com",
-            },
-        )
-
-    def test_make_voucher_redeemed_null_code(self):
-        now = arrow.utcnow().timestamp
-        voucher_fields = {
-            "issue_date": now,
-            "redeem_date": now,
-            "expiry_date": now + 1000,
-            "code": "abc123",
-            "type": vouchers.VoucherType.ACCUMULATOR.value,
-            "value": 300,
-            "target_value": 400,
-        }
-        scheme = Scheme.objects.get(slug=TEST_SLUG)
-        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
-        account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
-        self.assertEqual(
-            voucher,
-            {
-                "earn": {
-                    "type": "accumulator",
-                    "prefix": vs.earn_prefix,
-                    "suffix": vs.earn_suffix,
-                    "currency": vs.earn_currency,
-                    "value": 300,
-                    "target_value": 400,
-                },
-                "burn": {
-                    "type": vs.burn_type,
-                    "currency": vs.burn_currency,
-                    "prefix": vs.burn_prefix,
-                    "suffix": vs.burn_suffix,
-                    "value": vs.burn_value,
-                },
-                "code": None,
-                "date_issued": now,
                 "date_redeemed": now,
                 "expiry_date": now + 1000,
                 "headline": vs.headline_redeemed,
                 "body_text": "voucher body",
                 "subtext": "",
                 "state": "redeemed",
-                "barcode_type": vs.barcode_type,
-                "terms_and_conditions_url": "https://example.com",
-            },
-        )
-
-    def test_make_voucher_expired_null_code(self):
-        now = arrow.utcnow().timestamp
-        voucher_fields = {
-            "issue_date": now,
-            "expiry_date": now,
-            "code": "abc123",
-            "type": vouchers.VoucherType.ACCUMULATOR.value,
-            "value": 300,
-            "target_value": 400,
-        }
-        scheme = Scheme.objects.get(slug=TEST_SLUG)
-        vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
-        account = SchemeAccount.objects.create(scheme=scheme, order=0)
-        voucher = account.make_single_voucher(voucher_fields)
-        self.assertEqual(
-            voucher,
-            {
-                "earn": {
-                    "type": "accumulator",
-                    "prefix": vs.earn_prefix,
-                    "suffix": vs.earn_suffix,
-                    "currency": vs.earn_currency,
-                    "value": 300,
-                    "target_value": 400,
-                },
-                "burn": {
-                    "type": vs.burn_type,
-                    "currency": vs.burn_currency,
-                    "prefix": vs.burn_prefix,
-                    "suffix": vs.burn_suffix,
-                    "value": vs.burn_value,
-                },
-                "code": None,
-                "date_issued": now,
-                "expiry_date": now,
-                "headline": vs.headline_expired,
-                "body_text": "voucher body",
-                "subtext": "",
-                "state": "expired",
                 "barcode_type": vs.barcode_type,
                 "terms_and_conditions_url": "https://example.com",
             },
