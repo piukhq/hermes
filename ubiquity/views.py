@@ -4,7 +4,6 @@ import typing as t
 from pathlib import Path
 
 import arrow
-import requests
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -1275,7 +1274,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
     def retrieve(self, request, *args, **kwargs):
         url = '{}/transactions/{}'.format(settings.HADES_URL, kwargs['transaction_id'])
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
+        resp = self.hades_request(url, headers=headers)
         resp_json = resp.json()
         if resp.status_code == 200 and resp_json:
             if isinstance(resp_json, list) and len(resp_json) > 1:
@@ -1293,7 +1292,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
     def list(self, request, *args, **kwargs):
         url = '{}/transactions/user/{}'.format(settings.HADES_URL, request.user.id)
         headers = {'Authorization': self._get_auth_token(request.user.id), 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
+        resp = self.hades_request(url, headers=headers)
         resp_json = resp.json()
         if resp.status_code == 200 and resp_json:
             serializer = self.serializer_class(data=resp_json, many=True, context={"user": request.user})

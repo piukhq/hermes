@@ -1,3 +1,4 @@
+import logging
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 from os.path import join
@@ -22,12 +23,16 @@ from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestio
                            VoucherScheme)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import VoucherState, voucher_state_names
+from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
+    from requests import Response
+
+logger = logging.getLogger(__name__)
 
 
 def _add_base_media_url(image: dict) -> dict:
@@ -45,6 +50,16 @@ def _add_base_media_url(image: dict) -> dict:
 class MembershipTransactionsMixin:
 
     @staticmethod
+    def hades_request(url: str, method: str = "GET", **kwargs) -> 'Response':
+        session = retry_session()
+        try:
+            resp = session.request(method, url, **kwargs)
+            resp.raise_for_status()
+            return resp
+        except requests.RequestException:
+            logger.exception("Failed request to Hades")
+
+    @staticmethod
     def _get_auth_token(user_id):
         payload = {
             'sub': user_id
@@ -55,7 +70,7 @@ class MembershipTransactionsMixin:
     def _get_hades_transactions(self, user_id, mcard_id):
         url = '{}/transactions/scheme_account/{}?page_size=5'.format(settings.HADES_URL, mcard_id)
         headers = {'Authorization': self._get_auth_token(user_id), 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
+        resp = self.hades_request(url, headers=headers)
         return resp.json() if resp.status_code == 200 else []
 
     def get_transactions_id(self, user_id, mcard_id):
