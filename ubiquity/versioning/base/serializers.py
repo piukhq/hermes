@@ -50,7 +50,7 @@ def _add_base_media_url(image: dict) -> dict:
 class MembershipTransactionsMixin:
 
     @staticmethod
-    def _hades_request(url: str,  method: str = "GET", **kwargs) -> 'Response':
+    def hades_request(url: str, method: str = "GET", **kwargs) -> 'Response':
         session = retry_session()
         try:
             resp = session.request(method, url, **kwargs)
@@ -70,7 +70,7 @@ class MembershipTransactionsMixin:
     def _get_hades_transactions(self, user_id, mcard_id):
         url = '{}/transactions/scheme_account/{}?page_size=5'.format(settings.HADES_URL, mcard_id)
         headers = {'Authorization': self._get_auth_token(user_id), 'Content-Type': 'application/json'}
-        resp = self._hades_request(url, headers=headers)
+        resp = self.hades_request(url, headers=headers)
         return resp.json() if resp.status_code == 200 else []
 
     def get_transactions_id(self, user_id, mcard_id):
