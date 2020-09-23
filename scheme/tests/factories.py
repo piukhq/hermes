@@ -99,6 +99,87 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
     scheme = factory.SubFactory(SchemeFactory)
     status = models.SchemeAccount.ACTIVE
     order = 0
+    vouchers = [
+        {
+            "burn": {
+                "type": "voucher",
+                "value": 2.5,
+                "prefix": "\u00a3",
+                "suffix": "Reward",
+                "currency": ""
+            },
+            "code": "WHS000052",
+            "earn": {
+                "type": "stamps",
+                "value": 5.0,
+                "prefix": "",
+                "suffix": "stamps",
+                "currency": "",
+                "target_value": 5.0
+            },
+            "state": "issued",
+            "subtext": "",
+            "headline": "Earned",
+            "body_text": "",
+            "date_issued": 1600560000,
+            "expiry_date": 1609459200,
+            "barcode_type": 0,
+            "terms_and_conditions_url": ""
+        },
+        {
+            "burn": {
+                "type": "voucher",
+                "value": 2.5,
+                "prefix": "\u00a3",
+                "suffix": "Reward",
+                "currency": ""
+            },
+            "code": 'WHS000053',
+            "earn": {
+                "type": "stamps",
+                "value": 5.0,
+                "prefix": "",
+                "suffix": "stamps",
+                "currency": "",
+                "target_value": 5.0
+            },
+            "state": "expired",
+            "subtext": "",
+            "headline": "Expired",
+            "body_text": "",
+            "date_issued": 1600560000,
+            "expiry_date": 1596240000,
+            "barcode_type": 0,
+            "terms_and_conditions_url": ""
+        },
+        {
+            "burn": {
+                "type": "voucher",
+                "value": 2.5,
+                "prefix": "\u00a3",
+                "suffix": "Reward",
+                "currency": ""
+            },
+            "code": 'WHS000054',
+            "earn": {
+                "type": "stamps",
+                "value": 5.0,
+                "prefix": "",
+                "suffix": "stamps",
+                "currency": "",
+                "target_value": 5.0
+            },
+            "state": "redeemed",
+            "subtext": "",
+            "headline": "Redeemed",
+            "body_text": "",
+            "date_issued": 1600560000,
+            "expiry_date": 1596499200,
+            "barcode_type": 0,
+            "date_redeemed": 1600646400,
+            "terms_and_conditions_url": ""
+        },
+    ]
 
 
 class UserConsentFactory(factory.django.DjangoModelFactory):

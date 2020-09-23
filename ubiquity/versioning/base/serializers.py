@@ -21,6 +21,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
+from scheme.vouchers import VoucherState, voucher_state_names
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
@@ -620,7 +621,17 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
 
         if instance.vouchers is not None:
-            card_repr["vouchers"] = instance.vouchers
+            vouchers = instance.vouchers
+            for voucher in instance.vouchers:
+                if voucher.get('code'):
+                    if voucher['state'] in [
+                        voucher_state_names[VoucherState.EXPIRED],
+                        voucher_state_names[VoucherState.REDEEMED],
+                    ]:
+                        voucher['code'] = ""
+                else:
+                    continue
+            card_repr["vouchers"] = vouchers
 
         return card_repr
 
