@@ -281,6 +281,25 @@ class TestResources(APITestCase):
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_get_single_membership_vouchers(self, mock_get_midas_balance, *_):
+        mock_get_midas_balance.return_value = self.scheme_account.balances
+        resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
+        vouchers = resp.data['vouchers']
+
+        self.assertEqual(len(vouchers), 3)
+        self.assertEqual(vouchers[0]['state'], 'issued')
+        self.assertEqual(vouchers[0]['code'], self.scheme_account.vouchers[0]['code'])
+
+        self.assertEqual(vouchers[1]['state'], 'expired')
+        self.assertEqual(vouchers[1]['code'], '')
+
+        self.assertEqual(vouchers[2]['state'], 'redeemed')
+        self.assertEqual(vouchers[2]['code'], '')
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_list_membership_cards_hides_join_cards(self, *_):
         join_scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN)
         SchemeBundleAssociationFactory(scheme=join_scheme_account.scheme, bundle=self.bundle,
