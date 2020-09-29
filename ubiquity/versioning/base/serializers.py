@@ -642,6 +642,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                     if voucher['state'] in [
                         voucher_state_names[VoucherState.EXPIRED],
                         voucher_state_names[VoucherState.REDEEMED],
+                        voucher_state_names[VoucherState.CANCELLED]
                     ]:
                         voucher['code'] = ""
                 else:

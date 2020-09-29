@@ -18,6 +18,7 @@ class VoucherState(enum.Enum):
     IN_PROGRESS = 1
     EXPIRED = 2
     REDEEMED = 3
+    CANCELLED = 4
 
 
 voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
@@ -27,6 +28,7 @@ voucher_state_names = {
     VoucherState.IN_PROGRESS: "inprogress",
     VoucherState.EXPIRED: "expired",
     VoucherState.REDEEMED: "redeemed",
+    VoucherState.CANCELLED: "cancelled"
 }
 
 
