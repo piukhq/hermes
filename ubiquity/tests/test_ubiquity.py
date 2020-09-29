@@ -288,7 +288,7 @@ class TestResources(APITestCase):
 
         vouchers = resp.data['vouchers']
 
-        self.assertEqual(len(vouchers), 3)
+        self.assertEqual(len(vouchers), 4)
         self.assertEqual(vouchers[0]['state'], 'issued')
         self.assertEqual(vouchers[0]['code'], self.scheme_account.vouchers[0]['code'])
 
@@ -297,6 +297,9 @@ class TestResources(APITestCase):
 
         self.assertEqual(vouchers[2]['state'], 'redeemed')
         self.assertEqual(vouchers[2]['code'], '')
+
+        self.assertEqual(vouchers[3]['state'], 'cancelled')
+        self.assertEqual(vouchers[3]['code'], '')
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')

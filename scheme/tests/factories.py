@@ -179,6 +179,33 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
             "date_redeemed": 1600646400,
             "terms_and_conditions_url": ""
         },
+        {
+            "burn": {
+                "type": "voucher",
+                "value": 2.5,
+                "prefix": "\u00a3",
+                "suffix": "Reward",
+                "currency": ""
+            },
+            "code": 'WHS000055',
+            "earn": {
+                "type": "stamps",
+                "value": 5.0,
+                "prefix": "",
+                "suffix": "stamps",
+                "currency": "",
+                "target_value": 5.0
+            },
+            "state": "cancelled",
+            "subtext": "",
+            "headline": "Cancelled",
+            "body_text": "",
+            "date_issued": 1600560000,
+            "expiry_date": 1596499200,
+            "barcode_type": 0,
+            "date_redeemed": 1600646400,
+            "terms_and_conditions_url": ""
+        },
     ]
 
 
