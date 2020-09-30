@@ -170,7 +170,7 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
         card_needs_update = False
         for i, link in enumerate(existing_pll_links):
             if link['id'] == linked_card_id:
-                del card_to_update.pll_links[i]
+                del existing_pll_links[i]
                 card_needs_update = True
 
         if card_needs_update:
