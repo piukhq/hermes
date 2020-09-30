@@ -73,17 +73,3 @@ def get_expiry_date(voucher_scheme, voucher_fields, issue_date):
         expiry_date = None
 
     return expiry_date
-
-
-def guess_voucher_state(issue_date, redeem_date, expiry_date):
-    if redeem_date is not None:
-        state = VoucherState.REDEEMED
-    elif issue_date is not None:
-        if expiry_date <= arrow.utcnow():
-            state = VoucherState.EXPIRED
-        else:
-            state = VoucherState.ISSUED
-    else:
-        state = VoucherState.IN_PROGRESS
-
-    return state
