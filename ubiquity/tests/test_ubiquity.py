@@ -314,6 +314,9 @@ class TestResources(APITestCase):
         for join_id in join_ids:
             self.assertFalse(join_id in resp_join_ids)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation(self, *_):
@@ -342,6 +345,9 @@ class TestResources(APITestCase):
                                 content_type='application/json', **self.auth_headers, **self.version_header)
         self.assertEqual(resp.status_code, 201)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_with_id_fails_when_not_internal_user(self, *_):
