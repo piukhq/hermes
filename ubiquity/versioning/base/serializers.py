@@ -22,7 +22,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
-from scheme.vouchers import VoucherState, voucher_state_names
+from scheme.vouchers import ISSUED, IN_PROGRESS, EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
@@ -639,11 +639,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             vouchers = instance.vouchers
             for voucher in instance.vouchers:
                 if voucher.get('code'):
-                    if voucher['state'] in [
-                        voucher_state_names[VoucherState.EXPIRED],
-                        voucher_state_names[VoucherState.REDEEMED],
-                        voucher_state_names[VoucherState.CANCELLED]
-                    ]:
+                    if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
                         voucher['code'] = ""
                 else:
                     continue

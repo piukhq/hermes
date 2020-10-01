@@ -21,15 +21,13 @@ class VoucherState(enum.Enum):
     CANCELLED = 4
 
 
-voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
+ISSUED = "issued"
+IN_PROGRESS = "inprogress"
+EXPIRED = "expired"
+REDEEMED = "redeemed"
+CANCELLED = "cancelled"
 
-voucher_state_names = {
-    VoucherState.ISSUED: "issued",
-    VoucherState.IN_PROGRESS: "inprogress",
-    VoucherState.EXPIRED: "expired",
-    VoucherState.REDEEMED: "redeemed",
-    VoucherState.CANCELLED: "cancelled"
-}
+voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
 
 
 def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_value):
