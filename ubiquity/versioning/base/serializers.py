@@ -22,7 +22,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
-from scheme.vouchers import ISSUED, IN_PROGRESS, EXPIRED, REDEEMED, CANCELLED
+from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
