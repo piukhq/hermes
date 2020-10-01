@@ -61,9 +61,14 @@ class ConflictError(APIException):
     default_code = 'conflict'
 
 
-def is_auto_link(req):
-    return (req.query_params.get('autoLink', '').lower() == 'true' or
-            req.query_params.get('autolink', '').lower() == 'true')
+def auto_link(req):
+    auto_link_mapping = {
+        "true": True,
+        "false":  False,
+    }
+    auto_link_param = req.query_params.get("autolink", "") or req.query_params.get("autoLink", "")
+
+    return auto_link_mapping.get(auto_link_param.lower(), None)
 
 
 def replace_escaped_unicode(match):
@@ -391,7 +396,7 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
 
         account.refresh_from_db()
 
-        if is_auto_link(request):
+        if auto_link(request):
             self.auto_link_to_membership_cards(request.user, account)
 
         return Response(self.get_serializer_by_request(account).data, status.HTTP_200_OK)
@@ -449,7 +454,6 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             bundle_id=request.channels_permit.bundle_id
         )
 
-        auto_link = is_auto_link(request)
         just_created = False
         pcard, route, status_code = self.payment_card_already_exists(pcard_data, request.user)
 
@@ -462,7 +466,8 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             self._create_payment_card_consent(consent, pcard)
             just_created = True
 
-        if auto_link:
+        # auto link to mcards if auto_link is True or None
+        if auto_link(request) is not False:
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
@@ -615,7 +620,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 account.set_pending()
                 async_balance.delay(account.id)
 
-        if is_auto_link(request):
+        if auto_link(request):
             self.auto_link_to_payment_cards(request.user.id, account)
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
@@ -1022,7 +1027,7 @@ class ListMembershipCardView(MembershipCardView):
                 request.user, scheme, auth_fields, add_fields
             )
 
-        if is_auto_link(request):
+        if auto_link(request):
             self.auto_link_to_payment_cards(request.user.id, account)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
