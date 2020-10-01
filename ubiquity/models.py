@@ -157,19 +157,25 @@ class PaymentCardSchemeEntry(models.Model):
 
 
 def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
+    logger.info('payment card scheme entry of id %s has been deleted or deactivated', instance.id)
+
     def _remove_deleted_link_from_card(
         card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
         linked_card_id: Type[int]
     ) -> None:
-        card_to_update.refresh_from_db(fields=['pll_links'])
+        model = card_to_update.__class__
+        card_id = card_to_update.id
+        existing_pll_links = model.all_objects.values_list('pll_links', flat=True).get(pk=card_id)
+        logger.debug('checking pll links for %s of id %s', model.__name__, card_id)
         card_needs_update = False
-        for i, link in enumerate(card_to_update.pll_links):
+        for i, link in enumerate(existing_pll_links):
             if link['id'] == linked_card_id:
-                del card_to_update.pll_links[i]
+                del existing_pll_links[i]
                 card_needs_update = True
 
         if card_needs_update:
-            card_to_update.save(update_fields=['pll_links'])
+            logger.debug('deleting link to %s', linked_card_id)
+            model.objects.filter(pk=card_id).update(pll_links=existing_pll_links)
 
     _remove_deleted_link_from_card(instance.scheme_account, instance.payment_card_account_id)
     _remove_deleted_link_from_card(instance.payment_card_account, instance.scheme_account_id)
@@ -177,15 +183,21 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
 
 @receiver(signals.post_save, sender=PaymentCardSchemeEntry)
 def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **kwargs) -> None:
+    logger.info('payment card scheme entry of id %s updated', instance.id)
     if instance.active_link:
+
         def _add_new_link_to_card(
-            card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
+            card: Union['PaymentCardAccount', 'SchemeAccount'],
             linked_card_id: Type[int]
         ) -> None:
-            card_to_update.refresh_from_db(fields=['pll_links'])
-            if linked_card_id not in [link['id'] for link in card_to_update.pll_links]:
-                card_to_update.pll_links.append({'id': linked_card_id, 'active_link': True})
-                card_to_update.save(update_fields=['pll_links'])
+            model = card.__class__
+            card_id = card.id
+            logger.debug('checking pll links for %s of id %s', model.__name__, card_id)
+            existing_pll_links = model.objects.values_list('pll_links', flat=True).get(pk=card_id)
+            if linked_card_id not in [link['id'] for link in existing_pll_links]:
+                logger.debug('adding new link to %s', linked_card_id)
+                existing_pll_links.append({'id': linked_card_id, 'active_link': True})
+                model.objects.filter(pk=card_id).update(pll_links=existing_pll_links)
 
         _add_new_link_to_card(instance.scheme_account, instance.payment_card_account_id)
         _add_new_link_to_card(instance.payment_card_account, instance.scheme_account_id)
