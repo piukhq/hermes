@@ -318,10 +318,9 @@ class TestPaymentAutoLink(APITestCase):
         self.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c4_p5_u5,
                                                                        user=self.user5)
 
-    def auto_link_post(self, payload, user):
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(payload),
-                                content_type='application/json', **self._get_auth_headers(user),
-                                **self.version_header)
+    def auto_link_post(self, payload, user, query_string="?autoLink=True"):
+        resp = self.client.post(f'{reverse("payment-cards")}{query_string}', data=json.dumps(payload),
+                                content_type='application/json', **self._get_auth_headers(user), **self.version_header)
         linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
         return resp, linked
 
@@ -331,7 +330,7 @@ class TestPaymentAutoLink(APITestCase):
     @patch('analytics.api')
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_payment_card_creation_auto_link(self, *_):
-        # seanario 1 1 membership cards 1 plans - user 1
+        # scenario 1 1 membership cards 1 plans - user 1
         resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(len(resp.data['membership_cards']), 0)
@@ -470,3 +469,39 @@ class TestPaymentAutoLink(APITestCase):
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_auto_links_with_no_auto_link_param(self, *_):
+        email = "testnoautolinkparam@bink.com"
+        test_user = UserFactory(external_id=email, client=self.client_app, email=email)
+        test_scheme_account_1 = SchemeAccountFactory(scheme=self.scheme1)
+        test_scheme_account_2 = SchemeAccountFactory(scheme=self.scheme2)
+        SchemeAccountEntryFactory(scheme_account=test_scheme_account_1, user=test_user)
+        SchemeAccountEntryFactory(scheme_account=test_scheme_account_2, user=test_user)
+
+        resp, linked = self.auto_link_post(self.payload, test_user, query_string="")
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(linked), 2)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('analytics.api')
+    @patch('payment_card.metis.enrol_new_payment_card')
+    def test_payment_card_auto_link_set_as_false(self, *_):
+        email = "testfalseautolinkparam@bink.com"
+        test_user = UserFactory(external_id=email, client=self.client_app, email=email)
+        test_scheme_account_1 = SchemeAccountFactory(scheme=self.scheme1)
+        test_scheme_account_2 = SchemeAccountFactory(scheme=self.scheme2)
+        SchemeAccountEntryFactory(scheme_account=test_scheme_account_1, user=test_user)
+        SchemeAccountEntryFactory(scheme_account=test_scheme_account_2, user=test_user)
+
+        resp, linked = self.auto_link_post(self.payload, test_user, query_string="?autoLink=False")
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(linked), 0)
