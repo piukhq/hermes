@@ -125,14 +125,16 @@ class PaymentCardSchemeEntry(models.Model):
 
     @classmethod
     def update_active_link_status(cls, query):
-        logger.info("updating pll link status")
         links = cls.objects.filter(**query)
+        logger.info("updating pll links of id: %s", [link.id for link in links])
         for link in links:
             current_state = link.active_link
             update_link = link.get_instance_with_active_status()
             try:
                 if current_state != update_link.active_link:
-                    logger.debug("link of id %s has changes active_link to %s", update_link.id, update_link.active_link)
+                    logger.debug(
+                        "active_link for the link of id %s has changed to %s", update_link.id, update_link.active_link
+                    )
                     update_link.save(update_fields=['active_link'])
                     update_link.vop_activate_check()
             except django.db.utils.DatabaseError:
