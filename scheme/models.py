@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import socket
 import sre_constants
@@ -32,6 +33,10 @@ from ubiquity.models import PaymentCardSchemeEntry
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
     from django.db.models import QuerySet
+
+
+logger = logging.getLogger(__name__)
+
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -985,6 +990,7 @@ class SchemeAccount(models.Model):
 
         # Update active_link status
         if status_update:
+            logger.info('%s of id %s has been updated with status: %s', self.__class__.__name__, self.id, self.status)
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
