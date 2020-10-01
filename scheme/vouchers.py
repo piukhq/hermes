@@ -18,16 +18,16 @@ class VoucherState(enum.Enum):
     IN_PROGRESS = 1
     EXPIRED = 2
     REDEEMED = 3
+    CANCELLED = 4
 
+
+ISSUED = "issued"
+IN_PROGRESS = "inprogress"
+EXPIRED = "expired"
+REDEEMED = "redeemed"
+CANCELLED = "cancelled"
 
 voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
-
-voucher_state_names = {
-    VoucherState.ISSUED: "issued",
-    VoucherState.IN_PROGRESS: "inprogress",
-    VoucherState.EXPIRED: "expired",
-    VoucherState.REDEEMED: "redeemed",
-}
 
 
 def apply_template(template_string, *, voucher_scheme, earn_value, earn_target_value):
@@ -71,17 +71,3 @@ def get_expiry_date(voucher_scheme, voucher_fields, issue_date):
         expiry_date = None
 
     return expiry_date
-
-
-def guess_voucher_state(issue_date, redeem_date, expiry_date):
-    if redeem_date is not None:
-        state = VoucherState.REDEEMED
-    elif issue_date is not None:
-        if expiry_date <= arrow.utcnow():
-            state = VoucherState.EXPIRED
-        else:
-            state = VoucherState.ISSUED
-    else:
-        state = VoucherState.IN_PROGRESS
-
-    return state
