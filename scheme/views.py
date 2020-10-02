@@ -389,8 +389,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.send_to_intercom(new_status_code, scheme_account)
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
-        PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
         if new_status_code != previous_status:
+            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
 
             # delete main answer credential if an async join failed
             if (previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS
@@ -505,7 +505,7 @@ class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixi
         serializer.is_valid(raise_exception=True)
 
         scheme_account.transactions = serializer.validated_data
-        scheme_account.save()
+        scheme_account.save(update_fields=['transactions'])
 
         logger.info(f"Transactions updated for scheme account (id={scheme_account_id})")
         return Response({

@@ -54,12 +54,16 @@ def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
 
 
 @shared_task
-def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
+def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_cards_to_link: list) -> None:
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     try:
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         BaseLinkMixin.link_account(serializer, scheme_account, user)
+
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
@@ -77,13 +81,16 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
 
 
 @shared_task
-def async_add_field_only_link(instance_id: int) -> None:
+def async_add_field_only_link(user_id: int, instance_id: int, payment_cards_to_link: list) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.get_cached_balance()
 
     if scheme_account.status == SchemeAccount.ACTIVE:
         scheme_account.link_date = timezone.now()
         scheme_account.save(update_fields=['link_date'])
+
+    if payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task
@@ -104,11 +111,13 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
-               validated_data: dict, channel: str) -> None:
+               validated_data: dict, channel: str, payment_cards_to_link: list) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
+
+    if payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task
@@ -330,6 +339,13 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
             pll_activated_payment_cards.append(payment_card.id)
 
     PaymentCardSchemeEntry.objects.bulk_create(link_entries_to_create, batch_size=100, ignore_conflicts=True)
+    logger.info(
+        "auto-linked SchemeAccount %s to PaymentCardAccounts %s, of which %s were active links",
+        membership_card.id,
+        [card.id for card in payment_cards_to_link],
+        len(pll_activated_payment_cards)
+    )
+    logger.debug("SchemeAccount %s status: %s", membership_card.id, membership_card.status)
 
     _update_one_card_with_many_new_pll_links(
         membership_card,

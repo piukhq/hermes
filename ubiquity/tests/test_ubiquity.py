@@ -15,6 +15,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER
+from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -1680,7 +1681,7 @@ class TestResources(APITestCase):
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
     @patch('scheme.mixins.analytics', autospec=True)
-    @patch('ubiquity.views.async_link', autospec=True)
+    @patch.object(BaseLinkMixin, 'link_account', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_auto_link(self, *_):

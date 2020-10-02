@@ -118,7 +118,7 @@ class TestTasks(TestCase):
         auth_fields = {'password': 'test123'}
         self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
         with self.assertRaises(serializers.ValidationError):
-            async_link(auth_fields, scheme_account.id, user_id)
+            async_link(auth_fields, scheme_account.id, user_id, False)
 
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, scheme_account.INVALID_CREDENTIALS)

@@ -64,7 +64,7 @@ class ConflictError(APIException):
 def auto_link(req):
     auto_link_mapping = {
         "true": True,
-        "false":  False,
+        "false": False,
     }
     auto_link_param = req.query_params.get("autolink", "") or req.query_params.get("autoLink", "")
 
@@ -120,19 +120,6 @@ class VersionedSerializerMixin:
 
 
 class AutoLinkOnCreationMixin:
-
-    @staticmethod
-    def auto_link_to_payment_cards(user_id: int, membership_card: SchemeAccount) -> None:
-        payment_cards_in_wallet = PaymentCardAccountEntry.objects.filter(user_id=user_id).values_list(
-            'payment_card_account_id', flat=True
-        )
-
-        if payment_cards_in_wallet:
-
-            if membership_card.status == SchemeAccount.ACTIVE:
-                auto_link_membership_to_payments(payment_cards_in_wallet, membership_card)
-            else:
-                auto_link_membership_to_payments.delay(payment_cards_in_wallet, membership_card.id)
 
     @staticmethod
     def auto_link_to_membership_cards(user: CustomUser, payment_card_account: PaymentCardAccount,
@@ -621,7 +608,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 async_balance.delay(account.id)
 
         if auto_link(request):
-            self.auto_link_to_payment_cards(request.user.id, account)
+            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
+                'payment_card_account_id', flat=True
+            )
+            auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
@@ -754,7 +744,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
-                                        auth_fields: dict) -> None:
+                                        auth_fields: dict, payment_cards_to_link: list) -> None:
         existing_answers = scheme_account.get_auth_credentials()
         for k, v in existing_answers.items():
             provided_value = auth_fields.get(k)
@@ -780,12 +770,16 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             # If it already exists, nothing else needs to be done here.
             pass
 
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
     def _handle_create_link_route(
         self,
         user: CustomUser,
         scheme: Scheme,
         auth_fields: dict,
-        add_fields: dict
+        add_fields: dict,
+        payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int]:
         return_status = status.HTTP_200_OK
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
@@ -800,18 +794,18 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             return_status = status.HTTP_201_CREATED
             scheme_account.update_barcode_and_card_number()
             if auth_fields:
-                async_link.delay(auth_fields, scheme_account.id, user.id)
+                async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
             else:
-                async_add_field_only_link.delay(scheme_account.id)
+                async_add_field_only_link.delay(user.id, scheme_account.id, payment_cards_to_link)
         else:
             auth_fields = auth_fields or {}
-            self._handle_existing_scheme_account(scheme_account, user, auth_fields)
+            self._handle_existing_scheme_account(scheme_account, user, auth_fields, payment_cards_to_link)
 
         return scheme_account, return_status
 
     @staticmethod
     def _handle_create_join_route(
-        user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict
+        user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int]:
         check_join_with_pay(enrol_fields, user.id)
 
@@ -868,8 +862,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         scheme_account.save()
         SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
-
-        async_join.delay(scheme_account.id, user.id, serializer, scheme.id, validated_data, channels_permit.bundle_id)
+        async_join.delay(
+            scheme_account.id,
+            user.id,
+            serializer,
+            scheme.id,
+            validated_data,
+            channels_permit.bundle_id,
+            payment_cards_to_link
+        )
         return scheme_account, status.HTTP_201_CREATED
 
     @staticmethod
@@ -1014,21 +1015,25 @@ class ListMembershipCardView(MembershipCardView):
         self.current_scheme = scheme
         self.scheme_questions = scheme.questions.all()
 
+        if auto_link(request):
+            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
+                'payment_card_account_id', flat=True
+            )
+        else:
+            payment_cards_to_link = []
+
         if enrol_fields:
             enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             account, status_code = self._handle_create_join_route(
-                request.user, request.channels_permit, scheme, enrol_fields
+                request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
             account, status_code = self._handle_create_link_route(
-                request.user, scheme, auth_fields, add_fields
+                request.user, scheme, auth_fields, add_fields, payment_cards_to_link
             )
-
-        if auto_link(request):
-            self.auto_link_to_payment_cards(request.user.id, account)
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
