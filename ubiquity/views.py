@@ -1011,7 +1011,7 @@ class ListMembershipCardView(MembershipCardView):
         scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
         self.current_scheme = scheme
         self.scheme_questions = scheme.questions.all()
-        autolink = auto_link(request)
+        autolink = auto_link(request) or False
 
         if enrol_fields:
             enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
