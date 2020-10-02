@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import socket
 import sre_constants
@@ -32,6 +33,10 @@ from ubiquity.models import PaymentCardSchemeEntry
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
     from django.db.models import QuerySet
+
+
+logger = logging.getLogger(__name__)
+
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -985,6 +990,7 @@ class SchemeAccount(models.Model):
 
         # Update active_link status
         if status_update:
+            logger.info('%s of id %s has been updated with status: %s', self.__class__.__name__, self.id, self.status)
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
@@ -1026,9 +1032,8 @@ class SchemeAccount(models.Model):
         redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
         expiry_date = vouchers.get_expiry_date(voucher_scheme, voucher_fields, issue_date)
-        state = vouchers.guess_voucher_state(issue_date, redeem_date, expiry_date)
 
-        headline_template = voucher_scheme.get_headline(state)
+        headline_template = voucher_scheme.get_headline(voucher_fields["state"])
         headline = vouchers.apply_template(
             headline_template,
             voucher_scheme=voucher_scheme,
@@ -1036,10 +1041,10 @@ class SchemeAccount(models.Model):
             earn_target_value=earn_target_value,
         )
 
-        body_text = voucher_scheme.get_body_text(state)
+        body_text = voucher_scheme.get_body_text(voucher_fields["state"])
 
         voucher = {
-            "state": vouchers.voucher_state_names[state],
+            "state": voucher_fields["state"],
             "earn": {
                 "type": vouchers.voucher_type_names[voucher_type],
                 "prefix": voucher_scheme.earn_prefix,
@@ -1438,11 +1443,13 @@ class VoucherScheme(models.Model):
     headline_expired = models.CharField(max_length=250, verbose_name="Expired")
     headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
     headline_issued = models.CharField(max_length=250, verbose_name="Issued")
+    headline_cancelled = models.CharField(max_length=250, verbose_name="Cancelled", default="")
 
     body_text_inprogress = models.TextField(null=False, blank=True, verbose_name="In Progress")
     body_text_expired = models.TextField(null=False, blank=True, verbose_name="Expired")
     body_text_redeemed = models.TextField(null=False, blank=True, verbose_name="Redeemed")
     body_text_issued = models.TextField(null=False, blank=True, verbose_name="Issued")
+    body_text_cancelled = models.TextField(null=False, blank=True, verbose_name="Cancelled", default="")
     subtext = models.CharField(max_length=250, null=False, blank=True)
     terms_and_conditions_url = models.URLField(null=False, blank=True)
 
@@ -1454,18 +1461,20 @@ class VoucherScheme(models.Model):
 
     def get_headline(self, state: vouchers.VoucherState):
         return {
-            vouchers.VoucherState.ISSUED: self.headline_issued,
-            vouchers.VoucherState.IN_PROGRESS: self.headline_inprogress,
-            vouchers.VoucherState.EXPIRED: self.headline_expired,
-            vouchers.VoucherState.REDEEMED: self.headline_redeemed,
+            vouchers.ISSUED: self.headline_issued,
+            vouchers.IN_PROGRESS: self.headline_inprogress,
+            vouchers.EXPIRED: self.headline_expired,
+            vouchers.REDEEMED: self.headline_redeemed,
+            vouchers.CANCELLED: self.headline_cancelled
         }[state]
 
     def get_body_text(self, state: vouchers.VoucherState):
         return {
-            vouchers.VoucherState.ISSUED: self.body_text_issued,
-            vouchers.VoucherState.IN_PROGRESS: self.body_text_inprogress,
-            vouchers.VoucherState.EXPIRED: self.body_text_expired,
-            vouchers.VoucherState.REDEEMED: self.body_text_redeemed,
+            vouchers.ISSUED: self.body_text_issued,
+            vouchers.IN_PROGRESS: self.body_text_inprogress,
+            vouchers.EXPIRED: self.body_text_expired,
+            vouchers.REDEEMED: self.body_text_redeemed,
+            vouchers.CANCELLED: self.body_text_cancelled,
         }[state]
 
     @staticmethod
