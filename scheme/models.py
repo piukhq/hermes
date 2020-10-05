@@ -1087,7 +1087,7 @@ class SchemeAccount(models.Model):
 
     def set_async_join_status(self) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-        self.save()
+        self.save(update_fields=['status'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -1095,7 +1095,7 @@ class SchemeAccount(models.Model):
 
     def delete_saved_balance(self):
         self.balances = dict()
-        self.save()
+        self.save(update_fields=['balances'])
 
     def question(self, question_type):
         """
