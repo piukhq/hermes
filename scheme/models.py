@@ -1085,9 +1085,10 @@ class SchemeAccount(models.Model):
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save(update_fields=['status'])
 
-    def set_async_join_status(self) -> None:
+    def set_async_join_status(self, *, commit_change=True) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-        self.save(update_fields=['status'])
+        if commit_change:
+            self.save(update_fields=['status'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)

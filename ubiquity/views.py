@@ -648,7 +648,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             account.main_answer = validated_data[answer_types.pop()]
 
         account.schemeaccountcredentialanswer_set.all().delete()
-        account.set_async_join_status()
+        account.set_async_join_status(commit_change=False)
+        account.save(update_fields=['status', 'main_answer'])
         async_join.delay(
             scheme_account_id=account.id,
             user_id=req.user.id,
