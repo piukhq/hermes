@@ -1070,6 +1070,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     def update_payment(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.PAYMENT_CARD
         link, status_code = self._update_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
+        link.payment_card_account.refresh_from_db(fields=['pll_links'])
         serializer = self.get_serializer_by_request(link.payment_card_account)
         return Response(serializer.data, status_code)
 
@@ -1077,6 +1078,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     def update_membership(self, request, *args, **kwargs):
         self.response_serializer = SelectSerializer.MEMBERSHIP_CARD
         link, status_code = self._update_link(request.user, kwargs['pcard_id'], kwargs['mcard_id'])
+        link.scheme_account.refresh_from_db(fields=['pll_links'])
         serializer = self.get_serializer_by_request(link.scheme_account)
         return Response(serializer.data, status_code)
 
