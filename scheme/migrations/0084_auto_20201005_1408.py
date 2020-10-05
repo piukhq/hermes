@@ -6,18 +6,26 @@ from django.db import migrations
 
 def convert_empty_tx_dicts_to_list(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+
+    mcards_to_update = []
     for mcard in SchemeAccount.objects.all():
         if not mcard.transactions and isinstance(mcard.transactions, dict):
             mcard.transactions = []
-            mcard.save(update_fields=["transactions"])
+            mcards_to_update.append(mcard)
+
+    SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
 
 
 def revert_empty_tx_dicts_to_list(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+
+    mcards_to_update = []
     for mcard in SchemeAccount.objects.all():
         if not mcard.transactions and isinstance(mcard.transactions, list):
             mcard.transactions = {}
-            mcard.save(update_fields=["transactions"])
+            mcards_to_update.append(mcard)
+
+    SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
 
 
 class Migration(migrations.Migration):
