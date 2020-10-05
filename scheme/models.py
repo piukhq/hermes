@@ -641,7 +641,7 @@ class SchemeAccount(models.Model):
     vouchers = JSONField(default=dict, null=True, blank=True)
     card_number = models.CharField(max_length=250, blank=True, db_index=True, default='')
     barcode = models.CharField(max_length=250, blank=True, db_index=True, default='')
-    transactions = JSONField(default=dict, null=True, blank=True)
+    transactions = JSONField(default=list, null=True, blank=True)
     main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
@@ -1085,9 +1085,10 @@ class SchemeAccount(models.Model):
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save(update_fields=['status'])
 
-    def set_async_join_status(self) -> None:
+    def set_async_join_status(self, *, commit_change=True) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-        self.save()
+        if commit_change:
+            self.save(update_fields=['status'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -1095,7 +1096,7 @@ class SchemeAccount(models.Model):
 
     def delete_saved_balance(self):
         self.balances = dict()
-        self.save()
+        self.save(update_fields=['balances'])
 
     def question(self, question_type):
         """
