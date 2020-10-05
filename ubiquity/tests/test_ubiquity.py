@@ -923,7 +923,7 @@ class TestResources(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     def test_payment_card_delete_removes_link_for_cards_not_shared_between_users(self, mock_metis):
         entry = PaymentCardSchemeEntry.objects.create(payment_card_account=self.payment_card_account,
                                                       scheme_account=self.scheme_account)
@@ -941,7 +941,7 @@ class TestResources(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     def test_payment_card_delete_by_id(self, _):
         pca = PaymentCardAccountFactory()
         PaymentCardAccountEntryFactory(user=self.user, payment_card_account=pca)
@@ -953,7 +953,7 @@ class TestResources(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     @patch('ubiquity.views.get_secret_key')
     def test_payment_card_delete_by_hash(self, hash_secret, _):
         hash_secret.return_value = 'test-secret'
@@ -2126,7 +2126,7 @@ class TestLastManStanding(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     def test_cards_in_single_property_deletion(self, _):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
@@ -2152,7 +2152,7 @@ class TestLastManStanding(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     def test_both_cards_in_multiple_property_deletion(self, _):
         pcard = PaymentCardAccountFactory()
         mcard = SchemeAccountFactory(scheme=self.scheme)
@@ -2174,7 +2174,7 @@ class TestLastManStanding(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('payment_card.metis.metis_request', autospec=True)
+    @patch('payment_card.metis.metis_delete_cards_and_activations', autospec=True)
     def test_single_card_in_multiple_property_deletion(self, _):
         pcard_1 = PaymentCardAccountFactory()
         pcard_2 = PaymentCardAccountFactory()
