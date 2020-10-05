@@ -50,6 +50,7 @@ from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
+    from rest_framework.request import Request
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
@@ -574,6 +575,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def replace(self, request, *args, **kwargs):
         account = self.get_object()
+        if auto_link(request):
+            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
+                'payment_card_account_id', flat=True
+            )
+        else:
+            payment_cards_to_link = []
+
         if account.status in [SchemeAccount.PENDING, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
             raise ParseError('requested card is still in a pending state, please wait for current journey to finish')
 
@@ -591,7 +599,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_cached_balance()
 
         if enrol_fields:
-            self._replace_with_enrol_fields(request, account, enrol_fields, scheme)
+            self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -607,16 +615,19 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 account.set_pending()
                 async_balance.delay(account.id)
 
-        if auto_link(request):
-            payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=request.user.id).values_list(
-                'payment_card_account_id', flat=True
-            )
-            auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+                if payment_cards_to_link:
+                    auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
     @staticmethod
-    def _replace_with_enrol_fields(req, account: SchemeAccount, enrol_fields: dict, scheme: Scheme):
+    def _replace_with_enrol_fields(
+        req: 'Request',
+        account: SchemeAccount,
+        enrol_fields: dict,
+        scheme: Scheme,
+        payment_cards_to_link: list
+    ) -> None:
         enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=enrol_fields,
@@ -637,8 +648,17 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             account.main_answer = validated_data[answer_types.pop()]
 
         account.schemeaccountcredentialanswer_set.all().delete()
-        account.set_async_join_status()
-        async_join.delay(account.id, req.user.id, serializer, scheme.id, validated_data, req.channels_permit.bundle_id)
+        account.set_async_join_status(commit_change=False)
+        account.save(update_fields=['status', 'main_answer'])
+        async_join.delay(
+            scheme_account_id=account.id,
+            user_id=req.user.id,
+            serializer=serializer,
+            scheme_id=scheme.id,
+            validated_data=validated_data,
+            channel=req.channels_permit.bundle_id,
+            payment_cards_to_link=payment_cards_to_link
+        )
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
