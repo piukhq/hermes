@@ -971,7 +971,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             for field_name in self.create_update_fields:
                 # Checks what being passed in matched the scheme question
-                # create, update fields (add, authm register, enrol)
+                # create, update fields (add, auth, register, enrol)
                 self._match_scheme_question_fields(field_name, data, question_types)
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
