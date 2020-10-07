@@ -932,7 +932,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _match_scheme_question_fields(field_name, data, questions):
         """
         Method is to check what's being passed in matches the SchemeCredentialQuestion model.
-        Raises a ValidationError is a mismatch is found. 
+        Raises a ValidationError is a mismatch is found.
         example:
         add_fields - {'column': 'card_number', 'value': 'xxxxxx'}
         model - card_number - add_field: False, auth_field: True
