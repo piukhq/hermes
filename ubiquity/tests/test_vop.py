@@ -1,38 +1,25 @@
-import datetime
 import json
-from decimal import Decimal
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import json
+from unittest.mock import patch
 
 import httpretty
 from django.conf import settings
-from django.test import RequestFactory, override_settings
+from hermes.vop_tasks import send_activation, send_deactivation
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
-from shared_config_storage.credentials.utils import AnswerTypeChoices
-
-from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
-    MERCHANT_IDENTIFIER
-from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
-    JourneyTypes, SchemeAccountCredentialAnswer
+from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, PAYMENT_CARD_HASH
+from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
-                                    SchemeBundleAssociationFactory)
-from ubiquity.censor_empty_fields import remove_empty
-from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry, VopActivation
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
+                                    SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+from ubiquity.tasks import deleted_membership_card_cleanup, deleted_payment_card_cleanup
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from ubiquity.tests.test_serializers import mock_secrets
-from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
-from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
-    PaymentCardSerializer
-from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
-from ubiquity.tasks import deleted_membership_card_cleanup, deleted_payment_card_cleanup
-from hermes.vop_tasks import send_activation, send_deactivation
 
 
 class RequestMock:
