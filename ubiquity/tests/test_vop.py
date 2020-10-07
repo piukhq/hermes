@@ -359,7 +359,6 @@ class TestVOP(APITestCase):
         for activation in activations:
             self.assertEqual(VopActivation.ACTIVATED, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
-            print(activation.activation_id)
 
         auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
         response = self.client.delete(reverse('service'), **auth_headers)
@@ -374,7 +373,6 @@ class TestVOP(APITestCase):
         for activation in activations:
             self.assertEqual(VopActivation.DEACTIVATING, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
-            print(activation.activation_id)
 
         # Now we have to simulate the metis call back by trapping request sent and compiling a success message
         metis_requests = httpretty.latest_requests()
@@ -404,4 +402,3 @@ class TestVOP(APITestCase):
         for activation in activations:
             self.assertEqual(VopActivation.DEACTIVATED, activation.status)
             self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
-            print(activation.activation_id)

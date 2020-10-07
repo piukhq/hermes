@@ -52,7 +52,7 @@ class VopActivation(models.Model):
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.PROTECT,
                                              verbose_name="Associated VOP Payment Card Account")
     scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT, verbose_name="Associated Scheme")
-    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status')
+    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status', db_index=True)
 
     class Meta:
         constraints = [
