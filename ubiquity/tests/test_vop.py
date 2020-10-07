@@ -391,13 +391,14 @@ class TestVOP(APITestCase):
                     deactivated_list.append(int(d))
 
                 resp_data = {
-                    "id": self.payment_card_account.id, "response_state": "Success", "response_status": "Delete:SUCCESS",
+                    "id": self.payment_card_account.id, "response_state": "Success",
+                    "response_status": "Delete:SUCCESS",
                     "response_message": "Request proceed successfully without error.;", "response_action": "Delete",
                     "retry_id": -1, "deactivated_list": deactivated_list, "deactivate_errors": {}
                 }
 
-                resp = self.client.put(reverse('update_payment_card_account_status'), data=json.dumps(resp_data),
-                                       content_type='application/json', **self.service_headers)
+                self.client.put(reverse('update_payment_card_account_status'), data=json.dumps(resp_data),
+                                content_type='application/json', **self.service_headers)
 
         activations = VopActivation.objects.all()
         for activation in activations:
