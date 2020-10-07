@@ -928,6 +928,27 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             f'could not find the manual question for scheme: {scheme_slug}.'
         )
 
+    @staticmethod
+    def _match_scheme_question_fields(field_name, data, questions):
+        fields = data['account'].get(field_name, [])
+
+        try:
+            for field in fields:
+                # Exclude anything that's not in the scheme credential questions
+                if questions.filter(label=field['column']).exists():
+                    if field_name == 'add_fields':
+                        questions.get(label=field['column'], add_field=True)
+                    elif field_name == 'authorise_fields':
+                        questions.get(label=field['column'], auth_field=True)
+                    elif field_name == 'registration_fields':
+                        questions.get(label=field['column'], register_field=True)
+                    else:
+                        questions.get(label=field['column'], enrol_field=True)
+                else:
+                    continue
+        except SchemeCredentialQuestion.DoesNotExist:
+            raise ValidationError('Column does not match field type.')
+
     def _collect_credentials_answers(
         self, data: dict, scheme: Scheme
     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
@@ -937,6 +958,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             fields = {}
 
             for field_name in self.create_update_fields:
+                # Checks what being passed in matched the scheme question
+                # create, update fields (add, authm register, enrol)
+                self._match_scheme_question_fields(field_name, data, scheme_questions)
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 

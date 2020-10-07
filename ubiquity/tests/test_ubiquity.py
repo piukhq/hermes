@@ -82,7 +82,15 @@ class TestResources(APITestCase):
         cls.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
-        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True)
+        SchemeCredentialQuestionFactory(
+            scheme=cls.scheme,
+            type=BARCODE,
+            label=BARCODE,
+            manual_question=True,
+            add_field=True,
+            enrol_field=True
+
+        )
         cls.secondary_question = SchemeCredentialQuestionFactory(
             scheme=cls.scheme,
             type=LAST_NAME,
@@ -149,13 +157,15 @@ class TestResources(APITestCase):
             scheme=cls.put_scheme,
             type=CARD_NUMBER,
             label=CARD_NUMBER,
-            manual_question=True
+            manual_question=True,
+            add_field=True,
         )
         cls.put_scheme_scan_q = SchemeCredentialQuestionFactory(
             scheme=cls.put_scheme,
             type=BARCODE,
             label=BARCODE,
-            scan_question=True
+            scan_question=True,
+            add_field=True,
         )
         cls.put_scheme_auth_q = SchemeCredentialQuestionFactory(
             scheme=cls.put_scheme,
@@ -165,8 +175,12 @@ class TestResources(APITestCase):
         )
 
         cls.wallet_only_scheme = SchemeFactory()
-        cls.wallet_only_question = SchemeCredentialQuestionFactory(type=CARD_NUMBER, scheme=cls.wallet_only_scheme,
-                                                                   manual_question=True)
+        cls.wallet_only_question = SchemeCredentialQuestionFactory(
+            type=CARD_NUMBER,
+            scheme=cls.wallet_only_scheme,
+            manual_question=True,
+            add_field=True,
+        )
         cls.scheme_bundle_association_put = SchemeBundleAssociationFactory(
             scheme=cls.wallet_only_scheme,
             bundle=cls.bundle,
@@ -1614,6 +1628,37 @@ class TestResources(APITestCase):
             resp.json().get('detail')
         )
 
+    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('analytics.api.post_event')
+    @patch('analytics.api._send_to_mnemosyne')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api._get_today_datetime')
+    def test_existing_membership_card_creation_non_matching_question_type(self, mock_date, *_):
+        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "authorise_fields": [
+                        {
+                            "column": "barcode",
+                            "value": self.scheme_account.barcode
+                        }
+                    ]
+                }
+        }
+        new_external_id = 'Test User 2'
+        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
+        PaymentCardAccountEntryFactory(user=new_user, payment_card_account=self.payment_card_account)
+        auth_header = self._get_auth_header(new_user)
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                HTTP_AUTHORIZATION=auth_header)
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('Column does not match field type.', resp.json())
+
     def test_membership_plan_serializer_method(self):
         serializer = MembershipPlanSerializer()
         test_dict = [
@@ -1944,7 +1989,7 @@ class TestResourcesV1_2(APITestCase):
         )
         cls.question_2 = SchemeCredentialQuestionFactory(
             scheme=cls.scheme, answer_type=AnswerTypeChoices.TEXT.value, manual_question=True,
-            label=USER_NAME
+            label=USER_NAME, add_field=True,
         )
 
         external_id = 'test@user.com'
