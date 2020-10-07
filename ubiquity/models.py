@@ -84,13 +84,15 @@ class VopActivation(models.Model):
                 payment_card_account_id=payment_card_account_id,
                 status=cls.ACTIVATED
         )
-        activations.update(status=VopActivation.DEACTIVATING)
+
         for activation in activations:
-            activation_id = activation['activation_id']
+            activation_id = activation.activation_id
             activation_dict[activation.id] = {
                 'scheme': activation.scheme.slug,
                 'activation_id': activation_id
             }
+
+        activations.update(status=VopActivation.DEACTIVATING)
 
         return activation_dict
 

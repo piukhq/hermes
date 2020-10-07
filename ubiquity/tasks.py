@@ -254,7 +254,10 @@ def _send_data_to_atlas(consent: dict) -> None:
 def deleted_service_cleanup(user_id: int, consent: dict) -> None:
     user = CustomUser.all_objects.get(id=user_id)
     user.serviceconsent.delete()
-    user.delete_membership_cards()
+    # Don't deactivate when removing membership card as it will race with delete payment card
+    # Deleting all payment cards causes an unenrol for each card which also deactivates all linked activations
+    # if a payment card was linked to 2 accounts its activations will not be deleted
+    user.delete_membership_cards(send_deactivation=False)
     user.delete_payment_cards()
 
     try:  # send user info to be persisted in Atlas
