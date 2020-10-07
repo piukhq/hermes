@@ -11,9 +11,9 @@ from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, PAYMEN
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation
-from ubiquity.tasks import deleted_membership_card_cleanup, deleted_payment_card_cleanup
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation, PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.tasks import deleted_membership_card_cleanup, deleted_payment_card_cleanup, deleted_service_cleanup
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
@@ -305,3 +305,102 @@ class TestVOP(APITestCase):
         self.assertEqual(resp.status_code, 200)
         link = PaymentCardSchemeEntry.objects.filter(pk=entry.pk)
         self.assertEqual(len(link), 0)
+
+    @patch('hermes.vop_tasks.send_activation.delay', autospec=True)
+    @patch('ubiquity.views.deleted_service_cleanup.delay', autospec=True)
+    @httpretty.activate
+    def test_unenrol_and_deactivate_on_service_delete(self, mock_delete, mock_activate):
+        """
+        :param mock_delete: Only the delay is mocked out allows call deleted_payment_card_cleanup with correct args
+        :param mock_activate: Only the delay is mocked out allows call send_activation with correct args
+
+        """
+        self.register_unenrol_request()
+
+        # Create a service and set up cards
+        user = UserFactory(external_id='test@delete.user', client=self.client_app, email='test@delete.user')
+        ServiceConsentFactory(user=user)
+        payment_card = PaymentCardFactory(slug="visa")
+        pcard_1 = PaymentCardAccountFactory(payment_card=payment_card)
+        pcard_2 = PaymentCardAccountFactory(payment_card=payment_card)
+        mcard_1 = SchemeAccountFactory()
+        mcard_2 = SchemeAccountFactory()
+
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_1.id)
+        PaymentCardAccountEntry.objects.create(user_id=user.id, payment_card_account_id=pcard_2.id)
+
+        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_1.id)
+        SchemeAccountEntry.objects.create(user_id=user.id, scheme_account_id=mcard_2.id)
+
+        entry1 = PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_1,
+                                                       scheme_account=mcard_1, active_link=True)
+
+        entry2 = PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_2, scheme_account=mcard_2,
+                                                       active_link=True)
+
+        activation_ids = {}
+        # Run activations code for each entry
+        for entry in [entry1, entry2]:
+            pay_card_id = entry.payment_card_account.id
+            activation_ids[pay_card_id] = f"activation_id_{pay_card_id}"
+            self.register_activation_request(
+                {'response_status': 'Success', 'agent_response_code': 'Activate:SUCCESS',
+                 'agent_response_message': 'Success message;',
+                 'activation_id': activation_ids[pay_card_id]}
+            )
+
+            entry.vop_activate_check()
+            self.assertTrue(mock_activate.called)
+            # By pass celery delay to send activations by mocking delay getting parameters and calling without delay
+            args = mock_activate.call_args
+            send_activation(*args[0], **args[1])
+
+        activations = VopActivation.objects.all()
+        for activation in activations:
+            self.assertEqual(VopActivation.ACTIVATED, activation.status)
+            self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
+            print(activation.activation_id)
+
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
+        response = self.client.delete(reverse('service'), **auth_headers)
+        self.assertEqual(response.status_code, 200)
+
+        # By pass deleted_service_cleanup.delay by mocking delay getting parameters and calling without delay
+        clean_up_args = mock_delete.call_args
+        self.assertTrue(mock_delete.called)
+        deleted_service_cleanup(*clean_up_args[0], **clean_up_args[1])
+
+        activations = VopActivation.objects.all()
+        for activation in activations:
+            self.assertEqual(VopActivation.DEACTIVATING, activation.status)
+            self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
+            print(activation.activation_id)
+
+        # Now we have to simulate the metis call back by trapping request sent and compiling a success message
+        metis_requests = httpretty.latest_requests()
+
+        for metis_request in metis_requests:
+            if 'activate' not in metis_request.path:
+                metis_request_body = json.loads(metis_request.body)
+                # self.assertEqual(self.payment_card_account.id, metis_request_body['id'])
+                # self.assertEqual(self.payment_token, metis_request_body['payment_token'])
+                self.assertEqual('visa', metis_request_body['partner_slug'])
+                self.assertEqual(1, len(metis_request_body['activations']))
+                deactivated_list = []
+                for d in metis_request_body['activations'].keys():
+                    deactivated_list.append(int(d))
+
+                resp_data = {
+                    "id": self.payment_card_account.id, "response_state": "Success", "response_status": "Delete:SUCCESS",
+                    "response_message": "Request proceed successfully without error.;", "response_action": "Delete",
+                    "retry_id": -1, "deactivated_list": deactivated_list, "deactivate_errors": {}
+                }
+
+                resp = self.client.put(reverse('update_payment_card_account_status'), data=json.dumps(resp_data),
+                                       content_type='application/json', **self.service_headers)
+
+        activations = VopActivation.objects.all()
+        for activation in activations:
+            self.assertEqual(VopActivation.DEACTIVATED, activation.status)
+            self.assertEqual(activation_ids[activation.payment_card_account.id], activation.activation_id)
+            print(activation.activation_id)

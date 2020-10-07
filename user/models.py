@@ -306,13 +306,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         SchemeAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
         self.schemeaccountentry_set.all().delete()
 
-    def delete_payment_cards(self) -> None:
+    def delete_payment_cards(self, run_async=True) -> None:
         cards_to_delete = []
         for card in self.payment_card_account_set.prefetch_related('user_set').all():
             if card.user_set.count() == 1:
                 card.is_deleted = True
                 cards_to_delete.append(card)
-                metis.delete_payment_card(card)
+                metis.delete_payment_card(card, run_async=run_async)
 
         PaymentCardSchemeEntry.objects.filter(
             payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()

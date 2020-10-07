@@ -258,7 +258,7 @@ def deleted_service_cleanup(user_id: int, consent: dict) -> None:
     # Deleting all payment cards causes an unenrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
     user.delete_membership_cards(send_deactivation=False)
-    user.delete_payment_cards()
+    user.delete_payment_cards(run_async=False)
 
     try:  # send user info to be persisted in Atlas
         _send_data_to_atlas(consent)
