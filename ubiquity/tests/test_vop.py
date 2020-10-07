@@ -1,9 +1,6 @@
 import json
 from unittest.mock import patch
 
-import json
-from unittest.mock import patch
-
 import httpretty
 from django.conf import settings
 from hermes.vop_tasks import send_activation, send_deactivation
