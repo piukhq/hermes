@@ -928,15 +928,58 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             f'could not find the manual question for scheme: {scheme_slug}.'
         )
 
+    @staticmethod
+    def _match_scheme_question_fields(field_name, data, questions):
+        """
+        Method is to check what's being passed in matches the SchemeCredentialQuestion model.
+        Raises a ValidationError is a mismatch is found.
+        example:
+        add_fields - {'column': 'card_number', 'value': 'xxxxxx'}
+        model - card_number - add_field: False, auth_field: True
+        """
+        field_name_mapping = {
+            'add_fields': 'add_field',
+            'authorise_fields': 'auth_field',
+            'registration_fields': 'register_field',
+            'enrol_fields': 'enrol_field'
+        }
+
+        fields = data['account'].get(field_name, [])
+        lables = [x['label'] for x in questions]
+
+        valid_columns = []
+
+        # Get a list of questions that matches the field_name and is True
+        for question in questions:
+            if question[field_name_mapping[field_name]]:
+                valid_columns.append(question['label'])
+
+        for field in fields:
+            # Exclude anything that's not part of the scheme credential questions.
+            if field['column'] not in lables:
+                continue
+            if field['column'] not in valid_columns:
+                raise ValidationError('Column does not match field type.')
+
     def _collect_credentials_answers(
         self, data: dict, scheme: Scheme
     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
         try:
             scheme_questions = scheme.questions.all()
+            question_types = scheme_questions.values(
+                'label',
+                'add_field',
+                'auth_field',
+                'register_field',
+                'enrol_field'
+            )
             label_to_type = scheme.get_question_type_dict(scheme_questions)
             fields = {}
 
             for field_name in self.create_update_fields:
+                # Checks what being passed in matched the scheme question
+                # create, update fields (add, auth, register, enrol)
+                self._match_scheme_question_fields(field_name, data, question_types)
                 fields[field_name] = self._extract_consent_data(scheme, field_name, data)
                 fields[field_name].update(self._collect_field_content(field_name, data, label_to_type))
 
