@@ -21,9 +21,7 @@ omit = *migrations*
        ubiquity/influx_audit.py
        manage.py
        setup.py
-       daedalus_messaging/broker.py
-       daedalus_messaging/message_config.py
-       daedalus_messaging/signals.py
+       daedalus_messaging*
        gunicorn.py
 branch = True
 

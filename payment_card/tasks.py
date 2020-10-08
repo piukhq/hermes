@@ -9,6 +9,7 @@ from hermes.tasks import RetryTaskStore
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
+from ubiquity.models import VopActivation
 from requests import request, HTTPError
 from scheme.models import SchemeAccount
 
@@ -57,6 +58,17 @@ def expired_payment_void_task() -> None:
         except PaymentError:
             transaction_data = {'scheme_acc_id': payment_audit.scheme_account_id}
             task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
+
+
+@shared_task
+def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, payload: dict) -> None:
+    payload['activations'] = VopActivation.deactivation_dict_by_payment_card_id(payload['id'])
+    args = (
+        method,
+        endpoint,
+        payload,
+    )
+    metis_request(*args)
 
 
 @shared_task

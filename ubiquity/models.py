@@ -52,7 +52,7 @@ class VopActivation(models.Model):
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.PROTECT,
                                              verbose_name="Associated VOP Payment Card Account")
     scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT, verbose_name="Associated Scheme")
-    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status')
+    status = models.IntegerField(choices=VOP_STATUS, default=1, help_text='Activation Status', db_index=True)
 
     class Meta:
         constraints = [
@@ -74,6 +74,27 @@ class VopActivation(models.Model):
             except ObjectDoesNotExist:
                 pass
         return activations
+
+    @classmethod
+    def deactivation_dict_by_payment_card_id(cls, payment_card_account_id):
+        """Find activations matching account id and return a serializable object"""
+        activation_dict = {}
+
+        activations = cls.objects.filter(
+                payment_card_account_id=payment_card_account_id,
+                status=cls.ACTIVATED
+        )
+
+        for activation in activations:
+            activation_id = activation.activation_id
+            activation_dict[activation.id] = {
+                'scheme': activation.scheme.slug,
+                'activation_id': activation_id
+            }
+
+        activations.update(status=VopActivation.DEACTIVATING)
+
+        return activation_dict
 
 
 class PaymentCardSchemeEntry(models.Model):
