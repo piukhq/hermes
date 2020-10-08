@@ -2,7 +2,7 @@ import arrow
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
 from payment_card.models import PaymentCardAccount
-from payment_card.tasks import metis_request
+from payment_card.tasks import metis_request, metis_delete_cards_and_activations
 
 
 def _generate_card_json(account: 'PaymentCardAccount', retry_id: int = -1) -> dict:
@@ -44,15 +44,12 @@ def update_payment_card(account: 'PaymentCardAccount', run_async: bool = True, r
 
 
 def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True, retry_id: int = -1) -> None:
-    args = (
-        RequestMethod.DELETE,
-        '/payment_service/payment_card',
-        _generate_card_json(account, retry_id)
-    )
+    url = '/payment_service/payment_card'
+    payload = _generate_card_json(account, retry_id)
     if run_async:
-        metis_request.delay(*args)
+        metis_delete_cards_and_activations.delay(RequestMethod.DELETE, url, payload)
     else:
-        metis_request(*args)
+        metis_delete_cards_and_activations(RequestMethod.DELETE, url, payload)
 
 
 def retry_delete_payment_card(data):
