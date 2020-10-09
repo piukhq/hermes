@@ -3,6 +3,7 @@ from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
 from payment_card.models import PaymentCardAccount
 from payment_card.tasks import metis_request, metis_delete_cards_and_activations
+from ubiquity.models import VopActivation
 
 
 def _generate_card_json(account: 'PaymentCardAccount', retry_id: int = -1) -> dict:
@@ -43,20 +44,21 @@ def update_payment_card(account: 'PaymentCardAccount', run_async: bool = True, r
         metis_request(*args)
 
 
-def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True, retry_id: int = -1) -> None:
+def delete_payment_card(account: 'PaymentCardAccount', run_async: bool = True, retry_id: int = -1,
+                        status: object = VopActivation.ACTIVATED) -> None:
     url = '/payment_service/payment_card'
     payload = _generate_card_json(account, retry_id)
     if run_async:
-        metis_delete_cards_and_activations.delay(RequestMethod.DELETE, url, payload)
+        metis_delete_cards_and_activations.delay(RequestMethod.DELETE, url, payload, status)
     else:
-        metis_delete_cards_and_activations(RequestMethod.DELETE, url, payload)
+        metis_delete_cards_and_activations(RequestMethod.DELETE, url, payload, status)
 
 
 def retry_delete_payment_card(data):
     # Metis card check ensures retry callbacks are from delete retry providers eg VOP
     retry_obj = data["periodic_retry_obj"]
-    account = PaymentCardAccount.objects.get(id=data['context']['card_id'])
-    delete_payment_card(account, retry_id=retry_obj.id)
+    account = PaymentCardAccount.all_objects.get(id=data['context']['card_id'])
+    delete_payment_card(account, retry_id=retry_obj.id, status=VopActivation.DEACTIVATING)
 
 
 def retry_enrol(data):
