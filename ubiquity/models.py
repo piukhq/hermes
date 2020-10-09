@@ -76,7 +76,7 @@ class VopActivation(models.Model):
         return activations
 
     @classmethod
-    def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=cls.ACTIVATED):
+    def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=ACTIVATED):
         """Find activations matching account id and return a serializable object"""
         activation_dict = {}
 

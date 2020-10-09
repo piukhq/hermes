@@ -3,6 +3,7 @@ from payment_card.enums import RequestMethod
 from payment_card.models import PaymentCard
 from payment_card.models import PaymentCardAccount
 from payment_card.tasks import metis_request, metis_delete_cards_and_activations
+from ubiquity.models import VopActivation
 
 
 def _generate_card_json(account: 'PaymentCardAccount', retry_id: int = -1) -> dict:
