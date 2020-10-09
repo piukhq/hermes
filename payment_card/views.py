@@ -373,7 +373,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             deactivate_errors = request.data.get('deactivate_errors', {})
             if deactivate_errors:
                 response_message = "".join([response_message, "Deactivation Errors"])
-                response_message = ";".join([response_message, [v for v in deactivate_errors.values()]])
+                deactivate_error_str = [v for v in deactivate_errors.values()]
+                response_message = ";".join([response_message, deactivate_error_str])
 
             if deactivated_list:
                 VopActivation.objects.filter(id__in=deactivated_list).update(status=VopActivation.DEACTIVATED)
