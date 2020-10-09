@@ -61,8 +61,9 @@ def expired_payment_void_task() -> None:
 
 
 @shared_task
-def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, payload: dict) -> None:
-    payload['activations'] = VopActivation.deactivation_dict_by_payment_card_id(payload['id'])
+def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, payload: dict,
+                                       status: object = VopActivation.ACTIVATED) -> None:
+    payload['activations'] = VopActivation.deactivation_dict_by_payment_card_id(payload['id'], status)
     args = (
         method,
         endpoint,
