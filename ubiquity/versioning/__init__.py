@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 from hermes.settings import Version, DEFAULT_API_VERSION
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
+from ubiquity.versioning.v1_3 import serializers as v1_3_serializers
+
 
 if TYPE_CHECKING:
     from rest_framework.serializers import Serializer
@@ -15,7 +17,8 @@ logger = logging.getLogger(__name__)
 SERIALIZERS_CLASSES = {
     Version.v1_0: base_serializers,
     Version.v1_1: base_serializers,
-    Version.v1_2: v1_2_serializers
+    Version.v1_2: v1_2_serializers,
+    Version.v1_3: v1_3_serializers,
 }
 
 
