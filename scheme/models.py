@@ -55,7 +55,6 @@ slug_regex = re.compile(r'^[a-z0-9\-]+$')
 hex_colour_re = re.compile('^#((?:[0-F]{3}){1,2})$', re.IGNORECASE)
 validate_hex_colour = RegexValidator(
     hex_colour_re,
-    # Translators: "letters" means latin letters: a-z and A-Z.
     _("Enter a valid 'colour' in hexadecimal format e.g \"#112233\"")
 )
 

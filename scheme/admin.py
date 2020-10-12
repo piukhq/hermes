@@ -1,5 +1,3 @@
-import re
-
 from common.admin import InputFilter
 from django.conf import settings
 from django.contrib import admin

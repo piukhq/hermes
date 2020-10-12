@@ -1,7 +1,10 @@
 import logging
+from typing import TYPE_CHECKING
 
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
+if TYPE_CHECKING:
+    from scheme.models import Scheme
 
 logger = logging.getLogger(__name__)
 

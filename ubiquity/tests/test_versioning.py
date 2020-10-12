@@ -77,7 +77,8 @@ class TestResources(APITestCase):
         cls.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': "application/vnd.bink+jso"}
         cls.headers_no_ver = auth_header
 
-    def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver, resp_wrong_format):
+    def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver,
+                                  resp_wrong_format):
         self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
         self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
         self.assertEqual(resp_v1_3.get('X-API-Version'), '1.3')
