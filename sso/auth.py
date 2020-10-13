@@ -1,6 +1,12 @@
+from urllib.parse import urlencode
+
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend, LOGGER
+from mozilla_django_oidc.views import OIDCAuthenticationRequestView, get_next_url
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth.models import Group
+from django.utils.crypto import get_random_string
+from django.http import HttpResponseRedirect
+from mozilla_django_oidc.utils import add_state_and_nonce_to_session
 
 
 class SSOAuthBackend(OIDCAuthenticationBackend):
@@ -73,3 +79,35 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             ro.user_set.add(user)
 
         user.save()
+
+
+# The absolute url function does not take into account the X-Forwarded headers :/
+class CustomOIDCAuthenticationRequestView(OIDCAuthenticationRequestView):
+    def get(self, request):
+        """OIDC client authentication initialization HTTP endpoint"""
+        state = get_random_string(self.get_settings('OIDC_STATE_SIZE', 32))
+        redirect_field_name = self.get_settings('OIDC_REDIRECT_FIELD_NAME', 'next')
+        reply_url = self.get_settings('OIDC_RP_REPLY_URL')
+        params = {
+            'response_type': 'code',
+            'scope': self.get_settings('OIDC_RP_SCOPES', 'openid email'),
+            'client_id': self.OIDC_RP_CLIENT_ID,
+            'redirect_uri': reply_url,
+            'state': state,
+        }
+
+        params.update(self.get_extra_params(request))
+
+        if self.get_settings('OIDC_USE_NONCE', True):
+            nonce = get_random_string(self.get_settings('OIDC_NONCE_SIZE', 32))
+            params.update({
+                'nonce': nonce
+            })
+
+        add_state_and_nonce_to_session(request, state, params)
+
+        request.session['oidc_login_next'] = get_next_url(request, redirect_field_name)
+
+        query = urlencode(params)
+        redirect_url = '{url}?{query}'.format(url=self.OIDC_OP_AUTH_ENDPOINT, query=query)
+        return HttpResponseRedirect(redirect_url)

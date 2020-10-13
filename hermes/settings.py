@@ -526,6 +526,8 @@ SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 # OIDC SSO
 SSO_OFF = env_var('SSO_OFF', 'False')
 LOGIN_REDIRECT_URL = "/admin/"
+OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
+OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
 OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "cf6d5fc9-f503-442e-9dec-2cdf714143db")
 OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "Y35e1b~qGQ4X02-sfs3638Wy1Zxb.-.tl2")
 OIDC_RP_SIGN_ALGO = "RS256"
