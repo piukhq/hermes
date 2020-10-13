@@ -249,9 +249,11 @@ class SchemeImageFactory(factory.django.DjangoModelFactory):
     image_type_code = 1
     size_code = fake.word()
     image = fake.url()
+    dark_mode_image = fake.url()
     strap_line = fake.sentence(nb_words=3)[:Meta.model._meta.get_field('strap_line').max_length - 1]
     description = fake.sentence(nb_words=3)
     url = fake.url()
+    dark_mode_url = fake.url()
     call_to_action = fake.sentence(nb_words=3)
     order = 0
     status = 1

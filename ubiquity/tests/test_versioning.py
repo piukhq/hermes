@@ -6,7 +6,8 @@ from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
-                                    SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory)
+                                    SchemeCredentialQuestionFactory, SchemeFactory, SchemeBundleAssociationFactory,
+                                    SchemeImageFactory)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
@@ -38,6 +39,7 @@ class TestResources(APITestCase):
         external_id = 'test@user.com'
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
         cls.scheme = SchemeFactory()
+        cls.scheme_image = SchemeImageFactory(scheme=cls.scheme, image_type_code=3)
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True)
@@ -117,3 +119,16 @@ class TestResources(APITestCase):
         resp_wrong_format = self.client.get(reverse('membership-cards'), **self.resp_wrong_format)
 
         self._check_versioned_response(resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver, resp_wrong_format)
+
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    def test_membership_card_dark_mode_url(self, *_):
+        resp_v1_2 = self.client.get(reverse('membership-cards'), **self.headers_v1_2)
+        resp_v1_3 = self.client.get(reverse('membership-cards'), **self.headers_v1_3)
+
+        image_v1_2 = resp_v1_2.json()[0]['images'][0]
+        image_v1_3 = resp_v1_3.json()[0]['images'][0]
+
+        self.assertNotIn('dark_mode_url', image_v1_2)
+        self.assertIn('dark_mode_url', image_v1_3)
