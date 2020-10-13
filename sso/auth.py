@@ -2,6 +2,7 @@ from mozilla_django_oidc.auth import OIDCAuthenticationBackend, LOGGER
 from mozilla_django_oidc.views import OIDCAuthenticationRequestView
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth.models import Group
+from mozilla_django_oidc.utils import add_state_and_nonce_to_session
 
 
 class SSOAuthBackend(OIDCAuthenticationBackend):
