@@ -63,7 +63,8 @@ CURRENT_STATUS_CODES = (
     (902, "Registration Failed"),
 )
 
-# status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will not have any reason code associated with them.
+# status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will not have any reason code associated with them
+# as they will be mapped to either pending or active via the `get_translated_status()` function.
 reason_code_translation = {
     0: ["X100"],
     1: ["X300"],
