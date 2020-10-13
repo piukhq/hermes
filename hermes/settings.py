@@ -59,13 +59,13 @@ LOCAL_APPS = (
 )
 
 INSTALLED_APPS = (
+    'django_admin_env_notice',
     'sso.apps.AADAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_admin_env_notice',
     'mozilla_django_oidc',
     'rest_framework',
     'corsheaders',
