@@ -1,7 +1,11 @@
+from urllib.parse import urlencode
+
 from mozilla_django_oidc.auth import OIDCAuthenticationBackend, LOGGER
 from mozilla_django_oidc.views import OIDCAuthenticationRequestView
 from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth.models import Group
+from django.utils.crypto import get_random_string
+from django.http import HttpResponseRedirect
 from mozilla_django_oidc.utils import add_state_and_nonce_to_session
 
 
