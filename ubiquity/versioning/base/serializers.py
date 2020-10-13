@@ -14,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
+from ubiquity.reason_codes import get_state_and_reason_code
 
 from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -25,7 +26,6 @@ from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnsw
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
-from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
@@ -583,12 +583,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             else:
                 status = instance.PENDING
 
+        state, reason_codes = get_state_and_reason_code(status)
         return {
-            'state': ubiquity_status_translation[status],
-            'reason_codes': [
-                reason_code_translation[code] for code in [status]
-                if reason_code_translation[code] is not None
-            ]
+            "state": state,
+            "reason_codes": reason_codes
         }
 
     @staticmethod
