@@ -1,7 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
+from django.forms import ModelForm
 
-from scheme.models import Scheme, Consent, JourneyTypes
+from scheme.models import Scheme, Consent, JourneyTypes, validate_hex_colour, slug_regex
 
 
 class CSVUploadForm(forms.Form):
@@ -42,3 +43,33 @@ class ConsentForm(forms.ModelForm):
                 raise ValidationError('Consent with this Slug, Scheme and Journey already exists.')
 
         return cleaned_data
+
+
+class SchemeForm(ModelForm):
+    secondary_colour = forms.CharField(validators=[validate_hex_colour], required=False,
+                                       help_text='Hex string e.g "#112233"')
+
+    class Meta:
+        model = Scheme
+        fields = '__all__'
+
+    def clean(self):
+        cleaned_data = super().clean()
+        return cleaned_data
+
+    def clean_point_name(self):
+        point_name = self.cleaned_data['point_name']
+        points_value_length = self.cleaned_data['max_points_value_length']
+
+        if len(point_name) + points_value_length + 1 > Scheme.MAX_POINTS_VALUE_LENGTH:
+            raise ValidationError('The length of the point name added to the maximum points value length must not '
+                                  'exceed {}'.format(Scheme.MAX_POINTS_VALUE_LENGTH - 1))
+
+        return point_name
+
+    def clean_slug(self):
+        slug = self.cleaned_data['slug']
+        if slug_regex.match(slug):
+            return slug
+        else:
+            raise ValidationError('Slug can only contain lowercase letters, hyphens and numbers')

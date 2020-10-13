@@ -59,8 +59,11 @@ class MembershipPlanDocumentAdmin(admin.ModelAdmin):
 
 @admin.register(VopActivation)
 class VopActivationAdmin(admin.ModelAdmin):
-    list_display = ('scheme', 'payment_card_account', 'status', 'activation_id')
+    list_display = ('scheme', 'payment_card_account', 'pay_card_id', 'status', 'activation_id')
     search_fields = ('scheme__name', 'scheme__slug', 'payment_card_account__psp_token',
                      'payment_card_account__pan_start', 'payment_card_account__pan_end',
-                     'status')
+                     'payment_card_account__id', 'status')
     raw_id_fields = ('scheme', 'payment_card_account')
+
+    def pay_card_id(self, obj):
+        return obj.payment_card_account.id

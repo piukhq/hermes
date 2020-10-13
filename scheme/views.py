@@ -27,7 +27,7 @@ from scheme.forms import CSVUploadForm
 from scheme.mixins import (IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            SwappableSerializerMixin, UpdateCredentialsMixin)
 from scheme.models import (ConsentStatus, Exchange, Scheme, SchemeAccount, SchemeAccountImage, SchemeImage,
-                           UserConsent, SchemeBundleAssociation)
+                           UserConsent)
 from scheme.serializers import (CreateSchemeAccountSerializer, DeleteCredentialSerializer, DonorSchemeSerializer,
                                 GetSchemeAccountSerializer, JoinSerializer, ListSchemeAccountSerializer,
                                 QuerySchemeAccountSerializer, ReferenceImageSerializer,
@@ -271,10 +271,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
             filter_by['scheme__test_scheme'] = False
 
         exclude_by = {}
-        suspended_schemes = Scheme.objects.filter(
-            schemebundleassociation__bundle=channels_permit.bundle,
-            schemebundleassociation__status=SchemeBundleAssociation.SUSPENDED,
-        )
+        suspended_schemes = Scheme.get_suspended_schemes_by_bundle(channels_permit.bundle)
         if suspended_schemes:
             exclude_by = {
                 'scheme__in': suspended_schemes,
@@ -508,7 +505,7 @@ class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixi
         serializer.is_valid(raise_exception=True)
 
         scheme_account.transactions = serializer.validated_data
-        scheme_account.save()
+        scheme_account.save(update_fields=['transactions'])
 
         logger.info(f"Transactions updated for scheme account (id={scheme_account_id})")
         return Response({

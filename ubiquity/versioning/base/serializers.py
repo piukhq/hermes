@@ -1,3 +1,4 @@
+import logging
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 from os.path import join
@@ -13,6 +14,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
+from ubiquity.reason_codes import get_state_and_reason_code
 
 from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
@@ -21,12 +23,16 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
+from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
+from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
-from ubiquity.reason_codes import reason_code_translation, ubiquity_status_translation
 from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
     from scheme.models import SchemeAccount
+    from requests import Response
+
+logger = logging.getLogger(__name__)
 
 
 def _add_base_media_url(image: dict) -> dict:
@@ -44,6 +50,16 @@ def _add_base_media_url(image: dict) -> dict:
 class MembershipTransactionsMixin:
 
     @staticmethod
+    def hades_request(url: str, method: str = "GET", **kwargs) -> 'Response':
+        session = retry_session()
+        try:
+            resp = session.request(method, url, **kwargs)
+            resp.raise_for_status()
+            return resp
+        except requests.RequestException:
+            logger.exception("Failed request to Hades")
+
+    @staticmethod
     def _get_auth_token(user_id):
         payload = {
             'sub': user_id
@@ -54,7 +70,7 @@ class MembershipTransactionsMixin:
     def _get_hades_transactions(self, user_id, mcard_id):
         url = '{}/transactions/scheme_account/{}?page_size=5'.format(settings.HADES_URL, mcard_id)
         headers = {'Authorization': self._get_auth_token(user_id), 'Content-Type': 'application/json'}
-        resp = requests.get(url, headers=headers)
+        resp = self.hades_request(url, headers=headers)
         return resp.json() if resp.status_code == 200 else []
 
     def get_transactions_id(self, user_id, mcard_id):
@@ -567,12 +583,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             else:
                 status = instance.PENDING
 
+        state, reason_codes = get_state_and_reason_code(status)
         return {
-            'state': ubiquity_status_translation[status],
-            'reason_codes': [
-                reason_code_translation[code] for code in [status]
-                if reason_code_translation[code] is not None
-            ]
+            "state": state,
+            "reason_codes": reason_codes
         }
 
     @staticmethod
@@ -620,7 +634,14 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
 
         if instance.vouchers is not None:
-            card_repr["vouchers"] = instance.vouchers
+            vouchers = instance.vouchers
+            for voucher in instance.vouchers:
+                if voucher.get('code'):
+                    if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
+                        voucher['code'] = ""
+                else:
+                    continue
+            card_repr["vouchers"] = vouchers
 
         return card_repr
 
@@ -635,7 +656,7 @@ class LinkMembershipCardSerializer(SchemeAnswerSerializer):
         scheme = self.context['view'].current_scheme
         scheme_questions = self.context['view'].scheme_questions
         if not scheme:
-            scheme = Scheme.objects.get(pk=data['scheme'])
+            scheme = Scheme.get_scheme_and_questions_by_scheme_id(data['scheme'])
 
         if scheme.id != data['scheme']:
             raise serializers.ValidationError("wrong scheme id")

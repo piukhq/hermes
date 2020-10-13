@@ -12,7 +12,17 @@ def remove_empty(d):
     if isinstance(d, list):
         return [v for v in (remove_empty(v) for v in d) if is_not_empty(v)]
 
-    return {k: v for k, v in ((k, remove_empty(v)) for k, v in d.items()) if is_not_empty(v)}
+    data = {}
+
+    # Excluding code. We still want to return the code fields and not remove it.
+    # This is for cancelled, redeemed and expired vouchers.
+    for k, v in d.items():
+        if k == 'code':
+            data[k] = v
+        else:
+            if is_not_empty(v):
+                data[k] = remove_empty(v)
+    return data
 
 
 def censor_and_decorate(func):

@@ -1,4 +1,6 @@
+import logging
 import typing as t
+from enum import Enum
 
 import arrow
 import requests
@@ -8,6 +10,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
+import analytics
 from hermes.vop_tasks import activate, deactivate
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
@@ -19,6 +22,13 @@ from user.models import CustomUser
 
 if t.TYPE_CHECKING:
     from rest_framework.serializers import Serializer
+
+logger = logging.getLogger(__name__)
+
+
+class UpdateCardType(Enum):
+    PAYMENT_CARD = PaymentCardAccount
+    MEMBERSHIP_CARD = SchemeAccount
 
 
 # Call back retry tasks for activation and deactivation - called from background
@@ -44,12 +54,16 @@ def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
 
 
 @shared_task
-def async_link(auth_fields: dict, scheme_account_id: int, user_id: int) -> None:
+def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_cards_to_link: list) -> None:
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     try:
         serializer = LinkSchemeSerializer(data=auth_fields, context={'scheme_account': scheme_account})
         BaseLinkMixin.link_account(serializer, scheme_account, user)
+
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
@@ -67,13 +81,16 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
 
 
 @shared_task
-def async_add_field_only_link(instance_id: int) -> None:
+def async_add_field_only_link(user_id: int, instance_id: int, payment_cards_to_link: list) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.get_cached_balance()
 
     if scheme_account.status == SchemeAccount.ACTIVE:
         scheme_account.link_date = timezone.now()
         scheme_account.save(update_fields=['link_date'])
+
+    if payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task
@@ -94,11 +111,13 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
-               validated_data: dict, channel: str) -> None:
+               validated_data: dict, channel: str, payment_cards_to_link: list) -> None:
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
-
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
+
+    if payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task
@@ -193,6 +212,40 @@ def deleted_payment_card_cleanup(payment_card_id: t.Optional[int], payment_card_
     pll_links.delete()
 
 
+@shared_task
+def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, user_id: int) -> None:
+    scheme_account = SchemeAccount.all_objects.get(id=scheme_account_id)
+    user = CustomUser.objects.get(id=user_id)
+    scheme_slug = scheme_account.scheme.slug
+
+    pll_links = PaymentCardSchemeEntry.objects.filter(
+        scheme_account_id=scheme_account.id
+    ).prefetch_related('scheme_account')
+    entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
+
+    if entries_query.count() <= 0:
+        scheme_account.is_deleted = True
+        scheme_account.save(update_fields=['is_deleted'])
+
+        if user.client_id == settings.BINK_CLIENT_ID:
+            analytics.update_scheme_account_attribute(
+                scheme_account,
+                user,
+                old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
+
+    else:
+        m_card_users = entries_query.values_list('user_id', flat=True)
+        pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
+
+    activations = VopActivation.find_activations_matching_links(pll_links)
+    pll_links.delete()
+
+    if scheme_slug in settings.SCHEMES_COLLECTING_METRICS:
+        send_merchant_metrics_for_link_delete.delay(scheme_account.id, scheme_slug, delete_date, 'delete')
+
+    PaymentCardSchemeEntry.deactivate_activations(activations)
+
+
 def _send_data_to_atlas(consent: dict) -> None:
     url = f"{settings.ATLAS_URL}/audit/ubiquity_user/save"
     headers = {
@@ -210,10 +263,157 @@ def _send_data_to_atlas(consent: dict) -> None:
 def deleted_service_cleanup(user_id: int, consent: dict) -> None:
     user = CustomUser.all_objects.get(id=user_id)
     user.serviceconsent.delete()
-    user.delete_membership_cards()
-    user.delete_payment_cards()
+    # Don't deactivate when removing membership card as it will race with delete payment card
+    # Deleting all payment cards causes an unenrol for each card which also deactivates all linked activations
+    # if a payment card was linked to 2 accounts its activations will not be deleted
+    user.delete_membership_cards(send_deactivation=False)
+    user.delete_payment_cards(run_async=False)
 
     try:  # send user info to be persisted in Atlas
         _send_data_to_atlas(consent)
     except Exception:
         sentry_sdk.capture_exception()
+
+
+def _update_one_card_with_many_new_pll_links(
+    card_to_update: t.Union[PaymentCardAccount, SchemeAccount],
+    new_links_ids: list
+) -> None:
+    card_to_update.refresh_from_db(fields=['pll_links'])
+    existing_links = [
+        link['id']
+        for link in card_to_update.pll_links
+    ]
+    card_to_update.pll_links.extend(
+        [
+            {'id': card_id, 'active_link': True}
+            for card_id in new_links_ids
+            if card_id not in existing_links
+        ]
+    )
+    card_to_update.save(update_fields=['pll_links'])
+
+
+def _update_many_cards_with_one_new_pll_link(
+    card_model: UpdateCardType,
+    cards_to_update_ids: list,
+    new_link_id: int,
+) -> None:
+    updated_cards = []
+    for card in card_model.value.objects.filter(id__in=cards_to_update_ids).all():
+        if new_link_id not in [link['id'] for link in card.pll_links]:
+            card.pll_links.append({'id': new_link_id, 'active_link': True})
+            updated_cards.append(card)
+
+    card_model.value.objects.bulk_update(updated_cards, ['pll_links'])
+
+
+@shared_task
+def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
+    if isinstance(membership_card, int):
+        membership_card = SchemeAccount.objects.get(id=membership_card)
+
+    # the next two queries are meant to prevent more than one join and to avoid lookups with too many results.
+    # they are executed as a single complex query by django.
+    excluded_payment_cards = PaymentCardSchemeEntry.objects.filter(
+        payment_card_account_id__in=payment_cards_to_link,
+        scheme_account__is_deleted=False,
+        scheme_account__scheme_id=membership_card.scheme_id
+    ).values_list(
+        'payment_card_account_id', flat=True
+    )
+
+    payment_cards_to_link = PaymentCardAccount.all_objects.filter(
+        id__in=payment_cards_to_link,
+        is_deleted=False
+    ).exclude(
+        id__in=excluded_payment_cards
+    ).all()
+
+    link_entries_to_create = []
+    pll_activated_payment_cards = []
+    for payment_card in payment_cards_to_link:
+        entry = PaymentCardSchemeEntry(
+            scheme_account=membership_card,
+            payment_card_account=payment_card
+        ).get_instance_with_active_status()
+        link_entries_to_create.append(entry)
+        if entry.active_link is True:
+            pll_activated_payment_cards.append(payment_card.id)
+
+    PaymentCardSchemeEntry.objects.bulk_create(link_entries_to_create, batch_size=100, ignore_conflicts=True)
+    logger.info(
+        "auto-linked SchemeAccount %s to PaymentCardAccounts %s, of which %s were active links",
+        membership_card.id,
+        [card.id for card in payment_cards_to_link],
+        len(pll_activated_payment_cards)
+    )
+    logger.debug("SchemeAccount %s status: %s", membership_card.id, membership_card.status)
+
+    _update_one_card_with_many_new_pll_links(
+        membership_card,
+        pll_activated_payment_cards
+    )
+    _update_many_cards_with_one_new_pll_link(
+        UpdateCardType.PAYMENT_CARD,
+        pll_activated_payment_cards,
+        membership_card.id
+    )
+
+
+@shared_task
+def auto_link_payment_to_memberships(
+    wallet_scheme_accounts: list,
+    payment_card_account: t.Union[PaymentCardAccount, int],
+    just_created: bool
+) -> None:
+
+    if isinstance(payment_card_account, int):
+        payment_card_account = PaymentCardAccount.objects.get(pk=payment_card_account)
+
+    if isinstance(wallet_scheme_accounts[0], int):
+        wallet_scheme_accounts = SchemeAccount.objects.filter(id__in=wallet_scheme_accounts).all()
+
+    if just_created:
+        already_linked_scheme_ids = []
+    else:
+        already_linked_scheme_ids = PaymentCardSchemeEntry.objects.filter(
+            payment_card_account=payment_card_account
+        ).values_list('scheme_account__scheme_id', flat=True)
+
+    cards_by_scheme_ids = {}
+    instances_to_bulk_create = {}
+
+    for scheme_account in wallet_scheme_accounts:
+        scheme_id = scheme_account.scheme_id
+        link = PaymentCardSchemeEntry(scheme_account=scheme_account, payment_card_account=payment_card_account)
+        if scheme_id not in already_linked_scheme_ids:
+            if scheme_id in cards_by_scheme_ids:
+                if cards_by_scheme_ids[scheme_id] > scheme_account.id:
+                    cards_by_scheme_ids[scheme_id] = scheme_account.id
+                    instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+            else:
+                cards_by_scheme_ids[scheme_id] = scheme_account.id
+                instances_to_bulk_create[scheme_id] = link.get_instance_with_active_status()
+
+    pll_activated_membership_cards = [
+        link.scheme_account_id
+        for link in instances_to_bulk_create.values()
+        if link.active_link is True
+    ]
+
+    PaymentCardSchemeEntry.objects.bulk_create(
+        instances_to_bulk_create.values(),
+        batch_size=100,
+        ignore_conflicts=True
+    )
+
+    _update_one_card_with_many_new_pll_links(
+        payment_card_account,
+        pll_activated_membership_cards
+    )
+    _update_many_cards_with_one_new_pll_link(
+        UpdateCardType.MEMBERSHIP_CARD,
+        pll_activated_membership_cards,
+        payment_card_account.id
+    )

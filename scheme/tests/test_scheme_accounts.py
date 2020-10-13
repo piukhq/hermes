@@ -128,52 +128,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(200, resp.status_code)
         self.assertEqual(0, len(resp.json()))
 
-    @patch('analytics.api._send_to_mnemosyne')
-    def test_join_account(self, mock_send_to_mnemosyne):
-        join_scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
-        join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.JOIN)
-        SchemeAccountEntryFactory(scheme_account=join_account, user=self.user)
-        SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-
-        response = self.client.post('/schemes/accounts', data={
-            'scheme': join_scheme.id,
-            'order': 0,
-            question: 'test',
-        }, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 201)
-
-        data = response.json()
-        self.assertEqual(data['id'], join_account.id)
-        self.assertEqual(data['order'], 0)
-        self.assertEqual(data['scheme'], join_scheme.id)
-        self.assertEqual(data['username'], 'test')
-        self.assertTrue(mock_send_to_mnemosyne.called)
-
-    @patch('analytics.api._send_to_mnemosyne')
-    def test_join_account_with_error_join_card(self, mock_send_to_mnemosyne):
-        join_scheme = SchemeFactory()
-        question = SchemeCredentialQuestionFactory(scheme=join_scheme, type=USER_NAME, manual_question=True)
-        join_account = SchemeAccountFactory(scheme=join_scheme, status=SchemeAccount.CARD_NOT_REGISTERED)
-        SchemeAccountEntryFactory(scheme_account=join_account, user=self.user)
-        SchemeBundleAssociationFactory(scheme=join_scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE)
-
-        response = self.client.post('/schemes/accounts', data={
-            'scheme': join_scheme.id,
-            'order': 0,
-            question: 'test',
-        }, **self.auth_headers)
-
-        self.assertEqual(response.status_code, 201)
-
-        data = response.json()
-        self.assertEqual(data['id'], join_account.id)
-        self.assertEqual(data['order'], 0)
-        self.assertEqual(data['scheme'], join_scheme.id)
-        self.assertEqual(data['username'], 'test')
-        self.assertTrue(mock_send_to_mnemosyne.called)
-
     def test_get_scheme_account(self):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
 

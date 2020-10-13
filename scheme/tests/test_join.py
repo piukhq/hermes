@@ -70,7 +70,11 @@ class TestJoinExisting(TestCase):
     def test_join_existing_account(self):
         """Joining an existing account on a new user causes a link to be set up"""
         MembershipCardView._handle_create_join_route(
-            self.new_user, None, self.scheme, {"email": self.join_email, "first_name": "test", "last_name": "user"}
+            self.new_user,
+            None,
+            self.scheme,
+            {"email": self.join_email, "first_name": "test", "last_name": "user"},
+            False
         )
 
         entries = SchemeAccountEntry.objects.all()
@@ -80,7 +84,11 @@ class TestJoinExisting(TestCase):
     def test_join_same_user_twice(self):
         """Joining an existing account on the same user causes a link to be set up"""
         MembershipCardView._handle_create_join_route(
-            self.old_user, None, self.scheme, {"email": self.join_email, "first_name": "test", "last_name": "user"}
+            self.old_user,
+            None,
+            self.scheme,
+            {"email": self.join_email, "first_name": "test", "last_name": "user"},
+            False
         )
 
         entries = SchemeAccountEntry.objects.all()

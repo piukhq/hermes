@@ -2,6 +2,7 @@ import base64
 import os
 import random
 import uuid
+from functools import lru_cache
 from string import ascii_letters, digits
 
 import arrow
@@ -10,8 +11,8 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import signals
 from django.db.models.fields import CharField
-from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from hashids import Hashids
@@ -145,8 +146,23 @@ class ClientApplicationBundle(models.Model):
     def is_authenticated():
         return True
 
+    @classmethod
+    @lru_cache(maxsize=32)
+    def get_bundle_by_bundle_id_and_org_name(cls, bundle_id: str, organisation_name: str) -> 'ClientApplicationBundle':
+        return cls.objects.select_related('client').get(
+            bundle_id=bundle_id, client__organisation__name=organisation_name
+        )
+
     def __str__(self):
         return '{} ({})'.format(self.bundle_id, self.client)
+
+
+def clear_bundle_lru_cache(sender, **kwargs):
+    sender.get_bundle_by_bundle_id_and_org_name.cache_clear()
+
+
+signals.post_save.connect(clear_bundle_lru_cache, sender=ClientApplicationBundle)
+signals.post_delete.connect(clear_bundle_lru_cache, sender=ClientApplicationBundle)
 
 
 class ClientApplicationKit(models.Model):
@@ -273,7 +289,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # def is_superuser(self):
     #     return self.is_superuser
 
-    def delete_membership_cards(self) -> None:
+    def delete_membership_cards(self, send_deactivation=True) -> None:
         cards_to_delete = []
         for card in self.scheme_account_set.prefetch_related('user_set').all():
             if card.user_set.count() == 1:
@@ -282,20 +298,21 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
         # VOP deactivate
         links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
-        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-        activations = VopActivation.find_activations_matching_links(vop_links)
+        if send_deactivation:
+            vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
+            activations = VopActivation.find_activations_matching_links(vop_links)
+            PaymentCardSchemeEntry.deactivate_activations(activations)
         links_to_remove.delete()
         SchemeAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
-        PaymentCardSchemeEntry.deactivate_activations(activations)
         self.schemeaccountentry_set.all().delete()
 
-    def delete_payment_cards(self) -> None:
+    def delete_payment_cards(self, run_async=True) -> None:
         cards_to_delete = []
         for card in self.payment_card_account_set.prefetch_related('user_set').all():
             if card.user_set.count() == 1:
                 card.is_deleted = True
                 cards_to_delete.append(card)
-                metis.delete_payment_card(card)
+                metis.delete_payment_card(card, run_async=run_async)
 
         PaymentCardSchemeEntry.objects.filter(
             payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
@@ -361,7 +378,7 @@ class Referral(models.Model):
         return "{0} referred {1}".format(self.referrer, self.recipient)
 
 
-@receiver(post_save, sender=CustomUser)
+@receiver(signals.post_save, sender=CustomUser)
 def create_user_detail(sender, instance, created, **kwargs):
     if created:
         UserDetail.objects.create(user=instance)

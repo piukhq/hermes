@@ -9,7 +9,8 @@ def vop_activate_request(activation):
     data = {
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
-        'merchant_slug': activation.scheme.slug
+        'merchant_slug': activation.scheme.slug,
+        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
     }
 
     send_activation.delay(activation, data)
@@ -90,6 +91,7 @@ def send_deactivation(activation):
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
         'activation_id': activation.activation_id,
+        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
     }
     status, result = deactivate(activation, data)
 
