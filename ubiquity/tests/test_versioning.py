@@ -72,25 +72,29 @@ class TestResources(APITestCase):
         auth_header = cls._get_auth_header(cls.user)
         cls.headers_v1_1 = {**auth_header, **cls._get_version_header('1.1.4')}
         cls.headers_v1_2 = {**auth_header, **cls._get_version_header('1.2')}
+        cls.headers_v1_3 = {**auth_header, **cls._get_version_header('1.3')}
         cls.resp_wrong_ver = {**auth_header, **cls._get_version_header('-3')}
         cls.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': "application/vnd.bink+jso"}
         cls.headers_no_ver = auth_header
 
-    def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format):
+    def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver,
+                                  resp_wrong_format):
         self.assertEqual(resp_v1_1.get('X-API-Version'), '1.1')
         self.assertEqual(resp_v1_2.get('X-API-Version'), '1.2')
-        self.assertEqual(resp_no_ver.get('X-API-Version'), '1.2')
-        self.assertEqual(resp_wrong_ver.get('X-API-Version'), '1.2')
+        self.assertEqual(resp_v1_3.get('X-API-Version'), '1.3')
+        self.assertEqual(resp_no_ver.get('X-API-Version'), '1.3')
+        self.assertEqual(resp_wrong_ver.get('X-API-Version'), '1.3')
         self.assertIsNone(resp_wrong_format.get('X-API-Version'))
 
     def test_membership_plan_versioning(self):
         resp_v1_1 = self.client.get(reverse('membership-plans'), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse('membership-plans'), **self.headers_v1_2)
+        resp_v1_3 = self.client.get(reverse('membership-plans'), **self.headers_v1_3)
         resp_no_ver = self.client.get(reverse('membership-plans'), **self.headers_no_ver)
         resp_wrong_ver = self.client.get(reverse('membership-plans'), **self.resp_wrong_ver)
         resp_wrong_format = self.client.get(reverse('membership-plans'), **self.resp_wrong_format)
 
-        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format)
+        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver, resp_wrong_format)
 
     def test_membership_plan_versioned_content(self):
         resp_v1_1 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_1)
@@ -107,8 +111,9 @@ class TestResources(APITestCase):
     def test_membership_card_versioning(self, *_):
         resp_v1_1 = self.client.get(reverse('membership-cards'), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse('membership-cards'), **self.headers_v1_2)
+        resp_v1_3 = self.client.get(reverse('membership-cards'), **self.headers_v1_3)
         resp_no_ver = self.client.get(reverse('membership-cards'), **self.headers_no_ver)
         resp_wrong_ver = self.client.get(reverse('membership-cards'), **self.resp_wrong_ver)
         resp_wrong_format = self.client.get(reverse('membership-cards'), **self.resp_wrong_format)
 
-        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_no_ver, resp_wrong_ver, resp_wrong_format)
+        self._check_versioned_response(resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver, resp_wrong_format)

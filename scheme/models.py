@@ -16,12 +16,14 @@ from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
@@ -47,6 +49,13 @@ BARCODE_TYPES = (
     (5, 'DataMatrix'),
     (6, "ITF (Interleaved 2 of 5)"),
     (7, 'Code 39'),
+)
+
+slug_regex = re.compile(r'^[a-z0-9\-]+$')
+hex_colour_re = re.compile('^#((?:[0-F]{3}){1,2})$', re.IGNORECASE)
+validate_hex_colour = RegexValidator(
+    hex_colour_re,
+    _("Enter a valid 'colour' in hexadecimal format e.g \"#112233\"")
 )
 
 
@@ -225,6 +234,8 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
+    secondary_colour = models.CharField(max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"',
+                                        validators=[validate_hex_colour])
     test_scheme = models.BooleanField(default=False)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
@@ -616,7 +627,7 @@ class SchemeAccount(models.Model):
                             PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, GENERAL_ERROR,
                             JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
+                              IP_BLOCKED, TRIPPED_CAPTCHA, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
     JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
