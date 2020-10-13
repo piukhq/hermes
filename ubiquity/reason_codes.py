@@ -103,7 +103,6 @@ reason_code_translation = {
     902: ["X105"],
 }
 
-# status codes in SchemeAccount.SYSTEM_ACTION_REQUIRED will have a None value
 ubiquity_status_translation = {
     0: PENDING,
     1: AUTHORISED,
