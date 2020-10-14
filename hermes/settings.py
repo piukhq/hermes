@@ -526,6 +526,7 @@ SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 # OIDC SSO
 SSO_OFF = env_var('SSO_OFF', 'False')
 LOGIN_REDIRECT_URL = "/admin/"
+LOGIN_REDIRECT_URL_FAILURE = "/admin/error/403"
 OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
 OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
 OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "cf6d5fc9-f503-442e-9dec-2cdf714143db")
