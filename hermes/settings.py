@@ -55,7 +55,8 @@ LOCAL_APPS = (
     'order',
     'ubiquity',
     'daedalus_messaging',
-    'periodic_retry'
+    'periodic_retry',
+    'prometheus_pusher.apps.PrometheusPusherConfig',
 )
 
 INSTALLED_APPS = (
@@ -73,12 +74,14 @@ INSTALLED_APPS = (
     'mail_templated',
     'anymail',
     'storages',
+    'django_prometheus',
     *LOCAL_APPS
 )
 
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
-    'hermes.middleware.timed_request',
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
+    'hermes.middleware.TimedRequest',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -88,7 +91,8 @@ MIDDLEWARE = (
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'dictfilter.django.middleware.dictfilter_middleware',
-    'hermes.middleware.accept_version',
+    'hermes.middleware.AcceptVersion',
+    'hermes.middleware.CustomPrometheusAfterMiddleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -538,3 +542,10 @@ OIDC_OP_AUTHORIZATION_ENDPOINT = (
 OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/token"
 OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
+
+
+PROMETHEUS_EXPORT_MIGRATIONS = False
+PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,
+                              15.0, 20.0, 30.0, float("inf"))
+PROMETHEUS_PUSH_GATEWAY = "http://localhost:9100"
+PROMETHEUS_JOB = "hermes"
