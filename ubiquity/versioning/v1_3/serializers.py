@@ -2,9 +2,10 @@ import logging
 from os.path import join
 from typing import TYPE_CHECKING
 
+from rest_framework import serializers
+
 from django.conf import settings
 
-from ubiquity.versioning import base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
 if TYPE_CHECKING:
@@ -43,22 +44,20 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
         return plan
 
 
-class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
+class MembershipCardImageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    url = serializers.URLField()
+    dark_mode_url = serializers.URLField()
+    type = serializers.IntegerField()
+    encoding = serializers.CharField(max_length=30)
+    description = serializers.CharField(max_length=300)
+
+
+class MembershipCardSerializer(v1_2_serializers.MembershipCardSerializer):
+
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         scheme_account = super().to_representation(instance)
-
-        if settings.NO_AZURE_STORAGE:
-            base_url = settings.MEDIA_URL
-        else:
-            base_url = settings.AZURE_CUSTOM_DOMAIN
-
-        images = scheme_account['images']
-
-        for image in images:
-            if image.get('dark_mode_url'):
-                image['dark_mode_url'] = join(base_url, image['dark_mode_url'])
-            else:
-                continue
-
+        images = MembershipCardImageSerializer(self.images, many=True).data
         scheme_account['images'] = images
+
         return scheme_account

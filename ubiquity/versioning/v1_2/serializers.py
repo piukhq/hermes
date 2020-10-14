@@ -9,11 +9,13 @@ from scheme.models import SchemeContent, SchemeFee
 from ubiquity.versioning.base import serializers as base_serializers
 
 if TYPE_CHECKING:
-    from scheme.models import Scheme, SchemeAccount
+    from scheme.models import Scheme
 
 ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionSerializer = base_serializers.TransactionSerializer
+MembershipCardSerializer = base_serializers.MembershipCardSerializer
+MembershipCardImageSerializer = base_serializers.MembershipCardImageSerializer
 
 
 class MembershipPlanContentSerializer(serializers.ModelSerializer):
@@ -69,14 +71,3 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         formatted_data = super().to_representation(data)
         formatted_data['hash'] = self.get_hash(data)
         return formatted_data
-
-
-class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
-    def to_representation(self, instance: 'SchemeAccount') -> dict:
-        scheme_account = super().to_representation(instance)
-        images = scheme_account['images']
-
-        for image in images:
-            image.pop('dark_mode_url', None)
-
-        return scheme_account
