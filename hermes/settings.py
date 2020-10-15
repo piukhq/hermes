@@ -90,7 +90,7 @@ MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'dictfilter.django.middleware.dictfilter_middleware',
+    'dictfilter.django.middleware.DictFilterMiddleware',
     'hermes.middleware.AcceptVersion',
     'prometheus.middleware.CustomPrometheusAfterMiddleware',
 )
