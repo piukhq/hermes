@@ -81,7 +81,7 @@ INSTALLED_APPS = (
 # add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
 MIDDLEWARE = (
     'hermes.middleware.CustomPrometheusBeforeMiddleware',
-    # 'hermes.middleware.TimedRequest',
+    'hermes.middleware.TimedRequest',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -93,7 +93,6 @@ MIDDLEWARE = (
     'dictfilter.django.middleware.dictfilter_middleware',
     'hermes.middleware.AcceptVersion',
     'hermes.middleware.CustomPrometheusAfterMiddleware',
-    # 'django_prometheus.middleware.PrometheusAfterMiddleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'
