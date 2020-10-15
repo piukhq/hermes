@@ -288,6 +288,9 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 raise ConflictError
 
             consent = self._add_consent(user, consent_data)
+            service_creation_total.labels(
+                channel=request.channels_permit.bundle_id
+            ).inc()
         else:
             if not hasattr(user, 'serviceconsent'):
                 status_code = HTTP_201_CREATED
@@ -295,11 +298,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
             else:
                 consent = self.get_serializer_by_request(user.serviceconsent)
-
-        if status_code == HTTP_201_CREATED:
-            service_creation_total.labels(
-                channel=request.channels_permit.bundle_id
-            ).inc()
 
         return Response(consent.data, status=status_code)
 
