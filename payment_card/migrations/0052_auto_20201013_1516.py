@@ -20,4 +20,14 @@ class Migration(migrations.Migration):
             name='dark_mode_url',
             field=models.URLField(blank=True, null=True),
         ),
+        migrations.AddField(
+            model_name='paymentcardaccountimage',
+            name='dark_mode_image',
+            field=models.ImageField(blank=True, null=True, upload_to='schemes'),
+        ),
+        migrations.AddField(
+            model_name='paymentcardimage',
+            name='dark_mode_image',
+            field=models.ImageField(blank=True, null=True, upload_to='schemes'),
+        ),
     ]
