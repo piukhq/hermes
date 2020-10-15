@@ -43,7 +43,8 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             return None
 
     def create_user(self, claims, payload):
-        user = super(SSOAuthBackend, self).create_user(claims)
+        email = claims.get('email')
+        user = self.UserModel.objects.create_user(email)
         self._fixup_perms(user, payload)
         return user
 
