@@ -124,11 +124,14 @@ class TestResources(APITestCase):
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
     def test_membership_card_dark_mode_url(self, *_):
+        resp_v1_1 = self.client.get(reverse('membership-cards'), **self.headers_v1_1)
         resp_v1_2 = self.client.get(reverse('membership-cards'), **self.headers_v1_2)
         resp_v1_3 = self.client.get(reverse('membership-cards'), **self.headers_v1_3)
 
+        image_v1_1 = resp_v1_1.json()[0]['images'][0]
         image_v1_2 = resp_v1_2.json()[0]['images'][0]
         image_v1_3 = resp_v1_3.json()[0]['images'][0]
 
+        self.assertNotIn('dark_mode_url', image_v1_1)
         self.assertNotIn('dark_mode_url', image_v1_2)
         self.assertIn('dark_mode_url', image_v1_3)
