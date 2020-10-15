@@ -420,8 +420,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             if journey == "join":
                 async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
-                self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
         elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
             scheme_slug = scheme_account.scheme.slug
@@ -457,33 +455,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                         scheme_account,
                         user,
                         dict(scheme_account.STATUSES).get(new_status_code))
-
-    @staticmethod
-    def notify_rollback_transactions(scheme_slug: str, scheme_account: SchemeAccount, join_date: 'datetime'):
-        if settings.ROLLBACK_TRANSACTIONS_URL:
-            user_id = scheme_account.get_transaction_matching_user_id()
-            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
-            data = json.dumps({
-                'date_joined': join_date.date().isoformat(),
-                'scheme_provider': scheme_slug,
-                'payment_card_token': [card['token'] for card in payment_cards],
-                'user_id': user_id,
-                'credentials': scheme_account.credentials(),
-                'loyalty_card_id': scheme_account.third_party_identifier,
-                'scheme_account_id': scheme_account.id,
-            })
-            headers = {
-                'Content-Type': "application/json",
-                'Authorization': "token " + settings.SERVICE_API_KEY,
-            }
-            try:
-                resp = requests.post(settings.ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
-                                     headers=headers)
-                resp.raise_for_status()
-            except requests.exceptions.RequestException:
-                logging.exception('Failed to send join data to thanatos.')
-                if settings.HERMES_SENTRY_DSN:
-                    sentry_sdk.capture_exception()
 
 
 class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):
