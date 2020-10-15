@@ -27,7 +27,7 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
 
 class MembershipCardSerializer(v1_2_serializers.MembershipCardSerializer):
     class ImageSerializer(base_serializers.MembershipCardImageSerializer):
-        dark_mode_url = serializers.URLField()
+        dark_mode_url = serializers.URLField(required=False)
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         scheme_account = super().to_representation(instance)
