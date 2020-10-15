@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from django.conf import settings
 from django.db import connection
 from django_prometheus.conf import NAMESPACE
-from django_prometheus.middleware import PrometheusAfterMiddleware
+from django_prometheus.middleware import PrometheusAfterMiddleware, Metrics, PrometheusBeforeMiddleware
 from django_prometheus.utils import TimeSince
 from prometheus_client import Counter
 
@@ -92,12 +92,12 @@ class QueryDebug(MiddlewareMixin):
         return response
 
 
-class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
-    def __init__(self, get_response=None):
-        super().__init__(get_response)
-        self.metrics = self.metrics_cls.get_instance()
+class CustomMetrics(Metrics):
+
+    def register(self):
+        super(CustomMetrics, self).register()
         # --------------------------------------- register here custom labels --------------------------------------- #
-        self.metrics.requests_by_method_channel_view_and_response_status = self.metrics.register_metric(
+        self.requests_by_method_channel_view_and_response_status = self.register_metric(
             Counter,
             "django_http_requests_total_by_method_channel_view_and_response_status",
             "Count of requests by method, channel, view, and response status",
@@ -105,6 +105,15 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
             namespace=NAMESPACE,
         )
         # ----------------------------------------------------------------------------------------------------------- #
+
+
+# the Metrics class is used as singleton so it need to be the same for both middlewares.
+class CustomPrometheusBeforeMiddleware(PrometheusBeforeMiddleware):
+    metrics_cls = CustomMetrics
+
+
+class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
+    metrics_cls = CustomMetrics
 
     def process_response(self, request, response):
         method = self._method(request)
