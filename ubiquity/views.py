@@ -8,7 +8,6 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count
-from prometheus_client import Counter
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
@@ -25,6 +24,7 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from prometheus.labels import service_registration_counter_by_channel
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
@@ -56,11 +56,6 @@ if t.TYPE_CHECKING:
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
-service_registration_counter_by_channel = Counter(
-    "service_registration_counter_by_channel",
-    "Number of services registered by channel",
-    ["channel"]
-)
 
 
 class ConflictError(APIException):
