@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
 from rest_framework.viewsets import ModelViewSet
 from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
@@ -23,6 +24,7 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
+from prometheus.metrics import service_creation_total
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
@@ -259,7 +261,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        status_code = 200
+        status_code = HTTP_200_OK
         consent_data = request.data['consent']
         if 'email' not in consent_data:
             raise ParseError
@@ -276,7 +278,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 'email': consent_data['email'],
                 'external_id': request.prop_id
             }
-            status_code = 201
+            status_code = HTTP_201_CREATED
             new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
 
@@ -286,9 +288,12 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 raise ConflictError
 
             consent = self._add_consent(user, consent_data)
+            service_creation_total.labels(
+                channel=request.channels_permit.bundle_id
+            ).inc()
         else:
             if not hasattr(user, 'serviceconsent'):
-                status_code = 201
+                status_code = HTTP_201_CREATED
                 consent = self._add_consent(user, consent_data)
 
             else:

@@ -56,7 +56,7 @@ LOCAL_APPS = (
     'ubiquity',
     'daedalus_messaging',
     'periodic_retry',
-    'prometheus_pusher.apps.PrometheusPusherConfig',
+    'prometheus.apps.PrometheusPusherConfig',
 )
 
 INSTALLED_APPS = (
@@ -81,7 +81,7 @@ INSTALLED_APPS = (
 # add 'hermes.middleware.QueryDebug', to top of middleware list to see in debug sql queries in response header
 # add 'hermes.middleware.TimedRequest', to top of middleware list to see request times in response header
 MIDDLEWARE = (
-    'hermes.middleware.CustomPrometheusBeforeMiddleware',
+    'prometheus.middleware.CustomPrometheusBeforeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -92,7 +92,7 @@ MIDDLEWARE = (
     'django.middleware.common.CommonMiddleware',
     'dictfilter.django.middleware.dictfilter_middleware',
     'hermes.middleware.AcceptVersion',
-    'hermes.middleware.CustomPrometheusAfterMiddleware',
+    'prometheus.middleware.CustomPrometheusAfterMiddleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'

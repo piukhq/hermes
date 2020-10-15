@@ -28,6 +28,7 @@ from rest_framework.views import APIView
 import analytics
 from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
+from prometheus.metrics import service_creation_total
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
@@ -54,6 +55,9 @@ class CustomRegisterMixin(object):
         serializer = serializer_class(data=request.data)
         if serializer.is_valid():
             serializer.save()
+            service_creation_total.labels(
+                channel=serializer.validated_data['bundle_id']
+            ).inc()
             return Response(serializer.data, 201)
         else:
             return error_response(REGISTRATION_FAILED)
