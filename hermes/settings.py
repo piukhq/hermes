@@ -48,6 +48,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 LOCAL_APPS = (
+    'sso',
     'user',
     'scheme',
     'payment_card',
@@ -58,13 +59,14 @@ LOCAL_APPS = (
 )
 
 INSTALLED_APPS = (
+    'django_admin_env_notice',
+    'sso.apps.AADAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_admin_env_notice',
-    'django.contrib.admin',
+    'mozilla_django_oidc',
     'rest_framework',
     'corsheaders',
     'colorful',
@@ -205,6 +207,7 @@ BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
 AUTHENTICATION_BACKENDS = [
+    'sso.auth.SSOAuthBackend',
     'hermes.email_auth.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
@@ -519,3 +522,20 @@ CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 CSRF_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
+
+# OIDC SSO
+SSO_OFF = env_var('SSO_OFF', 'False')
+LOGIN_REDIRECT_URL = "/admin/"
+LOGIN_REDIRECT_URL_FAILURE = "/admin/error/403"
+OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
+OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
+OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "cf6d5fc9-f503-442e-9dec-2cdf714143db")
+OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "Y35e1b~qGQ4X02-sfs3638Wy1Zxb.-.tl2")
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_OP_JWKS_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/discovery/v2.0/keys"
+OIDC_OP_AUTHORIZATION_ENDPOINT = (
+    "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/authorize"
+)
+OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/token"
+OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
