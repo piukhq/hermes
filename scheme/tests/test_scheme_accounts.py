@@ -20,7 +20,6 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
                                     SchemeBalanceDetailsFactory)
-from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle

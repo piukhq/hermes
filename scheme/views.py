@@ -2,10 +2,7 @@ import csv
 import json
 import logging
 from io import StringIO
-from typing import TYPE_CHECKING
 
-import requests
-import sentry_sdk
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -20,7 +17,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from payment_card.models import PaymentCardAccount
 from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -41,8 +37,6 @@ from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, Tr
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
-if TYPE_CHECKING:
-    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -412,7 +406,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:
-            scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save(update_fields=["join_date"])
