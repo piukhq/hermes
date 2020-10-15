@@ -1,17 +1,19 @@
 import logging
 from typing import TYPE_CHECKING
 
+from rest_framework import serializers
+
+from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 
 if TYPE_CHECKING:
-    from scheme.models import Scheme
+    from scheme.models import Scheme, SchemeAccount
 
 logger = logging.getLogger(__name__)
 
 ServiceConsentSerializer = v1_2_serializers.ServiceConsentSerializer
 PaymentCardSerializer = v1_2_serializers.PaymentCardSerializer
 TransactionSerializer = v1_2_serializers.TransactionSerializer
-MembershipCardSerializer = v1_2_serializers.MembershipCardSerializer
 PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerializer
 
 
@@ -21,3 +23,16 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
         plan = super().to_representation(instance)
         plan["card"]["secondary_colour"] = instance.secondary_colour
         return plan
+
+
+class MembershipCardSerializer(v1_2_serializers.MembershipCardSerializer):
+    class ImageSerializer(base_serializers.MembershipCardImageSerializer):
+        dark_mode_url = serializers.URLField()
+
+    def to_representation(self, instance: 'SchemeAccount') -> dict:
+        scheme_account = super().to_representation(instance)
+
+        images = self.ImageSerializer(self.images, many=True).data
+        scheme_account['images'] = images
+
+        return scheme_account

@@ -531,6 +531,14 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
+class MembershipCardImageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    url = serializers.URLField()
+    type = serializers.IntegerField()
+    encoding = serializers.CharField(max_length=30)
+    description = serializers.CharField(max_length=300)
+
+
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
     @staticmethod
@@ -601,6 +609,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ]
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
+
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
@@ -614,6 +623,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
+        self.images = self._get_images(instance, scheme, str(reward_tier))
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -626,7 +636,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': self._get_images(instance, scheme, str(reward_tier)),
+            'images': MembershipCardImageSerializer(self.images, many=True).data,
             'account': {
                 'tier': reward_tier
             },

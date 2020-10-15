@@ -37,9 +37,11 @@ class Image(models.Model):
     image_type_code = models.IntegerField(choices=TYPES)
     size_code = models.CharField(max_length=30, blank=True)
     image = models.ImageField(upload_to="schemes")
+    dark_mode_image = models.ImageField(upload_to="schemes", null=True, blank=True)
     strap_line = models.CharField(max_length=50, blank=True)
     description = models.CharField(max_length=300)
     url = models.URLField(null=True, blank=True)
+    dark_mode_url = models.URLField(null=True, blank=True)
     call_to_action = models.CharField(max_length=150)
     order = models.IntegerField()
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
@@ -70,6 +72,7 @@ class Image(models.Model):
                 'id': self.id,
                 'type': self.image_type_code,
                 'url': self.image.name,
+                'dark_mode_url': self.dark_mode_image.name,
                 'description': self.description,
                 'encoding': encoding,
 
