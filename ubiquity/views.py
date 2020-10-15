@@ -8,10 +8,12 @@ from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count
+from prometheus_client import Counter
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
 from rest_framework.viewsets import ModelViewSet
 from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
@@ -54,6 +56,11 @@ if t.TYPE_CHECKING:
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
+service_registration_counter_by_channel = Counter(
+    "service_registration_counter_by_channel",
+    "Number of services registered by channel",
+    ["channel"]
+)
 
 
 class ConflictError(APIException):
@@ -259,7 +266,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        status_code = 200
+        status_code = HTTP_200_OK
         consent_data = request.data['consent']
         if 'email' not in consent_data:
             raise ParseError
@@ -276,7 +283,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 'email': consent_data['email'],
                 'external_id': request.prop_id
             }
-            status_code = 201
+            status_code = HTTP_201_CREATED
             new_user = UbiquityRegisterSerializer(data=new_user_data, context={'bearer_registration': True})
             new_user.is_valid(raise_exception=True)
 
@@ -288,11 +295,16 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             consent = self._add_consent(user, consent_data)
         else:
             if not hasattr(user, 'serviceconsent'):
-                status_code = 201
+                status_code = HTTP_201_CREATED
                 consent = self._add_consent(user, consent_data)
 
             else:
                 consent = self.get_serializer_by_request(user.serviceconsent)
+
+        if status_code == HTTP_201_CREATED:
+            service_registration_counter_by_channel.labels(
+                channel=request.channels_permit.bundle_id
+            ).inc()
 
         return Response(consent.data, status=status_code)
 
