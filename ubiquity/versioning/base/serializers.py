@@ -636,7 +636,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            # 'images': self._get_images(instance, scheme, str(reward_tier)),
             'images': MembershipCardImageSerializer(self.images, many=True).data,
             'account': {
                 'tier': reward_tier
