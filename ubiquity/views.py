@@ -24,7 +24,7 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from prometheus.labels import service_registration_counter_by_channel
+from prometheus.metrics import service_creation_total
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
@@ -297,7 +297,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 consent = self.get_serializer_by_request(user.serviceconsent)
 
         if status_code == HTTP_201_CREATED:
-            service_registration_counter_by_channel.labels(
+            service_creation_total.labels(
                 channel=request.channels_permit.bundle_id
             ).inc()
 

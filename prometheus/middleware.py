@@ -1,7 +1,7 @@
 from django_prometheus.middleware import PrometheusBeforeMiddleware, PrometheusAfterMiddleware
 from django_prometheus.utils import TimeSince
 
-from prometheus.labels import CustomMetrics
+from prometheus.metrics import CustomMetrics
 
 
 # the Metrics class is used as singleton so it need to be the same for both middlewares.

@@ -20,9 +20,9 @@ class CustomMetrics(Metrics):
 
 
 # declare here custom labels to be used directly
-service_registration_counter_by_channel = Counter(
-    name="service_registration_counter_by_channel",
-    documentation="Number of services registered by channel",
+service_creation_total = Counter(
+    name="service_creation_total",
+    documentation="Number of total services registered.",
     labelnames=("channel",),
     namespace=NAMESPACE
 )
