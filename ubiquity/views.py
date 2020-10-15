@@ -38,9 +38,9 @@ from ubiquity.influx_audit import audit
 from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
                              VopActivation)
 from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
-                            send_merchant_metrics_for_new_account, async_add_field_only_link,
-                            deleted_payment_card_cleanup, deleted_service_cleanup, auto_link_membership_to_payments,
-                            deleted_membership_card_cleanup, auto_link_payment_to_memberships)
+                            send_merchant_metrics_for_new_account, deleted_payment_card_cleanup,
+                            deleted_service_cleanup, auto_link_membership_to_payments, deleted_membership_card_cleanup,
+                            auto_link_payment_to_memberships)
 from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
 from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
@@ -782,33 +782,34 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         return scheme, auth_fields, enrol_fields, add_fields
 
     @staticmethod
-    def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
-                                        auth_fields: dict, payment_cards_to_link: list) -> None:
-        existing_answers = scheme_account.get_auth_credentials()
-        for k, v in existing_answers.items():
-            provided_value = auth_fields.get(k)
+    def _handle_existing_scheme_account(
+        scheme_account: SchemeAccount,
+        user: CustomUser,
+        auth_fields: dict,
+        payment_cards_to_link: list
+    ) -> None:
 
-            if provided_value and k in DATE_TYPE_CREDENTIALS:
-                try:
-                    provided_value = arrow.get(provided_value, 'DD/MM/YYYY').date()
-                except ParseError:
-                    provided_value = arrow.get(provided_value).date()
+        if scheme_account.status == SchemeAccount.WALLET_ONLY and auth_fields:
+            scheme_account.update_barcode_and_card_number()
+            scheme_account.set_pending()
+            async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
+        else:
+            existing_answers = scheme_account.get_auth_credentials()
+            for k, v in existing_answers.items():
+                provided_value = auth_fields.get(k)
 
-                v = arrow.get(v).date()
+                if provided_value and k in DATE_TYPE_CREDENTIALS:
+                    try:
+                        provided_value = arrow.get(provided_value, 'DD/MM/YYYY').date()
+                    except ParseError:
+                        provided_value = arrow.get(provided_value).date()
 
-            if provided_value != v:
-                raise ParseError('This card already exists, but the provided credentials do not match.')
+                    v = arrow.get(v).date()
 
-        try:
-            # required to rollback transactions when running into an expected IntegrityError
-            # tests will fail without this as TestCase already wraps tests in an atomic
-            # block and will not know how to correctly rollback otherwise
-            with transaction.atomic():
-                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
-        except IntegrityError:
-            # If it already exists, nothing else needs to be done here.
-            pass
+                if provided_value != v:
+                    raise ParseError('This card already exists, but the provided credentials do not match.')
 
+        SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
@@ -820,24 +821,25 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         add_fields: dict,
         payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int]:
-        return_status = status.HTTP_200_OK
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
-        auth_fields['consents'] = add_fields['consents'] = link_consents
+        if add_fields:
+            add_fields['consents'] = link_consents
+        if auth_fields:
+            auth_fields['consents'] = link_consents
 
         serializer = self.get_serializer(data={'scheme': scheme.id, 'order': 0, **add_fields})
         serializer.is_valid(raise_exception=True)
 
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, scheme)
+        return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-        if account_created:
-            return_status = status.HTTP_201_CREATED
+        if account_created and auth_fields:
             scheme_account.update_barcode_and_card_number()
-            if auth_fields:
-                async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
-            else:
-                async_add_field_only_link.delay(user.id, scheme_account.id, payment_cards_to_link)
+            async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
+        elif not auth_fields:
+            scheme_account.update_barcode_and_card_number()
+            self._handle_wallet_only_account(user, scheme_account, payment_cards_to_link)
         else:
-            auth_fields = auth_fields or {}
             self._handle_existing_scheme_account(scheme_account, user, auth_fields, payment_cards_to_link)
 
         return scheme_account, return_status
@@ -1055,6 +1057,22 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             }
             for link in self.consent_links if provided_consent_data.get(link.consent_label)
         ]
+
+    @staticmethod
+    def _handle_wallet_only_account(
+        user: 'CustomUser',
+        scheme_account: 'SchemeAccount',
+        payment_cards_to_link: list
+    ) -> None:
+        if scheme_account.status not in [SchemeAccount.WALLET_ONLY, SchemeAccount.ACTIVE]:
+            scheme_account.status = SchemeAccount.WALLET_ONLY
+            scheme_account.save(update_fields=["status"])
+            logger.info(f"Set SchemeAccount to Wallet Only status (id={scheme_account.id})")
+
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+        SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
 
     @staticmethod
     def match_consents(consent_links, data_provided):

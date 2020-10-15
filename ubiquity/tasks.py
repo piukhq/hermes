@@ -7,7 +7,6 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from django.utils import timezone
 from rest_framework import serializers
 
 import analytics
@@ -78,19 +77,6 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
         scheme_account.delete_saved_balance()
 
     scheme_account.get_cached_balance()
-
-
-@shared_task
-def async_add_field_only_link(user_id: int, instance_id: int, payment_cards_to_link: list) -> None:
-    scheme_account = SchemeAccount.objects.get(id=instance_id)
-    scheme_account.get_cached_balance()
-
-    if scheme_account.status == SchemeAccount.ACTIVE:
-        scheme_account.link_date = timezone.now()
-        scheme_account.save(update_fields=['link_date'])
-
-    if payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task

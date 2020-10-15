@@ -82,7 +82,7 @@ class TestResources(APITestCase):
         cls.scheme = SchemeFactory()
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
 
-        SchemeCredentialQuestionFactory(
+        cls.scheme.manual_question = SchemeCredentialQuestionFactory(
             scheme=cls.scheme,
             type=BARCODE,
             label=BARCODE,
@@ -503,29 +503,24 @@ class TestResources(APITestCase):
         self.assertEqual(data['status']['state'], 'authorised')
         self.assertEqual(data['status']['reason_codes'], ['X300'])
 
-    @patch('analytics.api.update_scheme_account_attribute')
+    @patch('analytics.api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('analytics.api._get_today_datetime')
-    def test_membership_card_creation(self, mock_date, mock_async_balance, mock_async_link, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    def test_membership_card_creation(self, mock_async_balance, mock_async_link, *_):
         payload = {
             "membership_plan": self.scheme.id,
             "account":
                 {
                     "add_fields": [
                         {
-                            "column": "barcode",
+                            "column": self.scheme.manual_question.label,
                             "value": "3038401022657083"
                         }
                     ],
                     "authorise_fields": [
                         {
-                            "column": "last_name",
+                            "column": self.secondary_question.label,
                             "value": "Test"
                         }
                     ]
@@ -545,6 +540,41 @@ class TestResources(APITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertDictEqual(resp.data, create_data)
         self.assertTrue(mock_async_link.delay.called)
+        self.assertFalse(mock_async_balance.delay.called)
+
+    @patch('analytics.api')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    def test_wallet_only_mcard_creation(self, mock_async_balance, mock_async_link, *_):
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": self.scheme.manual_question.label,
+                            "value": "3038401022657083"
+                        }
+                    ]
+                }
+        }
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.data['status'], {'state': 'unauthorised', 'reason_codes': ['X103']})
+        create_data = resp.data
+
+        sa = SchemeAccount.objects.get(pk=create_data["id"])
+        self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+
+        # replay and check same data with 200 response
+        resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
+                                **self.auth_headers)
+        self.assertEqual(resp.status_code, 200)
+        self.assertDictEqual(resp.data, create_data)
+        self.assertEqual(resp.data['status'], {'state': 'unauthorised', 'reason_codes': ['X103']})
+        self.assertFalse(mock_async_link.delay.called)
         self.assertFalse(mock_async_balance.delay.called)
 
     @patch('ubiquity.views.async_link', autospec=True)
@@ -592,42 +622,103 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('analytics.api._get_today_datetime')
-    def test_link_user_to_existing_wallet_only_card(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    @patch('analytics.api')
+    def test_link_user_to_existing_wallet_only_card(self, *_):
+        test_schemes = (
+            (self.wallet_only_scheme, self.wallet_only_question),
+            (self.scheme, self.scheme.manual_question)
+        )
 
-        existing_answer_value = "1234554321"
-        existing_scheme_account = SchemeAccountFactory(scheme=self.wallet_only_scheme,
-                                                       card_number=existing_answer_value)
-        SchemeAccountCredentialAnswer(scheme_account=existing_scheme_account, question=self.wallet_only_question,
-                                      answer=existing_answer_value)
+        new_user = UserFactory(client=self.client_app, external_id="testexternalid")
+        headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(new_user))}
+        for scheme, question in test_schemes:
+            existing_answer_value = "1234554321"
+            existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
+            SchemeAccountCredentialAnswer(scheme_account=existing_scheme_account, question=question,
+                                          answer=existing_answer_value)
+            SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
+
+            payload = {
+                "membership_plan": scheme.id,
+                "account":
+                    {
+                        "add_fields": [
+                            {
+                                "column": question.label,
+                                "value": existing_answer_value
+                            }
+                        ]
+                    }
+            }
+            resp = self.client.post(
+                reverse('membership-cards'),
+                data=json.dumps(payload),
+                content_type='application/json',
+                **headers
+            )
+            self.assertEqual(resp.status_code, 200)
+            card_id = resp.json()["id"]
+
+            user_links = SchemeAccountEntry.objects.filter(
+                scheme_account=existing_scheme_account
+            ).values_list('user_id', flat=True)
+
+            self.assertIn(self.user.id, user_links)
+            self.assertIn(new_user.id, user_links)
+
+            # check card is in get membership_cards response
+            resp = self.client.get(reverse('membership-cards'), content_type='application/json', **headers)
+            self.assertEqual(resp.status_code, 200)
+            card_ids = [card["id"] for card in resp.json()]
+            self.assertIn(card_id, card_ids)
+
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('analytics.api')
+    def test_wallet_only_mcard_authorisation(self, *_):
+        existing_answer_value = "34567876345678765"
+        existing_scheme_account = SchemeAccountFactory(
+            scheme=self.scheme,
+            barcode=existing_answer_value,
+            status=SchemeAccount.WALLET_ONLY
+        )
         SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
+        SchemeAccountCredentialAnswer(
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value
+        )
 
         new_user = UserFactory(client=self.client_app, external_id="testexternalid")
         headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(new_user))}
         payload = {
-            "membership_plan": self.wallet_only_scheme.id,
-            "account":
-                {
-                    "add_fields": [
-                        {
-                            "column": self.wallet_only_question.label,
-                            "value": existing_answer_value
-                        }
-                    ]
-                }
+            "membership_plan": self.scheme.id,
+            "account": {
+                "add_fields": [
+                    {
+                        "column": self.scheme.manual_question.label,
+                        "value": existing_answer_value
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": self.secondary_question.label,
+                        "value": "Test"
+                    }
+                ]
+            }
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **headers)
+        resp_json = resp.json()
+        card_id = resp_json["id"]
+
         self.assertEqual(resp.status_code, 200)
-        card_id = resp.json()["id"]
+        self.assertEqual(resp_json['status'], {'state': 'pending', 'reason_codes': ['X100']})
 
         user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account).values_list('user_id',
                                                                                                            flat=True)
