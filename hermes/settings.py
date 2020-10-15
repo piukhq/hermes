@@ -78,10 +78,10 @@ INSTALLED_APPS = (
     *LOCAL_APPS
 )
 
-# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
+# add 'hermes.middleware.QueryDebug', to top of middleware list to see in debug sql queries in response header
+# add 'hermes.middleware.TimedRequest', to top of middleware list to see request times in response header
 MIDDLEWARE = (
     'hermes.middleware.CustomPrometheusBeforeMiddleware',
-    'hermes.middleware.TimedRequest',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
