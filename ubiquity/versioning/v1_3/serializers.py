@@ -1,10 +1,7 @@
 import logging
-from os.path import join
 from typing import TYPE_CHECKING
 
 from rest_framework import serializers
-
-from django.conf import settings
 
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
