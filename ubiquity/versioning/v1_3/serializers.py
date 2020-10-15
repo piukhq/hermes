@@ -20,23 +20,6 @@ TransactionSerializer = v1_2_serializers.TransactionSerializer
 PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerializer
 
 
-def _add_base_media_url_with_dark_mode(image: dict) -> dict:
-    if settings.NO_AZURE_STORAGE:
-        base_url = settings.MEDIA_URL
-    else:
-        base_url = settings.AZURE_CUSTOM_DOMAIN
-
-    images = {
-        **image,
-        'url': join(base_url, image['url']),
-    }
-
-    if image.get('dark_mode_url'):
-        images['dark_mode_url'] = join(base_url, images['dark_mode_url'])
-
-    return images
-
-
 class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
 
     def to_representation(self, instance: 'Scheme') -> dict:
