@@ -1,7 +1,20 @@
+from django.conf import settings
 from django_prometheus.middleware import PrometheusBeforeMiddleware, PrometheusAfterMiddleware
 from django_prometheus.utils import TimeSince
 
 from prometheus.metrics import CustomMetrics
+
+
+def _get_bundle_id(request, response):
+    if str(request.user) == "AnonymousUser":
+        # service_api_token authentication is used for internal services.
+        return settings.SERVICE_API_METRICS_BUNDLE
+    try:
+        # collects the bundle_id from channels_permit
+        return response.renderer_context["request"].channels_permit.bundle_id or "none"
+    except (AttributeError, KeyError):
+        # old bink endpoint, defaults to bink bundle_id.
+        return settings.BINK_BUNDLE_ID
 
 
 # the Metrics class is used as singleton so it need to be the same for both middlewares.
@@ -16,10 +29,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         method = self._method(request)
         name = self._get_view_name(request)
         status = str(response.status_code)
-        try:
-            bundle_id = response.renderer_context["request"].channels_permit.bundle_id
-        except (AttributeError, KeyError):
-            bundle_id = "service_api_user"
+        bundle_id = _get_bundle_id(request, response)
 
         # -------------------------------- Add here custom labels metrics to collect. ------------------------------- #
         self.label_metric(
