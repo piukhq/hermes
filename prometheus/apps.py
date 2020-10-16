@@ -46,7 +46,7 @@ class PrometheusPushThread(threading.Thread):
 
 
 class PrometheusPusherConfig(AppConfig):
-    name = 'prometheus_pusher'
+    name = 'prometheus'
 
     def ready(self):
         logger.info("Configuring prometheus metric pusher")
