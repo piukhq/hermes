@@ -37,7 +37,7 @@ service_creation_total = Counter(
 
 payment_card_add_total = Counter(
     name="payment_card_add_total",
-    documentation="Total number of payment card added.",
+    documentation="Total number of payment cards added.",
     labelnames=("channel", "provider", "route"),
     namespace=NAMESPACE
 )
