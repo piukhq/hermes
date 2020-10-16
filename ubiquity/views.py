@@ -837,8 +837,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account.update_barcode_and_card_number()
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         elif not auth_fields:
-            scheme_account.update_barcode_and_card_number()
-            self._handle_wallet_only_account(user, scheme_account, payment_cards_to_link)
+            self._handle_add_fields_only_link(user, scheme_account, payment_cards_to_link, account_created)
         else:
             self._handle_existing_scheme_account(scheme_account, user, auth_fields, payment_cards_to_link)
 
@@ -1059,12 +1058,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         ]
 
     @staticmethod
-    def _handle_wallet_only_account(
+    def _handle_add_fields_only_link(
         user: 'CustomUser',
         scheme_account: 'SchemeAccount',
-        payment_cards_to_link: list
+        payment_cards_to_link: list,
+        account_created: bool,
     ) -> None:
-        if scheme_account.status not in [SchemeAccount.WALLET_ONLY, SchemeAccount.ACTIVE]:
+        # TODO: TBD what to do when there is an existing account but only add fields are provided,
+        #  as this allows a user to link to authorised cards by only providing the add fields [LOY-653]
+        if account_created:
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save(update_fields=["status"])
             logger.info(f"Set SchemeAccount to Wallet Only status (id={scheme_account.id})")
@@ -1072,6 +1074,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
+        scheme_account.update_barcode_and_card_number()
         SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
 
     @staticmethod
