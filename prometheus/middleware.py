@@ -31,9 +31,6 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         status = str(response.status_code)
         bundle_id = _get_bundle_id(request, response)
 
-        # -------------------------------- Add here custom labels metrics to collect. ------------------------------- #
-
-        # ----------------------------------------------------------------------------------------------------------- #
         self.label_metric(self.metrics.responses_by_status, request, response, status=status).inc()
         self.label_metric(
             self.metrics.responses_by_status_view_method,
