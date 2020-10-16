@@ -541,6 +541,8 @@ class MembershipCardImageSerializer(serializers.Serializer):
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
+    ImageSerializer = MembershipCardImageSerializer
+
     @staticmethod
     def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
         images = {}
@@ -636,7 +638,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': MembershipCardImageSerializer(self.images, many=True).data,
+            'images': self.ImageSerializer(self.images, many=True).data,
             'account': {
                 'tier': reward_tier
             },
