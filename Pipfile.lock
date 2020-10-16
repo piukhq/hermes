@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "6db8a2bb2d881bc3ff4384e2b18074cdd97be71a47ddf17ca657b6ddcd71e8a7"
+            "sha256": "207700623f376ae6f6cf6782a2e77986eed6255bd7f5818bdd86574e6f4c0b4a"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -167,11 +167,11 @@
         },
         "dictfilter": {
             "hashes": [
-                "sha256:10e53391d82155c3870e6f6fb21a941d4df978cb07fc305cb489da5e47b783cb",
-                "sha256:b9c31cba0f3ec14cc7bef81f8373dc77632f5f159af2fd949ba496d5bb6a1067"
+                "sha256:c4639d302756677c96d0255d6307dd2df4334351d7240c022e829172941fee72",
+                "sha256:dd5fca31d157eced8051d3a6d4da452e6d684e397bc0d58509ccb8d007850d4a"
             ],
             "index": "bypi",
-            "version": "==1.2.1"
+            "version": "==2.0.1"
         },
         "django": {
             "hashes": [

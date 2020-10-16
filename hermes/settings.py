@@ -90,7 +90,7 @@ MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'dictfilter.django.middleware.dictfilter_middleware',
+    'dictfilter.django.middleware.DictFilterMiddleware',
     'hermes.middleware.AcceptVersion',
     'prometheus.middleware.CustomPrometheusAfterMiddleware',
 )
@@ -210,6 +210,7 @@ USE_TZ = True
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
+
 AUTHENTICATION_BACKENDS = [
     'sso.auth.SSOAuthBackend',
     'hermes.email_auth.EmailBackend',
@@ -239,6 +240,7 @@ LOCAL_AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
 AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 
 SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
+SERVICE_API_METRICS_BUNDLE = 'internal_service'
 
 HASH_ID_SALT = '95429791eee6a6e12d11a5a23d920969f7b1a94d'
 
