@@ -4,7 +4,14 @@ from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
 from prometheus_client import Counter
 
-from django.conf import settings
+
+def m(metric_name: str) -> str:
+    return f"django_http_{metric_name}"
+
+
+ADD_CHANNEL_TO_METRICS = [
+    m("requests_latency_seconds_by_view_method"),
+]
 
 
 class PaymentCardAddRoute(str, Enum):
@@ -15,7 +22,7 @@ class PaymentCardAddRoute(str, Enum):
 
 class CustomMetrics(Metrics):
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
-        if name in settings.ADD_CHANNEL_LABEL_TO_METRICS:
+        if name in ADD_CHANNEL_TO_METRICS:
             labelnames += ("channel",)
 
         return super().register_metric(metric_cls, name, documentation, labelnames=labelnames, **kwargs)

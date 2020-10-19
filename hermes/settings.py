@@ -210,6 +210,7 @@ USE_TZ = True
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
+
 AUTHENTICATION_BACKENDS = [
     'sso.auth.SSOAuthBackend',
     'hermes.email_auth.EmailBackend',
@@ -545,16 +546,9 @@ OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b
 OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
 
+
 PROMETHEUS_EXPORT_MIGRATIONS = False
 PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,
                               15.0, 20.0, 30.0, float("inf"))
 PROMETHEUS_PUSH_GATEWAY = "http://localhost:9100"
 PROMETHEUS_JOB = "hermes"
-
-# Add the channel label to specified metrics.
-# Metric names as they appear in the prometheus log as a comma separated string.
-# EX: "django_http_requests_latency_seconds_by_view_method,django_http_requests_body_total_bytes"
-ADD_CHANNEL_LABEL_TO_METRICS = env_var(
-    "ADD_CHANNEL_LABEL_TO_METRICS",
-    "django_http_requests_latency_seconds_by_view_method"
-).split(",")
