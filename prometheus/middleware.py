@@ -31,17 +31,6 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         status = str(response.status_code)
         bundle_id = _get_bundle_id(request, response)
 
-        # -------------------------------- Add here custom labels metrics to collect. ------------------------------- #
-        self.label_metric(
-            self.metrics.requests_by_method_channel_view_and_response_status,
-            request,
-            method=method,
-            channel=bundle_id,
-            view=self._get_view_name(request),
-            response_status=response.status_code,
-        ).inc()
-
-        # ----------------------------------------------------------------------------------------------------------- #
         self.label_metric(self.metrics.responses_by_status, request, response, status=status).inc()
         self.label_metric(
             self.metrics.responses_by_status_view_method,
@@ -69,6 +58,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
                 response,
                 view=self._get_view_name(request),
                 method=request.method,
+                channel=bundle_id,
             ).observe(TimeSince(request.prometheus_after_middleware_event))
         else:
             self.label_metric(self.metrics.requests_unknown_latency, request, response).inc()
