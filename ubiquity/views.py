@@ -24,7 +24,7 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from prometheus.metrics import service_creation_total
+from prometheus.metrics import service_creation_total, PaymentCardAddRoute, payment_card_add_total
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
@@ -440,6 +440,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
+        metrics_route = None
         pcard_data, consent = self._collect_creation_data(
             request_data=request.data,
             allowed_issuers=self.allowed_issuers,
@@ -453,15 +454,28 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
         if route == PaymentCardRoutes.EXISTS_IN_OTHER_WALLET:
             self._add_hash(pcard_data.get('hash'), pcard)
             self._link_account_to_new_user(pcard, request.user)
+            metrics_route = PaymentCardAddRoute.MULTI_WALLET
 
         elif route in [PaymentCardRoutes.NEW_CARD, PaymentCardRoutes.DELETED_CARD]:
             pcard = self.create_payment_card_account(pcard_data, request.user, pcard)
             self._create_payment_card_consent(consent, pcard)
             just_created = True
 
+            if route == PaymentCardRoutes.DELETED_CARD:
+                metrics_route = PaymentCardAddRoute.RETURNING
+            else:
+                metrics_route = PaymentCardAddRoute.NEW_CARD
+
         # auto link to mcards if auto_link is True or None
         if auto_link(request) is not False:
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
+
+        if metrics_route:
+            payment_card_add_total.labels(
+                channel=request.channels_permit.bundle_id,
+                provider=pcard.payment_card.system_name,
+                route=metrics_route
+            ).inc()
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
 

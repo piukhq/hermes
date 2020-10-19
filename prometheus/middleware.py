@@ -1,7 +1,20 @@
+from django.conf import settings
 from django_prometheus.middleware import PrometheusBeforeMiddleware, PrometheusAfterMiddleware
 from django_prometheus.utils import TimeSince
 
 from prometheus.metrics import CustomMetrics
+
+
+def _get_bundle_id(request, response):
+    if str(request.user) == "AnonymousUser":
+        # service_api_token authentication is used for internal services.
+        return settings.SERVICE_API_METRICS_BUNDLE
+    try:
+        # collects the bundle_id from channels_permit
+        return response.renderer_context["request"].channels_permit.bundle_id or "none"
+    except (AttributeError, KeyError):
+        # old bink endpoint, defaults to bink bundle_id.
+        return settings.BINK_BUNDLE_ID
 
 
 # the Metrics class is used as singleton so it need to be the same for both middlewares.
@@ -16,22 +29,8 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         method = self._method(request)
         name = self._get_view_name(request)
         status = str(response.status_code)
-        try:
-            bundle_id = response.renderer_context["request"].channels_permit.bundle_id
-        except (AttributeError, KeyError):
-            bundle_id = "service_api_user"
+        bundle_id = _get_bundle_id(request, response)
 
-        # -------------------------------- Add here custom labels metrics to collect. ------------------------------- #
-        self.label_metric(
-            self.metrics.requests_by_method_channel_view_and_response_status,
-            request,
-            method=method,
-            channel=bundle_id,
-            view=self._get_view_name(request),
-            response_status=response.status_code,
-        ).inc()
-
-        # ----------------------------------------------------------------------------------------------------------- #
         self.label_metric(self.metrics.responses_by_status, request, response, status=status).inc()
         self.label_metric(
             self.metrics.responses_by_status_view_method,
@@ -59,6 +58,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
                 response,
                 view=self._get_view_name(request),
                 method=request.method,
+                channel=bundle_id,
             ).observe(TimeSince(request.prometheus_after_middleware_event))
         else:
             self.label_metric(self.metrics.requests_unknown_latency, request, response).inc()
