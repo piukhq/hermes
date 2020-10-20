@@ -20,7 +20,6 @@ import sentry_sdk
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
-from prometheus_client import Counter
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
 

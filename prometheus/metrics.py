@@ -49,4 +49,3 @@ payment_card_status_counter = Counter(
     labelnames=("scheme", "status"),
     namespace=NAMESPACE,
 )
-
