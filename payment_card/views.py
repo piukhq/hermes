@@ -7,17 +7,17 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
+from prometheus.metrics import payment_card_status_counter
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -397,6 +397,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
+
+            payment_card_status_counter.labels(scheme=payment_card_account.payment_card.name,
+                                               status=payment_card_account.status_name).inc()
+
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account

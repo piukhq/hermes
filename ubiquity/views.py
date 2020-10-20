@@ -24,7 +24,7 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from prometheus.metrics import service_creation_total, PaymentCardAddRoute, payment_card_add_total
+from prometheus.metrics import service_creation_counter, PaymentCardAddRoute, payment_card_add_counter
 from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
@@ -288,7 +288,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
                 raise ConflictError
 
             consent = self._add_consent(user, consent_data)
-            service_creation_total.labels(
+            service_creation_counter.labels(
                 channel=request.channels_permit.bundle_id
             ).inc()
         else:
@@ -471,7 +471,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             self.auto_link_to_membership_cards(request.user, pcard, just_created)
 
         if metrics_route:
-            payment_card_add_total.labels(
+            payment_card_add_counter.labels(
                 channel=request.channels_permit.bundle_id,
                 provider=pcard.payment_card.system_name,
                 route=metrics_route.value

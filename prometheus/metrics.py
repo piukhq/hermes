@@ -29,16 +29,23 @@ class CustomMetrics(Metrics):
 
 
 # declare here custom labels to be used directly
-service_creation_total = Counter(
+service_creation_counter = Counter(
     name="service_creation_total",
     documentation="Number of total services registered.",
     labelnames=("channel",),
     namespace=NAMESPACE,
 )
 
-payment_card_add_total = Counter(
+payment_card_add_counter = Counter(
     name="payment_card_add_total",
     documentation="Total number of payment cards added.",
     labelnames=("channel", "provider", "route"),
+    namespace=NAMESPACE,
+)
+
+payment_card_status_counter = Counter(
+    name='payment_card_status_total',
+    documentation='Total number of payment card status changes.',
+    labelnames=("scheme", "status"),
     namespace=NAMESPACE,
 )
