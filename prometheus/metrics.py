@@ -15,9 +15,9 @@ ADD_CHANNEL_TO_METRICS = [
 
 
 class PaymentCardAddRoute(str, Enum):
-    NEW_CARD = "new"
-    MULTI_WALLET = "multi"
-    RETURNING = "returning"
+    NEW_CARD = "New Card"
+    MULTI_WALLET = "Multi Wallet"
+    RETURNING = "Returning"
 
 
 class CustomMetrics(Metrics):
