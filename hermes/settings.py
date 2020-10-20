@@ -17,12 +17,12 @@ from collections import namedtuple
 from enum import Enum
 
 import sentry_sdk
-from redis import ConnectionPool as Redis_ConnectionPool
-from sentry_sdk.integrations.django import DjangoIntegration
-
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
+from prometheus_client import Counter
+from redis import ConnectionPool as Redis_ConnectionPool
+from sentry_sdk.integrations.django import DjangoIntegration
 
 read_env()
 
@@ -550,5 +550,7 @@ OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
 PROMETHEUS_EXPORT_MIGRATIONS = False
 PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,
                               15.0, 20.0, 30.0, float("inf"))
-PROMETHEUS_PUSH_GATEWAY = "http://localhost:9100"
+PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9100')
 PROMETHEUS_JOB = "hermes"
+PROMETHEUS_PCARD_STATUS_COUNTER = Counter('hermes_pcard_status_total',
+                                          'Payment Card Status Changes', ['scheme', 'status'])
