@@ -13,7 +13,7 @@ from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAcco
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
-from prometheus.apps import PrometheusAddMetric
+from prometheus.metrics import payment_card_status_counter
 from rest_framework import generics, serializers as rest_framework_serializers, status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
@@ -398,9 +398,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.status = new_status_code
             payment_card_account.save()
 
-            PrometheusAddMetric.counter_inc(settings.PROMETHEUS_PCARD_STATUS_COUNTER,
-                                            scheme=payment_card_account.payment_card.name,
-                                            status=payment_card_account.status_name)
+            payment_card_status_counter.labels(scheme=payment_card_account.payment_card.name,
+                                               status=payment_card_account.status_name).inc()
 
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:

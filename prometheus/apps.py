@@ -55,33 +55,3 @@ class PrometheusPusherConfig(AppConfig):
         thread.daemon = True
         thread.start()
         logger.info("Prometheus push thread started")
-
-
-class PrometheusAddMetric:
-    """
-    The metrics in this class are independent of Django but are added to the
-    periodic push for efficiency reasons.  The metrics will also be labelled with
-    the PID.
-    """
-
-    @classmethod
-    def add_metric(cls):
-        try:
-            pushadd_to_gateway(gateway=settings.PROMETHEUS_PUSH_GATEWAY,
-                               job=settings.PROMETHEUS_JOB, registry=REGISTRY)
-        except Exception as err:
-            logger.exception("Caught exception whilst push adding", exc_info=err)
-
-    @classmethod
-    def counter_inc(cls, counter, **kwargs):
-        """
-        This increments a counter with supplied labels in the kwargs
-        :param counter:  Counter to increment
-        :param kwargs:   labels in kwargs format
-        :return:
-        """
-        try:
-            counter.labels(**kwargs).inc()
-            cls.add_metric()
-        except Exception as err:
-            logger.exception("Caught exception whilst incrementing counter", exc_info=err)

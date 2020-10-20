@@ -552,5 +552,3 @@ PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0
                               15.0, 20.0, 30.0, float("inf"))
 PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9100')
 PROMETHEUS_JOB = "hermes"
-PROMETHEUS_PCARD_STATUS_COUNTER = Counter('hermes_pcard_status_total',
-                                          'Payment Card Status Changes', ['scheme', 'status'])
