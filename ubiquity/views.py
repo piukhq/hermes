@@ -474,7 +474,7 @@ class ListPaymentCardView(ListCreatePaymentCardAccount, VersionedSerializerMixin
             payment_card_add_total.labels(
                 channel=request.channels_permit.bundle_id,
                 provider=pcard.payment_card.system_name,
-                route=metrics_route
+                route=metrics_route.value
             ).inc()
 
         return Response(self.get_serializer_by_request(pcard).data, status=status_code)
