@@ -15,9 +15,9 @@ ADD_CHANNEL_TO_METRICS = [
 
 
 class PaymentCardAddRoute(str, Enum):
-    NEW_CARD = "new"
-    MULTI_WALLET = "multi"
-    RETURNING = "returning"
+    NEW_CARD = "New Card"
+    MULTI_WALLET = "Multi Wallet"
+    RETURNING = "Returning"
 
 
 class CustomMetrics(Metrics):
@@ -29,16 +29,23 @@ class CustomMetrics(Metrics):
 
 
 # declare here custom labels to be used directly
-service_creation_total = Counter(
+service_creation_counter = Counter(
     name="service_creation_total",
     documentation="Number of total services registered.",
     labelnames=("channel",),
     namespace=NAMESPACE,
 )
 
-payment_card_add_total = Counter(
+payment_card_add_counter = Counter(
     name="payment_card_add_total",
     documentation="Total number of payment cards added.",
     labelnames=("channel", "provider", "route"),
+    namespace=NAMESPACE,
+)
+
+payment_card_status_counter = Counter(
+    name='payment_card_status_total',
+    documentation='Total number of payment card status changes.',
+    labelnames=("scheme", "status"),
     namespace=NAMESPACE,
 )
