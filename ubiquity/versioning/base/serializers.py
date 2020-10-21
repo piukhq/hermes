@@ -533,7 +533,15 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
+class MembershipCardImageSerializer(UbiquityImageSerializer):
+    url = serializers.URLField()
+    type = serializers.IntegerField()
+    encoding = serializers.CharField(max_length=30)
+
+
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
+
+    membership_card_image_serializer = MembershipCardImageSerializer
 
     @staticmethod
     def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
@@ -617,7 +625,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
-        self.images = self._get_images(instance, scheme, str(reward_tier))
+        images = self._get_images(instance, scheme, str(reward_tier))
+
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -630,7 +639,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': self._get_images(instance, scheme, str(reward_tier)),
+            'images': self.membership_card_image_serializer(images, many=True).data,
             'account': {
                 'tier': reward_tier
             },
