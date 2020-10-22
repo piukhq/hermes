@@ -508,7 +508,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
-        return Response(self.get_serializer_by_request(account).data)
+        entries = request.user.schemeaccountentry_set.all()
+        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+
+        return Response(self.get_serializer_by_request(
+            account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+        ).data)
 
     def log_update(self, scheme_account_id):
         try:
@@ -537,7 +542,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions)
 
-        return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
+        entries = request.user.schemeaccountentry_set.all()
+        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        return Response(
+            self.get_serializer_by_request(
+                updated_account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+            ).data, status=status.HTTP_200_OK
+        )
 
     def _handle_update_fields(self, account: SchemeAccount, scheme: Scheme, update_fields: dict, scheme_questions: list
                               ) -> SchemeAccount:
@@ -637,7 +648,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 if payment_cards_to_link:
                     auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
 
-        return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
+        entries = request.user.schemeaccountentry_set.all()
+        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        return Response(
+            self.get_serializer_by_request(
+                account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+            ).data, status=status.HTTP_200_OK
+        )
 
     @staticmethod
     def _replace_with_enrol_fields(
@@ -788,10 +805,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         auth_fields: dict,
         payment_cards_to_link: list
     ) -> None:
-
-        if scheme_account.status == SchemeAccount.WALLET_ONLY and auth_fields:
+        """This function assumes that auth fields are always provided"""
+        if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_pending()
+            SchemeAccountEntry.create_link(
+                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.UNAUTHORISED
+            )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         else:
             existing_answers = scheme_account.get_auth_credentials()
@@ -809,7 +829,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 if provided_value != v:
                     raise ParseError('This card already exists, but the provided credentials do not match.')
 
-        SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
+            SchemeAccountEntry.create_link(
+                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+            )
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
@@ -901,7 +923,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         )
 
         scheme_account.save()
-        SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+        SchemeAccountEntry.objects.create(
+            user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+        )
         async_join.delay(
             scheme_account.id,
             user.id,
@@ -1064,12 +1088,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         payment_cards_to_link: list,
         account_created: bool,
     ) -> None:
-        # TODO: TBD what to do when there is an existing account but only add fields are provided,
-        #  as this allows a user to link to authorised cards by only providing the add fields [LOY-653]
+        """Handles scheme accounts for when only add fields are provided."""
         if account_created:
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save(update_fields=["status"])
-            logger.info(f"Set SchemeAccount to Wallet Only status (id={scheme_account.id})")
+            logger.info(f"Set SchemeAccount (id={scheme_account.id}) to Wallet Only status")
 
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
@@ -1108,8 +1131,15 @@ class ListMembershipCardView(MembershipCardView):
 
     @censor_and_decorate
     def list(self, request, *args, **kwargs):
-        accounts = list(self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN))
-        response = self.get_serializer_by_request(accounts, many=True).data
+        accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
+
+        entries = request.user.schemeaccountentry_set.all()
+        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+
+        response = self.get_serializer_by_request(
+            accounts, many=True, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+        ).data
+
         return Response(response, status=200)
 
     @censor_and_decorate
@@ -1141,8 +1171,14 @@ class ListMembershipCardView(MembershipCardView):
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
 
+        entries = request.user.schemeaccountentry_set.all()
+        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+
         return Response(
-            self.get_serializer_by_request(account, context={'request': request}).data, status=status_code
+            self.get_serializer_by_request(
+                account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+            ).data,
+            status=status_code
         )
 
 

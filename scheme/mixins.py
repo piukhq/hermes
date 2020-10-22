@@ -94,6 +94,8 @@ class BaseLinkMixin(object):
             scheme_account.link_date = timezone.now()
             scheme_account.save(update_fields=['link_date'])
 
+            scheme_account.user_set.update(user=user, auth_status=SchemeAccountEntry.AUTHORISED)
+
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()

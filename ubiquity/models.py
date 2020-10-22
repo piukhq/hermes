@@ -19,21 +19,34 @@ logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
+    AUTHORISED = 0
+    UNAUTHORISED = 1
+
+    AUTH_STATUSES = (
+        (AUTHORISED, 'authorised'),
+        (UNAUTHORISED, 'unauthorised'),
+    )
+
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Scheme Account")
     user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
+    auth_status = models.IntegerField(choices=AUTH_STATUSES, default=UNAUTHORISED)
 
     class Meta:
         unique_together = ("scheme_account", "user")
 
     @staticmethod
-    def create_link(user: "CustomUser", scheme_account: "SchemeAccount") -> None:
+    def create_link(
+        user: "CustomUser",
+        scheme_account: "SchemeAccount",
+        auth_status: AUTH_STATUSES = UNAUTHORISED
+    ) -> None:
         try:
             # required to rollback transactions when running into an expected IntegrityError
             # tests will fail without this as TestCase already wraps tests in an atomic
             # block and will not know how to correctly rollback otherwise
             with transaction.atomic():
-                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account, auth_status=auth_status)
         except IntegrityError:
             # If it already exists, nothing else needs to be done here.
             pass

@@ -21,15 +21,14 @@ from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
-                           VoucherScheme)
+                           VoucherScheme, SchemeAccount)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
-from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
+from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument, SchemeAccountEntry
 from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
-    from scheme.models import SchemeAccount
     from requests import Response
 
 logger = logging.getLogger(__name__)
@@ -585,8 +584,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         return filtered_images
 
     @staticmethod
-    def get_translated_status(instance: 'SchemeAccount') -> dict:
-        status = instance.status
+    def get_translated_status(instance: 'SchemeAccount', status: 'SchemeAccount.STATUSES') -> dict:
         if status in instance.SYSTEM_ACTION_REQUIRED:
             if instance.balances:
                 status = instance.ACTIVE
@@ -611,7 +609,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         ]
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
-
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
         try:
@@ -627,12 +624,20 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
 
+        status, balances, vouchers = self._wallet_only_filter(instance)
+
+        status = self.get_translated_status(instance, status)
+        balances = self._strip_reward_tier(balances)
+        for voucher in vouchers:
+            if voucher.get('code'):
+                if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
+                    voucher['code'] = ""
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
             'payment_cards': instance.pll_links,
             'membership_transactions': instance.transactions,
-            'status': self.get_translated_status(instance),
+            'status': status,
             'card': {
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
@@ -643,20 +648,31 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'account': {
                 'tier': reward_tier
             },
-            'balances': self._strip_reward_tier(instance.balances)
+            'balances': balances,
+            'vouchers': vouchers,
         }
 
-        if instance.vouchers is not None:
-            vouchers = instance.vouchers
-            for voucher in instance.vouchers:
-                if voucher.get('code'):
-                    if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
-                        voucher['code'] = ""
-                else:
-                    continue
-            card_repr["vouchers"] = vouchers
-
         return card_repr
+
+    def _wallet_only_filter(self, instance: 'SchemeAccount') -> t.Tuple['SchemeAccount.STATUSES', list, list]:
+        status = instance.status
+        balances = instance.balances
+        vouchers = instance.vouchers
+
+        user_mcard_auth_status_map = self.context.get("user_mcard_auth_status_map", {})
+        try:
+            auth_status = user_mcard_auth_status_map[instance.id]
+            if auth_status == SchemeAccountEntry.UNAUTHORISED:
+                status = SchemeAccount.WALLET_ONLY
+                balances = {}
+                vouchers = {}
+        except KeyError:
+            logger.warning(
+                f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
+                " - User may not be linked to this membership card"
+            )
+
+        return status, balances, vouchers
 
 
 class LinkMembershipCardSerializer(SchemeAnswerSerializer):
