@@ -26,6 +26,10 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             msg = 'Claims verification failed'
             raise SuspiciousOperation(msg)
 
+        if not email:
+            msg = "No email found in user_info, cant authenticate with Django users"
+            raise SuspiciousOperation(msg)
+
         # email based filtering, we also filter client application and external id
         # this avoids returning multiple users across different client applications or different external ids
         bink_client = ClientApplication.get_bink_app()
