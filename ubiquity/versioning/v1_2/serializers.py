@@ -15,7 +15,6 @@ ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionSerializer = base_serializers.TransactionSerializer
 MembershipCardSerializer = base_serializers.MembershipCardSerializer
-MembershipCardImageSerializer = base_serializers.MembershipCardImageSerializer
 
 
 class MembershipPlanContentSerializer(serializers.ModelSerializer):

@@ -414,6 +414,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         model = Scheme
         exclude = ('name',)
 
+    image_serializer_class = UbiquityImageSerializer
+
     @staticmethod
     def _add_alternatives_key(formatted_fields: dict) -> None:
         options = {field["column"] for field in formatted_fields}
@@ -497,7 +499,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': UbiquityImageSerializer(images, many=True).data,
+            'images': self.image_serializer_class(images, many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
@@ -531,17 +533,15 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
-class MembershipCardImageSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+class MembershipCardImageSerializer(UbiquityImageSerializer):
     url = serializers.URLField()
     type = serializers.IntegerField()
     encoding = serializers.CharField(max_length=30)
-    description = serializers.CharField(max_length=300)
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
 
-    ImageSerializer = MembershipCardImageSerializer
+    image_serializer_class = MembershipCardImageSerializer
 
     @staticmethod
     def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
@@ -625,7 +625,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
-        self.images = self._get_images(instance, scheme, str(reward_tier))
+        images = self._get_images(instance, scheme, str(reward_tier))
+
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -638,7 +639,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': self.ImageSerializer(self.images, many=True).data,
+            'images': self.image_serializer_class(images, many=True).data,
             'account': {
                 'tier': reward_tier
             },
