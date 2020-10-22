@@ -8,6 +8,8 @@ from django.utils.crypto import get_random_string
 from django.http import HttpResponseRedirect
 from mozilla_django_oidc.utils import add_state_and_nonce_to_session
 
+from user.models import ClientApplication, CustomUser
+
 
 class SSOAuthBackend(OIDCAuthenticationBackend):
     # This is lifted so we can get access to `payload`
@@ -24,8 +26,10 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             msg = 'Claims verification failed'
             raise SuspiciousOperation(msg)
 
-        # email based filtering
-        users = self.filter_users_by_claims(user_info)
+        # email based filtering, we also filter client application and external id
+        # this avoids returning multiple users across different client applications or different external ids
+        bink_client = ClientApplication.get_bink_app()
+        users = CustomUser.objects.filter(email=email, client=bink_client, external_id="")
 
         if len(users) == 1:
             return self.update_user(users[0], user_info, payload)
@@ -43,8 +47,9 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             return None
 
     def create_user(self, claims, payload):
+        bink_client = ClientApplication.get_bink_app()
         email = claims.get('email')
-        user = self.UserModel.objects.create_user(email)
+        user = self.UserModel.objects.create_user(email, client=bink_client, external_id="")
         self._fixup_perms(user, payload)
         return user
 
