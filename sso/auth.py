@@ -19,16 +19,14 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
 
         user_info = self.get_userinfo(access_token, id_token, payload)
 
-        email = user_info.get('email')
+        email = user_info.get("email")
 
         claims_verified = self.verify_claims(user_info)
         if not claims_verified:
-            msg = 'Claims verification failed'
-            raise SuspiciousOperation(msg)
+            raise SuspiciousOperation("Claims verification failed")
 
         if not email:
-            msg = "No email found in user_info, cant authenticate with Django users"
-            raise SuspiciousOperation(msg)
+            raise SuspiciousOperation("No email found in user_info, cant authenticate with Django users")
 
         # email based filtering, we also filter client application and external id
         # this avoids returning multiple users across different client applications or different external ids
@@ -40,19 +38,18 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         elif len(users) > 1:
             # In the rare case that two user accounts have the same email address,
             # bail. Randomly selecting one seems really wrong.
-            msg = 'Multiple users returned'
-            raise SuspiciousOperation(msg)
-        elif self.get_settings('OIDC_CREATE_USER', True):
+            raise SuspiciousOperation("Multiple users returned")
+        elif self.get_settings("OIDC_CREATE_USER", True):
             user = self.create_user(user_info, payload)
             return user
         else:
-            LOGGER.debug('Login failed: No user with email %s found, and '
-                         'OIDC_CREATE_USER is False', email)
+            LOGGER.debug("Login failed: No user with email %s found, and "
+                         "OIDC_CREATE_USER is False", email)
             return None
 
     def create_user(self, claims, payload):
         bink_client = ClientApplication.get_bink_app()
-        email = claims.get('email')
+        email = claims.get("email")
         user = self.UserModel.objects.create_user(email, client=bink_client, external_id="")
         self._fixup_perms(user, payload)
         return user
@@ -65,18 +62,18 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         user.is_staff = True
         user.is_superuser = False
 
-        rw = Group.objects.get(name='Read/Write')
-        ro = Group.objects.get(name='Read Only')
+        rw = Group.objects.get(name="Read/Write")
+        ro = Group.objects.get(name="Read Only")
 
         # Get roles from AAD token
-        roles = payload.get('roles', [])
+        roles = payload.get("roles", [])
         if len(roles) != 1:
-            roles = ['readonly']
+            roles = ["readonly"]
         role = roles[0]
 
-        if role == 'superuser':
+        if role == "superuser":
             user.is_superuser = True
-        elif role == 'readwrite':
+        elif role == "readwrite":
             user.is_superuser = False
             ro.user_set.remove(user)
             user.user_permissions.clear()
@@ -97,27 +94,27 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         if not self.request:
             return None
 
-        state = self.request.GET.get('state')
-        code = self.request.GET.get('code')
-        nonce = kwargs.pop('nonce', None)
+        state = self.request.GET.get("state")
+        code = self.request.GET.get("code")
+        nonce = kwargs.pop("nonce", None)
 
         if not code or not state:
             return None
 
-        reply_url = self.get_settings('OIDC_RP_REPLY_URL')
+        reply_url = self.get_settings("OIDC_RP_REPLY_URL")
 
         token_payload = {
-            'client_id': self.OIDC_RP_CLIENT_ID,
-            'client_secret': self.OIDC_RP_CLIENT_SECRET,
-            'grant_type': 'authorization_code',
-            'code': code,
-            'redirect_uri': reply_url
+            "client_id": self.OIDC_RP_CLIENT_ID,
+            "client_secret": self.OIDC_RP_CLIENT_SECRET,
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": reply_url
         }
 
         # Get the token
         token_info = self.get_token(token_payload)
-        id_token = token_info.get('id_token')
-        access_token = token_info.get('access_token')
+        id_token = token_info.get("id_token")
+        access_token = token_info.get("access_token")
 
         # Validate the token
         payload = self.verify_token(id_token, nonce=nonce)
@@ -127,7 +124,7 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             try:
                 return self.get_or_create_user(access_token, id_token, payload)
             except SuspiciousOperation as exc:
-                LOGGER.warning('failed to get or create user: %s', exc)
+                LOGGER.warning("failed to get or create user: %s", exc)
                 return None
 
         return None
@@ -137,29 +134,29 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
 class CustomOIDCAuthenticationRequestView(OIDCAuthenticationRequestView):
     def get(self, request):
         """OIDC client authentication initialization HTTP endpoint"""
-        state = get_random_string(self.get_settings('OIDC_STATE_SIZE', 32))
-        redirect_field_name = self.get_settings('OIDC_REDIRECT_FIELD_NAME', 'next')
-        reply_url = self.get_settings('OIDC_RP_REPLY_URL')
+        state = get_random_string(self.get_settings("OIDC_STATE_SIZE", 32))
+        redirect_field_name = self.get_settings("OIDC_REDIRECT_FIELD_NAME", "next")
+        reply_url = self.get_settings("OIDC_RP_REPLY_URL")
         params = {
-            'response_type': 'code',
-            'scope': self.get_settings('OIDC_RP_SCOPES', 'openid email'),
-            'client_id': self.OIDC_RP_CLIENT_ID,
-            'redirect_uri': reply_url,
-            'state': state,
+            "response_type": "code",
+            "scope": self.get_settings("OIDC_RP_SCOPES", "openid email"),
+            "client_id": self.OIDC_RP_CLIENT_ID,
+            "redirect_uri": reply_url,
+            "state": state,
         }
 
         params.update(self.get_extra_params(request))
 
-        if self.get_settings('OIDC_USE_NONCE', True):
-            nonce = get_random_string(self.get_settings('OIDC_NONCE_SIZE', 32))
+        if self.get_settings("OIDC_USE_NONCE", True):
+            nonce = get_random_string(self.get_settings("OIDC_NONCE_SIZE", 32))
             params.update({
-                'nonce': nonce
+                "nonce": nonce
             })
 
         add_state_and_nonce_to_session(request, state, params)
 
-        request.session['oidc_login_next'] = get_next_url(request, redirect_field_name)
+        request.session["oidc_login_next"] = get_next_url(request, redirect_field_name)
 
         query = urlencode(params)
-        redirect_url = '{url}?{query}'.format(url=self.OIDC_OP_AUTH_ENDPOINT, query=query)
+        redirect_url = "{url}?{query}".format(url=self.OIDC_OP_AUTH_ENDPOINT, query=query)
         return HttpResponseRedirect(redirect_url)
