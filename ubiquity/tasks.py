@@ -329,7 +329,9 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         if entry.active_link is True:
             pll_activated_payment_cards.append(payment_card.id)
 
-    PaymentCardSchemeEntry.objects.bulk_create(link_entries_to_create, batch_size=100, ignore_conflicts=True)
+    created_links = PaymentCardSchemeEntry.objects.bulk_create(
+        link_entries_to_create, batch_size=100, ignore_conflicts=True
+    )
 
     _update_one_card_with_many_new_pll_links(
         membership_card,
@@ -340,6 +342,8 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         pll_activated_payment_cards,
         membership_card.id
     )
+    for link in created_links:
+        link.vop_activate_check()
 
 
 @shared_task
@@ -383,7 +387,7 @@ def auto_link_payment_to_memberships(
         if link.active_link is True
     ]
 
-    PaymentCardSchemeEntry.objects.bulk_create(
+    created_links = PaymentCardSchemeEntry.objects.bulk_create(
         instances_to_bulk_create.values(),
         batch_size=100,
         ignore_conflicts=True
@@ -398,3 +402,6 @@ def auto_link_payment_to_memberships(
         pll_activated_membership_cards,
         payment_card_account.id
     )
+
+    for link in created_links:
+        link.vop_activate_check()
