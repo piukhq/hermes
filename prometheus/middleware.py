@@ -5,13 +5,17 @@ from django_prometheus.utils import TimeSince
 from prometheus.metrics import CustomMetrics
 
 
-def _get_bundle_id(request, response):
-    if str(request.user) == "AnonymousUser":
-        # service_api_token authentication is used for internal services.
-        return settings.SERVICE_API_METRICS_BUNDLE
+def _get_bundle_id(request, response=None):
     try:
-        # collects the bundle_id from channels_permit
-        return response.renderer_context["request"].channels_permit.bundle_id or "none"
+        if str(request.user) == "AnonymousUser":
+            # service_api_token authentication is used for internal services.
+            return settings.SERVICE_API_METRICS_BUNDLE
+        elif response is None:
+            # handling of an exception, no channels_permit has been set, need to get the bundle from the db.
+            return request.user.client.clientapplicationbundle_set.values_list('bundle_id', flat=True).first()
+        else:
+            # collects the bundle_id from channels_permit
+            return response.renderer_context["request"].channels_permit.bundle_id or "none"
     except (AttributeError, KeyError):
         # old bink endpoint, defaults to bink bundle_id.
         return settings.BINK_BUNDLE_ID
@@ -63,3 +67,21 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         else:
             self.label_metric(self.metrics.requests_unknown_latency, request, response).inc()
         return response
+
+    def process_exception(self, request, exception):
+        self.label_metric(
+            self.metrics.exceptions_by_type, request, type=type(exception).__name__
+        ).inc()
+        if hasattr(request, "resolver_match"):
+            name = request.resolver_match.view_name or "<unnamed view>"
+            self.label_metric(self.metrics.exceptions_by_view, request, view=name).inc()
+        if hasattr(request, "prometheus_after_middleware_event"):
+            self.label_metric(
+                self.metrics.requests_latency_by_view_method,
+                request,
+                view=self._get_view_name(request),
+                method=request.method,
+                channel=_get_bundle_id(request)
+            ).observe(TimeSince(request.prometheus_after_middleware_event))
+        else:
+            self.label_metric(self.metrics.requests_unknown_latency, request).inc()
