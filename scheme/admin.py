@@ -1,5 +1,3 @@
-import re
-
 from common.admin import InputFilter
 from django.conf import settings
 from django.contrib import admin
@@ -10,14 +8,13 @@ from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from redis import Redis
-from scheme.forms import ConsentForm
+from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
                            ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee)
 from ubiquity.models import SchemeAccountEntry
 
-slug_regex = re.compile(r'^[a-z0-9\-]+$')
 
 r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
 
@@ -148,33 +145,6 @@ class SchemeBalanceDetailsInline(admin.StackedInline):
 class ControlInline(admin.TabularInline):
     model = Control
     extra = 0
-
-
-class SchemeForm(ModelForm):
-    class Meta:
-        model = Scheme
-        fields = '__all__'
-
-    def clean(self):
-        cleaned_data = super().clean()
-        return cleaned_data
-
-    def clean_point_name(self):
-        point_name = self.cleaned_data['point_name']
-        points_value_length = self.cleaned_data['max_points_value_length']
-
-        if len(point_name) + points_value_length + 1 > Scheme.MAX_POINTS_VALUE_LENGTH:
-            raise ValidationError('The length of the point name added to the maximum points value length must not '
-                                  'exceed {}'.format(Scheme.MAX_POINTS_VALUE_LENGTH - 1))
-
-        return point_name
-
-    def clean_slug(self):
-        slug = self.cleaned_data['slug']
-        if slug_regex.match(slug):
-            return slug
-        else:
-            raise ValidationError('Slug can only contain lowercase letters, hyphens and numbers')
 
 
 class SchemeDetailsInline(admin.StackedInline):

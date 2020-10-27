@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 import socket
 import sre_constants
@@ -15,12 +16,14 @@ from colorful.fields import RGBColorField
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.core.cache import cache
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import F, Q, signals
 from django.dispatch import receiver
 from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
@@ -33,6 +36,10 @@ if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
     from django.db.models import QuerySet
 
+
+logger = logging.getLogger(__name__)
+
+
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
     (1, 'QrCode'),
@@ -42,6 +49,13 @@ BARCODE_TYPES = (
     (5, 'DataMatrix'),
     (6, "ITF (Interleaved 2 of 5)"),
     (7, 'Code 39'),
+)
+
+slug_regex = re.compile(r'^[a-z0-9\-]+$')
+hex_colour_re = re.compile('^#((?:[0-F]{3}){1,2})$', re.IGNORECASE)
+validate_hex_colour = RegexValidator(
+    hex_colour_re,
+    _("Enter a valid 'colour' in hexadecimal format e.g \"#112233\"")
 )
 
 
@@ -220,6 +234,8 @@ class Scheme(models.Model):
 
     identifier = models.CharField(max_length=30, blank=True, help_text="Regex identifier for barcode")
     colour = RGBColorField(blank=True)
+    secondary_colour = models.CharField(max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"',
+                                        validators=[validate_hex_colour])
     test_scheme = models.BooleanField(default=False)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
@@ -611,7 +627,7 @@ class SchemeAccount(models.Model):
                             PRE_REGISTERED_CARD, REGISTRATION_FAILED, CARD_NUMBER_ERROR, GENERAL_ERROR,
                             JOIN_IN_PROGRESS, SCHEME_REQUESTED_DELETE, FAILED_UPDATE]
     SYSTEM_ACTION_REQUIRED = [END_SITE_DOWN, RETRY_LIMIT_REACHED, UNKNOWN_ERROR, MIDAS_UNREACHABLE,
-                              IP_BLOCKED, TRIPPED_CAPTCHA, NO_SUCH_RECORD, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
+                              IP_BLOCKED, TRIPPED_CAPTCHA, RESOURCE_LIMIT_REACHED, LINK_LIMIT_EXCEEDED,
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK]
     JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
@@ -636,7 +652,7 @@ class SchemeAccount(models.Model):
     vouchers = JSONField(default=dict, null=True, blank=True)
     card_number = models.CharField(max_length=250, blank=True, db_index=True, default='')
     barcode = models.CharField(max_length=250, blank=True, db_index=True, default='')
-    transactions = JSONField(default=dict, null=True, blank=True)
+    transactions = JSONField(default=list, null=True, blank=True)
     main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
@@ -985,6 +1001,7 @@ class SchemeAccount(models.Model):
 
         # Update active_link status
         if status_update:
+            logger.info('%s of id %s has been updated with status: %s', self.__class__.__name__, self.id, self.status)
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': self})
 
         return balance
@@ -1026,9 +1043,8 @@ class SchemeAccount(models.Model):
         redeem_date = arrow.get(voucher_fields["redeem_date"]) if "redeem_date" in voucher_fields else None
 
         expiry_date = vouchers.get_expiry_date(voucher_scheme, voucher_fields, issue_date)
-        state = vouchers.guess_voucher_state(issue_date, redeem_date, expiry_date)
 
-        headline_template = voucher_scheme.get_headline(state)
+        headline_template = voucher_scheme.get_headline(voucher_fields["state"])
         headline = vouchers.apply_template(
             headline_template,
             voucher_scheme=voucher_scheme,
@@ -1036,10 +1052,10 @@ class SchemeAccount(models.Model):
             earn_target_value=earn_target_value,
         )
 
-        body_text = voucher_scheme.get_body_text(state)
+        body_text = voucher_scheme.get_body_text(voucher_fields["state"])
 
         voucher = {
-            "state": vouchers.voucher_state_names[state],
+            "state": voucher_fields["state"],
             "earn": {
                 "type": vouchers.voucher_type_names[voucher_type],
                 "prefix": voucher_scheme.earn_prefix,
@@ -1080,9 +1096,10 @@ class SchemeAccount(models.Model):
         self.status = SchemeAccount.PENDING_MANUAL_CHECK if manual_pending else SchemeAccount.PENDING
         self.save(update_fields=['status'])
 
-    def set_async_join_status(self) -> None:
+    def set_async_join_status(self, *, commit_change=True) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
-        self.save()
+        if commit_change:
+            self.save(update_fields=['status'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
@@ -1090,7 +1107,7 @@ class SchemeAccount(models.Model):
 
     def delete_saved_balance(self):
         self.balances = dict()
-        self.save()
+        self.save(update_fields=['balances'])
 
     def question(self, question_type):
         """
@@ -1438,11 +1455,13 @@ class VoucherScheme(models.Model):
     headline_expired = models.CharField(max_length=250, verbose_name="Expired")
     headline_redeemed = models.CharField(max_length=250, verbose_name="Redeemed")
     headline_issued = models.CharField(max_length=250, verbose_name="Issued")
+    headline_cancelled = models.CharField(max_length=250, verbose_name="Cancelled", default="")
 
     body_text_inprogress = models.TextField(null=False, blank=True, verbose_name="In Progress")
     body_text_expired = models.TextField(null=False, blank=True, verbose_name="Expired")
     body_text_redeemed = models.TextField(null=False, blank=True, verbose_name="Redeemed")
     body_text_issued = models.TextField(null=False, blank=True, verbose_name="Issued")
+    body_text_cancelled = models.TextField(null=False, blank=True, verbose_name="Cancelled", default="")
     subtext = models.CharField(max_length=250, null=False, blank=True)
     terms_and_conditions_url = models.URLField(null=False, blank=True)
 
@@ -1454,18 +1473,20 @@ class VoucherScheme(models.Model):
 
     def get_headline(self, state: vouchers.VoucherState):
         return {
-            vouchers.VoucherState.ISSUED: self.headline_issued,
-            vouchers.VoucherState.IN_PROGRESS: self.headline_inprogress,
-            vouchers.VoucherState.EXPIRED: self.headline_expired,
-            vouchers.VoucherState.REDEEMED: self.headline_redeemed,
+            vouchers.ISSUED: self.headline_issued,
+            vouchers.IN_PROGRESS: self.headline_inprogress,
+            vouchers.EXPIRED: self.headline_expired,
+            vouchers.REDEEMED: self.headline_redeemed,
+            vouchers.CANCELLED: self.headline_cancelled
         }[state]
 
     def get_body_text(self, state: vouchers.VoucherState):
         return {
-            vouchers.VoucherState.ISSUED: self.body_text_issued,
-            vouchers.VoucherState.IN_PROGRESS: self.body_text_inprogress,
-            vouchers.VoucherState.EXPIRED: self.body_text_expired,
-            vouchers.VoucherState.REDEEMED: self.body_text_redeemed,
+            vouchers.ISSUED: self.body_text_issued,
+            vouchers.IN_PROGRESS: self.body_text_inprogress,
+            vouchers.EXPIRED: self.body_text_expired,
+            vouchers.REDEEMED: self.body_text_redeemed,
+            vouchers.CANCELLED: self.body_text_cancelled,
         }[state]
 
     @staticmethod

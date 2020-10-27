@@ -505,7 +505,7 @@ class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixi
         serializer.is_valid(raise_exception=True)
 
         scheme_account.transactions = serializer.validated_data
-        scheme_account.save()
+        scheme_account.save(update_fields=['transactions'])
 
         logger.info(f"Transactions updated for scheme account (id={scheme_account_id})")
         return Response({

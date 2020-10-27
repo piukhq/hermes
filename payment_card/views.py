@@ -7,19 +7,19 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
+from prometheus.metrics import payment_card_status_counter
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from scheme.models import Scheme
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 
@@ -297,7 +297,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         )
 
     def _process_retries(self, retry_task, response_state, retry_id, response_message, response_status, card_id):
-        if not retry_id:
+        if retry_id is None or retry_id < 1:
             # First time call back
             if response_state == "Retry":
                 self._new_retry(retry_task, 100, card_id,
@@ -324,13 +324,25 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
     def put(self, request, *args, **kwargs):
         """
         DO NOT USE - NOT FOR APP ACCESS
-        Parameters returned from Enroll for retry:
-        'status',  PSP response status
+        Parameters returned from Enroll and Un-enroll are used to set card status or update retry mechanism
+        Currently for VOP also has optional parameters to register deactivations made during unenrol:
+
+        For backward compatibility all parameters are optional and may not be present or set to null
+        Note - activations and deactivations do not call back the response is received in the call request
+        and there is a different definition of returned parameters note the term "response_status" is used to return
+        the same as the response_state below and agent_response_code is used to return response_status
+
         'id', id of payment card
-        'response_status', PSP response status
-        'response_state',
-        'response_message',
-        'retry_id'
+        'status':  Defaults to zero. Only present on Add call back to set card status
+        'response_action': Default is Add otherwise may be "Add" or "Delete"  - note spelling and case
+        'response_status': PSP response status examples are "Add:SUCCESS", "Delete:SUCCESS", f"Add:{error_code}"
+        'response_state' : "Success", "Retry" or  "Failed"  - note must match spelling and case
+        'response_message': Message from VOP explaining request success or reason for failure. Has a ";" to
+                            separate general message from any message detail which may be given
+        'retry_id':  Id of retry task -1 if not retried and no associated task
+        'token': Optional for backward compatibility
+        "deactivated_list": List of ids of associated deactivations so as to set the new status in the activations table
+        "deactivate_errors": Dict of deactivation errors for reporting in retry task
         """
         card_id = request.data.get('id', None)
         token = request.data.get('token', None)
@@ -340,8 +352,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         retry_id = request.data.get('retry_id', None)
         response_action = request.data.get('response_action', "Add")
         new_status_code = request.data.get('status', None)
+        deactivated_list = request.data.get('deactivated_list', [])
+        deactivate_errors = request.data.get('deactivate_errors', {})
 
-        if new_status_code:
+        if new_status_code is not None:
             new_status_code = int(new_status_code)
 
         if not (card_id or token):
@@ -355,6 +369,14 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if response_action == "Delete":
             # Retry with delete action is only called for providers which support it eg VOP path
             retry_task = "retry_delete_payment_card"
+            deactivated_list = request.data.get('deactivated_list', [])
+            deactivate_errors = request.data.get('deactivate_errors', {})
+            if deactivate_errors:
+                response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
+
+            if deactivated_list:
+                VopActivation.objects.filter(id__in=deactivated_list).update(status=VopActivation.DEACTIVATED)
+
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
 
             return Response({
@@ -375,6 +397,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if new_status_code != payment_card_account.status:
             payment_card_account.status = new_status_code
             payment_card_account.save()
+
+            payment_card_status_counter.labels(scheme=payment_card_account.payment_card.name,
+                                               status=payment_card_account.status_name).inc()
+
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account

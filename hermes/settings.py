@@ -17,12 +17,11 @@ from collections import namedtuple
 from enum import Enum
 
 import sentry_sdk
-from redis import ConnectionPool as Redis_ConnectionPool
-from sentry_sdk.integrations.django import DjangoIntegration
-
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.version import __version__
+from redis import ConnectionPool as Redis_ConnectionPool
+from sentry_sdk.integrations.django import DjangoIntegration
 
 read_env()
 
@@ -48,35 +47,40 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 # Application definition
 LOCAL_APPS = (
+    'sso',
     'user',
     'scheme',
     'payment_card',
     'order',
     'ubiquity',
     'daedalus_messaging',
-    'periodic_retry'
+    'periodic_retry',
+    'prometheus.apps.PrometheusPusherConfig',
 )
 
 INSTALLED_APPS = (
+    'django_admin_env_notice',
+    'sso.apps.AADAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_admin_env_notice',
-    'django.contrib.admin',
+    'mozilla_django_oidc',
     'rest_framework',
     'corsheaders',
     'colorful',
     'mail_templated',
     'anymail',
     'storages',
+    'django_prometheus',
     *LOCAL_APPS
 )
 
-# add 'hermes.middleware.query_debug', to top of middleware list to see in debug sql queries in response header
+# add 'hermes.middleware.QueryDebug', to top of middleware list to see in debug sql queries in response header
+# add 'hermes.middleware.TimedRequest', to top of middleware list to see request times in response header
 MIDDLEWARE = (
-    'hermes.middleware.timed_request',
+    'prometheus.middleware.CustomPrometheusBeforeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',  # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -85,8 +89,9 @@ MIDDLEWARE = (
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'dictfilter.django.middleware.dictfilter_middleware',
-    'hermes.middleware.accept_version',
+    'dictfilter.django.middleware.DictFilterMiddleware',
+    'hermes.middleware.AcceptVersion',
+    'prometheus.middleware.CustomPrometheusAfterMiddleware',
 )
 
 ROOT_URLCONF = 'hermes.urls'
@@ -131,6 +136,7 @@ class Version(str, Enum):
     v1_0 = '1.0'
     v1_1 = '1.1'
     v1_2 = '1.2'
+    v1_3 = '1.3'
 
     def __gt__(self, other):
         major, minor = map(int, self.value.split('.'))
@@ -203,7 +209,9 @@ USE_TZ = True
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
+
 AUTHENTICATION_BACKENDS = [
+    'sso.auth.SSOAuthBackend',
     'hermes.email_auth.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
@@ -231,6 +239,7 @@ LOCAL_AES_KEY = 'OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ'
 AES_KEY = '6gZW4ARFINh4DR1uIzn12l7Mh1UF982L'
 
 SERVICE_API_KEY = 'F616CE5C88744DD52DB628FAD8B3D'
+SERVICE_API_METRICS_BUNDLE = 'internal_service'
 
 HASH_ID_SALT = '95429791eee6a6e12d11a5a23d920969f7b1a94d'
 
@@ -518,3 +527,27 @@ CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 CSRF_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
 SESSION_COOKIE_SECURE = env_var("SECURE_COOKIES", "False")
+
+# OIDC SSO
+SSO_OFF = env_var('SSO_OFF', 'False')
+LOGIN_REDIRECT_URL = "/admin/"
+LOGIN_REDIRECT_URL_FAILURE = "/admin/error/403"
+OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
+OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
+OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "cf6d5fc9-f503-442e-9dec-2cdf714143db")
+OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "Y35e1b~qGQ4X02-sfs3638Wy1Zxb.-.tl2")
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_OP_JWKS_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/discovery/v2.0/keys"
+OIDC_OP_AUTHORIZATION_ENDPOINT = (
+    "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/authorize"
+)
+OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/token"
+OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
+
+
+PROMETHEUS_EXPORT_MIGRATIONS = False
+PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,
+                              15.0, 20.0, 30.0, float("inf"))
+PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9100')
+PROMETHEUS_JOB = "hermes"

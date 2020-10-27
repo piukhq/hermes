@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.urls import include, re_path, path
 
 urlpatterns = [
+    re_path(r"^admin/oidc/", include("mozilla_django_oidc.urls")),
+    re_path(r"^admin/error/", include("sso.urls")),
     path("admin/", admin.site.urls),
     re_path(r"^users/", include("user.urls")),
     re_path(r"^schemes", include("scheme.urls")),
