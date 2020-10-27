@@ -308,6 +308,11 @@ def _update_many_cards_with_one_new_pll_link(
     card_model.value.objects.bulk_update(updated_cards, ['pll_links'])
 
 
+def _process_vop_activations(created_links):
+    for link in created_links:
+        link.vop_activate_check()
+
+
 @shared_task
 def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
     if isinstance(membership_card, int):
@@ -341,7 +346,9 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         if entry.active_link is True:
             pll_activated_payment_cards.append(payment_card.id)
 
-    PaymentCardSchemeEntry.objects.bulk_create(link_entries_to_create, batch_size=100, ignore_conflicts=True)
+    created_links = PaymentCardSchemeEntry.objects.bulk_create(
+        link_entries_to_create, batch_size=100, ignore_conflicts=True
+    )
     logger.info(
         "auto-linked SchemeAccount %s to PaymentCardAccounts %s, of which %s were active links",
         membership_card.id,
@@ -359,6 +366,7 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         pll_activated_payment_cards,
         membership_card.id
     )
+    _process_vop_activations(created_links)
 
 
 @shared_task
@@ -402,7 +410,7 @@ def auto_link_payment_to_memberships(
         if link.active_link is True
     ]
 
-    PaymentCardSchemeEntry.objects.bulk_create(
+    created_links = PaymentCardSchemeEntry.objects.bulk_create(
         instances_to_bulk_create.values(),
         batch_size=100,
         ignore_conflicts=True
@@ -417,3 +425,4 @@ def auto_link_payment_to_memberships(
         pll_activated_membership_cards,
         payment_card_account.id
     )
+    _process_vop_activations(created_links)
