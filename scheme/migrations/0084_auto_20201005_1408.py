@@ -33,13 +33,23 @@ def convert_empty_tx_dicts_to_list(apps, schema_editor):
 def revert_empty_tx_dicts_to_list(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
 
-    mcards_to_update = []
-    for mcard in SchemeAccount.objects.all():
-        if not mcard.transactions and isinstance(mcard.transactions, list):
-            mcard.transactions = {}
-            mcards_to_update.append(mcard)
+    scheme_accounts = SchemeAccount.objects.all()
+    # Batches of 1000
+    scheme_accounts_pages = Paginator(scheme_accounts, 1000)
 
-    SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
+    for page_num in scheme_accounts_pages.page_range:
+        mcards_to_update = []
+        for mcard in scheme_accounts_pages.page(page_num):
+            if not mcard.transactions and isinstance(mcard.transactions, list):
+                mcard.transactions = {}
+                mcards_to_update.append(mcard)
+
+            SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
+
+        logger.debug(
+            f"scheme migration 0084_auto_20201005_1408 reverted {page_num * 1000} \
+                scheme accounts out of {scheme_accounts_pages.count}"
+        )
 
 
 class Migration(migrations.Migration):
