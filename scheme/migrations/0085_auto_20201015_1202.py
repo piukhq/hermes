@@ -8,7 +8,7 @@ import re
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0085_scheme_secondary_colour'),
+        ('scheme', '0084_scheme_secondary_colour'),
     ]
 
     operations = [
