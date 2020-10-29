@@ -43,7 +43,12 @@ def titled_filter(title):
 @admin.register(models.PaymentCardAccount)
 class PaymentCardAccountAdmin(admin.ModelAdmin):
     def obfuscated_hash(self, obj):
-        return "*" * (len(obj.hash) - 4) + obj.hash[-4:]
+        if obj.hash:
+            obf_hash = "*" * (len(obj.hash) - 4) + obj.hash[-4:]
+        else:
+            obf_hash = "N/A"
+
+        return obf_hash
 
     obfuscated_hash.short_description = "Hash"
     list_display = ("payment_card", "status", "user_email", "pan_start", "pan_end", "is_deleted", "created")
