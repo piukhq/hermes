@@ -3,7 +3,6 @@
 import logging
 
 import django.contrib.postgres.fields.jsonb
-from django.core.paginator import Paginator
 from django.db import migrations
 
 logger = logging.getLogger(__name__)
@@ -11,45 +10,12 @@ logger = logging.getLogger(__name__)
 
 def convert_empty_tx_dicts_to_list(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
-
-    scheme_accounts = SchemeAccount.objects.all()
-    # Batches of 1000
-    scheme_accounts_pages = Paginator(scheme_accounts, 1000)
-
-    for page_num in scheme_accounts_pages.page_range:
-        mcards_to_update = []
-        for mcard in scheme_accounts_pages.page(page_num):
-            if not mcard.transactions and isinstance(mcard.transactions, dict):
-                mcard.transactions = []
-                mcards_to_update.append(mcard)
-
-            SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
-        logger.debug(
-            f"scheme migration 0084_auto_20201005_1408 updated {page_num * 1000} \
-                scheme accounts out of {scheme_accounts_pages.count}"
-        )
+    SchemeAccount.objects.filter(transactions={}).update(transactions=[])
 
 
 def revert_empty_tx_dicts_to_list(apps, schema_editor):
     SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
-
-    scheme_accounts = SchemeAccount.objects.all()
-    # Batches of 1000
-    scheme_accounts_pages = Paginator(scheme_accounts, 1000)
-
-    for page_num in scheme_accounts_pages.page_range:
-        mcards_to_update = []
-        for mcard in scheme_accounts_pages.page(page_num):
-            if not mcard.transactions and isinstance(mcard.transactions, list):
-                mcard.transactions = {}
-                mcards_to_update.append(mcard)
-
-            SchemeAccount.objects.bulk_update(mcards_to_update, ["transactions"])
-
-        logger.debug(
-            f"scheme migration 0084_auto_20201005_1408 reverted {page_num * 1000} \
-                scheme accounts out of {scheme_accounts_pages.count}"
-        )
+    SchemeAccount.objects.filter(transactions=[]).update(transactions={})
 
 
 class Migration(migrations.Migration):
