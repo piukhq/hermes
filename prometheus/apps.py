@@ -9,7 +9,7 @@ from django.conf import settings
 from prometheus_client import push_to_gateway
 from prometheus_client.registry import REGISTRY
 
-logger = logging.getLogger("ubiquity")
+logger = logging.getLogger("prometheus")
 
 
 class PrometheusPushThread(threading.Thread):
