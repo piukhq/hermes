@@ -9,7 +9,7 @@ from django.conf import settings
 from prometheus_client import push_to_gateway
 from prometheus_client.registry import REGISTRY
 
-logger = logging.getLogger('ubiquity')
+logger = logging.getLogger("ubiquity")
 
 
 class PrometheusPushThread(threading.Thread):
@@ -32,9 +32,9 @@ class PrometheusPushThread(threading.Thread):
                     job=settings.PROMETHEUS_JOB,
                     registry=REGISTRY,
                     grouping_key=self.grouping_key,
-                    timeout=self.PUSH_TIMEOUT
+                    timeout=self.PUSH_TIMEOUT,
                 )
-                logger.info("Pushed metrics to gateway")
+                logger.debug("Pushed metrics to gateway")
             except (ConnectionRefusedError, urllib.error.URLError):
                 logger.warning("Failed to push metrics, connection refused")
             except Exception as err:
@@ -46,12 +46,17 @@ class PrometheusPushThread(threading.Thread):
 
 
 class PrometheusPusherConfig(AppConfig):
-    name = 'prometheus'
+    name = "prometheus"
 
     def ready(self):
-        logger.info("Configuring prometheus metric pusher")
-        process_id = str(os.getpid())
-        thread = PrometheusPushThread(process_id)
-        thread.daemon = True
-        thread.start()
-        logger.info("Prometheus push thread started")
+        if settings.INIT_RUNTIME_APPS:
+            logger.info("Configuring prometheus metric pusher")
+            process_id = str(os.getpid())
+            thread = PrometheusPushThread(process_id)
+            thread.daemon = True
+            thread.start()
+            logger.info("Prometheus push thread started")
+        else:
+            logger.info(
+                "Prometheus push thread not initialised as this is either a test, a migration, or statics collection"
+            )
