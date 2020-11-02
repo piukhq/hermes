@@ -7,7 +7,7 @@ import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, QuerySet
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
 from rest_framework.generics import get_object_or_404
@@ -633,24 +633,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if enrol_fields:
             self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
         else:
-            if auth_fields:
-                auth_fields = detect_and_handle_escaped_unicode(auth_fields)
-
-            new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
-
-            if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
-                account.status = account.FAILED_UPDATE
-                account.save()
-            else:
-                self.replace_credentials_and_scheme(account, new_answers, scheme)
-                account.update_barcode_and_card_number()
-                account.set_pending()
-                async_balance.delay(account.id)
-
-                if payment_cards_to_link:
-                    mcard_entry = entries.get(scheme_account=account)
-                    if mcard_entry.authorised_for_autolink():
-                        auto_link_membership_to_payments.delay(payment_cards_to_link, account.id, mcard_entry)
+            self._replace_add_and_auth_fields(account, add_fields, auth_fields, scheme, payment_cards_to_link, entries)
 
         user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
         return Response(
@@ -698,6 +681,34 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             channel=req.channels_permit.bundle_id,
             payment_cards_to_link=payment_cards_to_link
         )
+
+    def _replace_add_and_auth_fields(
+        self,
+        account: SchemeAccount,
+        add_fields: dict,
+        auth_fields: dict,
+        scheme: Scheme,
+        payment_cards_to_link: list,
+        entries: 'QuerySet[SchemeAccountEntry]'
+    ):
+        if auth_fields:
+            auth_fields = detect_and_handle_escaped_unicode(auth_fields)
+
+        new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
+
+        if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
+            account.status = account.FAILED_UPDATE
+            account.save()
+        else:
+            self.replace_credentials_and_scheme(account, new_answers, scheme)
+            account.update_barcode_and_card_number()
+            account.set_pending()
+            async_balance.delay(account.id)
+
+            if payment_cards_to_link:
+                mcard_entry = entries.get(scheme_account=account)
+                if mcard_entry.authorised_for_autolink():
+                    auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
 
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
@@ -860,6 +871,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if account_created and auth_fields:
             scheme_account.update_barcode_and_card_number()
+            SchemeAccountEntry.create_link(user, scheme_account, auth_status=SchemeAccountEntry.AUTHORISED)
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         elif not auth_fields:
             self._handle_add_fields_only_link(user, scheme_account, payment_cards_to_link, account_created)

@@ -63,7 +63,7 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
         if payment_cards_to_link:
             mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
             if mcard_entry.authorised_for_autolink():
-                auto_link_membership_to_payments(payment_cards_to_link, scheme_account, mcard_entry)
+                auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
@@ -107,7 +107,7 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
     if payment_cards_to_link:
         mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
         if mcard_entry.authorised_for_autolink():
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account, mcard_entry)
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
 
 @shared_task
@@ -304,7 +304,10 @@ def _process_vop_activations(created_links):
 
 
 @shared_task
-def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
+def auto_link_membership_to_payments(
+    payment_cards_to_link: list,
+    membership_card: t.Union[SchemeAccount, int],
+) -> None:
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
