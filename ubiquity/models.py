@@ -40,16 +40,39 @@ class SchemeAccountEntry(models.Model):
         user: "CustomUser",
         scheme_account: "SchemeAccount",
         auth_status: AUTH_STATUSES = UNAUTHORISED
-    ) -> None:
+    ) -> "SchemeAccountEntry":
         try:
             # required to rollback transactions when running into an expected IntegrityError
             # tests will fail without this as TestCase already wraps tests in an atomic
             # block and will not know how to correctly rollback otherwise
             with transaction.atomic():
-                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account, auth_status=auth_status)
+                return SchemeAccountEntry.objects.create(
+                    user=user,
+                    scheme_account=scheme_account,
+                    auth_status=auth_status
+                )
         except IntegrityError:
-            # If it already exists, nothing else needs to be done here.
+            # This does not handle changes to the auth_status so we may have to switch to .update_or_create()
+            # if there is a chance of the link already existing
             pass
+
+    @staticmethod
+    def update_or_create_link(
+        user: "CustomUser",
+        scheme_account: "SchemeAccount",
+        auth_status: AUTH_STATUSES = UNAUTHORISED
+    ) -> "SchemeAccountEntry":
+        return SchemeAccountEntry.objects.update_or_create(
+            user=user,
+            scheme_account=scheme_account,
+            auth_status=auth_status
+        )
+
+    def authorised_for_autolink(self):
+        return {
+            self.AUTHORISED: True,
+            self.UNAUTHORISED: False,
+        }[self.auth_status]
 
 
 class PaymentCardAccountEntry(models.Model):

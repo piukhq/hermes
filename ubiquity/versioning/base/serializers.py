@@ -624,7 +624,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
 
-        status, balances, vouchers = self._wallet_only_filter(instance)
+        status, balances, transactions, vouchers = self._wallet_only_filter(instance)
 
         status = self.get_translated_status(instance, status)
         balances = self._strip_reward_tier(balances)
@@ -636,7 +636,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             'id': instance.id,
             'membership_plan': instance.scheme_id,
             'payment_cards': instance.pll_links,
-            'membership_transactions': instance.transactions,
+            'membership_transactions': transactions,
             'status': status,
             'card': {
                 'barcode': instance.barcode,
@@ -654,9 +654,12 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         return card_repr
 
-    def _wallet_only_filter(self, instance: 'SchemeAccount') -> t.Tuple['SchemeAccount.STATUSES', list, list]:
+    def _wallet_only_filter(
+        self, instance: 'SchemeAccount'
+    ) -> t.Tuple['SchemeAccount.STATUSES', list, list, t.Union[list, dict]]:
         status = instance.status
         balances = instance.balances
+        transactions = instance.transactions
         vouchers = instance.vouchers
 
         user_mcard_auth_status_map = self.context.get("user_mcard_auth_status_map", {})
@@ -664,7 +667,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             auth_status = user_mcard_auth_status_map[instance.id]
             if auth_status == SchemeAccountEntry.UNAUTHORISED:
                 status = SchemeAccount.WALLET_ONLY
-                balances = {}
+                balances = []
+                transactions = []
                 vouchers = {}
         except KeyError:
             logger.warning(
@@ -672,7 +676,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 " - User may not be linked to this membership card"
             )
 
-        return status, balances, vouchers
+        return status, balances, transactions, vouchers
 
 
 class LinkMembershipCardSerializer(SchemeAnswerSerializer):

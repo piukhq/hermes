@@ -130,7 +130,7 @@ class AutoLinkOnCreationMixin:
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
         wallet_scheme_accounts = SchemeAccount.objects.filter(
-            user_set=user, scheme__tier=Scheme.PLL
+            user_set=user, scheme__tier=Scheme.PLL, schemeaccountentry__auth_status=SchemeAccountEntry.AUTHORISED
         ).all()
 
         if wallet_scheme_accounts:
@@ -628,6 +628,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         account.delete_saved_balance()
         account.delete_cached_balance()
 
+        entries = request.user.schemeaccountentry_set.all()
+
         if enrol_fields:
             self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
         else:
@@ -646,9 +648,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 async_balance.delay(account.id)
 
                 if payment_cards_to_link:
-                    auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+                    mcard_entry = entries.get(scheme_account=account)
+                    if mcard_entry.authorised_for_autolink():
+                        auto_link_membership_to_payments.delay(payment_cards_to_link, account.id, mcard_entry)
 
-        entries = request.user.schemeaccountentry_set.all()
         user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
         return Response(
             self.get_serializer_by_request(
@@ -809,8 +812,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_pending()
-            SchemeAccountEntry.create_link(
-                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.UNAUTHORISED
+            SchemeAccountEntry.update_or_create_link(
+                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
             )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         else:
@@ -829,11 +832,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 if provided_value != v:
                     raise ParseError('This card already exists, but the provided credentials do not match.')
 
-            SchemeAccountEntry.create_link(
+            mcard_entry = SchemeAccountEntry.update_or_create_link(
                 user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
             )
-        if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+            if payment_cards_to_link and mcard_entry.authorised_for_autolink():
+                auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     def _handle_create_link_route(
         self,
@@ -1094,11 +1097,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account.save(update_fields=["status"])
             logger.info(f"Set SchemeAccount (id={scheme_account.id}) to Wallet Only status")
 
-        if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+        # if payment_cards_to_link:
+        #     auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         scheme_account.update_barcode_and_card_number()
-        SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
+        SchemeAccountEntry.create_link(
+            user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.UNAUTHORISED
+        )
 
     @staticmethod
     def match_consents(consent_links, data_provided):
@@ -1266,12 +1271,16 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             if not user.is_tester:
                 filters['scheme__test_scheme'] = False
 
-            membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
+            membership_card = user.scheme_account_set.get(
+                pk=membership_card_id,
+                schemeaccountentry__auth_status=SchemeAccountEntry.AUTHORISED,
+                **filters
+            )
 
         except PaymentCardAccount.DoesNotExist:
-            raise NotFound('The payment card of id {} was not found.'.format(payment_card_id))
+            raise NotFound(f'The payment card of id {payment_card_id} was not found.')
         except SchemeAccount.DoesNotExist:
-            raise NotFound('The membership card of id {} was not found.'.format(membership_card_id))
+            raise NotFound(f'The membership card of id {membership_card_id} was not found or is not authorised.')
         except KeyError:
             raise ParseError
 

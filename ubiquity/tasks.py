@@ -61,7 +61,9 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
         BaseLinkMixin.link_account(serializer, scheme_account, user)
 
         if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+            mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
+            if mcard_entry.authorised_for_autolink():
+                auto_link_membership_to_payments(payment_cards_to_link, scheme_account, mcard_entry)
 
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
@@ -103,7 +105,9 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
     if payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+        mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
+        if mcard_entry.authorised_for_autolink():
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account, mcard_entry)
 
 
 @shared_task
