@@ -37,6 +37,7 @@ flake8:
 
 build-dev:
   stage: dev
+  environment: dev
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
@@ -48,6 +49,7 @@ build-dev:
 
 build-staging:
   stage: staging
+  environment: staging
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
@@ -71,7 +73,7 @@ build-tag:
 tag-preprod:
   stage: preprod
   image: binkops.azurecr.io/tagbot:latest
-  environment: prod
+  environment: preprod
   script:
     - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --tag "preprod-$CI_COMMIT_TAG"
   when: manual
