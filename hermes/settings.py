@@ -55,6 +55,7 @@ LOCAL_APPS = (
     'ubiquity',
     'daedalus_messaging',
     'periodic_retry',
+    'scripts',
     'prometheus.apps.PrometheusPusherConfig',
 )
 
