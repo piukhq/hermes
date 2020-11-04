@@ -4,13 +4,18 @@ from django.urls import path
 from django.template.response import TemplateResponse
 from .vop_scripts import find_deleted_vop_cards_with_activations
 from .vop_actions import do_un_eroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
-
+from django.contrib import messages
 from .models import ScriptResult
 
 
 def apply_correction(modeladmin, request, queryset):
     count = 0
+    success_count = 0
+    failed_count = 0
+    done_count = 0
+    correction_titles = dict(ScriptResult.CORRECTION_SCRIPTS)
     for entry in queryset:
+        count += 1
         success = False
         if not entry.done:
             if entry.apply == ScriptResult.UN_ENROLL:
@@ -23,20 +28,30 @@ def apply_correction(modeladmin, request, queryset):
                 success = do_transfer_activation(entry)
             elif entry.apply == ScriptResult.MARK_AS_DEACTIVATED:
                 success = do_mark_as_deactivated(entry)
-        if success:
-            sequence = entry.data['sequence']
-            sequence_pos = entry.data['sequence_pos'] + 1
-            if sequence_pos >= len(sequence):
-                entry.done = True
+            if success:
+                success_count += 1
+                sequence = entry.data['sequence']
+                sequence_pos = entry.data['sequence_pos'] + 1
+                entry.results.append(f"{correction_titles[entry.apply]}: success")
+                if sequence_pos >= len(sequence):
+                    entry.done = True
+                    entry.apply = ScriptResult.NO_CORRECTION
+                    done_count += 1
+
+                else:
+                    entry.data['sequence_pos'] = sequence_pos
+                    entry.apply = sequence[sequence_pos]
             else:
-                entry.data['sequence_pos'] = sequence_pos
-                entry.apply = sequence[sequence_pos]
+                failed_count += 1
+                entry.results.append(f"{correction_titles[entry.apply]}: failed")
             entry.save()
+    messages.add_message(request, messages.INFO, f'Process {count} corrections - {success_count} successful,'
+                                                 f' {failed_count} failed, {done_count} completed')
 
 
 @admin.register(ScriptResult)
 class ScriptResultAdmin(admin.ModelAdmin):
-    list_display = ('script_name', 'item_id', 'done', 'apply', 'correction')
+    list_display = ('script_name', 'item_id', 'done', 'apply', 'correction', 'results')
     list_filter = ('script_name', 'done', 'apply', 'correction',)
     readonly_fields = ('script_name', 'item_id', 'data', 'results', 'correction', 'apply', 'done')
     search_fields = ('script_name', 'done', 'data', 'results')
