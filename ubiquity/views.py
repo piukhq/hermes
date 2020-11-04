@@ -781,10 +781,25 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
         return scheme, auth_fields, enrol_fields, add_fields
 
-    @staticmethod
-    def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
+    def _handle_existing_scheme_account(self, scheme_account: SchemeAccount, user: CustomUser,
                                         auth_fields: dict, payment_cards_to_link: list) -> None:
         existing_answers = scheme_account.get_auth_credentials()
+        self._validate_auth_fields(auth_fields, existing_answers)
+        try:
+            # required to rollback transactions when running into an expected IntegrityError
+            # tests will fail without this as TestCase already wraps tests in an atomic
+            # block and will not know how to correctly rollback otherwise
+            with transaction.atomic():
+                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+        except IntegrityError:
+            # If it already exists, nothing else needs to be done here.
+            pass
+
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+    @staticmethod
+    def _validate_auth_fields(auth_fields, existing_answers):
         for question_type, existing_value in existing_answers.items():
             provided_value = auth_fields.get(question_type)
 
@@ -803,19 +818,6 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             if provided_value != existing_value:
                 raise ParseError('This card already exists, but the provided credentials do not match.')
-
-        try:
-            # required to rollback transactions when running into an expected IntegrityError
-            # tests will fail without this as TestCase already wraps tests in an atomic
-            # block and will not know how to correctly rollback otherwise
-            with transaction.atomic():
-                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
-        except IntegrityError:
-            # If it already exists, nothing else needs to be done here.
-            pass
-
-        if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     def _handle_create_link_route(
         self,
