@@ -55,10 +55,8 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
                     'card_id': a.payment_card_account.id,
                     'scheme_id': a.scheme.id,
                     'activation_id': a.activation_id,
-                    'correction': correction,
                     'sequence': sequence,
                     'sequence_pos': 0,
-                    'apply': sequence[0]
                 }
 
                 ref = f"{a.id}.{a.payment_card_account.id}.{script_id}"

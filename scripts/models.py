@@ -18,10 +18,10 @@ class ScriptResult(models.Model):
         (NO_CORRECTION, 'No correction available'),
         (MARK_AS_DEACTIVATED, 'Mark as deactivated as same token is also active'),
         (TRANSFER_ACTIVATION, 'Transfer activation to card with same token'),
-        (DEACTIVATE_UN_ENROLLED, 'Re-enrol, Deactivate, Uenroll'),
+        (DEACTIVATE_UN_ENROLLED, 'Re-enrol, Deactivate, Un-enroll'),
         (RE_ENROLL, 'Re-enroll'),
-        (DEACTIVATE, 'Deactivate, Uenroll'),
-        (UN_ENROLL, 'Uenroll'),
+        (DEACTIVATE, 'Deactivate'),
+        (UN_ENROLL, 'Un-enroll'),
     )
 
     script_name = models.CharField(max_length=100, default="unknown")
