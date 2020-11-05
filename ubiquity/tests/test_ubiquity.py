@@ -12,13 +12,13 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
-    CASE_SENSITIVE_CREDENTIALS
+    CASE_SENSITIVE_CREDENTIALS, EMAIL
 from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
-                                    SchemeBundleAssociationFactory)
+                                    SchemeBundleAssociationFactory, fake)
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.censor_empty_fields import remove_empty
@@ -1601,6 +1601,8 @@ class TestResources(APITestCase):
         auth_header = self._get_auth_header(new_user)
         scheme = SchemeFactory()
         scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account.main_answer = fake.email()
+        scheme_account.save(update_fields=["main_answer"])
         SchemeBundleAssociationFactory(
             scheme=scheme,
             bundle=self.bundle,
@@ -1608,15 +1610,16 @@ class TestResources(APITestCase):
         )
         SchemeCredentialQuestionFactory(
             scheme=scheme,
-            type=BARCODE,
-            label=BARCODE,
+            type=EMAIL,
+            label=EMAIL,
             manual_question=True,
             add_field=True,
             enrol_field=True
         )
-        barcode = SchemeCredentialAnswerFactory(
+        email = SchemeCredentialAnswerFactory(
             question=scheme.manual_question,
-            scheme_account=scheme_account
+            scheme_account=scheme_account,
+            answer=scheme_account.main_answer
         )
         scheme_account.update_barcode_and_card_number()
 
@@ -1626,8 +1629,8 @@ class TestResources(APITestCase):
                 {
                     "add_fields": [
                         {
-                            "column": "barcode",
-                            "value": barcode.answer
+                            "column": EMAIL,
+                            "value": email.answer
                         }
                     ],
                     "authorise_fields": [
@@ -1638,7 +1641,7 @@ class TestResources(APITestCase):
         test_question_types = [
             q for q, _ in CREDENTIAL_TYPES
             if q not in DATE_TYPE_CREDENTIALS
-            and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2]
+            and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
         ]
         question_answer_map = {}
         for question_type in test_question_types:
@@ -1687,6 +1690,19 @@ class TestResources(APITestCase):
             case_modified_auth_fields.append({"column": question_type, "value": answer})
 
         payload["account"]["authorise_fields"] = case_modified_auth_fields
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
+        link.delete()
+
+        # Test modifying string-based manual question passes
+        payload["account"]["add_fields"] = [{"column": EMAIL, "value": email.answer.upper()}]
         resp = self.client.post(
             reverse('membership-cards'),
             data=json.dumps(payload),
