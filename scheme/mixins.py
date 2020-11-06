@@ -17,8 +17,8 @@ from rest_framework.exceptions import ValidationError
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS, \
-    CASE_SENSITIVE_CREDENTIALS
+from scheme.credentials import (PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS,
+                                CASE_SENSITIVE_CREDENTIALS)
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion, Consent)
