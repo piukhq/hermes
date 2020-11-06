@@ -1,5 +1,5 @@
 {% extends "admin/app_index.html" %}
-{% load i18n %}
+{% load script_tags i18n %}
 
 {% block content_title %}{% if title %}<h1>Data Correction Administration</h1>{% endif %}{% endblock %}
 
@@ -19,8 +19,11 @@
         The corrective actions are listed for each data record and can be selected and actioned</p>
     <br/>
     <h1>Scripts to Run</h1>
-    <a href="scriptresult/run_script/1">Find Deleted VOP Cards with remaining activations</a>
-
+    <p>{% script_list | safe %}</p><br />
+    {% comment %}
+    Can use following to add a named scripts instead of script_list
+    <a href="scriptresult/run_script/{% script_id DEL_VOP_WITH_ACT %}">{% script_title DEL_VOP_WITH_ACT %}</a>
+    {% endcomment %}
 
 {% endblock %}
 

@@ -1,11 +1,14 @@
-from django.conf.urls import url
 from django.contrib import admin
-from django.urls import path
-from django.template.response import TemplateResponse
-from .vop_scripts import find_deleted_vop_cards_with_activations
-from .vop_actions import do_un_eroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
 from django.contrib import messages
+from django.template.response import TemplateResponse
+from django.urls import path
+
 from .models import ScriptResult
+from .scripts import SCRIPT_TITLES, SCRIPT_FUNCTIONS, DataScripts
+from .vop_actions import do_un_eroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
+
+
+# See scripts.py on hoe to add a new script find records function
 
 
 def apply_correction(modeladmin, request, queryset):
@@ -81,8 +84,11 @@ def scripts_to_run(script_id):
         'corrections': 0,
         'html_report': "",
     }
-    if script_id == 1:
-        result['run_title'] = "Deleted VOP Cards with remaining activations"
-        result['summary'], result['corrections'], result['html_report'] = \
-            find_deleted_vop_cards_with_activations(script_id, result['run_title'])
+
+    for data_script, function in SCRIPT_FUNCTIONS.items():
+        if script_id == data_script.value:
+            result['run_title'] = SCRIPT_TITLES[DataScripts.DEL_VOP_WITH_ACT]
+            result['summary'], result['corrections'], result['html_report'] = \
+                function(script_id, result['run_title'])
+            break
     return result

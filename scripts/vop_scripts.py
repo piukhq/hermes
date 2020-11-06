@@ -18,7 +18,7 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
                 # We have found a deleted card which should not have an activation
                 # Three corrective actions are possible:
                 #     1) Mark it as deactivated because another card with same token has an activation
-                #     2) Transfer activation record to a card with same token
+                #     2) Transfer activation record to a card with same token provided it is linked to same scheme
                 #     3) deactivate Enroll, Deactivate and Unenroll
 
                 duplicated_card_tokens = PaymentCardAccount.objects.filter(psp_token=a.payment_card_account.psp_token)
@@ -53,6 +53,9 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
                 data = {
                     'script_id': script_id,
                     'card_id': a.payment_card_account.id,
+                    'payment_token': a.payment_card_account.psp_token,
+                    'card_token': a.payment_card_account.token,
+                    'partner_slug': a.payment_card_account.payment_card.slug,
                     'scheme_id': a.scheme.id,
                     'activation_id': a.activation_id,
                     'sequence': sequence,

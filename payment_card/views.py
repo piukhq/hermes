@@ -19,6 +19,8 @@ from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from scheme.models import Scheme
+from scripts.models import ScriptResult
+from scripts.scripts import DataScripts, SCRIPT_TITLES
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
@@ -362,7 +364,23 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             raise rest_framework_serializers.ValidationError('No ID or token provided.')
 
         if card_id:
-            payment_card_account = get_object_or_404(PaymentCardAccount, id=int(card_id))
+            card_id = int(card_id)
+            if card_id == 999:
+                # This is a script call back action is logged and no action taken
+                ScriptResult.objects.update_or_create(
+                    item_id="999", script_name=SCRIPT_TITLES[DataScripts.METIS_CALLBACK],
+                    defaults={
+                        'data': request.data,
+                        'apply': ScriptResult.NO_CORRECTION,
+                        'correction': ScriptResult.NO_CORRECTION,
+                        'done': True
+                    }
+                )
+                return Response({
+                    'id': 999
+                })
+            else:
+                payment_card_account = get_object_or_404(PaymentCardAccount, id=card_id)
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
