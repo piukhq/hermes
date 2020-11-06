@@ -2,6 +2,7 @@ stages:
   - tests
   - dev
   - staging
+  - performance
   - preprod
   - build
   - prod
@@ -35,7 +36,7 @@ flake8:
     - pip install flake8
     - flake8
 
-build-dev:
+dev:
   stage: dev
   environment:
     name: dev
@@ -48,7 +49,7 @@ build-dev:
   only:
     - develop
 
-build-staging:
+staging:
   stage: staging
   environment:
     name: staging
@@ -61,7 +62,20 @@ build-staging:
   only:
     - staging
 
-build-preprod:
+performance:
+  stage: performance
+  environment:
+    name: performance
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --pull -t "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA"
+  only:
+    - sandbox-datadog-apm-develop
+
+preprod:
   stage: preprod
   environment:
     name: preprod
@@ -75,7 +89,7 @@ build-preprod:
   only:
     - master
 
-build-tag:
+build:
   stage: build
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
@@ -86,7 +100,7 @@ build-tag:
   only:
     - tags
 
-tag-prod:
+release-prod:
   stage: prod
   image: binkops.azurecr.io/tagbot:latest
   environment:
