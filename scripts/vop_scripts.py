@@ -81,4 +81,3 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
         summary = f"Exception {e}"
 
     return summary, correction_count, "<br/>".join(result)
-

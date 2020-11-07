@@ -1,8 +1,5 @@
-from enum import IntEnum, Enum
-
 from django.contrib.postgres.fields import JSONField
 from django.db import models
-from django.utils import timezone
 
 
 class ScriptResult(models.Model):

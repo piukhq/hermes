@@ -11,6 +11,7 @@ class DataScripts(IntEnum):
     ACTIVATE_ACTIVATING = auto()
     REPEAT_VOP_ENROL_STUCK_CARDS = auto()
 
+
 SCRIPT_TITLES = {
     DataScripts.METIS_CALLBACK: "Metis Callback (results container)",
     DataScripts.DEL_VOP_WITH_ACT: "Deleted VOP cards with remaining activations",
