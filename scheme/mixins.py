@@ -182,16 +182,13 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             main_answer = 'main_answer'
 
         try:
-            if answer_type in CASE_SENSITIVE_CREDENTIALS:
-                scheme_account = SchemeAccount.objects.get(**{
-                    'scheme': scheme,
-                    main_answer: data[answer_type]
-                })
-            else:
-                scheme_account = SchemeAccount.objects.get(**{
-                    'scheme': scheme,
-                    f'{main_answer}__iexact': data[answer_type]
-                })
+            if answer_type not in CASE_SENSITIVE_CREDENTIALS:
+                data[answer_type] = data[answer_type].lower()
+
+            scheme_account = SchemeAccount.objects.get(**{
+                'scheme': scheme,
+                main_answer: data[answer_type]
+            })
         except SchemeAccount.DoesNotExist:
             account_created = True
             scheme_account = self._create_new_account(user, scheme, data, answer_type, create_status)
