@@ -112,11 +112,15 @@ class TestResources(APITestCase):
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.scheme.manual_question,
-            scheme_account=cls.scheme_account
+            scheme_account=cls.scheme_account,
+            answer=fake.first_name().lower()
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.secondary_question,
             scheme_account=cls.scheme_account
+        )
+        cls.second_scheme_account_answer.answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(
+            cls.second_scheme_account_answer.answer
         )
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
@@ -1566,7 +1570,7 @@ class TestResources(APITestCase):
                     "authorise_fields": [
                         {
                             "column": "last_name",
-                            "value": self.scheme_account_answer.answer
+                            "value": self.second_scheme_account_answer.answer
                         }
                     ]
                 }
