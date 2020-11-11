@@ -287,7 +287,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             except IntegrityError:
                 raise ConflictError
 
-            consent = self._add_consent(user, consent_data)
+            consent = self._add_consent(user, consent_data, service=True)
             service_creation_counter.labels(
                 channel=request.channels_permit.bundle_id
             ).inc()
@@ -312,14 +312,15 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         deleted_service_cleanup.delay(request.user.id, response['consent'])
         return Response(response)
 
-    def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
+    def _add_consent(self, user: CustomUser, consent_data: dict, service: bool = False) -> dict:
         try:
             consent = self.get_serializer_by_request(data={'user': user.id, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
-            user.is_active = False
-            user.save()
+            # Only mark false if customer user was created via the service endpoint.
+            if service:
+                user.soft_delete()
             raise ParseError
 
         return consent
