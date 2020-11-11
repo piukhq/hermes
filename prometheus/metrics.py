@@ -2,7 +2,7 @@ from enum import Enum
 
 from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
-from prometheus_client import Counter
+from prometheus_client import Counter, Histogram
 
 
 def m(metric_name: str) -> str:
@@ -43,9 +43,17 @@ payment_card_add_counter = Counter(
     namespace=NAMESPACE,
 )
 
-payment_card_status_counter = Counter(
-    name='payment_card_status_total',
-    documentation='Total number of payment card status changes.',
-    labelnames=("scheme", "status"),
+payment_card_status_change_counter = Counter(
+    name="payment_card_status_change_total",
+    documentation="Total number of payment card status changes.",
+    labelnames=("provider", "status"),
+    namespace=NAMESPACE,
+)
+
+payment_card_processing_seconds_histogram = Histogram(
+    name="payment_card_processing_seconds_histogram",
+    documentation="Processing time for payment cards.",
+    labelnames=("provider",),
+    buckets=(5.0, 10.0, 30.0, 300.0, 3600.0, 43200.0, 86400.0, float("inf")),
     namespace=NAMESPACE,
 )
