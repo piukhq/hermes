@@ -35,27 +35,29 @@ def merge_duplicate_email_main_answer_accounts(apps, schema_editor):
             accounts.remove(latest_mcard)
 
             print(f"Merging all duplicates to SchemeAccount (id={latest_mcard})")
-
-            for account in accounts:
-                scheme_account_entries = account.schemeaccountentry_set.all()
-                payment_card_scheme_entries = account.paymentcardschemeentry_set.all()
-                user_links_to_add = [
-                    entry for entry in scheme_account_entries
-                    if entry.user_id not in users_already_linked
-                ]
-                pcard_links_to_add = [
-                    entry for entry in payment_card_scheme_entries
-                    if entry.payment_card_account_id not in pcards_already_linked
-                ]
-
-                _add_links(latest_mcard, user_links_to_add, pcard_links_to_add)
-
-                scheme_account_entries.delete()
-                payment_card_scheme_entries.delete()
-                account.is_deleted = True
-                account.save(update_fields=["is_deleted"])
-
+            _merge_duplicate_accounts(latest_mcard, accounts, users_already_linked, pcards_already_linked)
             print(f"Completed merge to SchemeAccount (id={latest_mcard}) - {len(accounts)} merged")
+
+
+def _merge_duplicate_accounts(latest_mcard, accounts, users_already_linked, pcards_already_linked):
+    for account in accounts:
+        scheme_account_entries = account.schemeaccountentry_set.all()
+        payment_card_scheme_entries = account.paymentcardschemeentry_set.all()
+        user_links_to_add = [
+            entry for entry in scheme_account_entries
+            if entry.user_id not in users_already_linked
+        ]
+        pcard_links_to_add = [
+            entry for entry in payment_card_scheme_entries
+            if entry.payment_card_account_id not in pcards_already_linked
+        ]
+
+        _add_links(latest_mcard, user_links_to_add, pcard_links_to_add)
+
+        scheme_account_entries.delete()
+        payment_card_scheme_entries.delete()
+        account.is_deleted = True
+        account.save(update_fields=["is_deleted"])
 
 
 def _find_duplicates(all_answers):
