@@ -7,7 +7,7 @@ import scheme.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0086_auto_20201005_1408'),
+        ('scheme', '0087_lowercase_email_main_answers'),
     ]
 
     operations = [
