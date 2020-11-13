@@ -25,7 +25,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from prometheus.metrics import service_creation_counter, PaymentCardAddRoute, payment_card_add_counter
-from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
+from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH, CASE_SENSITIVE_CREDENTIALS
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
                            SchemeAccountJoinMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
@@ -287,7 +287,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             except IntegrityError:
                 raise ConflictError
 
-            consent = self._add_consent(user, consent_data)
+            consent = self._add_consent(user, consent_data, service=True)
             service_creation_counter.labels(
                 channel=request.channels_permit.bundle_id
             ).inc()
@@ -312,14 +312,15 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         deleted_service_cleanup.delay(request.user.id, response['consent'])
         return Response(response)
 
-    def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
+    def _add_consent(self, user: CustomUser, consent_data: dict, service: bool = False) -> dict:
         try:
             consent = self.get_serializer_by_request(data={'user': user.id, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
-            user.is_active = False
-            user.save()
+            # Only mark false if customer user was created via the service endpoint.
+            if service:
+                user.soft_delete()
             raise ParseError
 
         return consent
@@ -781,24 +782,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
         return scheme, auth_fields, enrol_fields, add_fields
 
-    @staticmethod
-    def _handle_existing_scheme_account(scheme_account: SchemeAccount, user: CustomUser,
+    def _handle_existing_scheme_account(self, scheme_account: SchemeAccount, user: CustomUser,
                                         auth_fields: dict, payment_cards_to_link: list) -> None:
         existing_answers = scheme_account.get_auth_credentials()
-        for k, v in existing_answers.items():
-            provided_value = auth_fields.get(k)
-
-            if provided_value and k in DATE_TYPE_CREDENTIALS:
-                try:
-                    provided_value = arrow.get(provided_value, 'DD/MM/YYYY').date()
-                except ParseError:
-                    provided_value = arrow.get(provided_value).date()
-
-                v = arrow.get(v).date()
-
-            if provided_value != v:
-                raise ParseError('This card already exists, but the provided credentials do not match.')
-
+        self._validate_auth_fields(auth_fields, existing_answers)
         try:
             # required to rollback transactions when running into an expected IntegrityError
             # tests will fail without this as TestCase already wraps tests in an atomic
@@ -811,6 +798,27 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+    @staticmethod
+    def _validate_auth_fields(auth_fields, existing_answers):
+        for question_type, existing_value in existing_answers.items():
+            provided_value = auth_fields.get(question_type)
+
+            if provided_value and question_type in DATE_TYPE_CREDENTIALS:
+                try:
+                    provided_value = arrow.get(provided_value, 'DD/MM/YYYY').date()
+                except ParseError:
+                    provided_value = arrow.get(provided_value).date()
+
+                existing_value = arrow.get(existing_value).date()
+
+            elif (question_type not in CASE_SENSITIVE_CREDENTIALS
+                    and isinstance(provided_value, str) and isinstance(existing_value, str)):
+                provided_value = provided_value.lower()
+                existing_value = existing_value.lower()
+
+            if provided_value != existing_value:
+                raise ParseError('This card already exists, but the provided credentials do not match.')
 
     def _handle_create_link_route(
         self,

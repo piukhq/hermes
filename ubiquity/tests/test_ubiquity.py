@@ -11,14 +11,15 @@ from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactor
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
-    MERCHANT_IDENTIFIER
+    MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
+    CASE_SENSITIVE_CREDENTIALS, EMAIL
 from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
-                                    SchemeBundleAssociationFactory)
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
+                                    SchemeBundleAssociationFactory, fake)
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
@@ -111,11 +112,15 @@ class TestResources(APITestCase):
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.scheme.manual_question,
-            scheme_account=cls.scheme_account
+            scheme_account=cls.scheme_account,
+            answer=fake.first_name().lower()
         )
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(
             question=cls.secondary_question,
             scheme_account=cls.scheme_account
+        )
+        cls.second_scheme_account_answer.answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(
+            cls.second_scheme_account_answer.answer
         )
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
 
@@ -592,16 +597,12 @@ class TestResources(APITestCase):
                                 **self.auth_headers)
         self.assertEqual(resp.status_code, 201)
 
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api.update_scheme_account_attribute')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('analytics.api._get_today_datetime')
-    def test_link_user_to_existing_wallet_only_card(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    @patch('analytics.api')
+    def test_link_user_to_existing_wallet_only_card(self, mock_analytics, *_):
+        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
 
         existing_answer_value = "1234554321"
         existing_scheme_account = SchemeAccountFactory(scheme=self.wallet_only_scheme,
@@ -1569,7 +1570,7 @@ class TestResources(APITestCase):
                     "authorise_fields": [
                         {
                             "column": "last_name",
-                            "value": self.scheme_account_answer.answer
+                            "value": self.second_scheme_account_answer.answer
                         }
                     ]
                 }
@@ -1591,6 +1592,130 @@ class TestResources(APITestCase):
         # remove additional question/answer from test scheme
         new_answer.delete()
         merch_identifier.delete()
+
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
+    def test_existing_membership_card_creation_non_case_sensitive_auth_fields(self, *_):
+        # Setup new scheme with all question types as auth fields and create existing scheme account
+        new_external_id = 'Test User non case sensitive auth fields'
+        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
+        auth_header = self._get_auth_header(new_user)
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account.main_answer = fake.email()
+        scheme_account.save(update_fields=["main_answer"])
+        SchemeBundleAssociationFactory(
+            scheme=scheme,
+            bundle=self.bundle,
+            status=SchemeBundleAssociation.ACTIVE
+        )
+        SchemeCredentialQuestionFactory(
+            scheme=scheme,
+            type=EMAIL,
+            label=EMAIL,
+            manual_question=True,
+            add_field=True,
+            enrol_field=True
+        )
+        email = SchemeCredentialAnswerFactory(
+            question=scheme.manual_question,
+            scheme_account=scheme_account,
+            answer=scheme_account.main_answer
+        )
+        scheme_account.update_barcode_and_card_number()
+
+        payload = {
+            "membership_plan": scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": EMAIL,
+                            "value": email.answer
+                        }
+                    ],
+                    "authorise_fields": [
+                    ]
+                }
+        }
+
+        test_question_types = [
+            q for q, _ in CREDENTIAL_TYPES
+            if q not in DATE_TYPE_CREDENTIALS
+            and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
+        ]
+        question_answer_map = {}
+        for question_type in test_question_types:
+            question = SchemeCredentialQuestionFactory(
+                scheme=scheme,
+                type=question_type,
+                label=question_type,
+                third_party_identifier=False,
+                options=SchemeCredentialQuestion.LINK_AND_JOIN,
+                auth_field=True,
+                enrol_field=True,
+                register_field=True
+            )
+
+            answer = SchemeCredentialAnswerFactory(
+                question=question,
+                scheme_account=scheme_account
+            ).answer
+
+            if question_type in ENCRYPTED_CREDENTIALS:
+                answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+
+            question_answer_map[question_type] = answer
+
+        # Test modifying all credentials will fail since case sensitive fields are included
+        payload["account"]["authorise_fields"] = [
+            {"column": question_type, "value": answer.upper()}
+            for question_type, answer in question_answer_map.items()
+        ]
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 400)
+        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
+        self.assertFalse(linked)
+
+        # Test modifying only non case-sensitive credentials passes
+        case_modified_auth_fields = []
+        for question_type, answer in question_answer_map.items():
+            if question_type not in CASE_SENSITIVE_CREDENTIALS and isinstance(answer, str):
+                answer = answer.upper()
+
+            case_modified_auth_fields.append({"column": question_type, "value": answer})
+
+        payload["account"]["authorise_fields"] = case_modified_auth_fields
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
+        link.delete()
+
+        # Test modifying string-based manual question passes
+        payload["account"]["add_fields"] = [{"column": EMAIL, "value": email.answer.upper()}]
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
+        self.assertTrue(linked)
 
     @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
@@ -1632,16 +1757,13 @@ class TestResources(APITestCase):
             resp.json().get('detail')
         )
 
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
-    def test_existing_membership_card_creation_non_matching_question_type(self, mock_date, *_):
-        mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
+    @patch('analytics.api')
+    def test_existing_membership_card_creation_non_matching_question_type(self, mock_analytics, *_):
+        mock_analytics._get_today_datetime.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
             "membership_plan": self.scheme.id,
             "account":
