@@ -144,6 +144,7 @@ class SchemeBundleAssociation(models.Model):
     scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
     bundle = models.ForeignKey('user.ClientApplicationBundle', on_delete=models.CASCADE)
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
+    test_scheme = models.BooleanField(default=False)
 
     @classmethod
     @lru_cache(maxsize=2048)

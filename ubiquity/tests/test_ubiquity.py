@@ -251,8 +251,9 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
+        self.scheme_bundle_association.save()
         resp = self.client.get(reverse('membership-card', args=[self.scheme_account.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 404)
 
@@ -263,15 +264,15 @@ class TestResources(APITestCase):
 
         self.user.is_tester = False
         self.user.save()
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     def test_get_all_membership_cards(self, *_):
         scheme_account_2 = SchemeAccountFactory(balances=self.scheme_account.balances)
-        SchemeBundleAssociationFactory(scheme=scheme_account_2.scheme, bundle=self.bundle,
-                                       status=SchemeBundleAssociation.ACTIVE)
+        bundle_assoc = SchemeBundleAssociationFactory(scheme=scheme_account_2.scheme, bundle=self.bundle,
+                                                      status=SchemeBundleAssociation.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account_2, user=self.user)
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=self.user.id).all()
         expected_result = remove_empty(MembershipCardSerializer(scheme_accounts, many=True).data)
@@ -280,8 +281,8 @@ class TestResources(APITestCase):
         self.assertEqual(expected_result[0]['account'], resp.json()[0]['account'])
         self.assertEqual(len(resp.json()), 2)
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        bundle_assoc.test_scheme = True
+        bundle_assoc.save()
         resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
         self.assertEqual(len(resp.json()), 1)
 
@@ -292,8 +293,8 @@ class TestResources(APITestCase):
 
         self.user.is_tester = False
         self.user.save()
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        bundle_assoc.test_scheme = False
+        bundle_assoc.save()
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
@@ -791,8 +792,9 @@ class TestResources(APITestCase):
                                      content_type='application/json', data=payload, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
+        self.scheme_bundle_association.save()
         response = self.client.patch(reverse('membership-card', args=[self.scheme_account.id]),
                                      content_type='application/json', data=payload, **self.auth_headers)
         self.assertEqual(response.status_code, 404)
@@ -803,8 +805,8 @@ class TestResources(APITestCase):
                                      content_type='application/json', data=payload, **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -1429,8 +1431,9 @@ class TestResources(APITestCase):
 
         schemes_number = len(resp.json())
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
+        self.scheme_bundle_association.save()
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
         self.assertLess(len(resp.json()), schemes_number)
 
@@ -1439,8 +1442,8 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-plans'), **self.auth_headers)
         self.assertEqual(len(resp.json()), schemes_number)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -1462,8 +1465,9 @@ class TestResources(APITestCase):
             resp.json()
         )
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.status = SchemeBundleAssociation.ACTIVE
+        self.scheme_bundle_association.save()
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 404)
 
@@ -1472,8 +1476,8 @@ class TestResources(APITestCase):
         resp = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
