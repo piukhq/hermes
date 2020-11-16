@@ -31,15 +31,16 @@ class ApiCache:
         # We log every timeout to get an understanding of how many times Azure Redis is slow to respond
         log_id = uuid.uuid4()
         retry_exception = CacheMissedError
-        for retry_count in range(settings.REDIS_RETRY_COUNT):
+        total_retries = settings.REDIS_RETRY_COUNT
+        for retry_count in range(total_retries):
             try:
                 response_json = r_read.get(self.key)
                 return response_json
             except (RedisTimeoutError, RedisConnectionError) as e:
                 retry_exception = e
-                retry = retry_count < settings.REDIS_RETRY_COUNT - 1
+                remaining_retries = total_retries - retry_count - 1
                 # uuid passed into the logs to map multiple logs together with one request
-                logger.warning(f"Get plan cache from Redis failed. Retrying: {retry}, "
+                logger.warning(f"Get plan cache from Redis failed. Retrying {remaining_retries} more times. "
                                f"Error: {repr(e)}, Log ID: {log_id}")
         else:
             raise retry_exception
