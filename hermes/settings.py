@@ -380,8 +380,23 @@ REDIS_DB = env_var("REDIS_DB", 1)
 REDIS_API_CACHE_DB = env_var("REDIS_API_CACHE_DB", 2)
 REDIS_MPLANS_CACHE_EXPIRY = int(env_var("REDIS_MPLANS_CACHE_EXPIRY", 60 * 60 * 24))  # 60*60*24  # 24 hrs in seconds
 
-REDIS_API_CACHE_POOL = Redis_ConnectionPool(
-    host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=REDIS_API_CACHE_DB
+REDIS_READ_TIMEOUT = float(env_var("REDIS_READ_TIMEOUT", 0.3))
+REDIS_WRITE_TIMEOUT = float(env_var("REDIS_WRITE_TIMEOUT", 20))
+REDIS_RETRY_COUNT = 3
+
+REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    password=REDIS_PASSWORD,
+    db=REDIS_API_CACHE_DB,
+    socket_timeout=REDIS_READ_TIMEOUT
+)
+REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    password=REDIS_PASSWORD,
+    db=REDIS_API_CACHE_DB,
+    socket_timeout=REDIS_WRITE_TIMEOUT
 )
 
 cache_options = {
