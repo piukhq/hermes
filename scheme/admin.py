@@ -16,7 +16,7 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
 from ubiquity.models import SchemeAccountEntry
 
 
-r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
+r = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
 
 
 def delete_membership_plans_cache():
