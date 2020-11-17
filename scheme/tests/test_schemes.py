@@ -71,7 +71,7 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
+        scheme_bundle_assoc, _ = SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200, )
@@ -84,8 +84,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
 
-        SchemeBundleAssociation.test_scheme = True
-        SchemeBundleAssociation.save()
+        scheme_bundle_assoc.test_scheme = True
+        scheme_bundle_assoc.save()
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertNotIn(scheme.id, [s['id'] for s in response.json()])
 
@@ -95,8 +95,8 @@ class TestSchemeViews(APITestCase):
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertIn(scheme.id, [s['id'] for s in response.json()])
 
-        SchemeBundleAssociation.test_scheme = False
-        SchemeBundleAssociation.save()
+        scheme_bundle_assoc.test_scheme = False
+        scheme_bundle_assoc.save()
         self.user.is_tester = False
         self.user.save()
         if created:
