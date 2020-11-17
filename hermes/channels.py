@@ -128,8 +128,7 @@ class Permit:
             query = self._user_filter(query, user_id)
         return self.related_model_query(query, 'scheme__', allow)
 
-    @staticmethod
-    def _user_filter(query, user_id):
+    def _user_filter(self, query, user_id):
         if not user_id:
             if self.user:
                 user_id = self.user.id

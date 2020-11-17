@@ -1405,11 +1405,11 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             'id': mcard_id,
             'is_deleted': False
         }
-        #if not request.user.is_tester:
+        # if not request.user.is_tester:
         #    bundle = request.channels_permit.bundle
         #    query['scheme__test_scheme'] = False
 
-        #return user.scheme_account_set.filter(**query).exists()
+        # return user.scheme_account_set.filter(**query).exists()
 
         return request.channels_permit.scheme_account_query(
             SchemeAccount.objects.filter(**query),
