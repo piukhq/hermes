@@ -91,8 +91,8 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                        status=SchemeBundleAssociation.ACTIVE)
 
-        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
-                                                                       status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association1 = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
 
         cls.scheme_account1.update_barcode_and_card_number()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
@@ -141,8 +141,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['display_status'], SchemeAccount.ACTIVE)
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.save()
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
@@ -151,8 +151,8 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -191,8 +191,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
         schemes_number = len(response.json())
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.save()
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertLess(len(response.json()), schemes_number)
 
@@ -201,8 +201,8 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(len(response.json()), schemes_number)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 

@@ -284,8 +284,10 @@ class TransactionListSerializer(serializers.ListSerializer):
     def filter_transactions_for_user(self, data):
         user = self.context["user"]
         queryset = user.scheme_account_set.values('id')
+
         if not user.is_tester:
-            queryset = queryset.filter(scheme__test_scheme=False).values('id').all()
+            not_test_scheme = {'scheme__schemebundleassociation__test_scheme': False}
+            queryset = queryset.filter(**not_test_scheme).values('id').all()
 
         return [
             tx for tx in data

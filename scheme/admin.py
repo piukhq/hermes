@@ -458,9 +458,10 @@ admin.site.register(Category)
 
 @admin.register(SchemeBundleAssociation)
 class SchemeBundleAssociationAdmin(CacheResetAdmin):
-    list_display = ('bundle', 'scheme', 'status')
+    list_display = ('bundle', 'scheme', 'status', 'test_scheme')
     search_fields = ('bundle_id', 'scheme__name')
     raw_id_fields = ("scheme",)
+    list_filter = ('bundle', 'scheme', 'status', 'test_scheme')
 
     def save_form(self, request, form, change):
         ret = super().save_form(request, form, change)
