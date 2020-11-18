@@ -494,14 +494,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_queryset(self):
-        query = {}
-        if not self.request.user.is_tester:
-            query['scheme__test_scheme'] = False
-
         return self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.filter(
-                **query
-            ).select_related('scheme'),
+            SchemeAccount.objects.select_related('scheme'),
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -771,7 +765,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 raise ParseError('membership plan not allowed for this user.')
 
             scheme = Scheme.get_scheme_and_questions_by_scheme_id(self.request.data['membership_plan'])
-            if not self.request.user.is_tester and scheme.test_scheme:
+
+            if not self.request.channels_permit.permit_test_access(scheme):
                 raise ParseError('membership plan not allowed for this user.')
 
         except KeyError:
@@ -1215,7 +1210,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
 
             if not user.is_tester:
-                filters['scheme__test_scheme'] = False
+                filters['scheme__schemebundleassociation__test_scheme'] = False
 
             membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
 
@@ -1319,12 +1314,7 @@ class MembershipPlanView(VersionedSerializerMixin, ModelViewSet):
     response_serializer = SelectSerializer.MEMBERSHIP_PLAN
 
     def get_queryset(self):
-        queryset = Scheme.objects
-
-        if not self.request.user.is_tester:
-            queryset = queryset.filter(test_scheme=False)
-
-        return self.request.channels_permit.scheme_query(queryset)
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
     @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
@@ -1339,12 +1329,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
     response_serializer = SelectSerializer.MEMBERSHIP_PLAN
 
     def get_queryset(self):
-        queryset = Scheme.objects
-
-        if not self.request.user.is_tester:
-            queryset = queryset.filter(test_scheme=False)
-
-        return self.request.channels_permit.scheme_query(queryset)
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
     @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
@@ -1385,7 +1370,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             serializer = self.serializer_class(data=transaction)
             serializer.is_valid(raise_exception=True)
 
-            if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
+            if self._account_belongs_to_user(request, serializer.initial_data.get('scheme_account_id')):
                 return Response(self.get_serializer_by_request(serializer.validated_data).data)
 
         return Response({})
@@ -1407,7 +1392,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
+        if not self._account_belongs_to_user(request, kwargs['mcard_id']):
             return Response([])
 
         transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
@@ -1416,12 +1401,15 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
 
     @staticmethod
-    def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
+    def _account_belongs_to_user(request: object, mcard_id: int) -> bool:
+
         query = {
             'id': mcard_id,
             'is_deleted': False
         }
-        if not user.is_tester:
-            query['scheme__test_scheme'] = False
 
-        return user.scheme_account_set.filter(**query).exists()
+        return request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(**query),
+            user_id=request.user.id,
+            user_filter=True
+        ).exists()
