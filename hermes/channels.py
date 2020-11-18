@@ -144,6 +144,11 @@ class Permit:
             query = self._user_filter(query, user_id)
         return query
 
+    def permit_test_access(self, scheme):
+        bundle_assoc = scheme.schemebundleassociation_set.get(bundle=self.bundle)
+        not_permitted = not self.user.is_tester and bundle_assoc.test_scheme
+        return not not_permitted
+
     def related_model_query(self, query, relation='', allow=None):
         if self.service_allow_all:
             return query

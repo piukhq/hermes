@@ -581,7 +581,7 @@ class UpdateCredentialsMixin:
         return required_questions
 
     def _check_required_data_presence(self, scheme: Scheme, data: dict) -> None:
-        if not self.request.user.is_tester and scheme.test_scheme:
+        if not self.request.channels_permit.permit_test_access(scheme):
             raise ValidationError(f'Scheme {scheme.id} not allowed for this user')
 
         if scheme.authorisation_required:

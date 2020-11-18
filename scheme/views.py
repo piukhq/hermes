@@ -74,10 +74,6 @@ class SchemesList(ListAPIView):
     def get_queryset(self):
         queryset = Scheme.objects
         query = {}
-
-        if not self.request.user.is_tester:
-            query['test_scheme'] = False
-
         return self.request.channels_permit.scheme_query(queryset.filter(**query))
 
 
@@ -90,12 +86,7 @@ class RetrieveScheme(RetrieveAPIView):
 
     def get_queryset(self):
         queryset = Scheme.objects
-        query = {}
-
-        if not self.request.user.is_tester:
-            query['test_scheme'] = False
-
-        return self.request.channels_permit.scheme_query(queryset.filter(**query))
+        return self.request.channels_permit.scheme_query(queryset)
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
@@ -261,10 +252,6 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         channels_permit = self.request.channels_permit
         queryset = SchemeAccount.objects
 
-        filter_by = {}
-        if not self.request.user.is_tester:
-            filter_by['scheme__test_scheme'] = False
-
         exclude_by = {}
         suspended_schemes = Scheme.get_suspended_schemes_by_bundle(channels_permit.bundle)
         if suspended_schemes:
@@ -274,7 +261,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
             }
 
         return channels_permit.scheme_account_query(
-            queryset.filter(**filter_by).exclude(**exclude_by),
+            queryset.exclude(**exclude_by),
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -553,11 +540,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         user_filter = False
         if self.request.user.uid != 'api_user':
             user_filter = True
-            query = {}
-            if not self.request.user.is_tester:
-                query['scheme__test_scheme'] = False
-
-            queryset = queryset.filter(**query)
 
         return self.request.channels_permit.scheme_account_query(
             queryset,

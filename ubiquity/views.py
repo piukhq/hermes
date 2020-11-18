@@ -764,7 +764,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 raise ParseError('membership plan not allowed for this user.')
 
             scheme = Scheme.get_scheme_and_questions_by_scheme_id(self.request.data['membership_plan'])
-            if not self.request.user.is_tester and scheme.test_scheme:
+
+            if not self.request.channels_permit.permit_test_access(scheme):
                 raise ParseError('membership plan not allowed for this user.')
 
         except KeyError:
@@ -1208,7 +1209,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
 
             if not user.is_tester:
-                filters['scheme__test_scheme'] = False
+                filters['scheme__schemebundleassociation__test_scheme'] = False
 
             membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
 
@@ -1405,11 +1406,6 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             'id': mcard_id,
             'is_deleted': False
         }
-        # if not request.user.is_tester:
-        #    bundle = request.channels_permit.bundle
-        #    query['scheme__test_scheme'] = False
-
-        # return user.scheme_account_set.filter(**query).exists()
 
         return request.channels_permit.scheme_account_query(
             SchemeAccount.objects.filter(**query),
