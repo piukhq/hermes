@@ -290,7 +290,7 @@ class TransactionListSerializer(serializers.ListSerializer):
                 test_scheme=True,
                 bundle=self.context["bundle"]
             ).values_list("scheme_id", flat=True)
-            queryset = queryset.exclude(scheme_id__in=test_schemes_to_exclude).values('id').all()
+            queryset = queryset.exclude(scheme_id__in=test_schemes_to_exclude).values('id')
 
         return [
             tx for tx in data
