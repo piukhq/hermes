@@ -808,7 +808,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 existing_value = arrow.get(existing_value).date()
 
             elif (question_type not in CASE_SENSITIVE_CREDENTIALS
-                    and isinstance(provided_value, str) and isinstance(existing_value, str)):
+                  and isinstance(provided_value, str) and isinstance(existing_value, str)):
                 provided_value = provided_value.lower()
                 existing_value = existing_value.lower()
 
@@ -1392,24 +1392,17 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        if not self._account_belongs_to_user(request, kwargs['mcard_id']):
-            return Response([])
-
-        transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        serializer = self.serializer_class(data=transactions, many=True, context={"user": request.user})
-        serializer.is_valid(raise_exception=True)
-        return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
+        transactions = request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(id=kwargs['mcard_id']),
+            user_id=request.user.id,
+            user_filter=True
+        ).values_list("transactions", flat=True).first()
+        return Response(transactions or [])
 
     @staticmethod
-    def _account_belongs_to_user(request: object, mcard_id: int) -> bool:
-
-        query = {
-            'id': mcard_id,
-            'is_deleted': False
-        }
-
+    def _account_belongs_to_user(request: 'Request', mcard_id: int) -> bool:
         return request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.filter(**query),
+            SchemeAccount.objects.filter(id=mcard_id),
             user_id=request.user.id,
             user_filter=True
         ).exists()
