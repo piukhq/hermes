@@ -1091,10 +1091,7 @@ class TestResources(APITestCase):
                                 **self.auth_headers, accept='Application/json;v=1.1')
         self.assertIn('membership plan not allowed', resp.json()['detail'])
 
-    @httpretty.activate
     def test_membership_transactions(self):
-        uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
-        httpretty.register_uri(httpretty.GET, uri, json.dumps(self.test_hades_transactions))
         expected_resp = [
             {
                 'id': 1,
@@ -1104,11 +1101,12 @@ class TestResources(APITestCase):
                 'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
             }
         ]
+        self.scheme_account.transactions = expected_resp
+        self.scheme_account.save(update_fields=['transactions'])
         resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(httpretty.has_request())
-        self.assertEqual(expected_resp, resp.json())
+        self.assertListEqual(resp.json(), expected_resp)
 
     @httpretty.activate
     def test_user_transactions(self):
@@ -1142,38 +1140,6 @@ class TestResources(APITestCase):
             'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
         }
         resp = self.client.get(reverse('retrieve-transactions', args=[transaction_id]),
-                               **self.auth_headers)
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(httpretty.has_request())
-        self.assertEqual(expected_resp, resp.json())
-
-    @httpretty.activate
-    def test_transactions_user_filter(self):
-        uri = '{}/transactions/scheme_account/{}'.format(settings.HADES_URL, self.scheme_account.id)
-        transactions = self.test_hades_transactions + [
-            {
-                'id': 1,
-                'scheme_account_id': self.scheme_account.id + 1,
-                'created': '2020-05-19 14:36:35+00:00',
-                'date': '2020-05-19 14:36:35+00:00',
-                'description': 'Test Transaction',
-                'location': 'Bink',
-                'points': 200,
-                'value': 'A lot',
-                'hash': 'ewfnwoenfwen'
-            }
-        ]
-        httpretty.register_uri(httpretty.GET, uri, json.dumps(transactions))
-        expected_resp = [
-            {
-                'id': 1,
-                'status': 'active',
-                'timestamp': 1589898995,
-                'description': 'Test Transaction',
-                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
-            }
-        ]
-        resp = self.client.get(reverse('membership-card-transactions', args=[self.scheme_account.id]),
                                **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(httpretty.has_request())
