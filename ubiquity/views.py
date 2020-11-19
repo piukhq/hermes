@@ -1208,10 +1208,6 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         try:
             filters = {'is_deleted': False}
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
-
-            if not user.is_tester:
-                filters['scheme__schemebundleassociation__test_scheme'] = False
-
             membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
 
         except PaymentCardAccount.DoesNotExist:
@@ -1382,7 +1378,11 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         resp = self.hades_request(url, headers=headers)
         resp_json = resp.json()
         if resp.status_code == 200 and resp_json:
-            serializer = self.serializer_class(data=resp_json, many=True, context={"user": request.user})
+            context = {
+                "user": request.user,
+                "bundle": request.channels_permit.bundle
+            }
+            serializer = self.serializer_class(data=resp_json, many=True, context=context)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data[:5]  # limit to 5 transactions as per documentation
             if data:

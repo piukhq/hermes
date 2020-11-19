@@ -21,7 +21,7 @@ from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
-                           VoucherScheme)
+                           VoucherScheme, SchemeBundleAssociation)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
@@ -269,7 +269,7 @@ class TransactionListSerializer(serializers.ListSerializer):
         if is_empty_value:
             return data
 
-        if self.context.get("user"):
+        if self.context.get("user") and self.context.get("bundle"):
             data = self.filter_transactions_for_user(data)
         value = self.to_internal_value(data)
         try:
@@ -286,8 +286,11 @@ class TransactionListSerializer(serializers.ListSerializer):
         queryset = user.scheme_account_set.values('id')
 
         if not user.is_tester:
-            not_test_scheme = {'scheme__schemebundleassociation__test_scheme': False}
-            queryset = queryset.filter(**not_test_scheme).values('id').all()
+            test_schemes_to_exclude = SchemeBundleAssociation.objects.filter(
+                test_scheme=True,
+                bundle=self.context["bundle"]
+            ).values_list("scheme_id", flat=True)
+            queryset = queryset.exclude(scheme_id__in=test_schemes_to_exclude).values('id')
 
         return [
             tx for tx in data
