@@ -1208,10 +1208,6 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         try:
             filters = {'is_deleted': False}
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
-
-            if not user.is_tester:
-                filters['scheme__schemebundleassociation__test_scheme'] = False
-
             membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
 
         except PaymentCardAccount.DoesNotExist:
