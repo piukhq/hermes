@@ -11,6 +11,7 @@ def m(metric_name: str) -> str:
 
 ADD_CHANNEL_TO_METRICS = [
     m("requests_latency_seconds_by_view_method"),
+    m("responses_total_by_status_view_method"),
 ]
 
 
