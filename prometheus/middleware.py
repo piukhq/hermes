@@ -12,7 +12,7 @@ def _get_bundle_id(request, response=None):
             return settings.SERVICE_API_METRICS_BUNDLE
         elif response is None:
             # handling of an exception, no channels_permit has been set, need to get the bundle from the db.
-            return request.user.client.clientapplicationbundle_set.values_list('bundle_id', flat=True).first()
+            return request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
         else:
             # collects the bundle_id from channels_permit
             return response.renderer_context["request"].channels_permit.bundle_id or "none"
@@ -43,14 +43,10 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
             status=status,
             view=name,
             method=method,
+            channel=bundle_id,
         ).inc()
         if hasattr(response, "charset"):
-            self.label_metric(
-                self.metrics.responses_by_charset,
-                request,
-                response,
-                charset=str(response.charset),
-            ).inc()
+            self.label_metric(self.metrics.responses_by_charset, request, response, charset=str(response.charset)).inc()
         if hasattr(response, "streaming") and response.streaming:
             self.label_metric(self.metrics.responses_streaming, request, response).inc()
         if hasattr(response, "content"):
@@ -69,9 +65,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         return response
 
     def process_exception(self, request, exception):
-        self.label_metric(
-            self.metrics.exceptions_by_type, request, type=type(exception).__name__
-        ).inc()
+        self.label_metric(self.metrics.exceptions_by_type, request, type=type(exception).__name__).inc()
         if hasattr(request, "resolver_match"):
             name = request.resolver_match.view_name or "<unnamed view>"
             self.label_metric(self.metrics.exceptions_by_view, request, view=name).inc()
@@ -81,7 +75,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
                 request,
                 view=self._get_view_name(request),
                 method=request.method,
-                channel=_get_bundle_id(request)
+                channel=_get_bundle_id(request),
             ).observe(TimeSince(request.prometheus_after_middleware_event))
         else:
             self.label_metric(self.metrics.requests_unknown_latency, request).inc()
