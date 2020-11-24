@@ -21,6 +21,13 @@ class PaymentCardAddRoute(str, Enum):
     RETURNING = "Returning"
 
 
+class MembershipCardAddRoute(str, Enum):
+    LINK = "Link"
+    ENROL = "Enrol"
+    WALLET_ONLY = "Wallet Only"
+    MULTI_WALLET = "Multi Wallet"
+
+
 class CustomMetrics(Metrics):
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
         if name in ADD_CHANNEL_TO_METRICS:
@@ -56,5 +63,12 @@ payment_card_processing_seconds_histogram = Histogram(
     documentation="Processing time for payment cards.",
     labelnames=("provider",),
     buckets=(5.0, 10.0, 30.0, 300.0, 3600.0, 43200.0, 86400.0, float("inf")),
+    namespace=NAMESPACE,
+)
+
+membership_card_add_counter = Counter(
+    name="membership_card_add_total",
+    documentation="Total number of membership cards added.",
+    labelnames=("channel", "scheme", "route"),
     namespace=NAMESPACE,
 )

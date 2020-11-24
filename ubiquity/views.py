@@ -7,9 +7,9 @@ import arrow
 from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Count
+from django.db.models import Count, Q
 from rest_framework import status
-from rest_framework.exceptions import NotFound, ParseError, ValidationError, APIException
+from rest_framework.exceptions import APIException, NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
@@ -24,35 +24,36 @@ from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
-from prometheus.metrics import service_creation_counter, PaymentCardAddRoute, payment_card_add_counter
-from scheme.credentials import DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH, CASE_SENSITIVE_CREDENTIALS
-from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, UpdateCredentialsMixin,
-                           SchemeAccountJoinMixin)
+from prometheus.metrics import (MembershipCardAddRoute, PaymentCardAddRoute, membership_card_add_counter,
+                                payment_card_add_counter, service_creation_counter)
+from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
+from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
+                           UpdateCredentialsMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
-from ubiquity.channel_vault import KeyType, get_key, get_secret_key, SecretKeyName
+from ubiquity.channel_vault import KeyType, SecretKeyName, get_key, get_secret_key
 from ubiquity.influx_audit import audit
 from ubiquity.models import (PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, ServiceConsent,
                              VopActivation)
-from ubiquity.tasks import (async_link, async_all_balance, async_join, async_registration, async_balance,
-                            send_merchant_metrics_for_new_account, async_add_field_only_link,
-                            deleted_payment_card_cleanup, deleted_service_cleanup, auto_link_membership_to_payments,
-                            deleted_membership_card_cleanup, auto_link_payment_to_memberships)
-from ubiquity.versioning import versioned_serializer_class, SelectSerializer, get_api_version
-from ubiquity.versioning.base.serializers import (MembershipCardSerializer, MembershipPlanSerializer,
+from ubiquity.tasks import (async_add_field_only_link, async_all_balance, async_balance, async_join, async_link,
+                            async_registration, auto_link_membership_to_payments, auto_link_payment_to_memberships,
+                            deleted_membership_card_cleanup, deleted_payment_card_cleanup, deleted_service_cleanup,
+                            send_merchant_metrics_for_new_account)
+from ubiquity.versioning import SelectSerializer, get_api_version, versioned_serializer_class
+from ubiquity.versioning.base.serializers import (LinkMembershipCardSerializer, MembershipCardSerializer,
+                                                  MembershipPlanSerializer, MembershipTransactionsMixin,
                                                   PaymentCardConsentSerializer, PaymentCardSerializer,
-                                                  MembershipTransactionsMixin,
                                                   PaymentCardUpdateSerializer, ServiceConsentSerializer,
-                                                  TransactionSerializer, LinkMembershipCardSerializer)
+                                                  TransactionSerializer)
 from user.models import CustomUser
 from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
-    from rest_framework.serializers import Serializer
     from rest_framework.request import Request
+    from rest_framework.serializers import Serializer
 
 escaped_unicode_pattern = re.compile(r'\\(\\u[a-fA-F0-9]{4})')
 logger = logging.getLogger(__name__)
@@ -822,7 +823,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         auth_fields: dict,
         add_fields: dict,
         payment_cards_to_link: list
-    ) -> t.Tuple[SchemeAccount, int]:
+    ) -> t.Tuple[SchemeAccount, int, MembershipCardAddRoute]:
         return_status = status.HTTP_200_OK
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
         auth_fields['consents'] = add_fields['consents'] = link_consents
@@ -839,11 +840,18 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
             else:
                 async_add_field_only_link.delay(user.id, scheme_account.id, payment_cards_to_link)
+
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
+                metrics_route = MembershipCardAddRoute.LINK
+            else:
+                metrics_route = MembershipCardAddRoute.WALLET_ONLY
+
         else:
+            metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             self._handle_existing_scheme_account(scheme_account, user, auth_fields, payment_cards_to_link)
 
-        return scheme_account, return_status
+        return scheme_account, return_status, metrics_route
 
     @staticmethod
     def _handle_create_join_route(
@@ -1109,6 +1117,7 @@ class ListMembershipCardView(MembershipCardView):
 
         if enrol_fields:
             enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
+            metrics_route = MembershipCardAddRoute.ENROL
             account, status_code = self._handle_create_join_route(
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
@@ -1116,12 +1125,19 @@ class ListMembershipCardView(MembershipCardView):
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
-            account, status_code = self._handle_create_link_route(
+            account, status_code, metrics_route = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields, payment_cards_to_link
             )
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)
+
+        if metrics_route:
+            membership_card_add_counter.labels(
+                channel=request.channels_permit.bundle_id,
+                scheme=scheme.slug,
+                route=metrics_route.value
+            ).inc()
 
         return Response(
             self.get_serializer_by_request(account, context={'request': request}).data, status=status_code
