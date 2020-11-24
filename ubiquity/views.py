@@ -841,10 +841,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             else:
                 async_add_field_only_link.delay(user.id, scheme_account.id, payment_cards_to_link)
 
-            if scheme.tier == Scheme.BASIC:
-                metrics_route = MembershipCardAddRoute.WALLET_ONLY
-            else:
+            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 metrics_route = MembershipCardAddRoute.LINK
+            else:
+                metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
         else:
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
