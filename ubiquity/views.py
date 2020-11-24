@@ -287,7 +287,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             except IntegrityError:
                 raise ConflictError
 
-            consent = self._add_consent(user, consent_data)
+            consent = self._add_consent(user, consent_data, service=True)
             service_creation_counter.labels(
                 channel=request.channels_permit.bundle_id
             ).inc()
@@ -312,14 +312,15 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         deleted_service_cleanup.delay(request.user.id, response['consent'])
         return Response(response)
 
-    def _add_consent(self, user: CustomUser, consent_data: dict) -> dict:
+    def _add_consent(self, user: CustomUser, consent_data: dict, service: bool = False) -> dict:
         try:
             consent = self.get_serializer_by_request(data={'user': user.id, **consent_data})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
-            user.is_active = False
-            user.save()
+            # Only mark false if customer user was created via the service endpoint.
+            if service:
+                user.soft_delete()
             raise ParseError
 
         return consent
@@ -493,14 +494,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     create_update_fields = ('add_fields', 'authorise_fields', 'registration_fields', 'enrol_fields')
 
     def get_queryset(self):
-        query = {}
-        if not self.request.user.is_tester:
-            query['scheme__test_scheme'] = False
-
         return self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.filter(
-                **query
-            ).select_related('scheme'),
+            SchemeAccount.objects.select_related('scheme'),
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -770,7 +765,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 raise ParseError('membership plan not allowed for this user.')
 
             scheme = Scheme.get_scheme_and_questions_by_scheme_id(self.request.data['membership_plan'])
-            if not self.request.user.is_tester and scheme.test_scheme:
+
+            if not self.request.channels_permit.permit_test_access(scheme):
                 raise ParseError('membership plan not allowed for this user.')
 
         except KeyError:
@@ -812,7 +808,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 existing_value = arrow.get(existing_value).date()
 
             elif (question_type not in CASE_SENSITIVE_CREDENTIALS
-                    and isinstance(provided_value, str) and isinstance(existing_value, str)):
+                  and isinstance(provided_value, str) and isinstance(existing_value, str)):
                 provided_value = provided_value.lower()
                 existing_value = existing_value.lower()
 
@@ -1212,10 +1208,6 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         try:
             filters = {'is_deleted': False}
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
-
-            if not user.is_tester:
-                filters['scheme__test_scheme'] = False
-
             membership_card = user.scheme_account_set.get(pk=membership_card_id, **filters)
 
         except PaymentCardAccount.DoesNotExist:
@@ -1318,12 +1310,7 @@ class MembershipPlanView(VersionedSerializerMixin, ModelViewSet):
     response_serializer = SelectSerializer.MEMBERSHIP_PLAN
 
     def get_queryset(self):
-        queryset = Scheme.objects
-
-        if not self.request.user.is_tester:
-            queryset = queryset.filter(test_scheme=False)
-
-        return self.request.channels_permit.scheme_query(queryset)
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
     @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
@@ -1338,12 +1325,7 @@ class ListMembershipPlanView(VersionedSerializerMixin, ModelViewSet, IdentifyCar
     response_serializer = SelectSerializer.MEMBERSHIP_PLAN
 
     def get_queryset(self):
-        queryset = Scheme.objects
-
-        if not self.request.user.is_tester:
-            queryset = queryset.filter(test_scheme=False)
-
-        return self.request.channels_permit.scheme_query(queryset)
+        return self.request.channels_permit.scheme_query(Scheme.objects)
 
     @CacheApiRequest('m_plans', settings.REDIS_MPLANS_CACHE_EXPIRY, membership_plan_key)
     @censor_and_decorate
@@ -1384,7 +1366,7 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             serializer = self.serializer_class(data=transaction)
             serializer.is_valid(raise_exception=True)
 
-            if self._account_belongs_to_user(request.user, serializer.initial_data.get('scheme_account_id')):
+            if self._account_belongs_to_user(request, serializer.initial_data.get('scheme_account_id')):
                 return Response(self.get_serializer_by_request(serializer.validated_data).data)
 
         return Response({})
@@ -1396,7 +1378,11 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
         resp = self.hades_request(url, headers=headers)
         resp_json = resp.json()
         if resp.status_code == 200 and resp_json:
-            serializer = self.serializer_class(data=resp_json, many=True, context={"user": request.user})
+            context = {
+                "user": request.user,
+                "bundle": request.channels_permit.bundle
+            }
+            serializer = self.serializer_class(data=resp_json, many=True, context=context)
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data[:5]  # limit to 5 transactions as per documentation
             if data:
@@ -1406,21 +1392,17 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
 
     @censor_and_decorate
     def composite(self, request, *args, **kwargs):
-        if not self._account_belongs_to_user(request.user, kwargs['mcard_id']):
-            return Response([])
-
-        transactions = self.get_transactions_data(request.user.id, kwargs['mcard_id'])
-        serializer = self.serializer_class(data=transactions, many=True, context={"user": request.user})
-        serializer.is_valid(raise_exception=True)
-        return Response(self.get_serializer_by_request(serializer.validated_data, many=True).data)
+        transactions = request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(id=kwargs['mcard_id']),
+            user_id=request.user.id,
+            user_filter=True
+        ).values_list("transactions", flat=True).first()
+        return Response(transactions or [])
 
     @staticmethod
-    def _account_belongs_to_user(user: CustomUser, mcard_id: int) -> bool:
-        query = {
-            'id': mcard_id,
-            'is_deleted': False
-        }
-        if not user.is_tester:
-            query['scheme__test_scheme'] = False
-
-        return user.scheme_account_set.filter(**query).exists()
+    def _account_belongs_to_user(request: 'Request', mcard_id: int) -> bool:
+        return request.channels_permit.scheme_account_query(
+            SchemeAccount.objects.filter(id=mcard_id),
+            user_id=request.user.id,
+            user_filter=True
+        ).exists()

@@ -71,7 +71,7 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
+        scheme_bundle_assoc, _ = SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200, )
@@ -84,8 +84,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
 
-        scheme.test_scheme = True
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = True
+        scheme_bundle_assoc.save()
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertNotIn(scheme.id, [s['id'] for s in response.json()])
 
@@ -95,8 +95,8 @@ class TestSchemeViews(APITestCase):
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertIn(scheme.id, [s['id'] for s in response.json()])
 
-        scheme.test_scheme = False
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = False
+        scheme_bundle_assoc.save()
         self.user.is_tester = False
         self.user.save()
         if created:
@@ -193,7 +193,7 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
+        scheme_bundle_assoc = SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -203,8 +203,8 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
         self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
 
-        scheme.test_scheme = True
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = True
+        scheme_bundle_assoc.save()
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
@@ -214,8 +214,8 @@ class TestSchemeViews(APITestCase):
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        scheme.test_scheme = False
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = False
+        scheme_bundle_assoc.save()
         self.user.is_tester = False
         self.user.save()
 
