@@ -1135,7 +1135,7 @@ class ListMembershipCardView(MembershipCardView):
         if metrics_route:
             membership_card_add_counter.labels(
                 channel=request.channels_permit.bundle_id,
-                scheme=account.scheme.slug,
+                scheme=scheme.slug,
                 route=metrics_route.value
             ).inc()
 
