@@ -25,7 +25,7 @@ from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from prometheus.metrics import (MembershipCardAddRoute, PaymentCardAddRoute, membership_card_add_counter,
-                                payment_card_add_counter, service_creation_counter)
+                                membership_card_update_counter, payment_card_add_counter, service_creation_counter)
 from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            UpdateCredentialsMixin)
@@ -527,11 +527,20 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(request.user, request.channels_permit, account,
                                                               scheme, registration_fields, scheme_questions)
+            metrics_route = MembershipCardAddRoute.REGISTER
         else:
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
             updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions)
+            metrics_route = MembershipCardAddRoute.UPDATE
+
+        if metrics_route:
+            membership_card_update_counter.labels(
+                channel=request.channels_permit.bundle_id,
+                scheme=scheme.slug,
+                route=metrics_route.value
+            ).inc()
 
         return Response(self.get_serializer_by_request(updated_account).data, status=status.HTTP_200_OK)
 
@@ -615,6 +624,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         if enrol_fields:
             self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
+            metrics_route = MembershipCardAddRoute.ENROL
+
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -622,9 +633,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             new_answers, main_answer = self._get_new_answers(add_fields, auth_fields)
 
             if self.card_with_same_data_already_exists(account, scheme.id, main_answer):
+                metrics_route = None
                 account.status = account.FAILED_UPDATE
                 account.save()
             else:
+                metrics_route = MembershipCardAddRoute.UPDATE
                 self.replace_credentials_and_scheme(account, new_answers, scheme)
                 account.update_barcode_and_card_number()
                 account.set_pending()
@@ -632,6 +645,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
                 if payment_cards_to_link:
                     auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+
+        if metrics_route:
+            membership_card_update_counter.labels(
+                channel=request.channels_permit.bundle_id,
+                scheme=scheme.slug,
+                route=metrics_route.value
+            ).inc()
 
         return Response(self.get_serializer_by_request(account).data, status=status.HTTP_200_OK)
 
