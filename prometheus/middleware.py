@@ -1,5 +1,5 @@
 from django.conf import settings
-from django_prometheus.middleware import PrometheusBeforeMiddleware, PrometheusAfterMiddleware
+from django_prometheus.middleware import PrometheusAfterMiddleware, PrometheusBeforeMiddleware
 from django_prometheus.utils import TimeSince
 
 from prometheus.metrics import CustomMetrics

@@ -24,6 +24,8 @@ class PaymentCardAddRoute(str, Enum):
 class MembershipCardAddRoute(str, Enum):
     LINK = "Link"
     ENROL = "Enrol"
+    REGISTER = "Register"
+    UPDATE = "Update"
     WALLET_ONLY = "Wallet Only"
     MULTI_WALLET = "Multi Wallet"
 
@@ -69,6 +71,13 @@ payment_card_processing_seconds_histogram = Histogram(
 membership_card_add_counter = Counter(
     name="membership_card_add_total",
     documentation="Total number of membership cards added.",
+    labelnames=("channel", "scheme", "route"),
+    namespace=NAMESPACE,
+)
+
+membership_card_update_counter = Counter(
+    name="membership_card_update_total",
+    documentation="Total number of membership cards updated.",
     labelnames=("channel", "scheme", "route"),
     namespace=NAMESPACE,
 )
