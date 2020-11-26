@@ -215,9 +215,10 @@ if not NO_AZURE_STORAGE:
     AZURE_CUSTOM_DOMAIN = env_var("AZURE_CUSTOM_DOMAIN")
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
-STATIC_URL = env_var("HERMES_STATIC_URL", "/static/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+
+STATIC_URL = env_var("HERMES_STATIC_URL", "/admin/static/")
+STATIC_ROOT = "/tmp/static/"
 
 AUTH_USER_MODEL = "user.CustomUser"
 
