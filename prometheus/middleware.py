@@ -1,24 +1,33 @@
 from django.conf import settings
 from django_prometheus.middleware import PrometheusAfterMiddleware, PrometheusBeforeMiddleware
 from django_prometheus.utils import TimeSince
+from user.models import ClientApplicationBundle
 
 from prometheus.metrics import CustomMetrics
 
 
-def _get_bundle_id(request, response=None):
+def _get_bundle_id(request, response=None, view_name=None):
     try:
-        if str(request.user) == "AnonymousUser":
-            # service_api_token authentication is used for internal services.
-            return settings.SERVICE_API_METRICS_BUNDLE
-        elif response is None:
+        if response is None:
             # handling of an exception, no channels_permit has been set, need to get the bundle from the db.
-            return request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
+            channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
+        elif str(request.user) == "AnonymousUser":
+            if "client_id" in response.renderer_context["request"].data:
+                # Bink 2.0 register/login.
+                channel_id = ClientApplicationBundle.objects.filter(
+                    client_id=response.renderer_context["request"].data["client_id"]
+                ).values_list("bundle_id", flat=True).first()
+            else:
+                # service_api_token authentication is used for internal services.
+                channel_id = settings.SERVICE_API_METRICS_BUNDLE
         else:
             # collects the bundle_id from channels_permit
-            return response.renderer_context["request"].channels_permit.bundle_id or "none"
-    except (AttributeError, KeyError):
-        # old bink endpoint, defaults to bink bundle_id.
-        return settings.BINK_BUNDLE_ID
+            channel_id = response.renderer_context["request"].channels_permit.bundle_id or "none"
+    except (AttributeError, KeyError, ClientApplicationBundle.DoesNotExist):
+        # legacy bink endpoint or bink 2.0 register/login endpoint with worng client_id, defaults to bink bundle_id.
+        channel_id = settings.BINK_BUNDLE_ID
+
+    return channel_id
 
 
 # the Metrics class is used as singleton so it need to be the same for both middlewares.
@@ -33,7 +42,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         method = self._method(request)
         name = self._get_view_name(request)
         status = str(response.status_code)
-        bundle_id = _get_bundle_id(request, response)
+        bundle_id = _get_bundle_id(request, response, name)
 
         self.label_metric(self.metrics.responses_by_status, request, response, status=status).inc()
         self.label_metric(
