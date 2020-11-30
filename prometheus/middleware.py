@@ -7,7 +7,7 @@ from prometheus.metrics import CustomMetrics
 
 
 def _get_bundle_id(request, response=None, view_name=None):
-    if response is None:
+    if not hasattr(response, "renderer_context"):
         # handling of an exception, no channels_permit has been set, need to get the bundle_id from the db.
         channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
     elif str(request.user) == "AnonymousUser":
