@@ -7,25 +7,28 @@ from prometheus.metrics import CustomMetrics
 
 
 def _get_bundle_id(request, response=None, view_name=None):
-    try:
-        if response is None:
-            # handling of an exception, no channels_permit has been set, need to get the bundle from the db.
-            channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
-        elif str(request.user) == "AnonymousUser":
-            if "client_id" in response.renderer_context["request"].data:
+    if response is None:
+        # handling of an exception, no channels_permit has been set, need to get the bundle_id from the db.
+        channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
+    elif str(request.user) == "AnonymousUser":
+        try:
+            request_bundle = response.renderer_context["request"].data["bundle_id"]
+            if ClientApplicationBundle.objects.filter(bundle_id=request_bundle).exists():
                 # Bink 2.0 register/login.
-                channel_id = ClientApplicationBundle.objects.filter(
-                    client_id=response.renderer_context["request"].data["client_id"]
-                ).values_list("bundle_id", flat=True).first()
+                channel_id = request_bundle
             else:
-                # service_api_token authentication is used for internal services.
-                channel_id = settings.SERVICE_API_METRICS_BUNDLE
-        else:
+                # Bink 2.0 register/login, but bundle_id was misspelled, defaults to bink bundle_id
+                channel_id = settings.BINK_BUNDLE_ID
+        except (AttributeError, KeyError):
+            # service_api_token authentication is used for internal services.
+            channel_id = settings.SERVICE_API_METRICS_BUNDLE
+    else:
+        try:
             # collects the bundle_id from channels_permit
             channel_id = response.renderer_context["request"].channels_permit.bundle_id or "none"
-    except (AttributeError, KeyError, ClientApplicationBundle.DoesNotExist):
-        # legacy bink endpoint or bink 2.0 register/login endpoint with worng client_id, defaults to bink bundle_id.
-        channel_id = settings.BINK_BUNDLE_ID
+        except (AttributeError, KeyError):
+            # legacy bink endpoint, defaults to bink bundle_id.
+            channel_id = settings.BINK_BUNDLE_ID
 
     return channel_id
 
