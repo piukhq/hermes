@@ -17,10 +17,10 @@ def _get_bundle_id(request, response=None, view_name=None):
                 # Bink 2.0 register/login, but bundle_id was misspelled, defaults to bink bundle_id
                 channel_id = settings.BINK_BUNDLE_ID
         except (AttributeError, KeyError, TypeError):
-            # service_api_token authentication is used for internal services.
+            # service_api_token authentication is used for internal services and tests.
             channel_id = settings.SERVICE_API_METRICS_BUNDLE
     elif not hasattr(response, "renderer_context"):
-        # handling of an exception or test, no channels_permit has been set, need to get the bundle_id from the db.
+        # handling of an exception, no channels_permit has been set, need to get the bundle_id from the db.
         channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
     else:
         try:
