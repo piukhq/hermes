@@ -7,10 +7,7 @@ from prometheus.metrics import CustomMetrics
 
 
 def _get_bundle_id(request, response=None, view_name=None):
-    if not hasattr(response, "renderer_context"):
-        # handling of an exception, no channels_permit has been set, need to get the bundle_id from the db.
-        channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
-    elif str(request.user) == "AnonymousUser":
+    if str(request.user) == "AnonymousUser":
         try:
             request_bundle = response.renderer_context["request"].data["bundle_id"]
             if ClientApplicationBundle.objects.filter(bundle_id=request_bundle).exists():
@@ -19,14 +16,17 @@ def _get_bundle_id(request, response=None, view_name=None):
             else:
                 # Bink 2.0 register/login, but bundle_id was misspelled, defaults to bink bundle_id
                 channel_id = settings.BINK_BUNDLE_ID
-        except (AttributeError, KeyError):
+        except (AttributeError, KeyError, TypeError):
             # service_api_token authentication is used for internal services.
             channel_id = settings.SERVICE_API_METRICS_BUNDLE
+    elif not hasattr(response, "renderer_context"):
+        # handling of an exception or test, no channels_permit has been set, need to get the bundle_id from the db.
+        channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
     else:
         try:
             # collects the bundle_id from channels_permit
             channel_id = response.renderer_context["request"].channels_permit.bundle_id or "none"
-        except (AttributeError, KeyError):
+        except (AttributeError, KeyError, TypeError):
             # legacy bink endpoint, defaults to bink bundle_id.
             channel_id = settings.BINK_BUNDLE_ID
 
