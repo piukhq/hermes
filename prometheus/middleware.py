@@ -6,7 +6,7 @@ from user.models import ClientApplicationBundle
 from prometheus.metrics import CustomMetrics
 
 
-def _get_bundle_id(request, response=None, view_name=None):
+def _get_bundle_id(request, response=None):
     if str(request.user) == "AnonymousUser":
         try:
             request_bundle = response.renderer_context["request"].data["bundle_id"]
@@ -45,7 +45,7 @@ class CustomPrometheusAfterMiddleware(PrometheusAfterMiddleware):
         method = self._method(request)
         name = self._get_view_name(request)
         status = str(response.status_code)
-        bundle_id = _get_bundle_id(request, response, name)
+        bundle_id = _get_bundle_id(request, response)
 
         self.label_metric(self.metrics.responses_by_status, request, response, status=status).inc()
         self.label_metric(
