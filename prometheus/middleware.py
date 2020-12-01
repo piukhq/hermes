@@ -1,24 +1,36 @@
 from django.conf import settings
 from django_prometheus.middleware import PrometheusAfterMiddleware, PrometheusBeforeMiddleware
 from django_prometheus.utils import TimeSince
+from user.models import ClientApplicationBundle
 
 from prometheus.metrics import CustomMetrics
 
 
 def _get_bundle_id(request, response=None):
-    try:
-        if str(request.user) == "AnonymousUser":
+    if str(request.user) == "AnonymousUser":
+        try:
+            request_bundle = response.renderer_context["request"].data["bundle_id"]
+            if ClientApplicationBundle.objects.filter(bundle_id=request_bundle).exists():
+                # Bink 2.0 register/login.
+                channel_id = request_bundle
+            else:
+                # Bink 2.0 register/login, but bundle_id was misspelled, defaults to bink bundle_id
+                channel_id = settings.BINK_BUNDLE_ID
+        except (AttributeError, KeyError, TypeError):
             # service_api_token authentication is used for internal services.
-            return settings.SERVICE_API_METRICS_BUNDLE
-        elif response is None:
-            # handling of an exception, no channels_permit has been set, need to get the bundle from the db.
-            return request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
-        else:
+            channel_id = settings.SERVICE_API_METRICS_BUNDLE
+    elif not hasattr(response, "renderer_context"):
+        # handling of an exception, no channels_permit has been set, need to get the bundle_id from the db.
+        channel_id = request.user.client.clientapplicationbundle_set.values_list("bundle_id", flat=True).first()
+    else:
+        try:
             # collects the bundle_id from channels_permit
-            return response.renderer_context["request"].channels_permit.bundle_id or "none"
-    except (AttributeError, KeyError):
-        # old bink endpoint, defaults to bink bundle_id.
-        return settings.BINK_BUNDLE_ID
+            channel_id = response.renderer_context["request"].channels_permit.bundle_id or "none"
+        except (AttributeError, KeyError, TypeError):
+            # legacy bink endpoint, defaults to bink bundle_id.
+            channel_id = settings.BINK_BUNDLE_ID
+
+    return channel_id
 
 
 # the Metrics class is used as singleton so it need to be the same for both middlewares.
