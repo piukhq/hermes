@@ -119,8 +119,8 @@ class PaymentCardSchemeEntry(models.Model):
             return True
         return False
 
-    def vop_activate_check(self):
-        if self.payment_card_account.payment_card.slug == "visa" and self.active_link:
+    def vop_activate_check(self, prechecked=False):
+        if prechecked or (self.payment_card_account.payment_card.slug == "visa" and self.active_link):
             # use get_or_create to ensure we avoid race conditions
             try:
                 vop_activation, created = VopActivation.objects.get_or_create(
