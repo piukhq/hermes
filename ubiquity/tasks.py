@@ -13,7 +13,7 @@ from rest_framework import serializers
 import analytics
 from hermes.vop_tasks import activate, deactivate
 from payment_card import metis
-from payment_card.models import PaymentCardAccount
+from payment_card.models import PaymentCardAccount, PaymentCard
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
@@ -308,9 +308,9 @@ def _update_many_cards_with_one_new_pll_link(
     card_model.value.objects.bulk_update(updated_cards, ['pll_links'])
 
 
-def _process_vop_activations(created_links):
+def _process_vop_activations(created_links, prechecked=False):
     for link in created_links:
-        link.vop_activate_check()
+        link.vop_activate_check(prechecked=prechecked)
 
 
 @shared_task
@@ -333,18 +333,23 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         is_deleted=False
     ).exclude(
         id__in=excluded_payment_cards
+    ).select_related(
+        "payment_card"
     ).all()
 
     link_entries_to_create = []
     pll_activated_payment_cards = []
-    for payment_card in payment_cards_to_link:
+    vop_activated_cards = []
+    for payment_card_account in payment_cards_to_link:
         entry = PaymentCardSchemeEntry(
             scheme_account=membership_card,
-            payment_card_account=payment_card
+            payment_card_account=payment_card_account
         ).get_instance_with_active_status()
         link_entries_to_create.append(entry)
         if entry.active_link is True:
-            pll_activated_payment_cards.append(payment_card.id)
+            pll_activated_payment_cards.append(payment_card_account.id)
+            if payment_card_account.payment_card.slug == PaymentCard.VISA:
+                vop_activated_cards.append(payment_card_account.id)
 
     created_links = PaymentCardSchemeEntry.objects.bulk_create(
         link_entries_to_create, batch_size=100, ignore_conflicts=True
@@ -366,7 +371,10 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         pll_activated_payment_cards,
         membership_card.id
     )
-    _process_vop_activations(created_links)
+    _process_vop_activations(
+        [link for link in created_links if link.payment_card_account_id in vop_activated_cards],
+        prechecked=True
+    )
 
 
 @shared_task
@@ -377,7 +385,7 @@ def auto_link_payment_to_memberships(
 ) -> None:
 
     if isinstance(payment_card_account, int):
-        payment_card_account = PaymentCardAccount.objects.get(pk=payment_card_account)
+        payment_card_account = PaymentCardAccount.objects.select_related("payment_card").get(pk=payment_card_account)
 
     if isinstance(wallet_scheme_accounts[0], int):
         wallet_scheme_accounts = SchemeAccount.objects.filter(id__in=wallet_scheme_accounts).all()
@@ -425,4 +433,9 @@ def auto_link_payment_to_memberships(
         pll_activated_membership_cards,
         payment_card_account.id
     )
-    _process_vop_activations(created_links)
+
+    if payment_card_account.payment_card.slug == PaymentCard.VISA:
+        _process_vop_activations(
+            [link for link in created_links if link.scheme_account_id in pll_activated_membership_cards],
+            prechecked=True
+        )
