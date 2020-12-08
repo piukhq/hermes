@@ -377,7 +377,11 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
     )
 
 
-def _get_instances_to_bulk_create(payment_card_account, wallet_scheme_accounts, just_created):
+def _get_instances_to_bulk_create(
+    payment_card_account: PaymentCardAccount,
+    wallet_scheme_accounts: list,
+    just_created: bool
+) -> dict:
     if just_created:
         already_linked_scheme_ids = []
     else:
