@@ -17,7 +17,8 @@ from rest_framework.exceptions import ValidationError
 import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
-from scheme.credentials import PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS
+from scheme.credentials import (PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS,
+                                CASE_SENSITIVE_CREDENTIALS)
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion, Consent)
@@ -181,6 +182,9 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
             main_answer = 'main_answer'
 
         try:
+            if answer_type not in CASE_SENSITIVE_CREDENTIALS:
+                data[answer_type] = data[answer_type].lower()
+
             scheme_account = SchemeAccount.objects.get(**{
                 'scheme': scheme,
                 main_answer: data[answer_type]
@@ -574,7 +578,7 @@ class UpdateCredentialsMixin:
         return required_questions
 
     def _check_required_data_presence(self, scheme: Scheme, data: dict) -> None:
-        if not self.request.user.is_tester and scheme.test_scheme:
+        if not self.request.channels_permit.permit_test_access(scheme):
             raise ValidationError(f'Scheme {scheme.id} not allowed for this user')
 
         if scheme.authorisation_required:

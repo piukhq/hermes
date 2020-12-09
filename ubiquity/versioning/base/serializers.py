@@ -21,7 +21,7 @@ from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
-                           VoucherScheme)
+                           VoucherScheme, SchemeBundleAssociation)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
@@ -269,7 +269,7 @@ class TransactionListSerializer(serializers.ListSerializer):
         if is_empty_value:
             return data
 
-        if self.context.get("user"):
+        if self.context.get("user") and self.context.get("bundle"):
             data = self.filter_transactions_for_user(data)
         value = self.to_internal_value(data)
         try:
@@ -284,8 +284,13 @@ class TransactionListSerializer(serializers.ListSerializer):
     def filter_transactions_for_user(self, data):
         user = self.context["user"]
         queryset = user.scheme_account_set.values('id')
+
         if not user.is_tester:
-            queryset = queryset.filter(scheme__test_scheme=False).values('id').all()
+            test_schemes_to_exclude = SchemeBundleAssociation.objects.filter(
+                test_scheme=True,
+                bundle=self.context["bundle"]
+            ).values_list("scheme_id", flat=True)
+            queryset = queryset.exclude(scheme_id__in=test_schemes_to_exclude).values('id')
 
         return [
             tx for tx in data
@@ -414,6 +419,8 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         model = Scheme
         exclude = ('name',)
 
+    image_serializer_class = UbiquityImageSerializer
+
     @staticmethod
     def _add_alternatives_key(formatted_fields: dict) -> None:
         options = {field["column"] for field in formatted_fields}
@@ -497,7 +504,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
-            'images': UbiquityImageSerializer(images, many=True).data,
+            'images': self.image_serializer_class(images, many=True).data,
             'account': {
                 'plan_name': instance.name,
                 'plan_name_card': instance.plan_name_card,
@@ -531,15 +538,15 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         return plan
 
 
-class MembershipCardImageSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+class MembershipCardImageSerializer(UbiquityImageSerializer):
     url = serializers.URLField()
     type = serializers.IntegerField()
     encoding = serializers.CharField(max_length=30)
-    description = serializers.CharField(max_length=300)
 
 
 class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMixin):
+
+    image_serializer_class = MembershipCardImageSerializer
 
     @staticmethod
     def _filter_valid_images(account_images: dict, base_images: dict, today: int) -> t.ValuesView[t.Dict[str, dict]]:
@@ -623,7 +630,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             current_scheme = None
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
-        self.images = self._get_images(instance, scheme, str(reward_tier))
+        images = self._get_images(instance, scheme, str(reward_tier))
+
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
@@ -636,7 +644,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode_type': scheme.barcode_type,
                 'colour': scheme.colour
             },
-            'images': MembershipCardImageSerializer(self.images, many=True).data,
+            'images': self.image_serializer_class(images, many=True).data,
             'account': {
                 'tier': reward_tier
             },

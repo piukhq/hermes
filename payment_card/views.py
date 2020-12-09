@@ -7,17 +7,17 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
+from prometheus.metrics import payment_card_status_change_counter, payment_card_processing_seconds_histogram
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -395,8 +395,20 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         if new_status_code != payment_card_account.status:
+            if payment_card_account.status == PaymentCardAccount.PENDING:
+                activation_time = timezone.now() - payment_card_account.updated
+                payment_card_processing_seconds_histogram.labels(
+                    provider=payment_card_account.payment_card.system_name
+                ).observe(activation_time.total_seconds())
+
             payment_card_account.status = new_status_code
-            payment_card_account.save()
+            payment_card_account.save(update_fields=["status"])
+
+            payment_card_status_change_counter.labels(
+                provider=payment_card_account.payment_card.system_name,
+                status=payment_card_account.status_name
+            ).inc()
+
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account

@@ -107,6 +107,19 @@ class TestResources(APITestCase):
         self.assertNotIn('content', resp_v1_1.json())
         self.assertIn('content', resp_v1_2.json())
 
+    def test_membership_plan_versioned_images(self):
+        resp_v1_1 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_1)
+        resp_v1_2 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_2)
+        resp_v1_3 = self.client.get(reverse('membership-plan', args=[self.scheme.id]), **self.headers_v1_3)
+
+        image_v1_1 = resp_v1_1.json()['images'][0]
+        image_v1_2 = resp_v1_2.json()['images'][0]
+        image_v1_3 = resp_v1_3.json()['images'][0]
+
+        self.assertNotIn('dark_mode_url', image_v1_1)
+        self.assertNotIn('dark_mode_url', image_v1_2)
+        self.assertIn('dark_mode_url', image_v1_3)
+
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
     @patch.object(SchemeAccount, 'get_midas_balance')
@@ -119,19 +132,3 @@ class TestResources(APITestCase):
         resp_wrong_format = self.client.get(reverse('membership-cards'), **self.resp_wrong_format)
 
         self._check_versioned_response(resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver, resp_wrong_format)
-
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch.object(SchemeAccount, 'get_midas_balance')
-    def test_membership_card_dark_mode_url(self, *_):
-        resp_v1_1 = self.client.get(reverse('membership-cards'), **self.headers_v1_1)
-        resp_v1_2 = self.client.get(reverse('membership-cards'), **self.headers_v1_2)
-        resp_v1_3 = self.client.get(reverse('membership-cards'), **self.headers_v1_3)
-
-        image_v1_1 = resp_v1_1.json()[0]['images'][0]
-        image_v1_2 = resp_v1_2.json()[0]['images'][0]
-        image_v1_3 = resp_v1_3.json()[0]['images'][0]
-
-        self.assertNotIn('dark_mode_url', image_v1_1)
-        self.assertNotIn('dark_mode_url', image_v1_2)
-        self.assertIn('dark_mode_url', image_v1_3)
