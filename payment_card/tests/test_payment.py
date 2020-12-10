@@ -451,7 +451,6 @@ class TestPayment(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_successful_join_processes_successful_payment(
@@ -478,7 +477,6 @@ class TestPayment(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_failed_join_voids_payment(
