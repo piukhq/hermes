@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from rest_framework import serializers
 from rustyjeff import rsa_decrypt_base64
@@ -48,7 +48,7 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
     OPTIONAL_FIELDS_TO_DECRYPT = ["hash"]
 
     @staticmethod
-    def get_hash(obj: dict) -> Optional[str]:
+    def get_hash(obj: dict) -> str:
         return BLAKE2sHash().new(
             obj=obj["hash"],
             key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET),
