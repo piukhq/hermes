@@ -49,7 +49,10 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
 
     @staticmethod
     def get_hash(obj: dict) -> Optional[str]:
-        return BLAKE2sHash().new(obj=obj["hash"], key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET))
+        return BLAKE2sHash().new(
+            obj=obj["hash"],
+            key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET),
+        )
 
     def to_representation(self, data: dict) -> dict:
         fields_to_decrypt = [
