@@ -110,7 +110,7 @@ class TestSerializersV1_2(APITestCase):
             'expiry_year': 2025
         }
 
-        serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
         hash1 = 'hash1'
@@ -121,7 +121,7 @@ class TestSerializersV1_2(APITestCase):
         data["hash"] = self.rsa.encrypt(hash1, pub_key=self.pub_key)
         expected_data["hash"] = hash2
 
-        serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
