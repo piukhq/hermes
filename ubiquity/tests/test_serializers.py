@@ -124,7 +124,6 @@ class TestSerializersV1_2(APITestCase):
         serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
-
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
     @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     def test_payment_card_translation_serializer_raises_error_for_incorrect_encryption(self):
