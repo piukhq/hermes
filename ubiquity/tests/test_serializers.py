@@ -90,36 +90,38 @@ class TestSerializersV1_2(APITestCase):
     @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
-        hash1 = 'hash1'
         data = {
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
             'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
         }
 
-        hash2 = BLAKE2sHash().new(
-            obj=hash1,
-            key=t.cast(str, mock_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET])
-        )
-
         expected_data = {
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': hash2,
             'pan_start': '555555',
             'pan_end': '4444',
             'expiry_month': 12,
             'expiry_year': 2025
         }
 
-        serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
+        self.assertTrue(expected_data.items() < serialized_data.items())
 
+        hash1 = 'hash1'
+        hash2 = BLAKE2sHash().new(
+            obj=hash1,
+            key=t.cast(str, mock_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET])
+        )
+        data["hash"] = self.rsa.encrypt(hash1, pub_key=self.pub_key)
+        expected_data["hash"] = hash2
+
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])

@@ -20,7 +20,6 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
                                     SchemeBalanceDetailsFactory)
-from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle
@@ -283,8 +282,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_bink_user(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_bink_user(self, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         user_set = str(self.bink_user.id)
@@ -301,12 +299,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_ubiquity_user(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_ubiquity_user(self, *_):
         client_app = ClientApplicationFactory(name='barclays')
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         user = UserFactory(client=client_app)
@@ -326,12 +322,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_join_callback(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_join_callback(self, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
 
@@ -348,11 +342,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_multiple_values(self, *_):
         entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
         user_set = [str(entry.user.id) for entry in entries]
         self.assertTrue(len(user_set) > 1)
@@ -376,7 +368,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['status'], 9)
-        self.assertFalse(mock_notify_rollback.called)
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
@@ -392,8 +383,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, *_):
         client_app = ClientApplicationFactory(name='barclays')
         scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         user = UserFactory(client=client_app)
@@ -417,34 +407,6 @@ class TestSchemeAccountViews(APITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.main_answer, "")
         self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
-        self.assertFalse(mock_notify_rollback.called)
-
-    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback, *_):
-        user_info = {
-            'user_set': ', '.join([str(x.id) for x in self.scheme_account1.user_set.all()])
-        }
-        data = {
-            'status': 1,
-            'journey': 'join',
-            'user_info': user_info
-        }
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data, format='json',
-                                    **self.auth_service_headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['id'], self.scheme_account1.id)
-        self.assertEqual(response.data['status'], 1)
-        self.assertTrue(mock_notify_rollback.called)
-
-    @patch('scheme.views.sentry_sdk')
-    @patch('scheme.views.requests.post')
-    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
-        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
-                                                               datetime.datetime.now())
-
-        self.assertFalse(mock_sentry.capture_exception.called)
-        self.assertTrue(mock_post.called)
 
     def test_scheme_account_update_transactions(self):
         transactions = [
