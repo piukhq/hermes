@@ -146,7 +146,7 @@ class TestSerializersV1_2(APITestCase):
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': 'aGFzaDE=',
+            'hash': self.rsa.encrypt('aGFzaDE', pub_key=self.pub_key) + "wrong",
             'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
@@ -164,7 +164,7 @@ class TestSerializersV1_2(APITestCase):
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
             'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
-            'first_six_digits': '555555',
+            'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key) + 'wrong',
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)

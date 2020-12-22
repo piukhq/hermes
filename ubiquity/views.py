@@ -42,6 +42,7 @@ from ubiquity.tasks import (async_add_field_only_link, async_all_balance, async_
                             async_registration, auto_link_membership_to_payments, auto_link_payment_to_memberships,
                             deleted_membership_card_cleanup, deleted_payment_card_cleanup, deleted_service_cleanup,
                             send_merchant_metrics_for_new_account)
+from ubiquity.utils import needs_decryption
 from ubiquity.versioning import SelectSerializer, get_api_version, versioned_serializer_class
 from ubiquity.versioning.base.serializers import (LinkMembershipCardSerializer, MembershipCardSerializer,
                                                   MembershipPlanSerializer, MembershipTransactionsMixin,
@@ -739,16 +740,18 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
-        rsa_key_pem = get_key(
-            bundle_id=bundle_id,
-            key_type=KeyType.PRIVATE_KEY
-        )
-        try:
-            decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
-        except ValueError as e:
-            raise ValueError("Failed to decrypt sensitive fields") from e
+        if needs_decryption(fields.values()):
+            rsa_key_pem = get_key(
+                bundle_id=bundle_id,
+                key_type=KeyType.PRIVATE_KEY
+            )
+            try:
+                decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+            except ValueError as e:
+                raise ValueError("Failed to decrypt sensitive fields") from e
 
-        fields.update(decrypted_values)
+            fields.update(decrypted_values)
+
         return fields
 
     @staticmethod

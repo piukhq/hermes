@@ -2205,8 +2205,7 @@ class TestResourcesV1_2(APITestCase):
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_error_raised_when_sensitive_field_is_not_encrypted(self, mock_hades, mock_async_balance,
-                                                                mock_async_link, *_):
+    def test_allow_sensitive_field_not_encrypted(self, *_):
         password = 'Password1'
         question_answer2 = 'some other answer'
         payload = {
@@ -2229,11 +2228,7 @@ class TestResourcesV1_2(APITestCase):
         }
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
                                 **self.auth_headers, **self.version_header)
-        self.assertEqual(resp.status_code, 400)
-
-        self.assertFalse(mock_hades.called)
-        self.assertFalse(mock_async_link.delay.called)
-        self.assertFalse(mock_async_balance.delay.called)
+        self.assertIn(resp.status_code, [200, 201])
 
 
 class TestLastManStanding(APITestCase):
