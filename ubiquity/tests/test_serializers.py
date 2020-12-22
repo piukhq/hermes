@@ -113,6 +113,19 @@ class TestSerializersV1_2(APITestCase):
         serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
+        data_unencrypted = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'first_six_digits': '555555',
+            'last_four_digits': '4444',
+            'month': 12,
+            'year': 2025
+        }
+
+        serialized_data = serializer(data_unencrypted, context={'bundle_id': self.bundle_id}).data
+        self.assertTrue(expected_data.items() < serialized_data.items())
+
         hash1 = 'hash1'
         hash2 = BLAKE2sHash().new(
             obj=hash1,
