@@ -1732,7 +1732,7 @@ class TestResources(APITestCase):
             register_field=True
         )
         test_postcode = "CR0 1FB"
-        postcode = SchemeCredentialAnswerFactory(
+        SchemeCredentialAnswerFactory(
             question=postcode_question,
             scheme_account=scheme_account,
             answer=test_postcode
@@ -1768,8 +1768,24 @@ class TestResources(APITestCase):
             HTTP_AUTHORIZATION=auth_header
         )
         self.assertEqual(resp.status_code, 200)
-        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
-        self.assertTrue(linked)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
+        link.delete()
+
+        # Test adding card with multiple whitespace characters
+        payload["account"]["authorise_fields"] = [{
+            "column": POSTCODE, "value": "\n CR0\r  1FB\n\t"
+        }]
+
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
 
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('ubiquity.views.async_link', autospec=True)

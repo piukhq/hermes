@@ -832,8 +832,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                   and isinstance(provided_value, str) and isinstance(existing_value, str)):
 
                 if question_type == POSTCODE:
-                    provided_value = provided_value.upper().replace(" ", "")
-                    existing_value = existing_value.upper().replace(" ", "")
+                    provided_value = "".join(provided_value.upper().split())
+                    existing_value = "".join(existing_value.upper().split())
                 else:
                     provided_value = provided_value.lower()
                     existing_value = existing_value.lower()
