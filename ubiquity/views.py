@@ -26,7 +26,7 @@ from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from prometheus.metrics import (MembershipCardAddRoute, PaymentCardAddRoute, membership_card_add_counter,
                                 membership_card_update_counter, payment_card_add_counter, service_creation_counter)
-from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
+from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH, POSTCODE
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            UpdateCredentialsMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
@@ -830,8 +830,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             elif (question_type not in CASE_SENSITIVE_CREDENTIALS
                   and isinstance(provided_value, str) and isinstance(existing_value, str)):
-                provided_value = provided_value.lower()
-                existing_value = existing_value.lower()
+
+                if question_type == POSTCODE:
+                    provided_value = "".join(provided_value.upper().split())
+                    existing_value = "".join(existing_value.upper().split())
+                else:
+                    provided_value = provided_value.lower()
+                    existing_value = existing_value.lower()
 
             if provided_value != existing_value:
                 raise ParseError('This card already exists, but the provided credentials do not match.')

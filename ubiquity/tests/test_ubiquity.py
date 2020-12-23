@@ -12,7 +12,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
-    CASE_SENSITIVE_CREDENTIALS, EMAIL
+    CASE_SENSITIVE_CREDENTIALS, EMAIL, POSTCODE
 from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
@@ -1687,14 +1687,111 @@ class TestResources(APITestCase):
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
         self.assertTrue(linked)
 
-    @patch('analytics.api.update_scheme_account_attribute')
     @patch('ubiquity.influx_audit.InfluxDBClient')
-    @patch('analytics.api.post_event')
-    @patch('analytics.api._send_to_mnemosyne')
     @patch('ubiquity.views.async_link', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('analytics.api._get_today_datetime')
+    @patch('analytics.api')
+    def test_existing_membership_card_creation_postcode_space_handling(self, *_):
+        # Setup new scheme with all question types as auth fields and create existing scheme account
+        new_external_id = 'Test User non case sensitive auth fields'
+        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
+        auth_header = self._get_auth_header(new_user)
+        scheme = SchemeFactory()
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account.main_answer = fake.email()
+        scheme_account.save(update_fields=["main_answer"])
+        SchemeBundleAssociationFactory(
+            scheme=scheme,
+            bundle=self.bundle,
+            status=SchemeBundleAssociation.ACTIVE
+        )
+        SchemeCredentialQuestionFactory(
+            scheme=scheme,
+            type=EMAIL,
+            label=EMAIL,
+            manual_question=True,
+            add_field=True,
+            enrol_field=True
+        )
+        email = SchemeCredentialAnswerFactory(
+            question=scheme.manual_question,
+            scheme_account=scheme_account,
+            answer=scheme_account.main_answer
+        )
+        scheme_account.update_barcode_and_card_number()
+
+        postcode_question = SchemeCredentialQuestionFactory(
+            scheme=scheme,
+            type=POSTCODE,
+            label=POSTCODE,
+            third_party_identifier=False,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+            enrol_field=True,
+            register_field=True
+        )
+        test_postcode = "CR0 1FB"
+        SchemeCredentialAnswerFactory(
+            question=postcode_question,
+            scheme_account=scheme_account,
+            answer=test_postcode
+        )
+
+        payload = {
+            "membership_plan": scheme.id,
+            "account": {
+                "add_fields": [
+                    {
+                        "column": EMAIL,
+                        "value": email.answer
+                    }
+                ],
+                "authorise_fields": [
+                    {
+                        "column": POSTCODE,
+                        "value": test_postcode
+                    }
+                ]
+            }
+        }
+
+        # Test adding card without spaces
+        payload["account"]["authorise_fields"] = [{
+            "column": POSTCODE, "value": test_postcode.replace(" ", "")
+        }]
+
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
+        link.delete()
+
+        # Test adding card with multiple whitespace characters
+        payload["account"]["authorise_fields"] = [{
+            "column": POSTCODE, "value": "\n CR0\r  1FB\n\t"
+        }]
+
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+        self.assertEqual(resp.status_code, 200)
+        link = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account)
+        self.assertTrue(link.exists())
+
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.views.async_link', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
     def test_existing_membership_card_creation_fail(self, mock_date, *_):
         mock_date.return_value = datetime.datetime(year=2000, month=5, day=19)
         payload = {
