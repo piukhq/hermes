@@ -3,15 +3,15 @@
 from django.db import migrations, models
 
 
-def zero_to_hero(apps, schema_editor):
+def remove_cta_placeholders(apps, schema_editor):
     # the new cta_url field will be shown only for membership_plans
     SchemeImage = apps.get_model("scheme", "SchemeImage")
-    SchemeImage.objects.filter(call_to_action="0").update(call_to_action="")
+    SchemeImage.objects.update(call_to_action="")
 
 
-def hero_to_zero(apps, schema_editor):
+def add_cta_placeholders(apps, schema_editor):
     SchemeImage = apps.get_model("scheme", "SchemeImage")
-    SchemeImage.objects.filter(call_to_action="").update(call_to_action="0")
+    SchemeImage.objects.update(call_to_action="CTA")
 
 
 class Migration(migrations.Migration):
@@ -27,5 +27,5 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="schemeimage", name="call_to_action", field=models.CharField(blank=True, max_length=150),
         ),
-        migrations.RunPython(zero_to_hero, reverse_code=hero_to_zero),
+        migrations.RunPython(remove_cta_placeholders, reverse_code=add_cta_placeholders),
     ]
