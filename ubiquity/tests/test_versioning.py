@@ -118,7 +118,10 @@ class TestResources(APITestCase):
 
         self.assertNotIn('dark_mode_url', image_v1_1)
         self.assertNotIn('dark_mode_url', image_v1_2)
+        self.assertNotIn('cta_url', image_v1_1)
+        self.assertNotIn('cta_url', image_v1_2)
         self.assertIn('dark_mode_url', image_v1_3)
+        self.assertIn('cta_url', image_v1_3)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
