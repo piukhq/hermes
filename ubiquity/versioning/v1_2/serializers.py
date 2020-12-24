@@ -6,6 +6,7 @@ from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from scheme.models import SchemeContent, SchemeFee
 from ubiquity.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
+from ubiquity.utils import needs_decryption
 from ubiquity.versioning.base import serializers as base_serializers
 
 if TYPE_CHECKING:
@@ -45,7 +46,7 @@ class MembershipPlanSerializer(base_serializers.MembershipPlanSerializer):
 
 class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSerializer):
     FIELDS_TO_DECRYPT = ["month", "year", "last_four_digits", "first_six_digits"]
-    OPTIONAL_FIELDS_TO_DECRYPT = ["hash"]
+    OPTIONAL_FIELDS = ["hash"]
 
     @staticmethod
     def get_hash(obj: dict) -> str:
@@ -56,17 +57,18 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
 
     def to_representation(self, data: dict) -> dict:
         fields_to_decrypt = [
-            field for field in self.OPTIONAL_FIELDS_TO_DECRYPT if field in data
+            field for field in self.OPTIONAL_FIELDS if field in data
         ] + self.FIELDS_TO_DECRYPT
         values_to_decrypt = [data[key] for key in fields_to_decrypt]
-        rsa_key_pem = get_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
+        if needs_decryption(values_to_decrypt):
+            rsa_key_pem = get_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
+            try:
+                decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+            except ValueError as e:
+                raise ValueError("Failed to decrypt sensitive fields") from e
 
-        try:
-            decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
-        except ValueError as e:
-            raise ValueError("Failed to decrypt sensitive fields") from e
+            data.update(decrypted_values)
 
-        data.update(decrypted_values)
         formatted_data = super().to_representation(data)
         if "hash" in data:
             formatted_data["hash"] = self.get_hash(data)
