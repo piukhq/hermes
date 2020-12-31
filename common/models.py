@@ -42,7 +42,7 @@ class Image(models.Model):
     description = models.CharField(max_length=300)
     url = models.URLField(null=True, blank=True)
     dark_mode_url = models.URLField(null=True, blank=True)
-    call_to_action = models.CharField(max_length=150)
+    call_to_action = models.CharField(max_length=150, blank=True)
     order = models.IntegerField()
     status = models.IntegerField(default=DRAFT, choices=STATUSES)
     start_date = models.DateTimeField()
