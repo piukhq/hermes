@@ -18,8 +18,12 @@ PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerial
 MembershipCardSerializer = v1_2_serializers.MembershipCardSerializer
 
 
+class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
+    cta_url = serializers.CharField(source='call_to_action')
+
+
 class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
-    class ImageSerializer(base_serializers.UbiquityImageSerializer):
+    class ImageSerializer(UbiquityImageSerializer):
         dark_mode_url = serializers.ImageField(source='dark_mode_image', required=False)
 
     def to_representation(self, instance: 'Scheme') -> dict:

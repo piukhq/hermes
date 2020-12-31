@@ -16,8 +16,9 @@ def remove_empty(d):
 
     # Excluding code. We still want to return the code fields and not remove it.
     # This is for cancelled, redeemed and expired vouchers.
+    # Excluding cta_url as per LOY-166 spec.
     for k, v in d.items():
-        if k == 'code':
+        if k in ("code", "cta_url"):
             data[k] = v
         else:
             if is_not_empty(v):
