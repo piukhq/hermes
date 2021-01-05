@@ -59,7 +59,7 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
         "is_deleted",
     )
     readonly_fields = ("obfuscated_hash", "token", "psp_token", "PLL_consent", "user_email")
-    search_fields = ("pan_start", "pan_end", "token", "paymentcardaccountentry__user__email", "hash")
+    search_fields = ("pan_start", "pan_end", "token", "paymentcardaccountentry__user__email", "hash", "agent_data")
     exclude = ("consent", "hash")
 
     def user_email(self, obj):

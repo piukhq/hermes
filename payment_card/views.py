@@ -343,7 +343,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         'token': Optional for backward compatibility
         "deactivated_list": List of ids of associated deactivations so as to set the new status in the activations table
         "deactivate_errors": Dict of deactivation errors for reporting in retry task
+        "agent_card_uid": Returned when the agent receives a card identity during an add request - saved in agent data
+                        for reference
         """
+        agent_data = {}
         card_id = request.data.get('id', None)
         token = request.data.get('token', None)
         response_status = request.data.get('response_status', None)
@@ -354,6 +357,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         new_status_code = request.data.get('status', None)
         deactivated_list = request.data.get('deactivated_list', [])
         deactivate_errors = request.data.get('deactivate_errors', {})
+        agent_card_uid = request.data.get('agent_card_uid', None)
+
+        if agent_card_uid:
+            agent_data['card_uid'] = agent_card_uid
 
         if new_status_code is not None:
             new_status_code = int(new_status_code)
@@ -365,6 +372,9 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account = get_object_or_404(PaymentCardAccount, id=int(card_id))
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
+
+        if agent_data:
+            payment_card_account.agent_data = agent_data
 
         if response_action == "Delete":
             # Retry with delete action is only called for providers which support it eg VOP path
@@ -402,7 +412,7 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 ).observe(activation_time.total_seconds())
 
             payment_card_account.status = new_status_code
-            payment_card_account.save(update_fields=["status"])
+            payment_card_account.save(update_fields=["status", "agent_data"])
 
             payment_card_status_change_counter.labels(
                 provider=payment_card_account.payment_card.system_name,
