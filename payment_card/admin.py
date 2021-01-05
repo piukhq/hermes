@@ -61,7 +61,6 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
     readonly_fields = ("obfuscated_hash", "token", "psp_token", "PLL_consent", "user_email")
     search_fields = ("pan_start", "pan_end", "token", "paymentcardaccountentry__user__email", "hash")
     exclude = ("consent", "hash")
-    list_per_page = 10
 
     def user_email(self, obj):
         user_list = [
