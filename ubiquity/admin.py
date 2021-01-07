@@ -65,6 +65,7 @@ class VopActivationAdmin(admin.ModelAdmin):
                      'payment_card_account__pan_start', 'payment_card_account__pan_end',
                      'payment_card_account__id', 'status')
     raw_id_fields = ('scheme', 'payment_card_account')
+    list_filter = ('status',)
 
     def pay_card_id(self, obj):
         return obj.payment_card_account.id
