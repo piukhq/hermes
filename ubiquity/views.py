@@ -79,7 +79,7 @@ from ubiquity.versioning.base.serializers import (
     PaymentCardConsentSerializer,
     PaymentCardSerializer,
     PaymentCardUpdateSerializer,
-    ServiceConsentSerializer,
+    ServiceSerializer,
     TransactionSerializer,
 )
 from user.models import CustomUser
@@ -264,7 +264,7 @@ class AllowedIssuersMixin:
 
 class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelViewSet):
     authentication_classes = (PropertyOrServiceAuthentication,)
-    serializer_class = ServiceConsentSerializer
+    serializer_class = ServiceSerializer
     response_serializer = SelectSerializer.SERVICE
 
     @censor_and_decorate
@@ -274,10 +274,10 @@ class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelVi
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        consent_data = serializer.validated_data['consent']
         status_code = HTTP_200_OK
-        consent_data = request.data["consent"]
-        if "email" not in consent_data:
-            raise ParseError
 
         try:
             if request.channels_permit.auth_by == "bink":

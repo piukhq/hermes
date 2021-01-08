@@ -1,11 +1,14 @@
 import typing as t
 from unittest.mock import patch
 
+from rest_framework import serializers
+from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from ubiquity.channel_vault import SecretKeyName
+from ubiquity.versioning.base.serializers import ServiceSerializer
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
@@ -69,6 +72,77 @@ mock_secrets = {
         SecretKeyName.PCARD_HASH_SECRET: 'secret'
     }
 }
+
+
+class TestBaseSerializers(APITestCase):
+
+    def test_service_serializer(self):
+        serializer_class = ServiceSerializer
+        valid_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        valid_data_with_optionals = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377,
+                "longitude": 1.1,
+                "latitude": 2.2,
+            },
+        }
+
+        missing_consent_email_data = {
+            "consent": {
+                "bademail": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        missing_consent_timestamp_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "badtimestamp": 1610114377
+            },
+        }
+
+        missing_consent_data = {
+            "badconsent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        invalid_consent_email_data = {
+            "consent": {
+                "email": "notanemail",
+                "timestamp": 1610114377
+            },
+        }
+
+        invalid_consent_timestamp_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": "12/12/2020"
+            },
+        }
+
+        all_invalid_data_list = [missing_consent_email_data, missing_consent_timestamp_data, missing_consent_data,
+                                 invalid_consent_email_data, invalid_consent_timestamp_data, ]
+
+        for data in [valid_data, valid_data_with_optionals]:
+            serializer = serializer_class(data=data)
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+
+            self.assertEqual(data, validated_data)
+
+        for invalid_data in all_invalid_data_list:
+            with self.assertRaises(serializers.ValidationError):
+                serializer = serializer_class(data=invalid_data)
+                serializer.is_valid(raise_exception=True)
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):

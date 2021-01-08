@@ -80,6 +80,14 @@ class MembershipTransactionsMixin:
         return resp if resp else []
 
 
+class TimestampField(serializers.Field):
+    def to_internal_value(self, data):
+        try:
+            return arrow.get(data).timestamp
+        except ParserError as e:
+            raise serializers.ValidationError("Invalid value for timestamp") from e
+
+
 class ServiceConsentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceConsent
@@ -107,9 +115,17 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
         if self._is_valid(instance.latitude) and self._is_valid(instance.longitude):
             response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
-        return {
-            'consent': response
-        }
+        return response
+
+
+class ServiceSerializer(serializers.Serializer):
+    class ConsentSerializer(serializers.Serializer):
+        email = serializers.EmailField()
+        timestamp = TimestampField()
+        longitude = serializers.FloatField(required=False)
+        latitude = serializers.FloatField(required=False)
+
+    consent = ConsentSerializer()
 
 
 class PaymentCardConsentSerializer(serializers.Serializer):
