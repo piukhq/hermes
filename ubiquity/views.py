@@ -26,7 +26,7 @@ from payment_card.payment import get_nominated_pcard
 from payment_card.views import ListCreatePaymentCardAccount, RetrievePaymentCardAccount
 from prometheus.metrics import (MembershipCardAddRoute, PaymentCardAddRoute, membership_card_add_counter,
                                 membership_card_update_counter, payment_card_add_counter, service_creation_counter)
-from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH
+from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH, POSTCODE
 from scheme.mixins import (BaseLinkMixin, IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
                            UpdateCredentialsMixin)
 from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
@@ -42,6 +42,7 @@ from ubiquity.tasks import (async_add_field_only_link, async_all_balance, async_
                             async_registration, auto_link_membership_to_payments, auto_link_payment_to_memberships,
                             deleted_membership_card_cleanup, deleted_payment_card_cleanup, deleted_service_cleanup,
                             send_merchant_metrics_for_new_account)
+from ubiquity.utils import needs_decryption
 from ubiquity.versioning import SelectSerializer, get_api_version, versioned_serializer_class
 from ubiquity.versioning.base.serializers import (LinkMembershipCardSerializer, MembershipCardSerializer,
                                                   MembershipPlanSerializer, MembershipTransactionsMixin,
@@ -739,16 +740,18 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
-        rsa_key_pem = get_key(
-            bundle_id=bundle_id,
-            key_type=KeyType.PRIVATE_KEY
-        )
-        try:
-            decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
-        except ValueError as e:
-            raise ValueError("Failed to decrypt sensitive fields") from e
+        if needs_decryption(fields.values()):
+            rsa_key_pem = get_key(
+                bundle_id=bundle_id,
+                key_type=KeyType.PRIVATE_KEY
+            )
+            try:
+                decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+            except ValueError as e:
+                raise ValueError("Failed to decrypt sensitive fields") from e
 
-        fields.update(decrypted_values)
+            fields.update(decrypted_values)
+
         return fields
 
     @staticmethod
@@ -830,8 +833,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
             elif (question_type not in CASE_SENSITIVE_CREDENTIALS
                   and isinstance(provided_value, str) and isinstance(existing_value, str)):
-                provided_value = provided_value.lower()
-                existing_value = existing_value.lower()
+
+                if question_type == POSTCODE:
+                    provided_value = "".join(provided_value.upper().split())
+                    existing_value = "".join(existing_value.upper().split())
+                else:
+                    provided_value = provided_value.lower()
+                    existing_value = existing_value.lower()
 
             if provided_value != existing_value:
                 raise ParseError('This card already exists, but the provided credentials do not match.')

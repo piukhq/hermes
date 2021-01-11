@@ -9,8 +9,9 @@ from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument, VopA
 class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
     list_display = ('payment_card_account', 'scheme_account', 'active_link', 'payment_card_account_link',
                     'scheme_account_link', 'pcard_status', 'pcard_deleted', 'mcard_status', 'mcard_deleted')
-    search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
-                     'scheme_account__scheme__name', 'payment_card_account__payment_card__name')
+    search_fields = ('payment_card_account__id', 'scheme_account__id', 'payment_card_account__pan_start',
+                     'payment_card_account__pan_end', 'payment_card_account__token', 'scheme_account__scheme__name',
+                     'payment_card_account__payment_card__name')
 
     list_filter = (('payment_card_account__payment_card__name', titled_filter('payment card')),
                    ('scheme_account__scheme', titled_filter('membership card')),
@@ -25,12 +26,12 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
     def payment_card_account_link(self, obj):
         return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'
-                           'card (id{0}) No. {1}...{2}</a>',
+                           'pcard id = {0} - No. {1}...{2}</a>',
                            obj.payment_card_account.id, obj.payment_card_account.pan_start,
                            obj.payment_card_account.pan_end)
 
     def scheme_account_link(self, obj):
-        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">scheme id{0}</a>',
+        return format_html('<a href="/admin/scheme/schemeaccount/{0}/change/">mcard id = {0}</a>',
                            obj.scheme_account.id)
 
     def pcard_status(self, obj):
@@ -64,6 +65,7 @@ class VopActivationAdmin(admin.ModelAdmin):
                      'payment_card_account__pan_start', 'payment_card_account__pan_end',
                      'payment_card_account__id', 'status')
     raw_id_fields = ('scheme', 'payment_card_account')
+    list_filter = ('status',)
 
     def pay_card_id(self, obj):
         return obj.payment_card_account.id

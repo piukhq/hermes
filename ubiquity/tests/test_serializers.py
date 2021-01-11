@@ -113,6 +113,19 @@ class TestSerializersV1_2(APITestCase):
         serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
+        data_unencrypted = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'first_six_digits': '555555',
+            'last_four_digits': '4444',
+            'month': 12,
+            'year': 2025
+        }
+
+        serialized_data = serializer(data_unencrypted, context={'bundle_id': self.bundle_id}).data
+        self.assertTrue(expected_data.items() < serialized_data.items())
+
         hash1 = 'hash1'
         hash2 = BLAKE2sHash().new(
             obj=hash1,
@@ -133,7 +146,7 @@ class TestSerializersV1_2(APITestCase):
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': 'aGFzaDE=',
+            'hash': self.rsa.encrypt('aGFzaDE', pub_key=self.pub_key) + "wrong",
             'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
@@ -151,7 +164,7 @@ class TestSerializersV1_2(APITestCase):
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
             'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
-            'first_six_digits': '555555',
+            'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key) + 'wrong',
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
