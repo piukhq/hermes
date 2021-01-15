@@ -53,6 +53,7 @@ LOCAL_APPS = (
     "payment_card",
     "order",
     "ubiquity",
+    "history",
     "daedalus_messaging",
     "periodic_retry",
     "prometheus.apps.PrometheusPusherConfig",
