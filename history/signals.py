@@ -51,10 +51,7 @@ def signal_record_history(sender, instance, **kwargs):
         user_id = None
         channel = "internal_service"
 
-    extra = {
-        "user_id": user_id,
-        "channel": channel
-    }
+    extra = {"user_id": user_id, "channel": channel}
 
     # TODO  enums! we have PaymentCardAccount etc repeated everywhere
     if model_name in ["PaymentCardAccount", "SchemeAccount"]:

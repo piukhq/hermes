@@ -1,7 +1,11 @@
 from rest_framework import serializers
 
-from history.models import HistoricalPaymentCardAccount, HistoricalPaymentCardAccountEntry, HistoricalSchemeAccount, \
-    HistoricalSchemeAccountEntry
+from history.models import (
+    HistoricalPaymentCardAccount,
+    HistoricalPaymentCardAccountEntry,
+    HistoricalSchemeAccount,
+    HistoricalSchemeAccountEntry,
+)
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
 
@@ -46,7 +50,7 @@ get_history_serializer = {
     "PaymentCardAccount": HistoricalPaymentCardAccountSerializer,
     "PaymentCardAccountEntry": HistoricalPaymentCardAccountEntrySerializer,
     "SchemeAccount": HistoricalSchemeAccountSerializer,
-    "SchemeAccountEntry": HistoricalSchemeAccountEntrySerializer
+    "SchemeAccountEntry": HistoricalSchemeAccountEntrySerializer,
 }
 
 get_body_serializer = {

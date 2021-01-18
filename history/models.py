@@ -16,8 +16,6 @@ class HistoricalBase(models.Model):
     change_type = models.CharField(max_length=6, choices=CHANGE_TYPES)
     instance_id = models.CharField(max_length=255)
     channel = models.CharField(max_length=255)
-
-    # TODO allow empty user_id and change_reason (possibly rename as change_details)
     change_details = models.CharField(max_length=255, blank=True)
     user_id = models.IntegerField(null=True)
 
@@ -36,7 +34,7 @@ class HistoricalSchemeAccount(HistoricalBase):
     JOURNEY_TYPES = (
         (ADD, ADD),
         (ENROL, ENROL),
-        (REGISTER, REGISTER)
+        (REGISTER, REGISTER),
     )
     journey = models.CharField(max_length=8, choices=JOURNEY_TYPES)
     body = JSONField()
