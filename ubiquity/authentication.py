@@ -10,7 +10,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
-from history.signals import LOCAL_CONTEXT
+from history.signals import HISTORY_CONTEXT
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
 
@@ -64,7 +64,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         channels_permit, auth_user_id = self.authenticate_request(request)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
-        LOCAL_CONTEXT.channels_permit = channels_permit
+        HISTORY_CONTEXT.channels_permit = channels_permit
         return channels_permit, None
 
     @staticmethod
@@ -120,7 +120,7 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
         channels_permit, auth_user_id = self.user_authenticate(request, NotFound)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
-        LOCAL_CONTEXT.channels_permit = channels_permit
+        HISTORY_CONTEXT.channels_permit = channels_permit
         return channels_permit.user, None
 
 
@@ -133,7 +133,7 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
             request, exceptions.AuthenticationFailed(_('Invalid token.'))
         )
         setattr(request, 'channels_permit', channels_permit)
-        LOCAL_CONTEXT.channels_permit = channels_permit
+        HISTORY_CONTEXT.channels_permit = channels_permit
         return channels_permit.user, None
 
 

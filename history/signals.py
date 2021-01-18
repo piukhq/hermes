@@ -14,7 +14,7 @@ HISTORY_MODELS = [
     "ubiquity.SchemeAccountEntry",
 ]
 
-LOCAL_CONTEXT = local()
+HISTORY_CONTEXT = local()
 
 
 def _get_change_type_and_details(kwargs):
@@ -44,9 +44,9 @@ def signal_record_history(sender, instance, **kwargs):
     instance_id = instance.id
     model_name = sender.__name__
 
-    if hasattr(LOCAL_CONTEXT, "channels_permit"):
-        user_id = LOCAL_CONTEXT.channels_permit.user.id
-        channel = LOCAL_CONTEXT.channels_permit.bundle_id
+    if hasattr(HISTORY_CONTEXT, "channels_permit"):
+        user_id = HISTORY_CONTEXT.channels_permit.user.id
+        channel = HISTORY_CONTEXT.channels_permit.bundle_id
     else:
         user_id = None
         channel = "internal_service"
