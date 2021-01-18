@@ -1,6 +1,8 @@
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 
+from history.enums import SchemeAccountJourney
+
 
 class HistoricalBase(models.Model):
     CREATE = "create"
@@ -28,15 +30,11 @@ class HistoricalPaymentCardAccount(HistoricalBase):
 
 
 class HistoricalSchemeAccount(HistoricalBase):
-    ADD = "add"
-    ENROL = "enrol"
-    REGISTER = "register"
-    JOURNEY_TYPES = (
-        (ADD, ADD),
-        (ENROL, ENROL),
-        (REGISTER, REGISTER),
+    journey = models.CharField(
+        max_length=8,
+        choices=SchemeAccountJourney.as_tuple(),
+        default=SchemeAccountJourney.NONE.value
     )
-    journey = models.CharField(max_length=8, choices=JOURNEY_TYPES)
     body = JSONField()
 
 

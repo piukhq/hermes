@@ -20,6 +20,8 @@ from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from hermes.channels import Permit
 from hermes.settings import Version
+from history.enums import SchemeAccountJourney
+from history.signals import HISTORY_CONTEXT
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
@@ -414,7 +416,11 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
             query['payment_card_account_id'] = pcard_pk
 
         get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
-        deleted_payment_card_cleanup.delay(pcard_pk, pcard_hash)
+        deleted_payment_card_cleanup.delay(
+            pcard_pk,
+            pcard_hash,
+            history_kwargs={"channels_permit": request.channels_permit},
+        )
         return Response({}, status=status.HTTP_200_OK)
 
 
@@ -573,6 +579,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     @staticmethod
     def _handle_registration_route(user: CustomUser, permit: Permit, account: SchemeAccount, scheme: Scheme,
                                    registration_fields: dict, scheme_questions: list) -> SchemeAccount:
+        journey = SchemeAccountJourney.REGISTER.value
+        HISTORY_CONTEXT.journey = journey
         check_join_with_pay(registration_fields, user.id)
         manual_answer = account.card_number
         if manual_answer:
@@ -600,7 +608,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             account.id,
             validated_data,
             permit.bundle_id,
-            history_kwargs={"channels_permit": permit, "journey": "register"},
+            history_kwargs={"channels_permit": permit, "journey": journey},
             delete_balance=True
         )
         return account
@@ -713,7 +721,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()
-        deleted_membership_card_cleanup.delay(scheme_account.id, arrow.utcnow().format(), request.user.id)
+        deleted_membership_card_cleanup.delay(
+            scheme_account.id,
+            arrow.utcnow().format(),
+            request.user.id,
+            history_kwargs={"channels_permit": request.channels_permit},
+        )
         return Response({}, status=status.HTTP_200_OK)
 
     @censor_and_decorate
@@ -861,6 +874,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         add_fields: dict,
         payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int, MembershipCardAddRoute]:
+        history_journey = SchemeAccountJourney.ADD.value
+        HISTORY_CONTEXT.journey = history_journey
         return_status = status.HTTP_200_OK
         link_consents = add_fields.get('consents', []) + auth_fields.get('consents', [])
         auth_fields['consents'] = add_fields['consents'] = link_consents
@@ -875,7 +890,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account.update_barcode_and_card_number()
             history_kwargs = {
                 "channels_permit": self.request.channels_permit,
-                "journey": "add"
+                "journey": history_journey
             }
 
             if auth_fields:
@@ -899,8 +914,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
     def _handle_create_join_route(
         user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int]:
-        check_join_with_pay(enrol_fields, user.id)
+        history_journey = SchemeAccountJourney.ENROL.value
+        HISTORY_CONTEXT.journey = history_journey
 
+        check_join_with_pay(enrol_fields, user.id)
         # Some schemes will provide a main answer during enrol, which should be saved
         # e.g harvey nichols email
         required_questions = {
@@ -963,7 +980,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data,
             channels_permit.bundle_id,
             payment_cards_to_link,
-            history_kwargs={"channels_permit": channels_permit, "journey": "enrol"}
+            history_kwargs={"channels_permit": channels_permit, "journey": history_journey}
         )
         return scheme_account, status.HTTP_201_CREATED
 

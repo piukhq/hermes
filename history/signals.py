@@ -3,16 +3,10 @@ from threading import local
 
 from django.db.models import signals
 
-from history.models import HistoricalBase, HistoricalSchemeAccount
+from history.enums import HistoryModel
+from history.models import HistoricalBase
 from history.serializers import get_body_serializer
 from history.tasks import record_history
-
-HISTORY_MODELS = [
-    "payment_card.PaymentCardAccount",
-    "ubiquity.PaymentCardAccountEntry",
-    "scheme.SchemeAccount",
-    "ubiquity.SchemeAccountEntry",
-]
 
 HISTORY_CONTEXT = local()
 
@@ -54,11 +48,11 @@ def signal_record_history(sender, instance, **kwargs):
     extra = {"user_id": user_id, "channel": channel}
 
     # TODO  enums! we have PaymentCardAccount etc repeated everywhere
-    if model_name in ["PaymentCardAccount", "SchemeAccount"]:
-        extra["body"] = get_body_serializer[model_name](instance).data
+    if model_name in [HistoryModel.PAYMENT_CARD_ACCOUNT, HistoryModel.SCHEME_ACCOUNT]:
+        extra["body"] = get_body_serializer(model_name)(instance).data
 
-        if model_name == "SchemeAccount":
-            extra["journey"] = HistoricalSchemeAccount.ADD
+        if model_name == HistoryModel.SCHEME_ACCOUNT and hasattr(HISTORY_CONTEXT, "journey"):
+            extra["journey"] = HISTORY_CONTEXT.journey
 
     else:
         if hasattr(instance, "payment_card_account_id"):
@@ -77,6 +71,6 @@ def signal_record_history(sender, instance, **kwargs):
     )
 
 
-for sender in HISTORY_MODELS:
-    signals.post_save.connect(signal_record_history, sender=sender)
-    signals.pre_delete.connect(signal_record_history, sender=sender)
+for sender in HistoryModel:
+    signals.post_save.connect(signal_record_history, sender=sender.value)
+    signals.pre_delete.connect(signal_record_history, sender=sender.value)

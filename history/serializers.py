@@ -1,3 +1,5 @@
+import sys
+
 from rest_framework import serializers
 
 from history.models import (
@@ -46,14 +48,13 @@ class HistoricalSchemeAccountEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-get_history_serializer = {
-    "PaymentCardAccount": HistoricalPaymentCardAccountSerializer,
-    "PaymentCardAccountEntry": HistoricalPaymentCardAccountEntrySerializer,
-    "SchemeAccount": HistoricalSchemeAccountSerializer,
-    "SchemeAccountEntry": HistoricalSchemeAccountEntrySerializer,
-}
+def _get_serializer(name: str) -> 'serializers.Serializer()':
+    return getattr(sys.modules[__name__], name)
 
-get_body_serializer = {
-    "PaymentCardAccount": PaymentCardAccountSerializer,
-    "SchemeAccount": SchemeAccountSerializer,
-}
+
+def get_historical_serializer(name: str) -> 'serializers.Serializer()':
+    return _get_serializer(f"Historical{name}Serializer")
+
+
+def get_body_serializer(name: str) -> 'serializers.Serializer()':
+    return _get_serializer(f"{name}Serializer")
