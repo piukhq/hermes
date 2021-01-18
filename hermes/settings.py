@@ -92,6 +92,7 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
     "hermes.middleware.AcceptVersion",
+    "history.middleware.HistoryRequestMiddleware",
     "prometheus.middleware.CustomPrometheusAfterMiddleware",
 )
 

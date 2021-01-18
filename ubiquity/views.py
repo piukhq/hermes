@@ -594,7 +594,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             join_scheme=scheme
         )
         account.set_async_join_status()
-        async_registration.delay(user.id, serializer, account.id, validated_data, permit.bundle_id, delete_balance=True)
+        async_registration.delay(
+            user.id,
+            serializer,
+            account.id,
+            validated_data,
+            permit.bundle_id,
+            history_kwargs={"channels_permit": permit, "journey": "register"},
+            delete_balance=True
+        )
         return account
 
     @censor_and_decorate
@@ -693,7 +701,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_id=scheme.id,
             validated_data=validated_data,
             channel=req.channels_permit.bundle_id,
-            payment_cards_to_link=payment_cards_to_link
+            payment_cards_to_link=payment_cards_to_link,
+            history_kwargs={"channels_permit": req.channels_permit, "journey": "enrol"}
         )
 
     @censor_and_decorate
@@ -864,10 +873,15 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
         if account_created:
             return_status = status.HTTP_201_CREATED
             scheme_account.update_barcode_and_card_number()
+            history_kwargs = {
+                "channels_permit": self.request.channels_permit,
+                "journey": "add"
+            }
+
             if auth_fields:
-                async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
+                async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
             else:
-                async_add_field_only_link.delay(user.id, scheme_account.id, payment_cards_to_link)
+                async_add_field_only_link.delay(scheme_account.id, payment_cards_to_link, history_kwargs)
 
             if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
                 metrics_route = MembershipCardAddRoute.LINK
@@ -940,6 +954,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
         scheme_account.save()
         SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+
         async_join.delay(
             scheme_account.id,
             user.id,
@@ -947,7 +962,8 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme.id,
             validated_data,
             channels_permit.bundle_id,
-            payment_cards_to_link
+            payment_cards_to_link,
+            history_kwargs={"channels_permit": channels_permit, "journey": "enrol"}
         )
         return scheme_account, status.HTTP_201_CREATED
 

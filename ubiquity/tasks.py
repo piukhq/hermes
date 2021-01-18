@@ -12,6 +12,9 @@ from rest_framework import serializers
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
+from history.models import HistoricalSchemeAccount
+from history.signals import LOCAL_CONTEXT
+from history.utils import set_history_kwargs, clean_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCardAccount, PaymentCard
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
@@ -54,7 +57,10 @@ def _send_metrics_to_atlas(method: str, slug: str, payload: dict) -> None:
 
 
 @shared_task
-def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_cards_to_link: list) -> None:
+def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_cards_to_link: list,
+               history_kwargs: dict = None) -> None:
+    set_history_kwargs(history_kwargs)
+
     scheme_account = SchemeAccount.objects.select_related("scheme").get(id=scheme_account_id)
     user = CustomUser.objects.get(id=user_id)
     try:
@@ -64,9 +70,11 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
+        clean_history_kwargs(history_kwargs)
     except serializers.ValidationError as e:
         scheme_account.status = scheme_account.INVALID_CREDENTIALS
         scheme_account.save()
+        clean_history_kwargs(history_kwargs)
         raise e
 
 
@@ -81,7 +89,10 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
 
 
 @shared_task
-def async_add_field_only_link(user_id: int, instance_id: int, payment_cards_to_link: list) -> None:
+def async_add_field_only_link(instance_id: int, payment_cards_to_link: list, history_kwargs: dict = None) -> None:
+    history_kwargs["journey"] = HistoricalSchemeAccount.ADD
+    set_history_kwargs(history_kwargs)
+
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.get_cached_balance()
 
@@ -91,6 +102,8 @@ def async_add_field_only_link(user_id: int, instance_id: int, payment_cards_to_l
 
     if payment_cards_to_link:
         auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+    clean_history_kwargs(history_kwargs)
 
 
 @shared_task
@@ -111,7 +124,9 @@ def async_all_balance(user_id: int, channels_permit) -> None:
 
 @shared_task
 def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', scheme_id: int,
-               validated_data: dict, channel: str, payment_cards_to_link: list) -> None:
+               validated_data: dict, channel: str, payment_cards_to_link: list, history_kwargs: dict = None) -> None:
+    set_history_kwargs(history_kwargs)
+
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
@@ -119,10 +134,13 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
     if payment_cards_to_link:
         auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
+    clean_history_kwargs(history_kwargs)
+
 
 @shared_task
 def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id: int,
-                       validated_data: dict, channel: str, delete_balance=False) -> None:
+                       validated_data: dict, channel: str, history_kwargs: dict = None, delete_balance=False) -> None:
+    set_history_kwargs(history_kwargs)
     user = CustomUser.objects.get(id=user_id)
     scheme_account = SchemeAccount.objects.get(id=scheme_account_id)
     if delete_balance:
@@ -131,6 +149,8 @@ def async_registration(user_id: int, serializer: 'Serializer', scheme_account_id
 
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_account.scheme_id,
                                                  scheme_account, serializer, channel)
+
+    clean_history_kwargs(history_kwargs)
 
 
 @shared_task

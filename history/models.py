@@ -18,8 +18,8 @@ class HistoricalBase(models.Model):
     channel = models.CharField(max_length=255)
 
     # TODO allow empty user_id and change_reason (possibly rename as change_details)
-    change_reason = models.CharField(max_length=255)
-    user_id = models.IntegerField()
+    change_details = models.CharField(max_length=255, blank=True)
+    user_id = models.IntegerField(null=True)
 
     class Meta:
         abstract = True
@@ -30,6 +30,15 @@ class HistoricalPaymentCardAccount(HistoricalBase):
 
 
 class HistoricalSchemeAccount(HistoricalBase):
+    ADD = "add"
+    ENROL = "enrol"
+    REGISTER = "register"
+    JOURNEY_TYPES = (
+        (ADD, ADD),
+        (ENROL, ENROL),
+        (REGISTER, REGISTER)
+    )
+    journey = models.CharField(max_length=8, choices=JOURNEY_TYPES)
     body = JSONField()
 
 
