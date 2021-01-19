@@ -1,6 +1,7 @@
-from django.test import TestCase
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+
+from history.utils import GlobalMockAPITestCase
 from scheme.serializers import ControlSerializer
 from scheme.tests.factories import ControlFactory
 from scheme.models import Control, Consent
@@ -15,17 +16,30 @@ from scheme.tests.factories import (ConsentFactory, SchemeAccountFactory, Scheme
                                     SchemeFactory, UserConsentFactory)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory
+from unittest.mock import MagicMock, patch
+
+from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
+
+from history.utils import GlobalMockAPITestCase
+from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
+from scheme.models import Control, Consent, ConsentStatus, JourneyTypes, SchemeCredentialQuestion
+from scheme.serializers import ControlSerializer, CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer, \
+    SchemeSerializer, UpdateUserConsentSerializer, UserConsentSerializer
+from scheme.tests.factories import ControlFactory, ConsentFactory, SchemeAccountFactory, \
+    SchemeCredentialQuestionFactory, SchemeFactory, UserConsentFactory
+from ubiquity.tests.factories import SchemeAccountEntryFactory
+from user.tests.factories import UserFactory
 
 
-class TestCreateSchemeAccountSerializer(TestCase):
+class TestCreateSchemeAccountSerializer(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
         request = MagicMock()
         request.user = cls.user
         cls.serializer = CreateSchemeAccountSerializer()
         cls.serializer.context['request'] = request
-        super().setUpClass()
 
     def test_allowed_answers(self):
         question = SchemeCredentialQuestionFactory(type=BARCODE, scan_question=True)
@@ -50,7 +64,7 @@ class TestCreateSchemeAccountSerializer(TestCase):
         self.assertEqual(e.exception.detail[0], "Your answer type 'email' is not allowed")
 
 
-class TestAnswerValidation(TestCase):
+class TestAnswerValidation(GlobalMockAPITestCase):
     def test_email_validation_error(self):
         serializer = LinkSchemeSerializer(data={"email": "bobgmail.com"})
         self.assertFalse(serializer.is_valid())
@@ -107,7 +121,7 @@ class TestAnswerValidation(TestCase):
         self.assertFalse(serializer.is_valid())
 
 
-class TestSchemeSerializer(TestCase):
+class TestSchemeSerializer(GlobalMockAPITestCase):
     def test_get_link_questions(self):
         scheme = SchemeFactory()
         question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme, options=SchemeCredentialQuestion.LINK)
@@ -148,7 +162,7 @@ class TestSchemeSerializer(TestCase):
         self.assertFalse(any(x in not_join_questions_types for x in data_types))
 
 
-class TestUserConsentSerializer(TestCase):
+class TestUserConsentSerializer(GlobalMockAPITestCase):
     def setUp(self):
         self.scheme = SchemeFactory()
 
@@ -173,9 +187,9 @@ class TestUserConsentSerializer(TestCase):
 
     def test_get_user_consents(self):
         consent_data = [
-            {'id': self.consent1.id, 'value': True},    # link
-            {'id': self.consent3.id, 'value': True},    # join
-            {'id': self.consent4.id, 'value': True},    # join
+            {'id': self.consent1.id, 'value': True},  # link
+            {'id': self.consent3.id, 'value': True},  # join
+            {'id': self.consent4.id, 'value': True},  # join
         ]
 
         metadata_keys = ['id', 'check_box', 'text', 'required', 'order', 'journey', 'slug', 'user_email', 'scheme_slug']
@@ -290,9 +304,9 @@ class TestUserConsentSerializer(TestCase):
         )
 
 
-class TestJoinSerializer(TestCase):
+class TestJoinSerializer(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         scheme = SchemeFactory()
         cls.req_question = SchemeCredentialQuestionFactory(type=BARCODE, scheme=scheme,
                                                            options=SchemeCredentialQuestion.JOIN)
@@ -303,7 +317,6 @@ class TestJoinSerializer(TestCase):
             'user': '1'
         }
         cls.serializer = JoinSerializer(context=context)
-        super().setUpClass()
 
     def test_missing_required_questions_raises_error(self):
         with self.assertRaises(ValidationError):
@@ -319,9 +332,10 @@ class TestJoinSerializer(TestCase):
         self.assertIn('last_name', data['credentials'])
 
 
-class TestUpdateUserConsentSerializer(TestCase):
-    def setUp(self):
-        self.serializer_class = UpdateUserConsentSerializer
+class TestUpdateUserConsentSerializer(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.serializer_class = UpdateUserConsentSerializer
 
     def test_only_valid_fields_are_accepted(self):
         # Valid / fields that can be updated
@@ -349,13 +363,15 @@ class TestUpdateUserConsentSerializer(TestCase):
         self.assertFalse(serializer.is_valid())
 
 
-class TestControlSerializer(TestCase):
-    def setUp(self):
-        self.scheme = SchemeFactory()
+class TestControlSerializer(GlobalMockAPITestCase):
 
-        self.control = ControlFactory(scheme=self.scheme, key=Control.JOIN_KEY)
+    @classmethod
+    def setUpTestData(cls):
+        cls.scheme = SchemeFactory()
 
-        self.serializer_class = ControlSerializer
+        cls.control = ControlFactory(scheme=cls.scheme, key=Control.JOIN_KEY)
+
+        cls.serializer_class = ControlSerializer
 
     def test_correct_control_representation(self):
         serializer = self.serializer_class(self.control)

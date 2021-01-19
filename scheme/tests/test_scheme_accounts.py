@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
@@ -26,9 +26,9 @@ from user.models import Setting, ClientApplication, ClientApplicationBundle
 from user.tests.factories import (SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory)
 
 
-class TestSchemeAccountViews(APITestCase):
+class TestSchemeAccountViews(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
         SchemeCredentialQuestionFactory(scheme=cls.scheme,
@@ -97,7 +97,6 @@ class TestSchemeAccountViews(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
 
         cls.scheme1_balance_details = SchemeBalanceDetailsFactory(scheme_id=cls.scheme1)
-        super().setUpClass()
 
     @patch.object(SchemeAccount, 'call_analytics')
     @patch('scheme.models.requests.get')
@@ -1004,7 +1003,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
 
 
-class TestSchemeAccountModel(APITestCase):
+class TestSchemeAccountModel(GlobalMockAPITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
@@ -1195,9 +1194,9 @@ class TestSchemeAccountModel(APITestCase):
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
 
-class TestAccessTokens(APITestCase):
+class TestAccessTokens(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         # Scheme Account 3
         cls.scheme_account_entry = SchemeAccountEntryFactory()
         cls.scheme_account = cls.scheme_account_entry.scheme_account
@@ -1239,7 +1238,6 @@ class TestAccessTokens(APITestCase):
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        super(TestAccessTokens, cls).setUpClass()
 
     def setUp(self):
         self.test_scheme_acc_entry = SchemeAccountEntryFactory()
@@ -1370,9 +1368,9 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(self.test_scheme_acc.manual_answer.answer, 'testemail@testbink.com')
 
 
-class TestSchemeAccountImages(APITestCase):
+class TestSchemeAccountImages(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme_account_entry = SchemeAccountEntryFactory()
         cls.scheme_account = cls.scheme_account_entry.scheme_account
         cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
@@ -1386,7 +1384,6 @@ class TestSchemeAccountImages(APITestCase):
 
         cls.user = cls.scheme_account_entry.user
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_image_property(self):
         serializer = ListSchemeAccountSerializer()
@@ -1410,7 +1407,7 @@ class TestSchemeAccountImages(APITestCase):
         self.assertEqual(images[2]['object_type'], 'scheme_image')
 
 
-class TestExchange(APITestCase):
+class TestExchange(GlobalMockAPITestCase):
     def test_get_donor_schemes(self):
         host_scheme = self.create_scheme()
         donor_scheme_1 = self.create_scheme()
@@ -1464,9 +1461,9 @@ class TestExchange(APITestCase):
         return scheme
 
 
-class TestSchemeAccountCredentials(APITestCase):
+class TestSchemeAccountCredentials(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
         cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
@@ -1509,8 +1506,6 @@ class TestSchemeAccountCredentials(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user2.create_token()}
         cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user3.create_token()}
-
-        super().setUpClass()
 
     def send_delete_credential_request(self, data):
         response = self.client.delete('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),
