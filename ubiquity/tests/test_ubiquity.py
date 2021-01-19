@@ -6,10 +6,13 @@ from unittest.mock import patch, MagicMock
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
-from payment_card.models import PaymentCardAccount
-from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
+from shared_config_storage.credentials.utils import AnswerTypeChoices
+
+from payment_card.models import PaymentCardAccount
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
     CASE_SENSITIVE_CREDENTIALS, EMAIL, POSTCODE
@@ -19,8 +22,6 @@ from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredenti
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory, fake)
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tasks import deleted_membership_card_cleanup
@@ -74,6 +75,9 @@ class TestResources(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
+
         organisation = OrganisationFactory(name='test_organisation')
         cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
                                                   client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
@@ -206,7 +210,12 @@ class TestResources(APITestCase):
             }
         ]
 
-    def test_get_single_payment_card(self):
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
+
+    def test_get_single_payment_card(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         expected_result = remove_empty(PaymentCardSerializer(payment_card_account).data)
         resp = self.client.get(reverse('payment-card', args=[payment_card_account.id]), **self.auth_headers)
@@ -1118,7 +1127,7 @@ class TestResources(APITestCase):
                 'status': 'active',
                 'timestamp': 1589898995,
                 'description': 'Test Transaction',
-                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+                'amounts': [{'currency': 'Bradford Ltd', 'suffix': 'behavior-base-than', 'value': 200}]
             }
         ]
         resp = self.client.get(reverse('user-transactions'), **self.auth_headers)
@@ -1137,7 +1146,7 @@ class TestResources(APITestCase):
             'status': 'active',
             'timestamp': 1589898995,
             'description': 'Test Transaction',
-            'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            'amounts': [{'currency': 'Bradford Ltd', 'suffix': 'behavior-base-than', 'value': 200}]
         }
         resp = self.client.get(reverse('retrieve-transactions', args=[transaction_id]),
                                **self.auth_headers)
@@ -1615,7 +1624,7 @@ class TestResources(APITestCase):
         test_question_types = [
             q for q, _ in CREDENTIAL_TYPES
             if q not in DATE_TYPE_CREDENTIALS
-            and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
+               and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
         ]
         question_answer_map = {}
         for question_type in test_question_types:
@@ -2037,7 +2046,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_join', autospec=True)
     @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_replace_mcard_with_enrol_fields_including_main_answer(
-        self, mock_secret, mock_async_join, mock_async_balance
+            self, mock_secret, mock_async_join, mock_async_balance
     ):
         mock_secret.return_value = "test_secret"
         self.scheme_account.status = SchemeAccount.ENROL_FAILED
@@ -2103,6 +2112,9 @@ class TestAgainWithWeb2(TestResources):
 
 class TestMembershipCardCredentials(APITestCase):
     def setUp(self):
+        self.history_patcher = patch('history.signals.record_history', autospec=True)
+        self.history_patcher.start()
+
         organisation = OrganisationFactory(name='set up authentication for credentials')
         client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
         self.bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
@@ -2129,6 +2141,10 @@ class TestMembershipCardCredentials(APITestCase):
         self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
         token = GenerateJWToken(client.organisation.name, client.secret, self.bundle.bundle_id, external_id).get_token()
         self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+
+    def tearDown(self) -> None:
+        self.history_patcher.stop()
+        super().tearDown()
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
@@ -2163,6 +2179,9 @@ class TestResourcesV1_2(APITestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
+
         cls.rsa = RSACipher()
         cls.bundle_id = 'com.barclays.test'
         cls.pub_key = mock_secrets["bundle_secrets"][cls.bundle_id]['public_key']
@@ -2197,6 +2216,11 @@ class TestResourcesV1_2(APITestCase):
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user))}
         cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.2'}
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
     @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
@@ -2337,6 +2361,9 @@ class TestLastManStanding(APITestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
+
         cls.bundle_id = 'com.barclays.test'
         organisation = OrganisationFactory(name='test_organisation')
         cls.client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
@@ -2365,6 +2392,11 @@ class TestLastManStanding(APITestCase):
         cls.auth_headers_1 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_1))}
         cls.auth_headers_2 = {'HTTP_AUTHORIZATION': '{}'.format(cls._get_auth_header(cls.user_2))}
         cls.version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,

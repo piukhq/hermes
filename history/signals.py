@@ -41,7 +41,7 @@ def signal_record_history(sender, instance, **kwargs):
 
     instance_id = instance.id
     model_name = sender.__name__
-    request = getattr(HISTORY_CONTEXT, "request")
+    request = getattr(HISTORY_CONTEXT, "request", None)
 
     if hasattr(HISTORY_CONTEXT, "channels_permit"):
         user_id = HISTORY_CONTEXT.channels_permit.user.id
