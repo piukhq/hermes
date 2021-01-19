@@ -75,16 +75,20 @@ class TestSerializersV1_2(APITestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
         cls.bundle_id = 'com.barclays.test'
         cls.rsa = RSACipher()
         cls.pub_key = mock_secrets["bundle_secrets"][cls.bundle_id]['public_key']
 
         IssuerFactory(name='Barclays')
         PaymentCardFactory(slug='mastercard')
+        super().setUpClass()
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
     @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])

@@ -140,6 +140,9 @@ class TestSoftLinking(APITestCase):
         return resp, linked_info
 
     def setUp(self):
+        self.history_patcher = patch('history.signals.record_history', autospec=True)
+        self.history_patcher.start()
+
         self.client_app, self.bundle, self.issuer, self.payment_card, self.version_header, self.payload = \
             set_up_payment_card()
         external_id = 'test@user.com'
@@ -152,6 +155,10 @@ class TestSoftLinking(APITestCase):
 
         self.scheme3, self.scheme_bundle_association3 = set_up_scheme(self.bundle)
         self.scheme_account_c3_s3 = set_up_membership_card(self.user, self.scheme3)
+
+    def tearDown(self) -> None:
+        self.history_patcher.stop()
+        super().tearDown()
 
     """
     This test needs refactor to new VOP spec
@@ -221,6 +228,8 @@ class TestPaymentAutoLink(APITestCase):
         return {'HTTP_AUTHORIZATION': f'{self._get_auth_token(user)}'}
 
     def setUp(self):
+        self.history_patcher = patch('history.signals.record_history', autospec=True)
+        self.history_patcher.start()
         self.client_app, self.bundle, self.issuer, self.payment_card, self.version_header, self.payload = \
             set_up_payment_card()
         self.payload2 = {
@@ -317,6 +326,10 @@ class TestPaymentAutoLink(APITestCase):
         self.scheme_account_c4_p5_u5 = SchemeAccountFactory(scheme=self.scheme5)
         self.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(scheme_account=self.scheme_account_c4_p5_u5,
                                                                        user=self.user5)
+
+    def tearDown(self) -> None:
+        self.history_patcher.stop()
+        super().tearDown()
 
     def auto_link_post(self, payload, user, query_string="?autoLink=True"):
         resp = self.client.post(f'{reverse("payment-cards")}{query_string}', data=json.dumps(payload),

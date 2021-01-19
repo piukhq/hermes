@@ -19,6 +19,8 @@ from user.tests.factories import ClientApplicationBundleFactory, ClientApplicati
 class TestTasks(TestCase):
 
     def setUp(self):
+        self.history_patcher = patch('history.signals.record_history', autospec=True)
+        self.history_patcher.start()
         external_id = 'tasks@testbink.com'
         self.org = OrganisationFactory(name='Barclays')
         self.client = ClientApplicationFactory(organisation=self.org, name="Barclays-client")
@@ -35,6 +37,10 @@ class TestTasks(TestCase):
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
         SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=POSTCODE,
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
+
+    def tearDown(self) -> None:
+        self.history_patcher.stop()
+        super().tearDown()
 
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')

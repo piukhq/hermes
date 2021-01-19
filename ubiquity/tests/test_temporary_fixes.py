@@ -18,6 +18,8 @@ class TestTemporaryFixesBink(APITestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
 
         cls.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=cls.scheme,
@@ -55,6 +57,11 @@ class TestTemporaryFixesBink(APITestCase):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
         super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')

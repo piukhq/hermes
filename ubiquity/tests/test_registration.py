@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch
 
 import arrow
 from rest_framework.test import APITestCase
@@ -13,9 +14,16 @@ from user.tests.factories import ClientApplicationBundleFactory, OrganisationFac
 class TestRegistration(APITestCase):
     @classmethod
     def setUpClass(cls):
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
         cls.bundle = ClientApplicationBundleFactory()
         cls.token_generator = GenerateJWToken
         super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     def test_service_registration(self):
         data = {

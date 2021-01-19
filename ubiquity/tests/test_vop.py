@@ -38,6 +38,8 @@ class TestVOP(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
         cls.metis_activate_url = settings.METIS_URL + '/visa/activate/'
         cls.metis_deactivate_url = settings.METIS_URL + '/visa/deactivate/'
         cls.metis_payment_service_url = settings.METIS_URL + '/payment_service/payment_card'
@@ -144,6 +146,11 @@ class TestVOP(APITestCase):
             bundle=cls.bundle,
             status=SchemeBundleAssociation.ACTIVE
         )
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()
 
     def register_activation_request(self, metis_response):
         httpretty.register_uri(
