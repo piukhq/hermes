@@ -1,5 +1,7 @@
 from typing import Optional
 
+from django.contrib import admin
+
 from history.signals import HISTORY_CONTEXT
 
 
@@ -14,3 +16,18 @@ def clean_history_kwargs(kwargs: Optional[dict]) -> None:
         for k in kwargs:
             if hasattr(HISTORY_CONTEXT, k):
                 delattr(HISTORY_CONTEXT, k)
+
+
+class HistoryAdmin(admin.ModelAdmin):
+
+    def save_model(self, request, obj, form, change):
+        if change:
+            update_fields = []
+            for key, value in form.cleaned_data.items():
+                # True if something changed in model
+                if value != form.initial[key]:
+                    update_fields.append(key)
+
+            obj.save(update_fields=update_fields)
+        else:
+            obj.save()
