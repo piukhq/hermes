@@ -82,5 +82,5 @@ def signal_record_history(sender, instance, **kwargs):
 
 
 for sender in HistoryModel:
-    signals.pre_save.connect(signal_record_history, sender=sender.value)
+    signals.post_save.connect(signal_record_history, sender=sender.value)
     signals.pre_delete.connect(signal_record_history, sender=sender.value)
