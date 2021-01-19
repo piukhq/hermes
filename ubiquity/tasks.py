@@ -12,7 +12,6 @@ from rest_framework import serializers
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.models import HistoricalSchemeAccount
 from history.utils import set_history_kwargs, clean_history_kwargs
 from payment_card import metis
 from payment_card.models import PaymentCardAccount, PaymentCard
