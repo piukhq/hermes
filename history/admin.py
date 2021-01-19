@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.contrib.admin import DateFieldListFilter
+from rangefilter.filter import DateTimeRangeFilter
 
 from common.admin import InputFilter
 from history.models import (
@@ -10,37 +10,43 @@ from history.models import (
 )
 
 
-# TODO might be a good idea to capture and add things like Scheme and PaymentCard to the HistoricalTables
-# TODO might be better to add a custom name to the Entry tables to the instance id to avoid confusion
-
-
 class PaymentCardAccountFilter(InputFilter):
-    parameter_name = 'payment_card_account_id'
-    title = 'Payment Card Account ID:'
+    parameter_name = "payment_card_account_id"
+    title = "Payment Card Account ID:"
 
     def queryset(self, request, queryset):
         term = self.value()
         if term is None:
             return
 
-        return queryset.filter(instance_id=term)
+        if "Entry" in queryset.model.__name__:
+            query = {"payment_card_account_id": term}
+        else:
+            query = {"instance_id": term}
+
+        return queryset.filter(**query)
 
 
 class SchemeAccountFilter(InputFilter):
-    parameter_name = 'scheme_account_id'
-    title = 'Scheme Account ID:'
+    parameter_name = "scheme_account_id"
+    title = "Scheme Account ID:"
 
     def queryset(self, request, queryset):
         term = self.value()
         if term is None:
             return
 
-        return queryset.filter(instance_id=term)
+        if "Entry" in queryset.model.__name__:
+            query = {"scheme_account_id": term}
+        else:
+            query = {"instance_id": term}
+
+        return queryset.filter(**query)
 
 
 class UserFilter(InputFilter):
-    parameter_name = 'user_id'
-    title = 'User ID:'
+    parameter_name = "user_id"
+    title = "User ID:"
 
     def queryset(self, request, queryset):
         term = self.value()
@@ -52,14 +58,22 @@ class UserFilter(InputFilter):
 
 @admin.register(HistoricalPaymentCardAccount)
 class HistoricalPaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ("id", "instance_id", "user_id", "channel", "created", "change_type", "change_details")
+    list_display = (
+        "id",
+        "instance_id",
+        "user_id",
+        "channel",
+        "created",
+        "change_type",
+        "change_details",
+    )
     search_fields = ("created",)
     list_filter = (
         PaymentCardAccountFilter,
         UserFilter,
         "channel",
         "change_type",
-        ("created", DateFieldListFilter)
+        ("created", DateTimeRangeFilter),
     )
 
 
@@ -75,21 +89,36 @@ class HistoricalPaymentCardAccountEntryAdmin(admin.ModelAdmin):
         "created",
         "change_details",
     )
-    search_fields = ("instance_id", "user_id", "payment_card_account_id", "created")
-    list_filter = ("channel", "change_type")
+    search_fields = ("instance_id", "created")
+    list_filter = (
+        PaymentCardAccountFilter,
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
 
 
 @admin.register(HistoricalSchemeAccount)
 class HistoricalSchemeAccountAdmin(admin.ModelAdmin):
-    list_display = ("id", "instance_id", "user_id", "channel", "journey", "change_type", "created", "change_details")
-    search_fields = ("created", )
+    list_display = (
+        "id",
+        "instance_id",
+        "user_id",
+        "channel",
+        "journey",
+        "change_type",
+        "created",
+        "change_details",
+    )
+    search_fields = ("created",)
     list_filter = (
         SchemeAccountFilter,
         UserFilter,
         "journey",
         "channel",
         "change_type",
-        ("created", DateFieldListFilter)
+        ("created", DateTimeRangeFilter),
     )
 
 
@@ -105,5 +134,11 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
         "created",
         "change_details",
     )
-    search_fields = ("instance_id", "user_id", "scheme_account_id", "created")
-    list_filter = ("channel", "change_type")
+    search_fields = ("instance_id", "created")
+    list_filter = (
+        SchemeAccountFilter,
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )

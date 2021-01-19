@@ -29,7 +29,7 @@ class SchemeAccountJourney(Enum):
     ENROL = "enrol"
 
     @classmethod
-    def as_tuple(cls):
+    def as_tuple_tuple(cls):
         return [
             (entry.value, entry.value)
             for entry in cls

@@ -47,12 +47,12 @@ def signal_record_history(sender, instance, **kwargs):
 
     extra = {"user_id": user_id, "channel": channel}
 
-    # TODO  enums! we have PaymentCardAccount etc repeated everywhere
     if model_name in [HistoryModel.PAYMENT_CARD_ACCOUNT, HistoryModel.SCHEME_ACCOUNT]:
         extra["body"] = get_body_serializer(model_name)(instance).data
 
         if model_name == HistoryModel.SCHEME_ACCOUNT and hasattr(HISTORY_CONTEXT, "journey"):
             extra["journey"] = HISTORY_CONTEXT.journey
+            del HISTORY_CONTEXT.journey
 
     else:
         if hasattr(instance, "payment_card_account_id"):

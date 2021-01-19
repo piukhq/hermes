@@ -74,6 +74,7 @@ INSTALLED_APPS = (
     "mail_templated",
     "anymail",
     "storages",
+    "rangefilter",
     "django_prometheus",
     *LOCAL_APPS,
 )
