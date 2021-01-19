@@ -1,5 +1,4 @@
 import arrow
-from django.test import TestCase
 
 from history.utils import GlobalMockAPITestCase
 from scheme import vouchers

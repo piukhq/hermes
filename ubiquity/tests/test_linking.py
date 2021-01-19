@@ -4,7 +4,6 @@ from unittest.mock import patch
 from django.conf import settings
 from django.test import override_settings
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
@@ -256,9 +255,9 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.scheme1 = SchemeFactory()
         cls.scheme_account_c1_p1 = SchemeAccountFactory(scheme=cls.scheme1)
         cls.scheme_account_entry1 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p1,
-                                                               user=cls.user1)
+                                                              user=cls.user1)
         cls.scheme_bundle_association_p1 = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
-                                                                           status=SchemeBundleAssociation.ACTIVE)
+                                                                          status=SchemeBundleAssociation.ACTIVE)
 
         # senario 2 mcards 2 cards different mplan
 
@@ -267,16 +266,16 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.scheme2 = SchemeFactory()
         cls.scheme_account_c1_p2 = SchemeAccountFactory(scheme=cls.scheme2)
         cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p2,
-                                                               user=cls.user2)
+                                                              user=cls.user2)
         cls.scheme_bundle_association_p2 = SchemeBundleAssociationFactory(scheme=cls.scheme2, bundle=cls.bundle,
-                                                                           status=SchemeBundleAssociation.ACTIVE)
+                                                                          status=SchemeBundleAssociation.ACTIVE)
 
         cls.scheme3 = SchemeFactory()
         cls.scheme_bundle_association_p3 = SchemeBundleAssociationFactory(scheme=cls.scheme3, bundle=cls.bundle,
-                                                                           status=SchemeBundleAssociation.ACTIVE)
+                                                                          status=SchemeBundleAssociation.ACTIVE)
         cls.scheme_account_c2_p3 = SchemeAccountFactory(scheme=cls.scheme3)
         cls.scheme_account_entry3 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p3,
-                                                               user=cls.user2)
+                                                              user=cls.user2)
 
         # senario 3 mcards of same mplan
 
@@ -284,19 +283,19 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.user3 = UserFactory(external_id=external_id3, client=cls.client_app, email=external_id3)
         cls.scheme4 = SchemeFactory()
         cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(scheme=cls.scheme4, bundle=cls.bundle,
-                                                                           status=SchemeBundleAssociation.ACTIVE)
+                                                                          status=SchemeBundleAssociation.ACTIVE)
         cls.scheme_account_c1_p4 = SchemeAccountFactory(scheme=cls.scheme4)
         cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p4,
-                                                               user=cls.user3)
+                                                              user=cls.user3)
         cls.scheme_account_c2_p4 = SchemeAccountFactory(scheme=cls.scheme4)
         cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p4,
-                                                               user=cls.user3)
+                                                              user=cls.user3)
         cls.scheme_account_c3_p4 = SchemeAccountFactory(scheme=cls.scheme4)
         cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c3_p4,
-                                                               user=cls.user3)
+                                                              user=cls.user3)
         cls.scheme_account_c4_p4 = SchemeAccountFactory(scheme=cls.scheme4)
         cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c4_p4,
-                                                               user=cls.user3)
+                                                              user=cls.user3)
 
         # senario 4 2 users 4 mcards of same mplan
 
@@ -306,20 +305,20 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         cls.user5 = UserFactory(external_id=external_id5, client=cls.client_app, email=external_id5)
         cls.scheme5 = SchemeFactory()
         cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(scheme=cls.scheme5, bundle=cls.bundle,
-                                                                           status=SchemeBundleAssociation.ACTIVE)
+                                                                          status=SchemeBundleAssociation.ACTIVE)
 
         cls.scheme_account_c1_p5_u4 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c1_p5_u4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p5_u4,
-                                                                       user=cls.user4)
+                                                                      user=cls.user4)
         cls.scheme_account_c2_p5_u4 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c2_p5_u4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p5_u4,
-                                                                       user=cls.user4)
+                                                                      user=cls.user4)
         cls.scheme_account_c3_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c3_p5_u5 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c3_p5_u5,
-                                                                       user=cls.user5)
+                                                                      user=cls.user5)
         cls.scheme_account_c4_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
         cls.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c4_p5_u5,
-                                                                       user=cls.user5)
+                                                                      user=cls.user5)
 
     def auto_link_post(self, payload, user, query_string="?autoLink=True"):
         resp = self.client.post(f'{reverse("payment-cards")}{query_string}', data=json.dumps(payload),

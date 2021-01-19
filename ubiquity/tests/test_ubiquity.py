@@ -7,7 +7,6 @@ import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
@@ -1616,8 +1615,7 @@ class TestResources(GlobalMockAPITestCase):
 
         test_question_types = [
             q for q, _ in CREDENTIAL_TYPES
-            if q not in DATE_TYPE_CREDENTIALS
-               and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
+            if q not in DATE_TYPE_CREDENTIALS and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
         ]
         question_answer_map = {}
         for question_type in test_question_types:
@@ -2114,7 +2112,7 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
         cls.user = UserFactory(external_id=external_id, client=client, email=external_id)
         cls.scheme = SchemeFactory()
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
-                                                                        status=SchemeBundleAssociation.ACTIVE)
+                                                                       status=SchemeBundleAssociation.ACTIVE)
         SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
         SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True,
                                         add_field=True)
@@ -2127,9 +2125,9 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
                                                              auth_field=True)
         cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
         cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
-                                                                   scheme_account=cls.scheme_account)
+                                                                  scheme_account=cls.scheme_account)
         cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
-                                                                          scheme_account=cls.scheme_account)
+                                                                         scheme_account=cls.scheme_account)
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}

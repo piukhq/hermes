@@ -1,21 +1,3 @@
-from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
-
-from history.utils import GlobalMockAPITestCase
-from scheme.serializers import ControlSerializer
-from scheme.tests.factories import ControlFactory
-from scheme.models import Control, Consent
-from unittest.mock import MagicMock, patch
-
-from scheme.credentials import BARCODE, CARD_NUMBER, FIRST_NAME, LAST_NAME, PASSWORD, TITLE
-from scheme.models import ConsentStatus, JourneyTypes, SchemeCredentialQuestion
-from scheme.serializers import (CreateSchemeAccountSerializer, JoinSerializer, LinkSchemeSerializer,
-                                SchemeSerializer, UpdateUserConsentSerializer,
-                                UserConsentSerializer)
-from scheme.tests.factories import (ConsentFactory, SchemeAccountFactory, SchemeCredentialQuestionFactory,
-                                    SchemeFactory, UserConsentFactory)
-from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.tests.factories import UserFactory
 from unittest.mock import MagicMock, patch
 
 from rest_framework import serializers

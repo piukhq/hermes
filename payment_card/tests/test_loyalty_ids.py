@@ -1,12 +1,11 @@
 import json
-from rest_framework.test import APITestCase
 
 import ubiquity.tests.factories
 from hermes import settings
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests import factories as payment_card_factories
-from scheme.tests import factories as scheme_factories
 from scheme.models import SchemeCredentialQuestion
+from scheme.tests import factories as scheme_factories
 from user.tests import factories as user_factories
 
 
