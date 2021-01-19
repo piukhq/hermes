@@ -3,10 +3,11 @@ from unittest.mock import patch
 
 import httpretty
 from django.conf import settings
-from hermes.vop_tasks import send_activation, send_deactivation
-from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
+
+from hermes.vop_tasks import send_activation, send_deactivation
+from history.utils import GlobalMockAPITestCase
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, PAYMENT_CARD_HASH
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -28,7 +29,7 @@ class ChannelPermitMock:
         self.client = client
 
 
-class TestVOP(APITestCase):
+class TestVOP(GlobalMockAPITestCase):
 
     @classmethod
     def _get_auth_header(cls, user):
@@ -38,8 +39,6 @@ class TestVOP(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.history_patcher = patch('history.signals.record_history', autospec=True)
-        cls.history_patcher.start()
         cls.metis_activate_url = settings.METIS_URL + '/visa/activate/'
         cls.metis_deactivate_url = settings.METIS_URL + '/visa/deactivate/'
         cls.metis_payment_service_url = settings.METIS_URL + '/payment_service/payment_card'
@@ -146,11 +145,6 @@ class TestVOP(APITestCase):
             bundle=cls.bundle,
             status=SchemeBundleAssociation.ACTIVE
         )
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.history_patcher.stop()
-        super().tearDownClass()
 
     def register_activation_request(self, metis_response):
         httpretty.register_uri(

@@ -1,6 +1,8 @@
 from typing import Optional
+from unittest.mock import patch
 
 from django.contrib import admin
+from rest_framework.test import APITestCase
 
 from history.signals import HISTORY_CONTEXT
 
@@ -31,3 +33,17 @@ class HistoryAdmin(admin.ModelAdmin):
             obj.save(update_fields=update_fields)
         else:
             obj.save()
+
+
+class GlobalMockAPITestCase(APITestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher.start()
+        super(GlobalMockAPITestCase, cls).setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.history_patcher.stop()
+        super().tearDownClass()

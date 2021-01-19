@@ -1,46 +1,40 @@
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
 from rest_framework import serializers
 
+from hermes.channels import Permit
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion, SchemeAccount
+from scheme.models import SchemeCredentialQuestion, SchemeAccount, SchemeBundleAssociation
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
 from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.tests.factories import UserFactory
-from hermes.channels import Permit
-from scheme.models import SchemeBundleAssociation
-from user.tests.factories import ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory
+from user.tests.factories import UserFactory, ClientApplicationBundleFactory, ClientApplicationFactory, \
+    OrganisationFactory
 
 
-class TestTasks(TestCase):
+class TestTasks(GlobalMockAPITestCase):
 
-    def setUp(self):
-        self.history_patcher = patch('history.signals.record_history', autospec=True)
-        self.history_patcher.start()
+    @classmethod
+    def setUpTestData(cls):
         external_id = 'tasks@testbink.com'
-        self.org = OrganisationFactory(name='Barclays')
-        self.client = ClientApplicationFactory(organisation=self.org, name="Barclays-client")
-        self.bundle = ClientApplicationBundleFactory(client=self.client)
-        self.user = UserFactory(external_id=external_id, email=external_id)
-        self.entry = SchemeAccountEntryFactory(user=self.user)
-        self.entry2 = SchemeAccountEntryFactory(user=self.user)
+        cls.org = OrganisationFactory(name='Barclays')
+        cls.client = ClientApplicationFactory(organisation=cls.org, name="Barclays-client")
+        cls.bundle = ClientApplicationBundleFactory(client=cls.client)
+        cls.user = UserFactory(external_id=external_id, email=external_id)
+        cls.entry = SchemeAccountEntryFactory(user=cls.user)
+        cls.entry2 = SchemeAccountEntryFactory(user=cls.user)
 
-        self.link_entry = SchemeAccountEntryFactory(user=self.user)
-        self.link_scheme = self.link_entry.scheme_account.scheme
-        self.manual_question = SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=EMAIL,
-                                                               manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=PASSWORD,
+        cls.link_entry = SchemeAccountEntryFactory(user=cls.user)
+        cls.link_scheme = cls.link_entry.scheme_account.scheme
+        cls.manual_question = SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=EMAIL,
+                                                              manual_question=True)
+        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=PASSWORD,
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeCredentialQuestionFactory(scheme=self.link_scheme, type=POSTCODE,
+        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=POSTCODE,
                                         options=SchemeCredentialQuestion.LINK_AND_JOIN)
-
-    def tearDown(self) -> None:
-        self.history_patcher.stop()
-        super().tearDown()
 
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')

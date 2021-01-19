@@ -3,15 +3,16 @@ from rest_framework.test import APITestCase
 
 import ubiquity.tests.factories
 from hermes import settings
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests import factories as payment_card_factories
 from scheme.tests import factories as scheme_factories
 from scheme.models import SchemeCredentialQuestion
 from user.tests import factories as user_factories
 
 
-class TestRetrieveLoyaltyID(APITestCase):
+class TestRetrieveLoyaltyID(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user_1 = user_factories.UserFactory()
         cls.user_2 = user_factories.UserFactory()
 
@@ -40,7 +41,6 @@ class TestRetrieveLoyaltyID(APITestCase):
                                                                              question=cls.scheme_question)
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        super(TestRetrieveLoyaltyID, cls).setUpClass()
 
     def test_retrieve(self):
         response = self.client.post('/payment_cards/accounts/loyalty_id/{}'.format(self.scheme.slug),

@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -15,7 +15,7 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
                                   UserFactory)
 
 
-class TestResources(APITestCase):
+class TestResources(GlobalMockAPITestCase):
 
     @classmethod
     def _get_auth_header(cls, user):
@@ -29,8 +29,6 @@ class TestResources(APITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.history_patcher = patch('history.signals.record_history', autospec=True)
-        cls.history_patcher.start()
         organisation = OrganisationFactory(name='test_version_organisation')
         cls.client_app = ClientApplicationFactory(
             organisation=organisation,
@@ -80,11 +78,6 @@ class TestResources(APITestCase):
         cls.resp_wrong_ver = {**auth_header, **cls._get_version_header('-3')}
         cls.resp_wrong_format = {**auth_header, 'HTTP_ACCEPT': "application/vnd.bink+jso"}
         cls.headers_no_ver = auth_header
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.history_patcher.stop()
-        super().tearDownClass()
 
     def _check_versioned_response(self, resp_v1_1, resp_v1_2, resp_v1_3, resp_no_ver, resp_wrong_ver,
                                   resp_wrong_format):

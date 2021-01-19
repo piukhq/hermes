@@ -1,16 +1,16 @@
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework.test import APITestCase
 
 import ubiquity.tests.factories
+from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccountImage
 from payment_card.tests import factories
 
 
-class TestCSVUpload(APITestCase):
+class TestCSVUpload(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token="token")
         cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
             payment_card_account=cls.payment_card_account
@@ -19,8 +19,6 @@ class TestCSVUpload(APITestCase):
         cls.user = cls.payment_card_account_entry.user
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token()}
-
-        super(TestCSVUpload, cls).setUpClass()
 
     @patch.object(PaymentCardAccountImage, 'ubiquity_format')
     def test_CSV_upload(self, ubiquity_format):

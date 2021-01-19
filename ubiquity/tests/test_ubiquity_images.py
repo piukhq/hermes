@@ -2,23 +2,22 @@ from unittest.mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APITestCase
-from scheme.models import SchemeBundleAssociation
+
 from common.models import Image
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
+from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
-from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
 
-class TestPaymentCardAccountImages(APITestCase):
+class TestPaymentCardAccountImages(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.history_patcher = patch('history.signals.record_history', autospec=True)
-        cls.history_patcher.start()
         organisation = OrganisationFactory(name='set up authentication')
         client = ClientApplicationFactory(organisation=organisation, name='set up client application')
         bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
@@ -63,11 +62,6 @@ class TestPaymentCardAccountImages(APITestCase):
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.history_patcher.stop()
-        super().tearDownClass()
 
     def test_images_in_payment_card_response(self):
         resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
