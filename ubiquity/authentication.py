@@ -65,7 +65,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         channels_permit, auth_user_id = self.authenticate_request(request)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
-        HISTORY_CONTEXT.user_info = user_info(user_id=channels_permit.user.id, channel=channels_permit.bundle_id)
+        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=channels_permit.bundle_id)
         return channels_permit, None
 
     @staticmethod
