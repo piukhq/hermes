@@ -14,12 +14,6 @@ from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
 
 
-class PaymentCardAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PaymentCardAccount
-        exclude = ExcludedFields.as_tuple(PaymentCardAccount)
-
-
 class HistoricalPaymentCardAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistoricalPaymentCardAccount
@@ -32,12 +26,6 @@ class HistoricalPaymentCardAccountEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class SchemeAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SchemeAccount
-        exclude = ExcludedFields.as_tuple(SchemeAccount)
-
-
 class HistoricalSchemeAccountSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistoricalSchemeAccount
@@ -48,6 +36,26 @@ class HistoricalSchemeAccountEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = HistoricalSchemeAccountEntry
         fields = "__all__"
+
+
+class ReadOnlyModelSerializer(serializers.ModelSerializer):
+    def get_fields(self, *args, **kwargs):
+        fields = super().get_fields(*args, **kwargs)
+        for field in fields:
+            fields[field].read_only = True
+        return fields
+
+
+class PaymentCardAccountSerializer(ReadOnlyModelSerializer):
+    class Meta:
+        model = PaymentCardAccount
+        exclude = ExcludedFields.as_tuple(PaymentCardAccount)
+
+
+class SchemeAccountSerializer(ReadOnlyModelSerializer):
+    class Meta:
+        model = SchemeAccount
+        exclude = ExcludedFields.as_tuple(SchemeAccount)
 
 
 def _get_serializer(name: str) -> Type["serializers.Serializer"]:
