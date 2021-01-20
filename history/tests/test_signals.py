@@ -1,7 +1,8 @@
 from unittest.mock import patch
 
 from django.db.models import signals as db_signals
-from django.test import TestCase
+from django.test import override_settings
+from rest_framework.test import APITestCase
 
 from history import signals
 from history.models import HistoricalBase
@@ -9,9 +10,14 @@ from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import PaymentCardAccountFactory
 
 
-class TestSignals(TestCase):
-    def setUp(self):
-        self.payment_card_account = PaymentCardAccountFactory(is_deleted=True)
+class TestSignals(APITestCase):
+
+    @classmethod
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    def setUpTestData(cls):
+        cls.payment_card_account = PaymentCardAccountFactory(is_deleted=True)
 
     def test_get_change_type_delete(self):
         change_type, change_details = signals._get_change_type_and_details(
