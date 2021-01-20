@@ -21,7 +21,6 @@ def clean_history_kwargs(kwargs: Optional[dict]) -> None:
 
 
 class HistoryAdmin(admin.ModelAdmin):
-
     def save_model(self, request, obj, form, change):
         if change:
             update_fields = []
@@ -36,10 +35,9 @@ class HistoryAdmin(admin.ModelAdmin):
 
 
 class GlobalMockAPITestCase(APITestCase):
-
     @classmethod
     def setUpClass(cls):
-        cls.history_patcher = patch('history.signals.record_history', autospec=True)
+        cls.history_patcher = patch("history.signals.record_history", autospec=True)
         cls.history_patcher.start()
         super(GlobalMockAPITestCase, cls).setUpClass()
 
