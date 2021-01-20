@@ -22,7 +22,7 @@ class TestSignals(TestCase):
 
         change_type, change_details = signals._get_change_type_and_details(
             self.payment_card_account,
-            {"update_fields": 'is_deleted'}
+            {"update_fields": ['is_deleted']}
         )
         self.assertEqual(change_type, HistoricalBase.DELETE)
 
