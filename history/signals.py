@@ -1,13 +1,13 @@
-from datetime import datetime
 from threading import local
 
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
+from django.utils import timezone
 
 from history.enums import HistoryModel, ExcludedFields
 from history.models import HistoricalBase
 from history.serializers import get_body_serializer
 from history.tasks import record_history
-from user.authentication import ServiceUser
 
 HISTORY_CONTEXT = local()
 EXCLUDED_FIELDS = ExcludedFields.as_set()
@@ -51,7 +51,7 @@ def _get_change_type_and_details(instance, kwargs):
 
 
 def signal_record_history(sender, instance, **kwargs) -> None:
-    created_at = datetime.utcnow()
+    created_at = timezone.now()
     change_type, change_details = _get_change_type_and_details(instance, kwargs)
     if not change_type:
         return None
@@ -60,11 +60,10 @@ def signal_record_history(sender, instance, **kwargs) -> None:
     model_name = sender.__name__
     request = getattr(HISTORY_CONTEXT, "request", None)
 
-    if hasattr(HISTORY_CONTEXT, "channels_permit"):
-        user_id = HISTORY_CONTEXT.channels_permit.user.id
-        channel = HISTORY_CONTEXT.channels_permit.bundle_id
+    if hasattr(HISTORY_CONTEXT, "user_info"):
+        user_id, channel = HISTORY_CONTEXT.user_info
 
-    elif hasattr(request, "user") and request.user.uid != ServiceUser.uid:
+    elif hasattr(request, "user") and request.user != AnonymousUser:
         user_id = request.user.id
         channel = "django_admin"
 
