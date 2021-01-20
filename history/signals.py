@@ -3,41 +3,58 @@ from threading import local
 
 from django.db.models import signals
 
-from history.enums import HistoryModel
+from history.enums import HistoryModel, ExcludedFields
 from history.models import HistoricalBase
 from history.serializers import get_body_serializer
 from history.tasks import record_history
 from user.authentication import ServiceUser
 
 HISTORY_CONTEXT = local()
+EXCLUDED_FIELDS = ExcludedFields.as_set()
 
 
 def _get_change_type_and_details(instance, kwargs):
+    """
+    Expected behaviour:
+    Card has been created: returns "create", ""
+    Card has been deleted or soft deleted: returns "delete", ""
+    Card has been updated: returns "update", comma separated list of updated fields es: "barcode, card number"
+    Only ExcludedFields have been updated: returns None, ""
+    """
+
     change_details = ""
     if kwargs.get("signal") == signals.pre_delete:
         change_type = HistoricalBase.DELETE
 
     else:
         update_fields = kwargs.get("update_fields")
-        if update_fields and "is_deleted" in update_fields and instance.is_deleted:
-            change_type = HistoricalBase.DELETE
+        if update_fields:
+            if set(update_fields) <= EXCLUDED_FIELDS:
+                return None, change_details
 
-        elif kwargs.get("created"):
+            else:
+                update_fields = set(update_fields) - EXCLUDED_FIELDS
+        else:
+            update_fields = set()
+
+        if kwargs.get("created"):
             change_type = HistoricalBase.CREATE
+
+        elif "is_deleted" in update_fields and instance.is_deleted:
+            change_type = HistoricalBase.DELETE
 
         else:
             change_type = HistoricalBase.UPDATE
-            try:
-                change_details = ", ".join(kwargs["update_fields"])
-            except (KeyError, TypeError):
-                pass
+            change_details = ", ".join(update_fields)
 
     return change_type, change_details
 
 
-def signal_record_history(sender, instance, **kwargs):
+def signal_record_history(sender, instance, **kwargs) -> None:
     created_at = datetime.utcnow()
     change_type, change_details = _get_change_type_and_details(instance, kwargs)
+    if not change_type:
+        return None
 
     instance_id = instance.id
     model_name = sender.__name__
@@ -47,8 +64,8 @@ def signal_record_history(sender, instance, **kwargs):
         user_id = HISTORY_CONTEXT.channels_permit.user.id
         channel = HISTORY_CONTEXT.channels_permit.bundle_id
 
-    elif hasattr(request, "user") and request.user != ServiceUser:
-        user_id = HISTORY_CONTEXT.request.user.id
+    elif hasattr(request, "user") and request.user.uid != ServiceUser.uid:
+        user_id = request.user.id
         channel = "django_admin"
 
     else:
