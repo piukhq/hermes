@@ -1,3 +1,4 @@
+from collections import namedtuple
 from typing import Optional
 from unittest.mock import patch
 
@@ -5,6 +6,8 @@ from django.contrib import admin
 from rest_framework.test import APITestCase
 
 from history.signals import HISTORY_CONTEXT
+
+user_info = namedtuple("user_info", ("user_id", "channel"))
 
 
 def set_history_kwargs(kwargs: Optional[dict]) -> None:
