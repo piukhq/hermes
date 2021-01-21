@@ -2,11 +2,11 @@ from unittest import mock
 
 from django.conf import settings
 from django.utils import timezone
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
 import ubiquity.tests.factories
 from common.models import Image
+from history.utils import GlobalMockAPITestCase
 from payment_card.models import AuthTransaction
 from payment_card.tests import factories
 from ubiquity.tests.factories import PaymentCardSchemeEntryFactory, SchemeAccountEntryFactory
@@ -14,17 +14,15 @@ from user.models import ClientApplication, Organisation
 from user.tests.factories import UserFactory
 
 
-class TestPaymentCardImages(APITestCase):
+class TestPaymentCardImages(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = factories.PaymentCardImageFactory(status=Image.DRAFT,
                                                       start_date=timezone.now() - timezone.timedelta(hours=1),
                                                       end_date=timezone.now() + timezone.timedelta(hours=1))
-
-        super().setUpClass()
 
     def test_no_draft_images_in_payment_cards_list(self):
         resp = self.client.get('/payment_cards', **self.auth_headers)
@@ -39,10 +37,10 @@ class TestPaymentCardImages(APITestCase):
         self.assertEqual(1, len(our_payment_card['images']))
 
 
-class TestPaymentCard(APITestCase):
+class TestPaymentCard(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='token')
         cls.payment_card = cls.payment_card_account.payment_card
         cls.payment_card_account_entry = ubiquity.tests.factories.PaymentCardAccountEntryFactory(
@@ -53,7 +51,6 @@ class TestPaymentCard(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         cls.payment_card_image = factories.PaymentCardAccountImageFactory()
-        super(TestPaymentCard, cls).setUpClass()
 
     def test_payment_card_account_query(self):
         resp = self.client.get('/payment_cards/accounts/query'
@@ -181,13 +178,11 @@ class TestPaymentCard(APITestCase):
         self.assertEqual(keys[1], 'scheme_account_id')
 
 
-class TestAuthTransactions(APITestCase):
+class TestAuthTransactions(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
         cls.payment_card_account = factories.PaymentCardAccountFactory(psp_token='234rghjcewerg4gf3ef23v')
-
-        super(TestAuthTransactions, cls).setUpClass()
 
     def test_create_auth_transaction_endpoint(self):
         payload = {

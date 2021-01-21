@@ -53,6 +53,7 @@ LOCAL_APPS = (
     "payment_card",
     "order",
     "ubiquity",
+    "history",
     "daedalus_messaging",
     "periodic_retry",
     "prometheus.apps.PrometheusPusherConfig",
@@ -73,6 +74,7 @@ INSTALLED_APPS = (
     "mail_templated",
     "anymail",
     "storages",
+    "rangefilter",
     "django_prometheus",
     *LOCAL_APPS,
 )
@@ -91,6 +93,7 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
     "hermes.middleware.AcceptVersion",
+    "history.middleware.HistoryRequestMiddleware",
     "prometheus.middleware.CustomPrometheusAfterMiddleware",
 )
 

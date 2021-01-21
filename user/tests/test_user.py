@@ -1,34 +1,33 @@
 import base64
 import json
 import time
+from unittest import mock
+
 import arrow
 import httpretty as httpretty
 import jwt
-from rest_framework.utils.serializer_helpers import ReturnList
-from rest_framework.test import APITestCase
-
 from django.contrib.auth import authenticate
 from django.core.exceptions import ValidationError
-from django.urls import reverse
 from django.http import HttpResponse
-from django.test import Client, TestCase
+from django.test import Client
+from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APITestCase
+from rest_framework.utils.serializer_helpers import ReturnList
 
+from hermes import settings
+from history.utils import GlobalMockAPITestCase
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
                                   MarketingCodeFactory)
-from unittest import mock
-
 from user.views import facebook_login, twitter_login, social_login, apple_login, generate_apple_client_secret
-from hermes import settings
-
 
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
 
 
-class TestRegisterNewUserViews(TestCase):
+class TestRegisterNewUserViews(GlobalMockAPITestCase):
     def test_register(self):
         client = Client()
         response = client.post(reverse('register_user'), {'email': 'test_1@example.com', 'password': 'Password1',
@@ -308,7 +307,7 @@ class TestRegisterNewUserViews(TestCase):
         self.assertIn("api_key", response.data)
 
 
-class TestUserProfileViews(TestCase):
+class TestUserProfileViews(GlobalMockAPITestCase):
     def test_empty_profile(self):
         user = UserFactory()
         client = Client()
@@ -398,7 +397,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'],  user_profile.region)
+        self.assertEqual(content['region'], user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -424,7 +423,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'],  user_profile.region)
+        self.assertEqual(content['region'], user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -449,7 +448,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], new_address_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'],  user_profile.region)
+        self.assertEqual(content['region'], user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], None)
@@ -540,7 +539,7 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], user_profile.address_line_1)
         self.assertEqual(content['address_line_2'], user_profile.address_line_2)
         self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'],  user_profile.region)
+        self.assertEqual(content['region'], user_profile.region)
         self.assertEqual(content['postcode'], user_profile.postcode)
         self.assertEqual(content['country'], user_profile.country)
         self.assertEqual(content['notifications'], 0)
@@ -573,19 +572,17 @@ class TestUserProfileViews(TestCase):
         self.assertEqual(content['address_line_1'], '')
         self.assertEqual(content['address_line_2'], '')
         self.assertEqual(content['city'], '')
-        self.assertEqual(content['region'],  '')
+        self.assertEqual(content['region'], '')
         self.assertEqual(content['postcode'], '')
         self.assertEqual(content['country'], '')
         self.assertEqual(content['notifications'], None)
         self.assertEqual(content['pass_code'], '')
 
 
-class TestAuthenticationViews(APITestCase):
+class TestAuthenticationViews(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
-        super().setUpClass()
-
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
 
     def test_local_login_valid(self):
@@ -804,7 +801,7 @@ class TestAuthenticationViews(APITestCase):
         self.assertFalse(user)
 
 
-class TestTwitterLogin(APITestCase):
+class TestTwitterLogin(GlobalMockAPITestCase):
     @mock.patch('user.views.twitter_login', autospec=True)
     def test_twitter_login_app(self, twitter_login_mock):
         twitter_login_mock.return_value = HttpResponse()
@@ -824,7 +821,7 @@ class TestTwitterLogin(APITestCase):
         self.assertEqual(response.data['email'], user.email)
 
 
-class TestFacebookLogin(APITestCase):
+class TestFacebookLogin(GlobalMockAPITestCase):
     @mock.patch('user.views.facebook_login', autospec=True)
     @httpretty.activate
     def test_facebook_login_view(self, mock_facebook_login):
@@ -833,7 +830,7 @@ class TestFacebookLogin(APITestCase):
                                body=json.dumps({'id': '12'}), content_type="application/json")
         response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_facebook_login.call_args[0][0],  '25232345')
+        self.assertEqual(mock_facebook_login.call_args[0][0], '25232345')
 
     @httpretty.activate
     def test_facebook_login_view_bad_id(self):
@@ -890,7 +887,7 @@ class TestFacebookLogin(APITestCase):
         self.assertEqual(response.data['email'], "app_email")
 
 
-class TestAppleLogin(APITestCase):
+class TestAppleLogin(GlobalMockAPITestCase):
     @mock.patch('user.views.apple_login', autospec=True)
     def test_apple_login_view(self, apple_login_mock):
         apple_login_mock.return_value = HttpResponse()
@@ -1006,7 +1003,7 @@ class TestSocialLogin(APITestCase):
         self.assertEqual(user.email, None)
 
 
-class TestLogout(APITestCase):
+class TestLogout(GlobalMockAPITestCase):
     def test_logout_changes_user_salt(self):
         user = UserFactory()
         token = user.create_token()
@@ -1036,7 +1033,7 @@ class TestLogout(APITestCase):
         self.assertEqual(200, response.status_code)
 
 
-class TestUserModel(TestCase):
+class TestUserModel(GlobalMockAPITestCase):
     def test_create_referral(self):
         user = UserFactory()
         user_2 = UserFactory()
@@ -1060,19 +1057,18 @@ class TestUserModel(TestCase):
         self.assertNotIn(user.salt, [None, ''])
 
 
-class TestCustomUserManager(TestCase):
+class TestCustomUserManager(GlobalMockAPITestCase):
     def test_create_user(self):
         password = '234'
         user = CustomUser.objects._create_user('test@sdf.com', password, is_staff=False, is_superuser=False)
         self.assertNotEqual(user.password, password)
 
 
-class TestSettings(APITestCase):
+class TestSettings(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
-        super().setUpClass()
 
     def test_list_settings(self):
         SettingFactory()
@@ -1097,12 +1093,11 @@ class TestSettings(APITestCase):
         self.assertEqual(e.exception.messages, ["'true' is not a valid value for type boolean."])
 
 
-class TestUserSettings(APITestCase):
+class TestUserSettings(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_list_user_settings(self):
         setting = SettingFactory(category=Setting.MARKETING)
@@ -1175,7 +1170,7 @@ class TestUserSettings(APITestCase):
         analytic_data = [
             mock_update_attributes.call_args_list[0][0][1],
             mock_update_attributes.call_args_list[1][0][1]
-            ]
+        ]
 
         # marketing-bink updated to False in analytics
         self.assertFalse(analytic_data[0]['marketing-bink'])
@@ -1286,7 +1281,7 @@ class TestUserSettings(APITestCase):
         self.assertEqual(mock_update_attribute.call_args_list[0][0][1], {'marketing-bink': True})
 
 
-class TestAppKitIdentification(APITestCase):
+class TestAppKitIdentification(GlobalMockAPITestCase):
     def test_app_kit_known(self):
         data = {
             'client_id': BINK_CLIENT_ID,
@@ -1326,7 +1321,7 @@ class TestAppKitIdentification(APITestCase):
         self.assertEquals(response.data, {})
 
 
-class TestVerifyToken(APITestCase):
+class TestVerifyToken(GlobalMockAPITestCase):
     def test_valid_token(self):
         user = UserFactory()
         token = user.create_token()
@@ -1346,14 +1341,15 @@ class TestVerifyToken(APITestCase):
         self.assertEqual(response.status_code, 401)
 
 
-class TestApplyPromoCode(APITestCase):
-    def setUp(self):
-        self.user1 = UserFactory()
-        self.user2 = UserFactory()
+class TestApplyPromoCode(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user1 = UserFactory()
+        cls.user2 = UserFactory()
 
-        self.marketing_code = MarketingCodeFactory()
+        cls.marketing_code = MarketingCodeFactory()
 
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(self.user1.create_token())}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(cls.user1.create_token())}
 
     def test_valid_marketing_code(self):
         """
@@ -1417,11 +1413,12 @@ class TestApplyPromoCode(APITestCase):
         self.assertFalse(referral.exists())
 
 
-class TestTermsAndConditions(TestCase):
-    def setUp(self):
-        self.user1 = UserFactory()
+class TestTermsAndConditions(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.user1 = UserFactory()
 
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(self.user1.create_token())}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(cls.user1.create_token())}
 
     def test_terms_and_conditions(self):
         client = Client()

@@ -1,9 +1,10 @@
-from django.test import TestCase
-from scheme.encyption import AESCipher
 from django.conf import settings
 
+from history.utils import GlobalMockAPITestCase
+from scheme.encyption import AESCipher
 
-class TestEncryption(TestCase):
+
+class TestEncryption(GlobalMockAPITestCase):
     def test_encryption(self):
         # Test sample passwords with various non ASCII characters.
         cipher = AESCipher(settings.LOCAL_AES_KEY.encode())

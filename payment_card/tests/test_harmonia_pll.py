@@ -3,18 +3,18 @@ import json
 import ubiquity.tests.factories
 from hermes import settings
 from hermes.fixtures.setupdb import set_up_db
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests import factories as payment_card_factories
-from rest_framework.test import APITestCase
 from scheme.models import SchemeCredentialQuestion
 from scheme.tests import factories as scheme_factories
 from ubiquity.models import PaymentCardSchemeEntry
 from user.tests import factories as user_factories
 
 
-class TestPaymentCardUserInfo(APITestCase):
+class TestPaymentCardUserInfo(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         set_up_db(cls)
         cls.user_1 = user_factories.UserFactory()
         cls.user_2 = user_factories.UserFactory()
@@ -76,7 +76,6 @@ class TestPaymentCardUserInfo(APITestCase):
         cls.link3_3.save()
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        super(TestPaymentCardUserInfo, cls).setUpClass()
 
     def test_retrieve(self):
         response = self.client.post('/payment_cards/accounts/payment_card_user_info/{}'.format(self.scheme.slug),

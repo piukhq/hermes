@@ -1,17 +1,16 @@
-from django.test import TestCase
 from hermes.email_auth import EmailBackend
+from history.utils import GlobalMockAPITestCase
 from user.tests.factories import UserFactory
 
 
-class TestEmailBackend(TestCase):
+class TestEmailBackend(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
         cls.password = "!TestPassword12345"
         cls.user.set_password(cls.password)
         cls.user.save()
         cls.backend = EmailBackend()
-        super().setUpClass()
 
     def test_successful_auth(self):
         user = self.backend.authenticate(None, username=self.user.email, password=self.password)
