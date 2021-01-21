@@ -1,6 +1,5 @@
 from threading import local
 
-from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
 from django.utils import timezone
 
@@ -8,6 +7,7 @@ from history.enums import HistoryModel, ExcludedFields
 from history.models import HistoricalBase
 from history.serializers import get_body_serializer
 from history.tasks import record_history
+from user.authentication import ServiceUser
 
 HISTORY_CONTEXT = local()
 EXCLUDED_FIELDS = ExcludedFields.as_set()
@@ -63,7 +63,7 @@ def signal_record_history(sender, instance, **kwargs) -> None:
     if hasattr(HISTORY_CONTEXT, "user_info"):
         user_id, channel = HISTORY_CONTEXT.user_info
 
-    elif hasattr(request, "user") and request.user != AnonymousUser:
+    elif hasattr(request, "user") and request.user.uid != ServiceUser.uid:
         user_id = request.user.id
         channel = "django_admin"
 
