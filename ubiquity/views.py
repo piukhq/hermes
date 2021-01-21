@@ -22,6 +22,7 @@ from hermes.channels import Permit
 from hermes.settings import Version
 from history.enums import SchemeAccountJourney
 from history.signals import HISTORY_CONTEXT
+from history.utils import user_info
 from payment_card.enums import PaymentCardRoutes
 from payment_card.models import PaymentCardAccount
 from payment_card.payment import get_nominated_pcard
@@ -419,7 +420,12 @@ class PaymentCardView(RetrievePaymentCardAccount, VersionedSerializerMixin, Paym
         deleted_payment_card_cleanup.delay(
             pcard_pk,
             pcard_hash,
-            history_kwargs={"channels_permit": request.channels_permit},
+            history_kwargs={
+                "user_info": user_info(
+                    user_id=request.channels_permit.user.id,
+                    channel=request.channels_permit.bundle_id
+                )
+            },
         )
         return Response({}, status=status.HTTP_200_OK)
 
@@ -562,9 +568,9 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 manual_question_type = question.type
 
         if manual_question_type and manual_question_type in update_fields and self.card_with_same_data_already_exists(
-            account,
-            scheme.id,
-            update_fields[manual_question_type]
+                account,
+                scheme.id,
+                update_fields[manual_question_type]
         ):
             account.status = account.FAILED_UPDATE
             account.save()
@@ -608,7 +614,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             account.id,
             validated_data,
             permit.bundle_id,
-            history_kwargs={"channels_permit": permit, "journey": journey},
+            history_kwargs={
+                "user_info": user_info(user_id=permit.user.id, channel=permit.bundle_id),
+                "journey": journey
+            },
             delete_balance=True
         )
         return account
@@ -674,11 +683,11 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _replace_with_enrol_fields(
-        req: 'Request',
-        account: SchemeAccount,
-        enrol_fields: dict,
-        scheme: Scheme,
-        payment_cards_to_link: list
+            req: 'Request',
+            account: SchemeAccount,
+            enrol_fields: dict,
+            scheme: Scheme,
+            payment_cards_to_link: list
     ) -> None:
         enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
@@ -710,7 +719,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data=validated_data,
             channel=req.channels_permit.bundle_id,
             payment_cards_to_link=payment_cards_to_link,
-            history_kwargs={"channels_permit": req.channels_permit, "journey": "enrol"}
+            history_kwargs={
+                "user_info": user_info(
+                    user_id=req.channels_permit.user.id,
+                    channel=req.channels_permit.bundle_id
+                ),
+                "journey": "enrol"
+            }
         )
 
     @censor_and_decorate
@@ -725,7 +740,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             scheme_account.id,
             arrow.utcnow().format(),
             request.user.id,
-            history_kwargs={"channels_permit": request.channels_permit},
+            history_kwargs={
+                "user_info": user_info(
+                    user_id=request.channels_permit.user.id,
+                    channel=request.channels_permit.bundle_id
+                )
+            },
         )
         return Response({}, status=status.HTTP_200_OK)
 
@@ -867,12 +887,12 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 raise ParseError('This card already exists, but the provided credentials do not match.')
 
     def _handle_create_link_route(
-        self,
-        user: CustomUser,
-        scheme: Scheme,
-        auth_fields: dict,
-        add_fields: dict,
-        payment_cards_to_link: list
+            self,
+            user: CustomUser,
+            scheme: Scheme,
+            auth_fields: dict,
+            add_fields: dict,
+            payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int, MembershipCardAddRoute]:
         history_journey = SchemeAccountJourney.ADD.value
         HISTORY_CONTEXT.journey = history_journey
@@ -889,7 +909,10 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             return_status = status.HTTP_201_CREATED
             scheme_account.update_barcode_and_card_number()
             history_kwargs = {
-                "channels_permit": self.request.channels_permit,
+                "user_info": user_info(
+                    user_id=self.request.channels_permit.user.id,
+                    channel=self.request.channels_permit.bundle_id
+                ),
                 "journey": history_journey
             }
 
@@ -912,7 +935,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
 
     @staticmethod
     def _handle_create_join_route(
-        user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
+            user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
     ) -> t.Tuple[SchemeAccount, int]:
         history_journey = SchemeAccountJourney.ENROL.value
         HISTORY_CONTEXT.journey = history_journey
@@ -980,7 +1003,13 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
             validated_data,
             channels_permit.bundle_id,
             payment_cards_to_link,
-            history_kwargs={"channels_permit": channels_permit, "journey": history_journey}
+            history_kwargs={
+                "user_info": user_info(
+                    user_id=channels_permit.user.id,
+                    channel=channels_permit.bundle_id
+                ),
+                "journey": history_journey
+            }
         )
         return scheme_account, status.HTTP_201_CREATED
 
@@ -1053,7 +1082,7 @@ class MembershipCardView(RetrieveDeleteAccount, VersionedSerializerMixin, Update
                 raise ValidationError('Column does not match field type.')
 
     def _collect_credentials_answers(
-        self, data: dict, scheme: Scheme
+            self, data: dict, scheme: Scheme
     ) -> t.Tuple[t.Optional[dict], t.Optional[dict], t.Optional[dict]]:
         try:
             scheme_questions = scheme.questions.all()
