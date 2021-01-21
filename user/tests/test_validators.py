@@ -1,8 +1,8 @@
-from unittest import TestCase
+from history.utils import GlobalMockAPITestCase
 from user.validators import validate_boolean, validate_number
 
 
-class TestValidators(TestCase):
+class TestValidators(GlobalMockAPITestCase):
     def test_validate_boolean(self):
         self.assertTrue(validate_boolean('0'))
         self.assertTrue(validate_boolean('1'))

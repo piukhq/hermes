@@ -2,23 +2,22 @@ import datetime
 from unittest.mock import patch
 
 from django.conf import settings
-from rest_framework.test import APITestCase
 
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.credentials import USER_NAME, CARD_NUMBER, PASSWORD
 from scheme.models import SchemeCredentialQuestion, SchemeBundleAssociation
 from scheme.tests.factories import (SchemeCredentialAnswerFactory, SchemeAccountFactory, SchemeBundleAssociationFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
-from user.tests.factories import UserFactory
 from user.models import ClientApplication, ClientApplicationBundle
+from user.tests.factories import UserFactory
 
 
-class TestTemporaryFixesBink(APITestCase):
+class TestTemporaryFixesBink(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
-
+    def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                         type=USER_NAME,
@@ -53,8 +52,6 @@ class TestTemporaryFixesBink(APITestCase):
                                                                        status=SchemeBundleAssociation.ACTIVE)
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-
-        super().setUpClass()
 
     @patch('analytics.api.update_attributes')
     @patch('analytics.api._get_today_datetime')

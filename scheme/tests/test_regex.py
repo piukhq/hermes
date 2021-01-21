@@ -1,13 +1,13 @@
-from django.test import TestCase
+from history.utils import GlobalMockAPITestCase
 from scheme.models import SchemeCredentialQuestion
 from scheme.tests.factories import (SchemeAccountFactory, SchemeFactory, SchemeCredentialQuestionFactory,
                                     SchemeCredentialAnswerFactory)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 
 
-class TestInvalidRegex(TestCase):
+class TestInvalidRegex(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme1 = SchemeFactory()
         cls.question = SchemeCredentialQuestionFactory(scheme=cls.scheme1,
                                                        type='barcode',
@@ -24,7 +24,6 @@ class TestInvalidRegex(TestCase):
         SchemeCredentialAnswerFactory(scheme_account=cls.scheme_account_2, question=cls.question, answer='1234')
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_incorrect_regex(self):
         self.scheme1.card_number_regex = "^-?[0-9]+$"

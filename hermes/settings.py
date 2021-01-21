@@ -53,6 +53,7 @@ LOCAL_APPS = (
     "payment_card",
     "order",
     "ubiquity",
+    "history",
     "daedalus_messaging",
     "periodic_retry",
     "prometheus.apps.PrometheusPusherConfig",
@@ -73,6 +74,7 @@ INSTALLED_APPS = (
     "mail_templated",
     "anymail",
     "storages",
+    "rangefilter",
     "django_prometheus",
     *LOCAL_APPS,
 )
@@ -91,6 +93,7 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
     "hermes.middleware.AcceptVersion",
+    "history.middleware.HistoryRequestMiddleware",
     "prometheus.middleware.CustomPrometheusAfterMiddleware",
 )
 
@@ -536,7 +539,6 @@ OIDC_OP_AUTHORIZATION_ENDPOINT = (
 OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/oauth2/v2.0/token"
 OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
-
 
 PROMETHEUS_EXPORT_MIGRATIONS = False
 PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,

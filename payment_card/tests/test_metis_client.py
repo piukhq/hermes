@@ -1,13 +1,13 @@
 import httpretty
 from django.conf import settings
-from django.test import TestCase
 
+from history.utils import GlobalMockAPITestCase
 from payment_card.metis import enrol_existing_payment_card
 from payment_card.models import PaymentCard
 from payment_card.tests.factories import PaymentCardAccountFactory
 
 
-class TestMetisClient(TestCase):
+class TestMetisClient(GlobalMockAPITestCase):
     @httpretty.activate
     def test_enrol_existing_payment_card(self):
         httpretty.register_uri(httpretty.POST, settings.METIS_URL + '/payment_service/payment_card/update', status=204)

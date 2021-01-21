@@ -1,16 +1,16 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
-from rest_framework.test import APITestCase
 
 from common.models import Image
+from history.utils import GlobalMockAPITestCase
 from payment_card.serializers import PaymentCardAccountSerializer
 from payment_card.tests.factories import (PaymentCardAccountImageFactory, PaymentCardImageFactory)
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory
 
 
-class TestPaymentCardAccountImages(APITestCase):
+class TestPaymentCardAccountImages(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.payment_card_account_entry = PaymentCardAccountEntryFactory()
         cls.payment_card_account = cls.payment_card_account_entry.payment_card_account
         cls.payment_card_account_image = PaymentCardAccountImageFactory(
@@ -28,7 +28,6 @@ class TestPaymentCardAccountImages(APITestCase):
 
         cls.user = cls.payment_card_account_entry.user
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_image_property(self):
         serializer = PaymentCardAccountSerializer()
