@@ -1,4 +1,5 @@
 import sys
+from collections import OrderedDict
 from typing import Type
 
 from rest_framework import serializers
@@ -12,6 +13,9 @@ from history.models import (
 )
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
+
+
+# ----- serializers used to validate and save historical models ----- #
 
 
 class HistoricalPaymentCardAccountSerializer(serializers.ModelSerializer):
@@ -38,12 +42,20 @@ class HistoricalSchemeAccountEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+# ----- serializers used to serialize cards' body field. ----- #
+
+
 class ReadOnlyModelSerializer(serializers.ModelSerializer):
-    def get_fields(self, *args, **kwargs):
-        fields = super().get_fields(*args, **kwargs)
-        for field in fields:
-            fields[field].read_only = True
-        return fields
+    def get_fields(self):
+        fields = super().get_fields()
+        filtered_fields = OrderedDict()
+        for k, v in fields.items():
+            if not isinstance(v, serializers.ManyRelatedField):
+                filtered_fields[k] = v
+                filtered_fields[k].read_only = True
+
+        del fields
+        return filtered_fields
 
 
 class PaymentCardAccountSerializer(ReadOnlyModelSerializer):
