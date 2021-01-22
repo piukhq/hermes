@@ -75,6 +75,7 @@ class HistoricalPaymentCardAccountAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalPaymentCardAccountEntry)
@@ -97,6 +98,7 @@ class HistoricalPaymentCardAccountEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalSchemeAccount)
@@ -120,6 +122,7 @@ class HistoricalSchemeAccountAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalSchemeAccountEntry)
@@ -142,3 +145,4 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
