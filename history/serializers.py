@@ -4,15 +4,17 @@ from typing import Type
 
 from rest_framework import serializers
 
-from history.enums import ExcludedFields
+from history.enums import ExcludedField
 from history.models import (
     HistoricalPaymentCardAccount,
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccount,
     HistoricalSchemeAccountEntry,
+    HistoricalCustomUser,
 )
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
+from user.models import CustomUser
 
 
 # ----- serializers used to validate and save historical models ----- #
@@ -42,6 +44,12 @@ class HistoricalSchemeAccountEntrySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class HistoricalCustomUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistoricalCustomUser
+        fields = "__all__"
+
+
 # ----- serializers used to serialize cards' body field. ----- #
 
 
@@ -58,16 +66,22 @@ class ReadOnlyModelSerializer(serializers.ModelSerializer):
         return filtered_fields
 
 
+class CustomUserSerializer(ReadOnlyModelSerializer):
+    class Meta:
+        model = CustomUser
+        exclude = ExcludedField.as_tuple(CustomUser)
+
+
 class PaymentCardAccountSerializer(ReadOnlyModelSerializer):
     class Meta:
         model = PaymentCardAccount
-        exclude = ExcludedFields.as_tuple(PaymentCardAccount)
+        exclude = ExcludedField.as_tuple(PaymentCardAccount)
 
 
 class SchemeAccountSerializer(ReadOnlyModelSerializer):
     class Meta:
         model = SchemeAccount
-        exclude = ExcludedFields.as_tuple(SchemeAccount)
+        exclude = ExcludedField.as_tuple(SchemeAccount)
 
 
 def _get_serializer(name: str) -> Type["serializers.Serializer"]:

@@ -7,6 +7,7 @@ from history.models import (
     HistoricalSchemeAccount,
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccountEntry,
+HistoricalCustomUser
 )
 
 
@@ -53,7 +54,33 @@ class UserFilter(InputFilter):
         if term is None:
             return
 
-        return queryset.filter(user_id=term)
+        if "User" in queryset.model.__name__:
+            query = {"id": term}
+        else:
+            query = {"user_id": term}
+
+        return queryset.filter(**query)
+
+
+@admin.register(HistoricalCustomUser)
+class HistoricalCustomUserAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "instance_id",
+        "email",
+        "external_id",
+        "channel",
+        "created",
+        "change_type",
+        "change_details",
+    )
+    search_fields = ("created", "email", "external_id")
+    list_filter = (
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
 
 
 @admin.register(HistoricalPaymentCardAccount)

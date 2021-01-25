@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Type
+from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, Iterable
 
 from rest_framework.utils.model_meta import get_field_info
 
@@ -12,6 +12,7 @@ class HistoryModel(Enum):
     PAYMENT_CARD_ACCOUNT_ENTRY = "ubiquity.PaymentCardAccountEntry"
     SCHEME_ACCOUNT = "scheme.SchemeAccount"
     SCHEME_ACCOUNT_ENTRY = "ubiquity.SchemeAccountEntry"
+    CUSTOM_USER = "user.CustomUser"
 
     @property
     def model_name(self):
@@ -39,7 +40,7 @@ class SchemeAccountJourney(Enum):
         return [(entry.value, entry.value) for entry in cls]
 
 
-class ExcludedFields(Enum):
+class ExcludedField(Enum):
     """
     These fields are used as cache layer for performance purposes, but they are not logically part of the cards.
     """
@@ -62,3 +63,26 @@ class ExcludedFields(Enum):
             allowed_fields = []
 
         return tuple(entry.value for entry in cls if entry.value in allowed_fields)
+
+
+class DeleteField(Enum):
+    IS_DELETED = "is_deleted"
+    IS_ACTIVE = "is_active"
+    NONE = "n/a"
+
+    def get_value(self, objs: Union[Iterable, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
+        if not objs:
+            field_value = False
+
+        elif isinstance(objs, list):
+            field_value = all(
+                getattr(obj, self.value)
+                for obj in objs
+            )
+        else:
+            field_value = getattr(objs, self.value)
+
+        if self == self.IS_ACTIVE:
+            field_value = not field_value
+
+        return self.value, field_value

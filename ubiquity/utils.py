@@ -10,3 +10,5 @@ def needs_decryption(values: Iterable) -> bool:
             values,
         )
     )
+
+

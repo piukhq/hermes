@@ -209,9 +209,10 @@ class PaymentCardAccountManager(models.Manager):
     def get_queryset(self):
         return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
 
-    def bulk_update(self, objs, update_fields=None, exclude_fields=None):
-        bulk_update(objs, update_fields=update_fields,
-                    exclude_fields=exclude_fields, using=self.db)
+    # TODO check to see why we have this code here and uncomment if needed
+    # def bulk_update(self, objs, update_fields=None, exclude_fields=None):
+    #     bulk_update(objs, update_fields=update_fields,
+    #                 exclude_fields=exclude_fields, using=self.db)
 
 
 class PaymentCardAccount(models.Model):
