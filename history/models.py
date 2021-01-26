@@ -1,5 +1,5 @@
 import sys
-from typing import Type
+from typing import Type, List
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -29,7 +29,7 @@ class HistoricalBase(models.Model):
 
 class HistoricalCustomUser(HistoricalBase):
     body = JSONField()
-    email = models.EmailField(verbose_name='email address', max_length=255, blank=True)
+    email = models.EmailField(verbose_name="email address", max_length=255, blank=True)
     external_id = models.CharField(max_length=255, blank=True)
 
 
@@ -58,9 +58,26 @@ class HistoricalSchemeAccountEntry(HistoricalBase):
     scheme_account_id = models.IntegerField()
 
 
+class HistoricalVopActivation(HistoricalBase):
+    user_id = models.IntegerField(null=True)
+    scheme_id = models.IntegerField()
+    payment_card_account_id = models.IntegerField()
+    status = models.IntegerField()
+    activation_id = models.CharField(blank=True, max_length=60, default="")
+
+
 def _get_model(name: str) -> Type["models.Model"]:
     return getattr(sys.modules[__name__], name)
 
 
 def get_historical_model(name: str) -> Type["models.Model"]:
     return _get_model(f"Historical{name}")
+
+
+def get_required_extra_fields(name: str) -> List[str]:
+    model = get_historical_model(name)
+    return [
+        field.attname
+        for field in model._meta.fields
+        if field not in HistoricalBase._meta.fields and field != model._meta.pk
+    ]

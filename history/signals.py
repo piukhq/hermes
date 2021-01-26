@@ -5,8 +5,8 @@ from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
 from django.utils import timezone
 
-from history.enums import HistoryModel, ExcludedField, DeleteField
-from history.models import HistoricalBase
+from history.enums import ExcludedField, DeleteField
+from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.tasks import record_history
 from user.authentication import ServiceUser
@@ -60,7 +60,6 @@ def _get_change_type_and_details(instance, kwargs):
 
 
 def get_user_and_channel() -> Tuple[Optional[int], str]:
-
     request = getattr(HISTORY_CONTEXT, "request", None)
     if hasattr(HISTORY_CONTEXT, "user_info"):
         user_id, channel = HISTORY_CONTEXT.user_info
@@ -86,27 +85,19 @@ def signal_record_history(sender, instance, **kwargs) -> None:
     model_name = sender.__name__
 
     user_id, channel = get_user_and_channel()
+    required_extra_fields = get_required_extra_fields(model_name)
     extra = {"user_id": user_id, "channel": channel}
 
-    if model_name in [HistoryModel.PAYMENT_CARD_ACCOUNT, HistoryModel.SCHEME_ACCOUNT, HistoryModel.CUSTOM_USER]:
+    if "body" in required_extra_fields:
         extra["body"] = get_body_serializer(model_name)(instance).data
 
-        if model_name == HistoryModel.SCHEME_ACCOUNT and hasattr(HISTORY_CONTEXT, "journey"):
-            extra["journey"] = HISTORY_CONTEXT.journey
-            del HISTORY_CONTEXT.journey
+    if "journey" in required_extra_fields and hasattr(HISTORY_CONTEXT, "journey"):
+        extra["journey"] = HISTORY_CONTEXT.journey
+        del HISTORY_CONTEXT.journey
 
-        if hasattr(instance, "email"):
-            extra["email"] = instance.email
-
-        if hasattr(instance, "external_id"):
-            extra["external_id"] = instance.external_id
-
-    else:
-        if hasattr(instance, "payment_card_account_id"):
-            extra["payment_card_account_id"] = instance.payment_card_account_id
-
-        if hasattr(instance, "scheme_account_id"):
-            extra["scheme_account_id"] = instance.scheme_account_id
+    for field in required_extra_fields:
+        if field not in extra and hasattr(instance, field):
+            extra[field] = getattr(instance, field)
 
     record_history.delay(
         model_name,

@@ -7,7 +7,7 @@ from history.models import (
     HistoricalSchemeAccount,
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccountEntry,
-HistoricalCustomUser
+    HistoricalCustomUser, HistoricalVopActivation
 )
 
 
@@ -164,6 +164,29 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
     search_fields = ("instance_id", "created")
     list_filter = (
         SchemeAccountFilter,
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
+
+
+@admin.register(HistoricalVopActivation)
+class HistoricalVopActivationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "instance_id",
+        "user_id",
+        "payment_card_account_id",
+        "scheme_id",
+        "channel",
+        "change_type",
+        "created",
+        "change_details",
+    )
+    search_fields = ("instance_id", "scheme_id", "created")
+    list_filter = (
+        PaymentCardAccountFilter,
         UserFilter,
         "channel",
         "change_type",

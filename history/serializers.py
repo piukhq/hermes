@@ -10,7 +10,7 @@ from history.models import (
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccount,
     HistoricalSchemeAccountEntry,
-    HistoricalCustomUser,
+    HistoricalCustomUser, HistoricalVopActivation,
 )
 from payment_card.models import PaymentCardAccount
 from scheme.models import SchemeAccount
@@ -50,6 +50,12 @@ class HistoricalCustomUserSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class HistoricalVopActivationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistoricalVopActivation
+        fields = "__all__"
+
+
 # ----- serializers used to serialize cards' body field. ----- #
 
 
@@ -69,19 +75,19 @@ class ReadOnlyModelSerializer(serializers.ModelSerializer):
 class CustomUserSerializer(ReadOnlyModelSerializer):
     class Meta:
         model = CustomUser
-        exclude = ExcludedField.as_tuple(CustomUser)
+        exclude = ExcludedField.as_list(CustomUser)
 
 
 class PaymentCardAccountSerializer(ReadOnlyModelSerializer):
     class Meta:
         model = PaymentCardAccount
-        exclude = ExcludedField.as_tuple(PaymentCardAccount)
+        exclude = ExcludedField.as_list(PaymentCardAccount)
 
 
 class SchemeAccountSerializer(ReadOnlyModelSerializer):
     class Meta:
         model = SchemeAccount
-        exclude = ExcludedField.as_tuple(SchemeAccount)
+        exclude = ExcludedField.as_list(SchemeAccount)
 
 
 def _get_serializer(name: str) -> Type["serializers.Serializer"]:

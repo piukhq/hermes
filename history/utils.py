@@ -6,8 +6,8 @@ from django.contrib import admin
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
-from history.enums import HistoryModel, DeleteField
-from history.models import HistoricalBase
+from history.enums import DeleteField
+from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.signals import HISTORY_CONTEXT, EXCLUDED_FIELDS, get_user_and_channel
 from history.tasks import bulk_record_history
@@ -89,7 +89,6 @@ def history_bulk_update(
         update_fields: list = None,
         batch_size: int = None,
 ) -> None:
-
     created_at = timezone.now()
     model_name = model.__name__
 
@@ -104,16 +103,17 @@ def history_bulk_update(
 
     change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
     user_id, channel = get_user_and_channel()
+    required_extra_fields = get_required_extra_fields(model_name)
     history_objs = []
     extra_bodies = None
     extra_journey = None
 
-    if model_name in [HistoryModel.PAYMENT_CARD_ACCOUNT, HistoryModel.SCHEME_ACCOUNT, HistoryModel.CUSTOM_USER]:
+    if "body" in required_extra_fields:
         extra_bodies = get_body_serializer(model_name)(objs, many=True).data
 
-        if model_name == HistoryModel.SCHEME_ACCOUNT and hasattr(HISTORY_CONTEXT, "journey"):
-            extra_journey = HISTORY_CONTEXT.journey
-            del HISTORY_CONTEXT.journey
+    if "journey" in required_extra_fields and hasattr(HISTORY_CONTEXT, "journey"):
+        extra_journey = HISTORY_CONTEXT.journey
+        del HISTORY_CONTEXT.journey
 
     for i, instance in enumerate(objs):
         extra = {"user_id": user_id, "channel": channel}
@@ -124,17 +124,9 @@ def history_bulk_update(
         if extra_journey is not None:
             extra["journey"] = extra_journey
 
-        if hasattr(instance, "payment_card_account_id"):
-            extra["payment_card_account_id"] = instance.payment_card_account_id
-
-        if hasattr(instance, "scheme_account_id"):
-            extra["scheme_account_id"] = instance.scheme_account_id
-
-        if hasattr(instance, "email"):
-            extra["email"] = instance.email
-
-        if hasattr(instance, "external_id"):
-            extra["external_id"] = instance.external_id
+        for field in required_extra_fields:
+            if field not in extra and hasattr(instance, field):
+                extra[field] = getattr(instance, field)
 
         history_objs.append({
             "created": created_at,

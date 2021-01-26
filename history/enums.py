@@ -1,7 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, Iterable, List
-
-from rest_framework.utils.model_meta import get_field_info
+from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, List
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -13,6 +11,7 @@ class HistoryModel(Enum):
     SCHEME_ACCOUNT = "scheme.SchemeAccount"
     SCHEME_ACCOUNT_ENTRY = "ubiquity.SchemeAccountEntry"
     CUSTOM_USER = "user.CustomUser"
+    VOP_ACTIVATION = "ubiquity.VopActivation"
 
     @property
     def model_name(self):
@@ -21,12 +20,6 @@ class HistoryModel(Enum):
     @property
     def historic_model_name(self):
         return f"Historical{self.model_name}"
-
-    def __str__(self):
-        return self.model_name
-
-    def __eq__(self, value):
-        return self.model_name == value
 
 
 class SchemeAccountJourney(Enum):
@@ -56,13 +49,13 @@ class ExcludedField(Enum):
         return {entry.value for entry in cls}
 
     @classmethod
-    def as_tuple(cls, filter_for: Type["Model"] = None) -> tuple:
+    def as_list(cls, filter_for: Type["Model"] = None) -> List[str]:
         if filter_for:
-            allowed_fields = get_field_info(filter_for).fields.keys()
+            allowed_fields = [field.attrname for field in filter_for._meta.fields]
         else:
             allowed_fields = []
 
-        return tuple(entry.value for entry in cls if entry.value in allowed_fields)
+        return [entry.value for entry in cls if entry.value in allowed_fields]
 
 
 class DeleteField(Enum):
@@ -70,7 +63,7 @@ class DeleteField(Enum):
     IS_ACTIVE = "is_active"
     NONE = "n/a"
 
-    def get_value(self, objs: Union[Iterable, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
+    def get_value(self, objs: Union[list, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
         if not objs:
             field_value = False
 
