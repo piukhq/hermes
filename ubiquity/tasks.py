@@ -374,7 +374,13 @@ def _process_vop_activations(created_links, prechecked=False):
 
 
 @shared_task
-def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
+def auto_link_membership_to_payments(
+        payment_cards_to_link: list,
+        membership_card: t.Union[SchemeAccount, int],
+        history_kwargs: dict = None
+) -> None:
+    set_history_kwargs(history_kwargs)
+
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
@@ -435,6 +441,7 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         [link for link in created_links if link.payment_card_account_id in vop_activated_cards],
         prechecked=True
     )
+    clean_history_kwargs(history_kwargs)
 
 
 def _get_instances_to_bulk_create(
@@ -470,8 +477,11 @@ def _get_instances_to_bulk_create(
 def auto_link_payment_to_memberships(
         wallet_scheme_accounts: list,
         payment_card_account: t.Union[PaymentCardAccount, int],
-        just_created: bool
+        just_created: bool,
+        history_kwargs: dict = None
 ) -> None:
+    set_history_kwargs(history_kwargs)
+
     if isinstance(payment_card_account, int):
         payment_card_account = PaymentCardAccount.objects.select_related("payment_card").get(pk=payment_card_account)
 
@@ -506,3 +516,5 @@ def auto_link_payment_to_memberships(
             [link for link in created_links if link.scheme_account_id in pll_activated_membership_cards],
             prechecked=True
         )
+
+    clean_history_kwargs(history_kwargs)

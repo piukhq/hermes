@@ -158,7 +158,7 @@ class VersionedSerializerMixin:
 class AutoLinkOnCreationMixin:
     @staticmethod
     def auto_link_to_membership_cards(
-            user: CustomUser, payment_card_account: PaymentCardAccount, just_created: bool = False
+            user: CustomUser, payment_card_account: PaymentCardAccount, bundle_id: str, just_created: bool = False
     ) -> None:
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
@@ -169,7 +169,10 @@ class AutoLinkOnCreationMixin:
                 auto_link_payment_to_memberships(wallet_scheme_accounts, payment_card_account, just_created)
             else:
                 auto_link_payment_to_memberships.delay(
-                    [sa.id for sa in wallet_scheme_accounts], payment_card_account.id, just_created
+                    [sa.id for sa in wallet_scheme_accounts],
+                    payment_card_account.id,
+                    just_created,
+                    history_kwargs={"user_info": user_info(user_id=user.id, channel=bundle_id)}
                 )
 
 
@@ -415,7 +418,7 @@ class PaymentCardView(
         account.refresh_from_db()
 
         if auto_link(request):
-            self.auto_link_to_membership_cards(request.user, account)
+            self.auto_link_to_membership_cards(request.user, account, request.channels_permit.bundle_id)
 
         return Response(self.get_serializer_by_request(account).data, status.HTTP_200_OK)
 
@@ -502,7 +505,7 @@ class ListPaymentCardView(
 
         # auto link to mcards if auto_link is True or None
         if auto_link(request) is not False:
-            self.auto_link_to_membership_cards(request.user, pcard, just_created)
+            self.auto_link_to_membership_cards(request.user, pcard, request.channels_permit.bundle_id, just_created)
 
         if metrics_route:
             payment_card_add_counter.labels(
@@ -695,7 +698,13 @@ class MembershipCardView(
                 async_balance.delay(account.id)
 
                 if payment_cards_to_link:
-                    auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+                    auto_link_membership_to_payments.delay(
+                        payment_cards_to_link,
+                        account.id,
+                        history_kwargs={
+                            "user_info": user_info(user_id=user_id, channel=request.channels_permit.bundle_id)
+                        }
+                    )
 
         if metrics_route:
             membership_card_update_counter.labels(
@@ -872,7 +881,13 @@ class MembershipCardView(
             pass
 
         if payment_cards_to_link:
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+            auto_link_membership_to_payments(
+                payment_cards_to_link,
+                scheme_account,
+                history_kwargs={
+                    "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+                },
+            )
 
     @staticmethod
     def _validate_auth_fields(auth_fields, existing_answers):

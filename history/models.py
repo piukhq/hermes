@@ -52,10 +52,16 @@ class HistoricalPaymentCardAccountEntry(HistoricalBase):
     user_id = models.IntegerField(null=True)
     payment_card_account_id = models.IntegerField()
 
+    class Meta:
+        verbose_name = "Historical Payment card account to User association"
+
 
 class HistoricalSchemeAccountEntry(HistoricalBase):
     user_id = models.IntegerField(null=True)
     scheme_account_id = models.IntegerField()
+
+    class Meta:
+        verbose_name = "Historical Scheme account to User association"
 
 
 class HistoricalVopActivation(HistoricalBase):
