@@ -51,7 +51,7 @@ class ExcludedField(Enum):
     @classmethod
     def as_list(cls, filter_for: Type["Model"] = None) -> List[str]:
         if filter_for:
-            allowed_fields = [field.attrname for field in filter_for._meta.fields]
+            allowed_fields = [field.attname for field in filter_for._meta.fields]
         else:
             allowed_fields = []
 
