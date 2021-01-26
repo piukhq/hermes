@@ -43,7 +43,7 @@ class HistoricalSchemeAccount(HistoricalBase):
     body = JSONField()
     journey = models.CharField(
         max_length=8,
-        choices=SchemeAccountJourney.as_tuple_tuple(),
+        choices=SchemeAccountJourney.as_tuple_list(),
         default=SchemeAccountJourney.NONE.value,
     )
 

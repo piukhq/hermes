@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, Iterable
+from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, Iterable, List
 
 from rest_framework.utils.model_meta import get_field_info
 
@@ -36,7 +36,7 @@ class SchemeAccountJourney(Enum):
     ENROL = "enrol"
 
     @classmethod
-    def as_tuple_tuple(cls):
+    def as_tuple_list(cls) -> List[tuple]:
         return [(entry.value, entry.value) for entry in cls]
 
 
@@ -52,11 +52,11 @@ class ExcludedField(Enum):
     TRANSACTIONS = "transactions"
 
     @classmethod
-    def as_set(cls):
+    def as_set(cls) -> set:
         return {entry.value for entry in cls}
 
     @classmethod
-    def as_tuple(cls, filter_for: Type["Model"] = None):
+    def as_tuple(cls, filter_for: Type["Model"] = None) -> tuple:
         if filter_for:
             allowed_fields = get_field_info(filter_for).fields.keys()
         else:
@@ -75,10 +75,7 @@ class DeleteField(Enum):
             field_value = False
 
         elif isinstance(objs, list):
-            field_value = all(
-                getattr(obj, self.value)
-                for obj in objs
-            )
+            field_value = all(getattr(obj, self.value) for obj in objs)
         else:
             field_value = getattr(objs, self.value)
 
