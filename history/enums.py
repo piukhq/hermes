@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, List
+from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, List, Iterable
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -12,6 +12,7 @@ class HistoryModel(Enum):
     SCHEME_ACCOUNT_ENTRY = "ubiquity.SchemeAccountEntry"
     CUSTOM_USER = "user.CustomUser"
     VOP_ACTIVATION = "ubiquity.VopActivation"
+    PAYMENT_CARD_SCHEME_ENTRY = "ubiquity.PaymentCardSchemeEntry"
 
     @property
     def model_name(self):
@@ -20,6 +21,10 @@ class HistoryModel(Enum):
     @property
     def historic_model_name(self):
         return f"Historical{self.model_name}"
+
+    @property
+    def historic_serializer_name(self):
+        return f"{self.historic_model_name}Serializer"
 
 
 class SchemeAccountJourney(Enum):
@@ -63,11 +68,11 @@ class DeleteField(Enum):
     IS_ACTIVE = "is_active"
     NONE = "n/a"
 
-    def get_value(self, objs: Union[list, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
+    def get_value(self, objs: Union[Iterable, Type["Model"]] = None) -> Tuple[Optional[str], bool]:
         if not objs:
             field_value = False
 
-        elif isinstance(objs, list):
+        elif isinstance(objs, Iterable):
             field_value = all(getattr(obj, self.value) for obj in objs)
         else:
             field_value = getattr(objs, self.value)

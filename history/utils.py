@@ -1,8 +1,10 @@
+import re
 from collections import namedtuple
-from typing import Optional, Type, TYPE_CHECKING, Tuple
+from typing import Optional, Type, TYPE_CHECKING, Tuple, Iterable
 from unittest.mock import patch
 
 from django.contrib import admin
+from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -83,25 +85,81 @@ def _get_change_type_and_details(update_fields: list, is_deleted: Tuple[str, boo
     return change_type, change_details
 
 
-def history_bulk_update(
-        model: Type["Model"],
-        objs: list,
-        update_fields: list = None,
-        batch_size: int = None,
-) -> None:
+def _get_filters_from_obj_list(obj_list: Iterable) -> dict:
+    filters = {}
+    for obj in obj_list:
+        for k, v in obj.items():
+            key = f"k__in"
+            if not isinstance(v, int):
+                pass
+            elif key in filters:
+                filters[key].add(v)
+            else:
+                filters[key] = {v}
+
+    return filters
+
+
+def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) -> list:
+    if not hasattr(objs, "__delitem__"):
+        objs = list(objs)
+
+    created_objs = []
+    while objs:
+        try:
+            created_objs = model.objects.bulk_create(objs, batch_size=batch_size)
+            objs = []
+        except IntegrityError as e:
+            """
+            IntegrityError example:
+            "duplicate key value violates unique constraint 
+            "ubiquity_paymentcardsche_payment_card_account_id__c41ba7ab_uniq"\n
+            DETAIL:  Key (payment_card_account_id, scheme_account_id)=(36536, 239065) already exists."
+            """
+
+            parsed = re.search(r"\((?P<keys>.*)\)=\((?P<values>.*)\)", str(e))
+            parsed_dict = {k: v.split(", ") for k, v in parsed.groupdict().items()}
+            existing_entry_dict = dict(zip(parsed_dict["keys"], parsed_dict["values"]))
+
+            for i, obj in enumerate(objs):
+                if all(map(lambda k: str(getattr(obj, k)) == existing_entry_dict[k], existing_entry_dict)):
+                    del objs[i]
+
+    return created_objs
+
+
+def _history_bulk(
+    model: Type["Model"],
+    objs: Iterable,
+    update_fields: list = None,
+    *,
+    batch_size: int = None,
+    ignore_conflicts: bool = False,
+    update: bool = False,
+) -> list:
     created_at = timezone.now()
     model_name = model.__name__
 
-    model.objects.bulk_update(objs, update_fields, batch_size=batch_size)
+    if update:
+        model.objects.bulk_update(objs, update_fields, batch_size=batch_size)
 
-    if hasattr(model, DeleteField.IS_DELETED.value):
-        is_deleted = DeleteField.IS_DELETED.get_value(objs)
-    elif hasattr(model, DeleteField.IS_ACTIVE.value):
-        is_deleted = DeleteField.IS_ACTIVE.get_value(objs)
+        if hasattr(model, DeleteField.IS_DELETED.value):
+            is_deleted = DeleteField.IS_DELETED.get_value(objs)
+        elif hasattr(model, DeleteField.IS_ACTIVE.value):
+            is_deleted = DeleteField.IS_ACTIVE.get_value(objs)
+        else:
+            is_deleted = DeleteField.NONE.get_value()
+
+        change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
     else:
-        is_deleted = DeleteField.NONE.get_value()
 
-    change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
+        if ignore_conflicts:
+            objs = _bulk_create_with_id(model, objs, batch_size)
+        else:
+            objs = model.objects.bulk_create(objs, batch_size=batch_size)
+
+        change_type, change_details = HistoricalBase.CREATE, ""
+
     user_id, channel = get_user_and_channel()
     required_extra_fields = get_required_extra_fields(model_name)
     history_objs = []
@@ -128,12 +186,27 @@ def history_bulk_update(
             if field not in extra and hasattr(instance, field):
                 extra[field] = getattr(instance, field)
 
-        history_objs.append({
-            "created": created_at,
-            "change_type": change_type,
-            "change_details": change_details,
-            "instance_id": instance.id,
-            **extra
-        })
+        history_objs.append(
+            {
+                "created": created_at,
+                "change_type": change_type,
+                "change_details": change_details,
+                "instance_id": instance.id,
+                **extra,
+            }
+        )
 
     bulk_record_history.delay(model_name, history_objs)
+    return objs
+
+
+def history_bulk_update(
+    model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
+) -> None:
+    _history_bulk(model, objs, update_fields, batch_size=batch_size, update=True)
+
+
+def history_bulk_create(
+    model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
+) -> list:
+    return _history_bulk(model, objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts, update=False)

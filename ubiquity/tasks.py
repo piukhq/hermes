@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.utils import set_history_kwargs, clean_history_kwargs, history_bulk_update
+from history.utils import set_history_kwargs, clean_history_kwargs, history_bulk_update, history_bulk_create
 from payment_card import metis
 from payment_card.models import PaymentCardAccount, PaymentCard
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
@@ -417,9 +417,13 @@ def auto_link_membership_to_payments(
             if payment_card_account.payment_card.slug == PaymentCard.VISA:
                 vop_activated_cards.append(payment_card_account.id)
 
-    created_links = PaymentCardSchemeEntry.objects.bulk_create(
-        link_entries_to_create, batch_size=100, ignore_conflicts=True
+    created_links = history_bulk_create(
+        PaymentCardSchemeEntry,
+        link_entries_to_create,
+        batch_size=100,
+        ignore_conflicts=True
     )
+
     logger.info(
         "auto-linked SchemeAccount %s to PaymentCardAccounts %s, of which %s were active links",
         membership_card.id,
@@ -495,7 +499,8 @@ def auto_link_payment_to_memberships(
         if link.active_link is True
     ]
 
-    created_links = PaymentCardSchemeEntry.objects.bulk_create(
+    created_links = history_bulk_create(
+        PaymentCardSchemeEntry,
         instances_to_bulk_create.values(),
         batch_size=100,
         ignore_conflicts=True

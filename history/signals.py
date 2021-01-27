@@ -64,7 +64,7 @@ def get_user_and_channel() -> Tuple[Optional[int], str]:
     if hasattr(HISTORY_CONTEXT, "user_info"):
         user_id, channel = HISTORY_CONTEXT.user_info
 
-    elif hasattr(request, "user") and request.user not in (ServiceUser, AnonymousUser):
+    elif hasattr(request, "user") and str(request.user) != "AnonymousUser":
         user_id = request.user.id
         channel = "django_admin"
 
