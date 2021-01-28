@@ -55,11 +55,23 @@ class MockApiCache:
         MockApiCache.data = None
         MockApiCache.expire = expire
         MockApiCache.available_called = False
+        MockApiCache.start_time = 0
+        MockApiCache.subject = ""
+        MockApiCache.cache_hi = 0
+        MockApiCache.cache_lo = 0
 
     @property
     def available(self):
         MockApiCache.available_called = True
         return False
+
+    @staticmethod
+    def time_it_log(start_time, subject, high=200, low=50):
+        MockApiCache.start_time = start_time
+        MockApiCache.subject = subject
+        MockApiCache.cache_hi = high
+        MockApiCache.cache_lo = low
+        return
 
     def save(self, data):
         MockApiCache.data = data
