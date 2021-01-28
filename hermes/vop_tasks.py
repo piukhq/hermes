@@ -1,6 +1,7 @@
 import requests
 from celery import shared_task
 from django.conf import settings
+
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
 
@@ -10,7 +11,7 @@ def vop_activate_request(activation):
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
         'merchant_slug': activation.scheme.slug,
-        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
+        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
 
     send_activation.delay(activation, data)
@@ -34,11 +35,11 @@ def process_result(rep, activation, link_action):
         if activation_id and link_action == activation.ACTIVATING:
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
-            activation.save()
+            activation.save(update_fields=["activation_id", "status"])
         elif link_action == activation.DEACTIVATING:
             # todo May be try periodic delete or delete it now instead of save
             activation.status = activation.DEACTIVATED
-            activation.save()
+            activation.save(update_fields=["status"])
 
         status = PeriodicRetryStatus.SUCCESSFUL
         return status, response_data
@@ -49,8 +50,10 @@ def process_result(rep, activation, link_action):
 
 
 def activate(activation, data: dict):
-    activation.status = activation.ACTIVATING
-    activation.save()
+    if activation.status != activation.ACTIVATING:
+        activation.status = activation.ACTIVATING
+        activation.save(update_fields=["status"])
+
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -77,7 +80,7 @@ def send_activation(activation, data: dict):
 
 def deactivate(activation, data: dict):
     activation.status = activation.DEACTIVATING
-    activation.save()
+    activation.save(update_fields=["status"])
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -91,7 +94,7 @@ def send_deactivation(activation):
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
         'activation_id': activation.activation_id,
-        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
+        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
     status, result = deactivate(activation, data)
 

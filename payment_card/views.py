@@ -7,6 +7,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+
+from history.utils import history_bulk_update
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
@@ -80,7 +82,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
         if instance.user_set.count() < 1:
             instance.is_deleted = True
-            instance.save()
+            instance.save(update_fields=["is_deleted"])
             PaymentCardSchemeEntry.objects.filter(payment_card_account=instance).delete()
 
             metis.delete_payment_card(instance)
@@ -385,7 +387,12 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                 response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
 
             if deactivated_list:
-                VopActivation.objects.filter(id__in=deactivated_list).update(status=VopActivation.DEACTIVATED)
+                updated_activations = []
+                for activation in VopActivation.objects.filter(id__in=deactivated_list).all():
+                    activation.status = VopActivation.DEACTIVATED
+                    updated_activations.append(activation)
+
+                history_bulk_update(VopActivation, updated_activations, update_fields=["status"])
 
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
 

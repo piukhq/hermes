@@ -398,7 +398,7 @@ class SchemeAccountJoinMixin:
 
                 scheme_account.order = data['order']
                 scheme_account.status = SchemeAccount.PENDING
-                scheme_account.save()
+                scheme_account.save(update_fields=["order", "status"])
                 update = True
             except SchemeAccount.DoesNotExist:
                 scheme_account = SchemeAccount.objects.create(
@@ -543,7 +543,7 @@ class UpdateCredentialsMixin:
 
         if scheme_account.scheme != scheme:
             scheme_account.scheme = scheme
-            scheme_account.save()
+            scheme_account.save(update_fields=["scheme"])
 
         scheme_account.schemeaccountcredentialanswer_set.exclude(question__type__in=data.keys()).delete()
         return self.update_credentials(scheme_account, data)
