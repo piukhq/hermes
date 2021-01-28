@@ -31,14 +31,8 @@ app.conf.beat_schedule = {
 
 # Send retry and history tasks to a separate queue instead of default ubiquity queue
 app.conf.task_routes = {
-    "history.tasks.record_history": {
-        "queue": "record-history",
-        "priority": 10,  # 0 is highest priority
-    },
-    "history.tasks.bulk_record_history": {
-        "queue": "record-history",
-        "priority": 10,  # 0 is highest priority
-    },
+    "history.tasks.record_history": {"queue": "record-history"},
+    "history.tasks.bulk_record_history": {"queue": "record-history"},
     "retry_tasks": {"queue": "retry-tasks"},
     "expired_payment_void_task": {"queue": "retry-tasks"},
     "retry_metis_request_tasks": {"queue": "retry-tasks"},
