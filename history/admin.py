@@ -72,7 +72,6 @@ class HistoricalCustomUserAdmin(admin.ModelAdmin):
         "channel",
         "created",
         "change_type",
-        "change_details",
     )
     search_fields = ("created", "email", "external_id")
     list_filter = (
