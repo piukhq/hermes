@@ -6,10 +6,7 @@ from history.serializers import (
     get_body_serializer,
     PaymentCardAccountSerializer,
     SchemeAccountSerializer,
-    HistoricalPaymentCardAccountSerializer,
-    HistoricalPaymentCardAccountEntrySerializer,
-    HistoricalSchemeAccountSerializer,
-    HistoricalSchemeAccountEntrySerializer
+    HISTORICAL_SERIALIZERS
 )
 from payment_card.models import PaymentCardAccount
 
@@ -25,10 +22,10 @@ class TestSerializer(TestCase):
     def test_get_historical_serializer(self):
         names = ['PaymentCardAccount', 'PaymentCardAccountEntry', 'SchemeAccount', 'SchemeAccountEntry']
         expected_result = [
-            HistoricalPaymentCardAccountSerializer,
-            HistoricalPaymentCardAccountEntrySerializer,
-            HistoricalSchemeAccountSerializer,
-            HistoricalSchemeAccountEntrySerializer
+            HISTORICAL_SERIALIZERS['HistoricalPaymentCardAccountSerializer'],
+            HISTORICAL_SERIALIZERS['HistoricalPaymentCardAccountEntrySerializer'],
+            HISTORICAL_SERIALIZERS['HistoricalSchemeAccountSerializer'],
+            HISTORICAL_SERIALIZERS['HistoricalSchemeAccountEntrySerializer'],
         ]
 
         for count, name in enumerate(names):
