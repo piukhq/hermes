@@ -13,6 +13,7 @@ from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.signals import HISTORY_CONTEXT, EXCLUDED_FIELDS, get_user_and_channel
 from history.tasks import bulk_record_history
+from history.apps import logger
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -101,6 +102,10 @@ def _get_filters_from_obj_list(obj_list: Iterable) -> dict:
 
 
 def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) -> list:
+    """
+    not suited for large bulks of objects until we implement batch logic
+    """
+
     if not hasattr(objs, "__delitem__"):
         objs = list(objs)
 
@@ -112,14 +117,22 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
         except IntegrityError as e:
             """
             IntegrityError example:
-            "duplicate key value violates unique constraint 
+            "duplicate key value violates unique constraint
             "ubiquity_paymentcardsche_payment_card_account_id__c41ba7ab_uniq"\n
             DETAIL:  Key (payment_card_account_id, scheme_account_id)=(36536, 239065) already exists."
             """
-
             parsed = re.search(r"\((?P<keys>.*)\)=\((?P<values>.*)\)", str(e))
-            parsed_dict = {k: v.split(", ") for k, v in parsed.groupdict().items()}
+            found_items = parsed.groupdict()
+            if not found_items:
+                raise e
+
+            parsed_dict = {k: v.split(", ") for k, v in found_items.items()}
             existing_entry_dict = dict(zip(parsed_dict["keys"], parsed_dict["values"]))
+
+            logger.warning(
+                f"{model.__name__} bulk create hit an IntegrityError, starting recovery procedure.\n"
+                f"Error caused by: {existing_entry_dict}"
+            )
 
             for i, obj in enumerate(objs):
                 if all(map(lambda k: str(getattr(obj, k)) == existing_entry_dict[k], existing_entry_dict)):
