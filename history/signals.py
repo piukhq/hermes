@@ -1,7 +1,6 @@
 from threading import local
 from typing import Tuple, Optional
 
-from django.contrib.auth.models import AnonymousUser
 from django.db.models import signals
 from django.utils import timezone
 
@@ -9,7 +8,6 @@ from history.enums import ExcludedField, DeleteField
 from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.tasks import record_history
-from user.authentication import ServiceUser
 
 HISTORY_CONTEXT = local()
 EXCLUDED_FIELDS = ExcludedField.as_set()

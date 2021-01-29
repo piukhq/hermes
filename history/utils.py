@@ -8,12 +8,12 @@ from django.db import IntegrityError
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
+from history.apps import logger
 from history.enums import DeleteField
 from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.signals import HISTORY_CONTEXT, EXCLUDED_FIELDS, get_user_and_channel
 from history.tasks import bulk_record_history
-from history.apps import logger
 
 if TYPE_CHECKING:
     from django.db.models import Model
@@ -86,21 +86,6 @@ def _get_change_type_and_details(update_fields: list, is_deleted: Tuple[str, boo
     return change_type, change_details
 
 
-def _get_filters_from_obj_list(obj_list: Iterable) -> dict:
-    filters = {}
-    for obj in obj_list:
-        for k, v in obj.items():
-            key = f"k__in"
-            if not isinstance(v, int):
-                pass
-            elif key in filters:
-                filters[key].add(v)
-            else:
-                filters[key] = {v}
-
-    return filters
-
-
 def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) -> list:
     """
     not suited for large bulks of objects until we implement batch logic
@@ -142,13 +127,13 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
 
 
 def _history_bulk(
-    model: Type["Model"],
-    objs: Iterable,
-    update_fields: list = None,
-    *,
-    batch_size: int = None,
-    ignore_conflicts: bool = False,
-    update: bool = False,
+        model: Type["Model"],
+        objs: Iterable,
+        update_fields: list = None,
+        *,
+        batch_size: int = None,
+        ignore_conflicts: bool = False,
+        update: bool = False,
 ) -> list:
     created_at = timezone.now()
     model_name = model.__name__
@@ -214,12 +199,12 @@ def _history_bulk(
 
 
 def history_bulk_update(
-    model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
+        model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
 ) -> None:
     _history_bulk(model, objs, update_fields, batch_size=batch_size, update=True)
 
 
 def history_bulk_create(
-    model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
+        model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
 ) -> list:
     return _history_bulk(model, objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts, update=False)

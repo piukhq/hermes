@@ -203,9 +203,9 @@ class PaymentCardCreationMixin:
         status_code = status.HTTP_201_CREATED
         card = (
             PaymentCardAccount.all_objects.filter(fingerprint=data["fingerprint"])
-                .annotate(belongs_to_this_user=Count("user_set", filter=Q(user_set__id=user.id)))
-                .order_by("-belongs_to_this_user", "is_deleted", "-created")
-                .first()
+            .annotate(belongs_to_this_user=Count("user_set", filter=Q(user_set__id=user.id)))
+            .order_by("-belongs_to_this_user", "is_deleted", "-created")
+            .first()
         )
 
         if card is None:
@@ -1514,8 +1514,8 @@ class MembershipTransactionView(ModelViewSet, VersionedSerializerMixin, Membersh
             request.channels_permit.scheme_account_query(
                 SchemeAccount.objects.filter(id=kwargs["mcard_id"]), user_id=request.user.id, user_filter=True
             )
-                .values_list("transactions", flat=True)
-                .first()
+            .values_list("transactions", flat=True)
+            .first()
         )
         return Response(transactions or [])
 
