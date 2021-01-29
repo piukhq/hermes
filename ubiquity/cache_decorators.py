@@ -28,10 +28,10 @@ class ApiCache:
         self.expire = expire
 
     @staticmethod
-    def time_it_log(start_time, subject, high=200, low=50):
+    def time_it_log(start_time, subject, high=450, low=150):
         taken = int((monotonic() - start_time) * 1000)
         if taken > high:
-            logger.error(f"ApiCache: {subject} took too long at {taken} ms")
+            logger.warning(f"ApiCache: {subject} took too long at {taken} ms")
         elif taken > low:
             logger.warning(f"ApiCache: {subject} took longer than expected at {taken} ms")
 
@@ -130,12 +130,12 @@ class CacheApiRequest(object):
                 if response.status_code == 200:
                     cache.save(response.data)
                 else:
-                    logger.erro(f"ApiCache: could not regenerate cache due to request error {response.status_code}")
+                    logger.error(f"ApiCache: could not regenerate cache due to request error {response.status_code}")
 
             cache.time_it_log(request_start_time,
                               f"Request Response for {self.key_slug} key:{key} with Cache {cache_hit} ",
-                              high=350,
-                              low=250)
+                              high=450,
+                              low=350)
             return response
 
         return wrapped_f
