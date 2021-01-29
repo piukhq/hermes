@@ -958,7 +958,7 @@ class TestAppleLogin(GlobalMockAPITestCase):
         self.assertEqual(jwt_data["aud"], aud)
 
 
-class TestSocialLogin(APITestCase):
+class TestSocialLogin(GlobalMockAPITestCase):
     def test_social_login_exists(self):
         facebook_id = 'O7bz6vG60Y'
         created_user = UserFactory(facebook=facebook_id)
