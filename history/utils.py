@@ -17,6 +17,7 @@ from history.tasks import bulk_record_history
 
 if TYPE_CHECKING:
     from django.db.models import Model
+    from datetime import datetime
 
 user_info = namedtuple("user_info", ("user_id", "channel"))
 
@@ -126,38 +127,9 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
     return created_objs
 
 
-def _history_bulk(
-        model: Type["Model"],
-        objs: Iterable,
-        update_fields: list = None,
-        *,
-        batch_size: int = None,
-        ignore_conflicts: bool = False,
-        update: bool = False,
+def _format_history_objs(
+        model_name: str, created_at: "datetime", objs: Iterable, change_type: str, change_details: str
 ) -> list:
-    created_at = timezone.now()
-    model_name = model.__name__
-
-    if update:
-        model.objects.bulk_update(objs, update_fields, batch_size=batch_size)
-
-        if hasattr(model, DeleteField.IS_DELETED.value):
-            is_deleted = DeleteField.IS_DELETED.get_value(objs)
-        elif hasattr(model, DeleteField.IS_ACTIVE.value):
-            is_deleted = DeleteField.IS_ACTIVE.get_value(objs)
-        else:
-            is_deleted = DeleteField.NONE.get_value()
-
-        change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
-    else:
-
-        if ignore_conflicts:
-            objs = _bulk_create_with_id(model, objs, batch_size)
-        else:
-            objs = model.objects.bulk_create(objs, batch_size=batch_size)
-
-        change_type, change_details = HistoricalBase.CREATE, ""
-
     user_id, channel = get_user_and_channel()
     required_extra_fields = get_required_extra_fields(model_name)
     history_objs = []
@@ -193,6 +165,49 @@ def _history_bulk(
                 **extra,
             }
         )
+
+    return history_objs
+
+
+def _history_bulk(
+        model: Type["Model"],
+        objs: Iterable,
+        update_fields: list = None,
+        *,
+        batch_size: int = None,
+        ignore_conflicts: bool = False,
+        update: bool = False,
+) -> list:
+    created_at = timezone.now()
+    model_name = model.__name__
+
+    if update:
+        model.objects.bulk_update(objs, update_fields, batch_size=batch_size)
+
+        if hasattr(model, DeleteField.IS_DELETED.value):
+            is_deleted = DeleteField.IS_DELETED.get_value(objs)
+        elif hasattr(model, DeleteField.IS_ACTIVE.value):
+            is_deleted = DeleteField.IS_ACTIVE.get_value(objs)
+        else:
+            is_deleted = DeleteField.NONE.get_value()
+
+        change_type, change_details = _get_change_type_and_details(update_fields, is_deleted)
+    else:
+
+        if ignore_conflicts:
+            objs = _bulk_create_with_id(model, objs, batch_size)
+        else:
+            objs = model.objects.bulk_create(objs, batch_size=batch_size)
+
+        change_type, change_details = HistoricalBase.CREATE, ""
+
+    history_objs = _format_history_objs(
+        model_name,
+        created_at,
+        objs,
+        change_type,
+        change_details
+    )
 
     bulk_record_history.delay(model_name, history_objs)
     return objs

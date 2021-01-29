@@ -7,6 +7,10 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from history.utils import history_bulk_update
 from payment_card import metis, serializers
@@ -16,10 +20,6 @@ from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
 from prometheus.metrics import payment_card_status_change_counter, payment_card_processing_seconds_histogram
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -379,29 +379,33 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.agent_data = agent_data
 
         if response_action == "Delete":
-            # Retry with delete action is only called for providers which support it eg VOP path
-            retry_task = "retry_delete_payment_card"
-            deactivated_list = request.data.get('deactivated_list', [])
-            deactivate_errors = request.data.get('deactivate_errors', {})
-            if deactivate_errors:
-                response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
-
-            if deactivated_list:
-                updated_activations = []
-                for activation in VopActivation.objects.filter(id__in=deactivated_list).all():
-                    activation.status = VopActivation.DEACTIVATED
-                    updated_activations.append(activation)
-
-                history_bulk_update(VopActivation, updated_activations, update_fields=["status"])
-
+            retry_task, response_message = self._process_delete_response_action(request, response_message)
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
-
             return Response({
                 'id': payment_card_account.id
             })
 
         return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
                                   response_message, response_status, card_id)
+
+    @staticmethod
+    def _process_delete_response_action(request, response_message):
+        # Retry with delete action is only called for providers which support it eg VOP path
+        retry_task = "retry_delete_payment_card"
+        deactivated_list = request.data.get('deactivated_list', [])
+        deactivate_errors = request.data.get('deactivate_errors', {})
+        if deactivate_errors:
+            response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
+
+        if deactivated_list:
+            updated_activations = []
+            for activation in VopActivation.objects.filter(id__in=deactivated_list).all():
+                activation.status = VopActivation.DEACTIVATED
+                updated_activations.append(activation)
+
+            history_bulk_update(VopActivation, updated_activations, update_fields=["status"])
+
+        return retry_task, response_message
 
     def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
                       response_message, response_status, card_id):
