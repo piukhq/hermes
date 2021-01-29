@@ -357,8 +357,8 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         retry_id = request.data.get('retry_id', None)
         response_action = request.data.get('response_action', "Add")
         new_status_code = request.data.get('status', None)
-        deactivated_list = request.data.get('deactivated_list', [])
-        deactivate_errors = request.data.get('deactivate_errors', {})
+        # deactivated_list = request.data.get('deactivated_list', [])
+        # deactivate_errors = request.data.get('deactivate_errors', {})
         agent_card_uid = request.data.get('agent_card_uid', None)
 
         if agent_card_uid:
