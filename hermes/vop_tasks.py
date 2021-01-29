@@ -1,8 +1,12 @@
 import requests
 from celery import shared_task
 from django.conf import settings
+
+from prometheus_client import push_to_gateway
+
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
+from prometheus.metrics import registry, vop_activation_status
 
 
 def vop_activate_request(activation):
@@ -35,10 +39,17 @@ def process_result(rep, activation, link_action):
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
             activation.save()
+            vop_activation_status.labels(status='Activating').dec(1)
+            vop_activation_status.labels(status='Activated').inc()
+            push_to_gateway(settings.PROMETHEUS_PUSH_GATEWAY, job='hermes', registry=registry)
+
         elif link_action == activation.DEACTIVATING:
             # todo May be try periodic delete or delete it now instead of save
             activation.status = activation.DEACTIVATED
             activation.save()
+            vop_activation_status.labels(status='Deactivating').dec(1)
+            vop_activation_status.labels(status='Deactivated').inc()
+            push_to_gateway(settings.PROMETHEUS_PUSH_GATEWAY, job='hermes', registry=registry)
 
         status = PeriodicRetryStatus.SUCCESSFUL
         return status, response_data
@@ -55,6 +66,10 @@ def activate(activation, data: dict):
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
+
+    vop_activation_status.labels(status=activation.VOP_STATUS[activation.ACTIVATING][1]).inc()
+    push_to_gateway(settings.PROMETHEUS_PUSH_GATEWAY, job='hermes', registry=registry)
+
     return process_result(rep, activation, activation.ACTIVATING)
 
 

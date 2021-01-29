@@ -2,7 +2,10 @@ from enum import Enum
 
 from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry
+
+
+registry = CollectorRegistry()
 
 
 def m(metric_name: str) -> str:
@@ -80,4 +83,12 @@ membership_card_update_counter = Counter(
     documentation="Total number of membership cards updated.",
     labelnames=("channel", "scheme", "route"),
     namespace=NAMESPACE,
+)
+
+vop_activation_status = Gauge(
+    name="vop_activation_status_count",
+    documentation="Vop activation status count.",
+    labelnames=("status",),
+    namespace=NAMESPACE,
+    registry=registry
 )
