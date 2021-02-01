@@ -80,6 +80,7 @@ class HistoricalCustomUserAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalPaymentCardAccount)
@@ -193,6 +194,7 @@ class HistoricalVopActivationAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalPaymentCardSchemeEntry)
@@ -217,3 +219,4 @@ class HistoricalPaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
+    readonly_fields = ('created',)
