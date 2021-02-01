@@ -1,10 +1,8 @@
 import logging
 import re
 import typing as t
-from pathlib import Path
 
 import arrow
-from azure.storage.blob import BlockBlobService
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
@@ -1013,35 +1011,6 @@ class MembershipCardView(
             },
         )
         return scheme_account, status.HTTP_201_CREATED
-
-    @staticmethod
-    def _manual_check_csv_creation(add_fields: dict) -> None:
-        email, *_ = add_fields.values()
-
-        if settings.MANUAL_CHECK_USE_AZURE:
-            csv_name = "{}{}_{}".format(
-                settings.MANUAL_CHECK_AZURE_FOLDER,
-                arrow.utcnow().format("DD_MM_YYYY"),
-                settings.MANUAL_CHECK_AZURE_CSV_FILENAME,
-            )
-
-            blob_storage = BlockBlobService(
-                settings.MANUAL_CHECK_AZURE_ACCOUNT_NAME, settings.MANUAL_CHECK_AZURE_ACCOUNT_KEY
-            )
-            if blob_storage.exists(settings.MANUAL_CHECK_AZURE_CONTAINER, csv_name):
-                current = blob_storage.get_blob_to_text(settings.MANUAL_CHECK_AZURE_CONTAINER, csv_name).content
-            else:
-                current = '"email","authorised (yes, no, pending)"'
-
-            current += '\n"{}",pending'.format(email)
-            blob_storage.create_blob_from_text(settings.MANUAL_CHECK_AZURE_CONTAINER, csv_name, current)
-        else:
-            if not Path(settings.MANUAL_CHECK_CSV_PATH).exists():
-                with open(settings.MANUAL_CHECK_CSV_PATH, "w") as f:
-                    f.write('"email","authorised (yes, no, pending)"')
-
-            with open(settings.MANUAL_CHECK_CSV_PATH, "a") as f:
-                f.write('\n"{}",pending'.format(email))
 
     @staticmethod
     def _get_manual_question(scheme_slug, scheme_questions):
