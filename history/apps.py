@@ -11,10 +11,10 @@ class HistoryConfig(AppConfig):
     name = "history"
 
     def ready(self):
-        from history.enums import HistoryModel
-        from history.signals import signal_record_history
-
         if settings.INIT_RUNTIME_APPS or settings.TESTING:
+            from history.enums import HistoryModel
+            from history.signals import signal_record_history
+
             logger.info("Connecting History signals.")
             for sender in HistoryModel:
                 signals.post_save.connect(signal_record_history, sender=sender.value)

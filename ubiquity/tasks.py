@@ -12,7 +12,7 @@ from rest_framework import serializers
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
-from history.utils import set_history_kwargs, clean_history_kwargs
+from history.utils import set_history_kwargs, clean_history_kwargs, history_bulk_update, history_bulk_create
 from payment_card import metis
 from payment_card.models import PaymentCardAccount, PaymentCard
 from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
@@ -282,15 +282,52 @@ def _send_data_to_atlas(consent: dict) -> None:
     requests.post(url=url, headers=headers, json=data)
 
 
+def _delete_user_membership_cards(user: "CustomUser", send_deactivation: bool = True) -> None:
+    cards_to_delete = []
+    for card in user.scheme_account_set.prefetch_related('user_set').all():
+        if card.user_set.count() == 1:
+            card.is_deleted = True
+            cards_to_delete.append(card)
+
+    # VOP deactivate
+    links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
+    if send_deactivation:
+        vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
+        activations = VopActivation.find_activations_matching_links(vop_links)
+        PaymentCardSchemeEntry.deactivate_activations(activations)
+
+    # TODO check if signal picks up queryset.delete()
+    links_to_remove.delete()
+    history_bulk_update(SchemeAccount, cards_to_delete, ['is_deleted'])
+    user.schemeaccountentry_set.all().delete()
+
+
+def _delete_user_payment_cards(user: "CustomUser", run_async: bool = True) -> None:
+    cards_to_delete = []
+    for card in user.payment_card_account_set.prefetch_related('user_set').all():
+        if card.user_set.count() == 1:
+            card.is_deleted = True
+            cards_to_delete.append(card)
+            metis.delete_payment_card(card, run_async=run_async)
+
+    # TODO check if signal picks up queryset.delete()
+    PaymentCardSchemeEntry.objects.filter(
+        payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
+    history_bulk_update(PaymentCardAccount, cards_to_delete, ['is_deleted'])
+    user.paymentcardaccountentry_set.all().delete()
+
+
 @shared_task
-def deleted_service_cleanup(user_id: int, consent: dict) -> None:
+def deleted_service_cleanup(user_id: int, consent: dict, history_kwargs: dict = None) -> None:
+    set_history_kwargs(history_kwargs)
     user = CustomUser.all_objects.get(id=user_id)
     user.serviceconsent.delete()
     # Don't deactivate when removing membership card as it will race with delete payment card
     # Deleting all payment cards causes an unenrol for each card which also deactivates all linked activations
     # if a payment card was linked to 2 accounts its activations will not be deleted
-    user.delete_membership_cards(send_deactivation=False)
-    user.delete_payment_cards(run_async=False)
+    _delete_user_membership_cards(user, send_deactivation=False)
+    _delete_user_payment_cards(user, run_async=False)
+    clean_history_kwargs(history_kwargs)
 
     try:  # send user info to be persisted in Atlas
         _send_data_to_atlas(consent)
@@ -337,7 +374,13 @@ def _process_vop_activations(created_links, prechecked=False):
 
 
 @shared_task
-def auto_link_membership_to_payments(payment_cards_to_link: list, membership_card: t.Union[SchemeAccount, int]) -> None:
+def auto_link_membership_to_payments(
+        payment_cards_to_link: list,
+        membership_card: t.Union[SchemeAccount, int],
+        history_kwargs: dict = None
+) -> None:
+    set_history_kwargs(history_kwargs)
+
     if isinstance(membership_card, int):
         membership_card = SchemeAccount.objects.get(id=membership_card)
 
@@ -374,9 +417,13 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
             if payment_card_account.payment_card.slug == PaymentCard.VISA:
                 vop_activated_cards.append(payment_card_account.id)
 
-    created_links = PaymentCardSchemeEntry.objects.bulk_create(
-        link_entries_to_create, batch_size=100, ignore_conflicts=True
+    created_links = history_bulk_create(
+        PaymentCardSchemeEntry,
+        link_entries_to_create,
+        batch_size=100,
+        ignore_conflicts=True
     )
+
     logger.info(
         "auto-linked SchemeAccount %s to PaymentCardAccounts %s, of which %s were active links",
         membership_card.id,
@@ -398,6 +445,7 @@ def auto_link_membership_to_payments(payment_cards_to_link: list, membership_car
         [link for link in created_links if link.payment_card_account_id in vop_activated_cards],
         prechecked=True
     )
+    clean_history_kwargs(history_kwargs)
 
 
 def _get_instances_to_bulk_create(
@@ -433,8 +481,11 @@ def _get_instances_to_bulk_create(
 def auto_link_payment_to_memberships(
         wallet_scheme_accounts: list,
         payment_card_account: t.Union[PaymentCardAccount, int],
-        just_created: bool
+        just_created: bool,
+        history_kwargs: dict = None
 ) -> None:
+    set_history_kwargs(history_kwargs)
+
     if isinstance(payment_card_account, int):
         payment_card_account = PaymentCardAccount.objects.select_related("payment_card").get(pk=payment_card_account)
 
@@ -448,7 +499,8 @@ def auto_link_payment_to_memberships(
         if link.active_link is True
     ]
 
-    created_links = PaymentCardSchemeEntry.objects.bulk_create(
+    created_links = history_bulk_create(
+        PaymentCardSchemeEntry,
         instances_to_bulk_create.values(),
         batch_size=100,
         ignore_conflicts=True
@@ -469,3 +521,5 @@ def auto_link_payment_to_memberships(
             [link for link in created_links if link.scheme_account_id in pll_activated_membership_cards],
             prechecked=True
         )
+
+    clean_history_kwargs(history_kwargs)

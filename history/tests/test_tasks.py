@@ -1,6 +1,5 @@
-from rest_framework.test import APITestCase
-
 from django.test import override_settings
+from rest_framework.test import APITestCase
 
 from history import tasks
 from history.models import HistoricalBase, HistoricalPaymentCardAccount
@@ -17,6 +16,7 @@ class TestTasks(APITestCase):
         cls.payment_card_account = PaymentCardAccountFactory()
 
     def test_record_history(self):
+        payment_card_account_history_pre = HistoricalPaymentCardAccount.objects.count()
         tasks.record_history(
             "PaymentCardAccount",
             **{
@@ -26,14 +26,41 @@ class TestTasks(APITestCase):
                 "channel": "bink"
             }
         )
-        payment_card_account_history = HistoricalPaymentCardAccount.objects.all()
+        payment_card_account_history_post = HistoricalPaymentCardAccount.objects.count()
+        payment_card_account_history_last = HistoricalPaymentCardAccount.objects.latest("id")
 
-        self.assertEqual(len(payment_card_account_history), 2)
+        self.assertEqual(payment_card_account_history_post, payment_card_account_history_pre + 1)
         self.assertEqual(
-            payment_card_account_history[0].instance_id,
+            payment_card_account_history_last.instance_id,
             str(self.payment_card_account.id)
         )
         self.assertEqual(
-            payment_card_account_history[0].change_type,
+            payment_card_account_history_last.change_type,
+            HistoricalBase.CREATE,
+        )
+
+    def test_bulk_record_history(self):
+        payment_card_account_history_pre = HistoricalPaymentCardAccount.objects.count()
+        tasks.bulk_record_history(
+            "PaymentCardAccount",
+            [
+                {
+                    "body": "some_stuff",
+                    "instance_id": self.payment_card_account.id,
+                    "change_type": HistoricalBase.CREATE,
+                    "channel": "bink"
+                }
+            ]
+        )
+        payment_card_account_history_post = HistoricalPaymentCardAccount.objects.count()
+        payment_card_account_history_last = HistoricalPaymentCardAccount.objects.latest("id")
+
+        self.assertEqual(payment_card_account_history_post, payment_card_account_history_pre + 1)
+        self.assertEqual(
+            payment_card_account_history_last.instance_id,
+            str(self.payment_card_account.id)
+        )
+        self.assertEqual(
+            payment_card_account_history_last.change_type,
             HistoricalBase.CREATE,
         )
