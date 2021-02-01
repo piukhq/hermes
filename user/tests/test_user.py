@@ -12,7 +12,6 @@ from django.http import HttpResponse
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnList
 
 from hermes import settings
@@ -958,7 +957,7 @@ class TestAppleLogin(GlobalMockAPITestCase):
         self.assertEqual(jwt_data["aud"], aud)
 
 
-class TestSocialLogin(APITestCase):
+class TestSocialLogin(GlobalMockAPITestCase):
     def test_social_login_exists(self):
         facebook_id = 'O7bz6vG60Y'
         created_user = UserFactory(facebook=facebook_id)

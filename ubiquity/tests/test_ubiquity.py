@@ -1891,7 +1891,7 @@ class TestResources(GlobalMockAPITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('user.models.metis', autospec=True)
+    @patch('ubiquity.tasks.metis', autospec=True)
     def test_delete_service(self, _):
         user = UserFactory(external_id='test@delete.user', client=self.client_app, email='test@delete.user')
         ServiceConsentFactory(user=user)

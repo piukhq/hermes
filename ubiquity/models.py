@@ -75,30 +75,30 @@ class VopActivation(models.Model):
                 pass
         return activations
 
-    @classmethod
-    def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=ACTIVATED):
-        """Find activations matching account id and return a serializable object"""
-        activation_dict = {}
-
-        activations = cls.objects.filter(
-                payment_card_account_id=payment_card_account_id,
-                status=status
-        )
-
-        for activation in activations:
-            activation_id = activation.activation_id
-            activation_dict[activation.id] = {
-                'scheme': activation.scheme.slug,
-                'activation_id': activation_id
-            }
-
-        activations.update(status=VopActivation.DEACTIVATING)
-
-        return activation_dict
+    # @classmethod
+    # def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=ACTIVATED):
+    #     """Find activations matching account id and return a serializable object"""
+    #     activation_dict = {}
+    #
+    #     activations = cls.objects.filter(
+    #             payment_card_account_id=payment_card_account_id,
+    #             status=status
+    #     )
+    #
+    #     for activation in activations:
+    #         activation_id = activation.activation_id
+    #         activation_dict[activation.id] = {
+    #             'scheme': activation.scheme.slug,
+    #             'activation_id': activation_id
+    #         }
+    #         activation.status = VopActivation.DEACTIVATING
+    #
+    #     history_bulk_update(VopActivation, activations, update_fields=["status"])
+    #
+    #     return activation_dict
 
 
 class PaymentCardSchemeEntry(models.Model):
-
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -128,7 +128,7 @@ class PaymentCardSchemeEntry(models.Model):
                     scheme=self.scheme_account.scheme,
                     defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
                 )
-                if created or vop_activation.status == VopActivation.DEACTIVATED\
+                if created or vop_activation.status == VopActivation.DEACTIVATED \
                         or vop_activation.status == VopActivation.DEACTIVATING:
                     vop_activate_request(vop_activation)
 
@@ -185,8 +185,8 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     logger.info('payment card scheme entry of id %s has been deleted or deactivated', instance.id)
 
     def _remove_deleted_link_from_card(
-        card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
-        linked_card_id: Type[int]
+            card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
+            linked_card_id: Type[int]
     ) -> None:
         model = card_to_update.__class__
         card_id = card_to_update.id
@@ -212,8 +212,8 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
     if instance.active_link:
 
         def _add_new_link_to_card(
-            card: Union['PaymentCardAccount', 'SchemeAccount'],
-            linked_card_id: Type[int]
+                card: Union['PaymentCardAccount', 'SchemeAccount'],
+                linked_card_id: Type[int]
         ) -> None:
             model = card.__class__
             card_id = card.id

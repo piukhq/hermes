@@ -7,6 +7,7 @@ from history.models import (
     HistoricalSchemeAccount,
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccountEntry,
+    HistoricalCustomUser, HistoricalVopActivation, HistoricalPaymentCardSchemeEntry
 )
 
 
@@ -53,7 +54,33 @@ class UserFilter(InputFilter):
         if term is None:
             return
 
-        return queryset.filter(user_id=term)
+        if "User" in queryset.model.__name__:
+            query = {"id": term}
+        else:
+            query = {"user_id": term}
+
+        return queryset.filter(**query)
+
+
+@admin.register(HistoricalCustomUser)
+class HistoricalCustomUserAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "instance_id",
+        "email",
+        "external_id",
+        "channel",
+        "created",
+        "change_type",
+    )
+    search_fields = ("created", "email", "external_id")
+    list_filter = (
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
+    readonly_fields = ('created',)
 
 
 @admin.register(HistoricalPaymentCardAccount)
@@ -88,7 +115,6 @@ class HistoricalPaymentCardAccountEntryAdmin(admin.ModelAdmin):
         "channel",
         "change_type",
         "created",
-        "change_details",
     )
     search_fields = ("instance_id", "created")
     list_filter = (
@@ -135,12 +161,60 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
         "channel",
         "change_type",
         "created",
-        "change_details",
     )
     search_fields = ("instance_id", "created")
     list_filter = (
         SchemeAccountFilter,
         UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
+    readonly_fields = ('created',)
+
+
+@admin.register(HistoricalVopActivation)
+class HistoricalVopActivationAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "instance_id",
+        "user_id",
+        "channel",
+        "payment_card_account_id",
+        "scheme_id",
+        "change_type",
+        "created",
+        "change_details",
+    )
+    search_fields = ("instance_id", "scheme_id", "created")
+    list_filter = (
+        PaymentCardAccountFilter,
+        UserFilter,
+        "channel",
+        "change_type",
+        ("created", DateTimeRangeFilter),
+    )
+    readonly_fields = ('created',)
+
+
+@admin.register(HistoricalPaymentCardSchemeEntry)
+class HistoricalPaymentCardSchemeEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "instance_id",
+        "user_id",
+        "channel",
+        "payment_card_account_id",
+        "scheme_account_id",
+        "change_type",
+        "created",
+        "change_details",
+    )
+    search_fields = ("instance_id", "created")
+    list_filter = (
+        UserFilter,
+        PaymentCardAccountFilter,
+        SchemeAccountFilter,
         "channel",
         "change_type",
         ("created", DateTimeRangeFilter),
