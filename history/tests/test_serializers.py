@@ -1,15 +1,13 @@
 from django.test import TestCase
 
+from history.enums import HistoryModel
 from history.serializers import (
     _get_serializer,
     get_historical_serializer,
     get_body_serializer,
     PaymentCardAccountSerializer,
     SchemeAccountSerializer,
-    HistoricalPaymentCardAccountSerializer,
-    HistoricalPaymentCardAccountEntrySerializer,
-    HistoricalSchemeAccountSerializer,
-    HistoricalSchemeAccountEntrySerializer
+    HISTORICAL_SERIALIZERS
 )
 from payment_card.models import PaymentCardAccount
 
@@ -23,12 +21,14 @@ class TestSerializer(TestCase):
         self.assertEqual(result, PaymentCardAccount)
 
     def test_get_historical_serializer(self):
-        names = ['PaymentCardAccount', 'PaymentCardAccountEntry', 'SchemeAccount', 'SchemeAccountEntry']
+        names = [
+            history_model.model_name
+            for history_model in HistoryModel
+        ]
+
         expected_result = [
-            HistoricalPaymentCardAccountSerializer,
-            HistoricalPaymentCardAccountEntrySerializer,
-            HistoricalSchemeAccountSerializer,
-            HistoricalSchemeAccountEntrySerializer
+            HISTORICAL_SERIALIZERS[history_model.historic_serializer_name]
+            for history_model in HistoryModel
         ]
 
         for count, name in enumerate(names):

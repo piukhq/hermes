@@ -13,6 +13,7 @@ from prometheus.metrics import vop_activation_status, push_metric
 from ubiquity.models import VopActivation
 from requests import request, HTTPError
 from scheme.models import SchemeAccount
+from ubiquity.utils import vop_deactivation_dict_by_payment_card_id
 
 
 def retry_payment_void_task(transaction_data: dict) -> (bool, str):
@@ -64,7 +65,7 @@ def expired_payment_void_task() -> None:
 @shared_task
 def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, payload: dict,
                                        status: object = VopActivation.ACTIVATED) -> None:
-    payload['activations'] = VopActivation.deactivation_dict_by_payment_card_id(payload['id'], status)
+    payload['activations'] = vop_deactivation_dict_by_payment_card_id(payload['id'], status)
     args = (
         method,
         endpoint,

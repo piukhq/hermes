@@ -55,11 +55,23 @@ class MockApiCache:
         MockApiCache.data = None
         MockApiCache.expire = expire
         MockApiCache.available_called = False
+        MockApiCache.start_time = 0
+        MockApiCache.subject = ""
+        MockApiCache.cache_hi = 0
+        MockApiCache.cache_lo = 0
 
     @property
     def available(self):
         MockApiCache.available_called = True
         return False
+
+    @staticmethod
+    def time_it_log(start_time, subject, high=200, low=50):
+        MockApiCache.start_time = start_time
+        MockApiCache.subject = subject
+        MockApiCache.cache_hi = high
+        MockApiCache.cache_lo = low
+        return
 
     def save(self, data):
         MockApiCache.data = data
@@ -1879,7 +1891,7 @@ class TestResources(GlobalMockAPITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('user.models.metis', autospec=True)
+    @patch('ubiquity.tasks.metis', autospec=True)
     def test_delete_service(self, _):
         user = UserFactory(external_id='test@delete.user', client=self.client_app, email='test@delete.user')
         ServiceConsentFactory(user=user)
