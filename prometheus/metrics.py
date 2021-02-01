@@ -1,11 +1,27 @@
 from enum import Enum
+from urllib.error import URLError
 
+import sentry_sdk
+from django.conf import settings
 from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry
+from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, push_to_gateway
 
 
 registry = CollectorRegistry()
+
+
+# Manually push metrics that's not capture via the middleware. i.e. celery
+def push_metric(grouping_key: str):
+    try:
+        push_to_gateway(
+            settings.PROMETHEUS_PUSH_GATEWAY,
+            job='hermes',
+            registry=registry,
+            grouping_key={grouping_key: grouping_key}
+        )
+    except URLError as e:
+        sentry_sdk.capture_exception(e)
 
 
 def m(metric_name: str) -> str:
