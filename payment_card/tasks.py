@@ -9,6 +9,7 @@ from hermes.tasks import RetryTaskStore
 from payment_card.enums import RequestMethod
 from payment_card.models import PaymentAudit, PaymentStatus
 from payment_card.payment import Payment, PaymentError
+from prometheus.metrics import VopStatus, vop_activation_status, push_metric
 from ubiquity.models import VopActivation
 from requests import request, HTTPError
 from scheme.models import SchemeAccount
@@ -71,6 +72,8 @@ def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, pay
         payload,
     )
     metis_request(*args)
+    vop_activation_status.labels(status=VopStatus.DEACTIVATING).inc(len(payload['activations']))
+    push_metric("vop")
 
 
 @shared_task
@@ -86,5 +89,10 @@ def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> None:
     )
     try:
         response.raise_for_status()
+        if method == RequestMethod.DELETE:
+            vop_activation_status.labels(status=VopStatus.DEACTIVATED.value).inc(len(payload['activations']))
+            vop_activation_status.labels(status=VopStatus.ACTIVATED.value).dec(len(payload['activations']))
+            vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).dec(len(payload['activations']))
+            push_metric("vop")
     except HTTPError:
         sentry_sdk.capture_exception()
