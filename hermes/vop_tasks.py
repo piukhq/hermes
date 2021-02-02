@@ -4,7 +4,7 @@ from django.conf import settings
 
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
-from prometheus.metrics import push_metric, vop_activation_status
+from prometheus.metrics import VopStatus, push_metric, vop_activation_status
 
 
 def vop_activate_request(activation):
@@ -38,8 +38,8 @@ def process_result(rep, activation, link_action):
             activation.status = activation.ACTIVATED
             activation.save(update_fields=["activation_id", "status"])
 
-            vop_activation_status.labels(status='Activating').dec(1)
-            vop_activation_status.labels(status='Activated').inc()
+            vop_activation_status.labels(status=VopStatus.ACTIVATING.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.ACTIVATED.value).inc()
             push_metric("vop")
 
         elif link_action == activation.DEACTIVATING:
@@ -47,9 +47,9 @@ def process_result(rep, activation, link_action):
             activation.status = activation.DEACTIVATED
             activation.save(update_fields=["status"])
 
-            vop_activation_status.labels(status='Deactivating').dec(1)
-            vop_activation_status.labels(status='Activated').dec(1)
-            vop_activation_status.labels(status='Deactivated').inc()
+            vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.ACTIVATED.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.DEACTIVATED.value).inc()
             push_metric("vop")
 
         status = PeriodicRetryStatus.SUCCESSFUL
@@ -70,7 +70,7 @@ def activate(activation, data: dict):
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
 
-    vop_activation_status.labels(status='Activating').inc()
+    vop_activation_status.labels(status=VopStatus.ACTIVATING.value).inc()
     push_metric("vop")
 
     return process_result(rep, activation, activation.ACTIVATING)
@@ -97,7 +97,7 @@ def deactivate(activation, data: dict):
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
 
-    vop_activation_status.labels(status='Deactivating').inc()
+    vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).inc()
     push_metric("vop")
 
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',

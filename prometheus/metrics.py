@@ -49,6 +49,13 @@ class MembershipCardAddRoute(str, Enum):
     MULTI_WALLET = "Multi Wallet"
 
 
+class VopStatus(str, Enum):
+    ACTIVATING = "Activating"
+    ACTIVATED = "Activated"
+    DEACTIVATING = "Deactivating"
+    DEACTIVATED = "Deactivated"
+
+
 class CustomMetrics(Metrics):
     def register_metric(self, metric_cls, name, documentation, labelnames=(), **kwargs):
         if name in ADD_CHANNEL_TO_METRICS:
