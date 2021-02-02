@@ -254,11 +254,10 @@ class Login(GenericAPIView):
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
 
-        try:
-            HISTORY_CONTEXT.user_info = user_info(user_id=user.id, channel=serializer.validated_data['bundle_id'])
-        except KeyError:
-            # if there is not bundle_id it will fallback to internal_service but still register the history correctly.
-            pass
+        HISTORY_CONTEXT.user_info = user_info(
+            user_id=user.id,
+            channel=serializer.validated_data.get('bundle_id', "internal_service")
+        )
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,
