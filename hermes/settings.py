@@ -18,6 +18,7 @@ from enum import Enum
 
 import sentry_sdk
 from sentry_sdk.integrations import celery, django
+from sentry_sdk.integrations.redis import RedisIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
