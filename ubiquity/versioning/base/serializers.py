@@ -39,7 +39,7 @@ def _add_base_media_url(image: dict) -> dict:
     if settings.NO_AZURE_STORAGE:
         base_url = settings.MEDIA_URL
     else:
-        base_url = settings.HERMES_CUSTOM_DOMAIN
+        base_url = join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
 
     return {
         **image,

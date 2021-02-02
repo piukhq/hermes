@@ -216,7 +216,8 @@ if not NO_AZURE_STORAGE:
     HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
     AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
     # For generating image urls with a custom domain
-    AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={HERMES_CUSTOM_DOMAIN}/content"
+    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
+    AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
 
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
