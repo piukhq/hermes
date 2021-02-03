@@ -174,7 +174,11 @@ class PaymentCardSchemeEntry(models.Model):
                 active_link=True
             ).count()
             if not matches and activation.status == VopActivation.ACTIVATED:
-                history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+                try:
+                    history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+                except AttributeError:
+                    history_kwargs = None
+
                 send_deactivation.delay(activation, history_kwargs)
 
     @classmethod
