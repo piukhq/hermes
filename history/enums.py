@@ -26,6 +26,14 @@ class HistoryModel(Enum):
     def historic_serializer_name(self):
         return f"{self.historic_model_name}Serializer"
 
+    @classmethod
+    def require_body_serializers(cls) -> List[Tuple[str, str]]:
+        return [
+            entry.value.split(".")
+            for entry in cls
+            if entry in [cls.PAYMENT_CARD_ACCOUNT, cls.SCHEME_ACCOUNT, cls.CUSTOM_USER]
+        ]
+
 
 class SchemeAccountJourney(Enum):
     NONE = "n/a"
