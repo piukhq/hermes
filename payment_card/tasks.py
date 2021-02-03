@@ -72,7 +72,7 @@ def metis_delete_cards_and_activations(method: RequestMethod, endpoint: str, pay
         payload,
     )
     metis_request(*args)
-    vop_activation_status.labels(status=VopStatus.DEACTIVATING).inc(len(payload['activations']))
+    vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).inc(len(payload['activations']))
     push_metric("vop")
 
 
