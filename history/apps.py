@@ -14,8 +14,10 @@ class HistoryConfig(AppConfig):
         if settings.INIT_RUNTIME_APPS or settings.TESTING:
             from history.enums import HistoryModel
             from history.signals import signal_record_history
+            from history.serializers import load_body_serializers
 
             logger.info("Connecting History signals.")
+            load_body_serializers()
             for sender in HistoryModel:
                 signals.post_save.connect(signal_record_history, sender=sender.value)
                 signals.pre_delete.connect(signal_record_history, sender=sender.value)
