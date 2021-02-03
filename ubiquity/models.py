@@ -9,6 +9,7 @@ from django.db.models import signals
 from django.dispatch import receiver
 
 from hermes.vop_tasks import vop_activate_request, send_deactivation
+from history.signals import HISTORY_CONTEXT
 
 if TYPE_CHECKING:
     from scheme.models import SchemeAccount  # noqa
@@ -173,7 +174,8 @@ class PaymentCardSchemeEntry(models.Model):
                 active_link=True
             ).count()
             if not matches and activation.status == VopActivation.ACTIVATED:
-                send_deactivation.delay(activation)
+                history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+                send_deactivation.delay(activation, history_kwargs)
 
     @classmethod
     def update_soft_links(cls, query):
