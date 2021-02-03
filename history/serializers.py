@@ -53,6 +53,7 @@ class ReadOnlyModelSerializer(serializers.ModelSerializer):
         return filtered_fields
 
 
+# using factories and load on app ready to prevent circular imports from scheme, payment_card, etc
 def body_serializer_factory(serializer_name: str, app_name: str, model_name: str) -> Any:
     model = apps.get_model(app_name, model_name)
 

@@ -2,6 +2,8 @@ import requests
 from celery import shared_task
 from django.conf import settings
 
+from history.signals import HISTORY_CONTEXT
+from history.utils import set_history_kwargs, clean_history_kwargs
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
 from prometheus.metrics import VopStatus, push_metric, vop_activation_status
@@ -15,7 +17,8 @@ def vop_activate_request(activation):
         'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
 
-    send_activation.delay(activation, data)
+    history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+    send_activation.delay(activation, data, history_kwargs)
 
 
 def process_result(rep, activation, link_action):
@@ -77,7 +80,8 @@ def activate(activation, data: dict):
 
 
 @shared_task
-def send_activation(activation, data: dict):
+def send_activation(activation, data: dict, history_kwargs: dict = None):
+    set_history_kwargs(history_kwargs)
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
@@ -91,6 +95,8 @@ def send_activation(activation, data: dict):
             context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
+
+    clean_history_kwargs(history_kwargs)
 
 
 def deactivate(activation, data: dict):
@@ -108,7 +114,8 @@ def deactivate(activation, data: dict):
 
 
 @shared_task
-def send_deactivation(activation):
+def send_deactivation(activation, history_kwargs: dict = None):
+    set_history_kwargs(history_kwargs)
     data = {
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
@@ -129,3 +136,4 @@ def send_deactivation(activation):
             context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
+    clean_history_kwargs(history_kwargs)
