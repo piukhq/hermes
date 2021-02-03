@@ -17,7 +17,10 @@ def vop_activate_request(activation):
         'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
 
-    history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+    try:
+        history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+    except AttributeError:
+        history_kwargs = None
     send_activation.delay(activation, data, history_kwargs)
 
 
