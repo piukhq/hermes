@@ -6,10 +6,13 @@ from unittest.mock import patch, MagicMock
 import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
+from rest_framework.reverse import reverse
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
+from shared_config_storage.credentials.utils import AnswerTypeChoices
+
+from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
-from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
     CASE_SENSITIVE_CREDENTIALS, EMAIL, POSTCODE
@@ -19,8 +22,6 @@ from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredenti
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory, fake)
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
-from shared_config_storage.credentials.utils import AnswerTypeChoices
 from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tasks import deleted_membership_card_cleanup
@@ -54,17 +55,29 @@ class MockApiCache:
         MockApiCache.data = None
         MockApiCache.expire = expire
         MockApiCache.available_called = False
+        MockApiCache.start_time = 0
+        MockApiCache.subject = ""
+        MockApiCache.cache_hi = 0
+        MockApiCache.cache_lo = 0
 
     @property
     def available(self):
         MockApiCache.available_called = True
         return False
 
+    @staticmethod
+    def time_it_log(start_time, subject, high=200, low=50):
+        MockApiCache.start_time = start_time
+        MockApiCache.subject = subject
+        MockApiCache.cache_hi = high
+        MockApiCache.cache_lo = low
+        return
+
     def save(self, data):
         MockApiCache.data = data
 
 
-class TestResources(APITestCase):
+class TestResources(GlobalMockAPITestCase):
 
     @classmethod
     def _get_auth_header(cls, user):
@@ -206,7 +219,7 @@ class TestResources(APITestCase):
             }
         ]
 
-    def test_get_single_payment_card(self):
+    def test_get_single_payment_card(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         expected_result = remove_empty(PaymentCardSerializer(payment_card_account).data)
         resp = self.client.get(reverse('payment-card', args=[payment_card_account.id]), **self.auth_headers)
@@ -1118,7 +1131,7 @@ class TestResources(APITestCase):
                 'status': 'active',
                 'timestamp': 1589898995,
                 'description': 'Test Transaction',
-                'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+                'amounts': [{'currency': 'Bradford Ltd', 'suffix': 'behavior-base-than', 'value': 200}]
             }
         ]
         resp = self.client.get(reverse('user-transactions'), **self.auth_headers)
@@ -1137,7 +1150,7 @@ class TestResources(APITestCase):
             'status': 'active',
             'timestamp': 1589898995,
             'description': 'Test Transaction',
-            'amounts': [{'currency': 'Morgan and Sons', 'suffix': 'mention-perform', 'value': 200}]
+            'amounts': [{'currency': 'Bradford Ltd', 'suffix': 'behavior-base-than', 'value': 200}]
         }
         resp = self.client.get(reverse('retrieve-transactions', args=[transaction_id]),
                                **self.auth_headers)
@@ -1614,8 +1627,7 @@ class TestResources(APITestCase):
 
         test_question_types = [
             q for q, _ in CREDENTIAL_TYPES
-            if q not in DATE_TYPE_CREDENTIALS
-            and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
+            if q not in DATE_TYPE_CREDENTIALS and q not in [CARD_NUMBER, BARCODE, PHONE, PHONE_2, EMAIL]
         ]
         question_answer_map = {}
         for question_type in test_question_types:
@@ -1879,7 +1891,7 @@ class TestResources(APITestCase):
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    @patch('user.models.metis', autospec=True)
+    @patch('ubiquity.tasks.metis', autospec=True)
     def test_delete_service(self, _):
         user = UserFactory(external_id='test@delete.user', client=self.client_app, email='test@delete.user')
         ServiceConsentFactory(user=user)
@@ -2037,7 +2049,7 @@ class TestResources(APITestCase):
     @patch('ubiquity.views.async_join', autospec=True)
     @patch('payment_card.payment.get_secret_key', autospec=True)
     def test_replace_mcard_with_enrol_fields_including_main_answer(
-        self, mock_secret, mock_async_join, mock_async_balance
+            self, mock_secret, mock_async_join, mock_async_balance
     ):
         mock_secret.return_value = "test_secret"
         self.scheme_account.status = SchemeAccount.ENROL_FAILED
@@ -2101,34 +2113,36 @@ class TestAgainWithWeb2(TestResources):
         return 'Token {}'.format(token)
 
 
-class TestMembershipCardCredentials(APITestCase):
-    def setUp(self):
+class TestMembershipCardCredentials(GlobalMockAPITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
         organisation = OrganisationFactory(name='set up authentication for credentials')
         client = ClientApplicationFactory(organisation=organisation, name='set up credentials application')
-        self.bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
+        cls.bundle = ClientApplicationBundleFactory(bundle_id='test.credentials.fake', client=client)
         external_id = 'credentials@user.com'
-        self.user = UserFactory(external_id=external_id, client=client, email=external_id)
-        self.scheme = SchemeFactory()
-        self.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme, bundle=self.bundle,
-                                                                        status=SchemeBundleAssociation.ACTIVE)
-        SchemeBalanceDetailsFactory(scheme_id=self.scheme)
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=BARCODE, label=BARCODE, manual_question=True,
+        cls.user = UserFactory(external_id=external_id, client=client, email=external_id)
+        cls.scheme = SchemeFactory()
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
+                                                                       status=SchemeBundleAssociation.ACTIVE)
+        SchemeBalanceDetailsFactory(scheme_id=cls.scheme)
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=BARCODE, label=BARCODE, manual_question=True,
                                         add_field=True)
-        SchemeCredentialQuestionFactory(scheme=self.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
-        secondary_question = SchemeCredentialQuestionFactory(scheme=self.scheme,
+        SchemeCredentialQuestionFactory(scheme=cls.scheme, type=PASSWORD, label=PASSWORD, auth_field=True)
+        secondary_question = SchemeCredentialQuestionFactory(scheme=cls.scheme,
                                                              type=LAST_NAME,
                                                              label=LAST_NAME,
                                                              third_party_identifier=True,
                                                              options=SchemeCredentialQuestion.LINK,
                                                              auth_field=True)
-        self.scheme_account = SchemeAccountFactory(scheme=self.scheme)
-        self.scheme_account_answer = SchemeCredentialAnswerFactory(question=self.scheme.manual_question,
-                                                                   scheme_account=self.scheme_account)
-        self.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
-                                                                          scheme_account=self.scheme_account)
-        self.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=self.scheme_account, user=self.user)
-        token = GenerateJWToken(client.organisation.name, client.secret, self.bundle.bundle_id, external_id).get_token()
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+        cls.scheme_account = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_answer = SchemeCredentialAnswerFactory(question=cls.scheme.manual_question,
+                                                                  scheme_account=cls.scheme_account)
+        cls.second_scheme_account_answer = SchemeCredentialAnswerFactory(question=secondary_question,
+                                                                         scheme_account=cls.scheme_account)
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account, user=cls.user)
+        token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
@@ -2154,7 +2168,7 @@ class TestMembershipCardCredentials(APITestCase):
         self.assertEqual(resp.status_code, 200)
 
 
-class TestResourcesV1_2(APITestCase):
+class TestResourcesV1_2(GlobalMockAPITestCase):
     @classmethod
     def _get_auth_header(cls, user):
         token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,
@@ -2328,7 +2342,7 @@ class TestResourcesV1_2(APITestCase):
         self.assertIn(resp.status_code, [200, 201])
 
 
-class TestLastManStanding(APITestCase):
+class TestLastManStanding(GlobalMockAPITestCase):
     @classmethod
     def _get_auth_header(cls, user):
         token = GenerateJWToken(cls.client_app.organisation.name, cls.client_app.secret, cls.bundle.bundle_id,

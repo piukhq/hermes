@@ -28,6 +28,8 @@ from rest_framework.views import APIView
 import analytics
 from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVALID_USER,
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
+from history.signals import HISTORY_CONTEXT
+from history.utils import user_info
 from prometheus.metrics import service_creation_counter
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
@@ -52,11 +54,15 @@ class OpenAuthentication(SessionAuthentication):
 
 class CustomRegisterMixin(object):
     def register_user(self, request, serializer_class):
+
         serializer = serializer_class(data=request.data)
         if serializer.is_valid():
+            channel = serializer.validated_data['bundle_id']
+            HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=channel)
+
             serializer.save()
             service_creation_counter.labels(
-                channel=serializer.validated_data['bundle_id']
+                channel=channel
             ).inc()
             return Response(serializer.data, 201)
         else:
@@ -247,6 +253,11 @@ class Login(GenericAPIView):
 
         if not user:
             return error_response(INCORRECT_CREDENTIALS)
+
+        HISTORY_CONTEXT.user_info = user_info(
+            user_id=user.id,
+            channel=serializer.validated_data.get('bundle_id', "internal_service")
+        )
 
         login(request, user)
         out_serializer = ResponseAuthSerializer({'email': user.email,

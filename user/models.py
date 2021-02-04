@@ -17,10 +17,7 @@ from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from hashids import Hashids
 
-from payment_card import metis
-from payment_card.models import PaymentCardAccount
-from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+from scheme.models import Scheme
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
 
@@ -288,36 +285,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # @property
     # def is_superuser(self):
     #     return self.is_superuser
-
-    def delete_membership_cards(self, send_deactivation=True) -> None:
-        cards_to_delete = []
-        for card in self.scheme_account_set.prefetch_related('user_set').all():
-            if card.user_set.count() == 1:
-                card.is_deleted = True
-                cards_to_delete.append(card)
-
-        # VOP deactivate
-        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
-        if send_deactivation:
-            vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-            activations = VopActivation.find_activations_matching_links(vop_links)
-            PaymentCardSchemeEntry.deactivate_activations(activations)
-        links_to_remove.delete()
-        SchemeAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
-        self.schemeaccountentry_set.all().delete()
-
-    def delete_payment_cards(self, run_async=True) -> None:
-        cards_to_delete = []
-        for card in self.payment_card_account_set.prefetch_related('user_set').all():
-            if card.user_set.count() == 1:
-                card.is_deleted = True
-                cards_to_delete.append(card)
-                metis.delete_payment_card(card, run_async=run_async)
-
-        PaymentCardSchemeEntry.objects.filter(
-            payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
-        PaymentCardAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
-        self.paymentcardaccountentry_set.all().delete()
 
 
 NOTIFICATIONS_SETTING = (

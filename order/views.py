@@ -39,7 +39,7 @@ class OrderUpdate(generics.CreateAPIView):
                 accounts[account_type].append(account_class(id=obj["id"], order=obj["order"]))
 
             for account_type, objs in accounts.items():
-                account_classes[account_type].objects.bulk_update(objs, update_fields=["order"])
+                account_classes[account_type].objects.bulk_update(objs, ["order"])
 
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)

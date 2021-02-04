@@ -1,13 +1,13 @@
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnList
 
+from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from scheme.models import SchemeAccount, SchemeBundleAssociation
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from user.models import ClientApplicationBundle
 
 
-class TestOrder(APITestCase):
+class TestOrder(GlobalMockAPITestCase):
     def test_scheme_list(self):
         scheme_account_entry = SchemeAccountEntryFactory()
         user = scheme_account_entry.user

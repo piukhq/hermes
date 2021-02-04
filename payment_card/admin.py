@@ -2,6 +2,7 @@ import arrow
 from django.contrib import admin
 from django.utils.html import format_html
 
+from history.utils import HistoryAdmin
 from payment_card import models
 from ubiquity.models import PaymentCardAccountEntry
 
@@ -41,7 +42,7 @@ def titled_filter(title):
 
 
 @admin.register(models.PaymentCardAccount)
-class PaymentCardAccountAdmin(admin.ModelAdmin):
+class PaymentCardAccountAdmin(HistoryAdmin):
     def obfuscated_hash(self, obj):
         if obj.hash:
             obf_hash = "*" * (len(obj.hash) - 4) + obj.hash[-4:]
@@ -125,7 +126,7 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 
 
 @admin.register(PaymentCardUserAssociation)
-class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
+class PaymentCardUserAssociationAdmin(HistoryAdmin):
     list_display = (
         "payment_card_account",
         "user",

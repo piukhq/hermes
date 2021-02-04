@@ -1,18 +1,20 @@
 import arrow
-from django.test import TestCase
 
+from history.utils import GlobalMockAPITestCase
 from scheme import vouchers
 from scheme.models import Category, Scheme, SchemeAccount, VoucherScheme
 
 TEST_SLUG = "fatface"
 
 
-class TestVouchers(TestCase):
-    def setUp(self):
+class TestVouchers(GlobalMockAPITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
         category = Category.objects.create()
-        self.scheme = Scheme.objects.create(tier=Scheme.PARTNER, category=category, slug=TEST_SLUG)
+        cls.scheme = Scheme.objects.create(tier=Scheme.PARTNER, category=category, slug=TEST_SLUG)
         VoucherScheme.objects.create(
-            scheme=self.scheme,
+            scheme=cls.scheme,
             barcode_type=1,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR,
@@ -35,7 +37,7 @@ class TestVouchers(TestCase):
             body_text_cancelled="voucher body",
         )
         VoucherScheme.objects.create(
-            scheme=self.scheme,
+            scheme=cls.scheme,
             barcode_type=1,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_STAMPS,
@@ -59,7 +61,7 @@ class TestVouchers(TestCase):
             body_text_cancelled="voucher body",
         )
         VoucherScheme.objects.create(
-            scheme=self.scheme,
+            scheme=cls.scheme,
             barcode_type=2,
             expiry_months=3,
             earn_type=VoucherScheme.EARNTYPE_JOIN,

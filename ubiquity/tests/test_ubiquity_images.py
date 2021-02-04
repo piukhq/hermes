@@ -2,19 +2,20 @@ from unittest.mock import patch
 
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.test import APITestCase
-from scheme.models import SchemeBundleAssociation
+
 from common.models import Image
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
+from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
-from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
+from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
 
 
-class TestPaymentCardAccountImages(APITestCase):
+class TestPaymentCardAccountImages(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         organisation = OrganisationFactory(name='set up authentication')

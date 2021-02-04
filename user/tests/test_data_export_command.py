@@ -2,18 +2,17 @@ from io import StringIO
 from unittest.mock import patch
 
 from django.core.management import call_command
-from django.test import TestCase
 
+from history.utils import GlobalMockAPITestCase
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 
 
-class DataExportTest(TestCase):
+class DataExportTest(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         for _ in range(0, 15):
             SchemeAccountEntryFactory()
-        super().setUpClass()
 
     @patch('user.management.commands.data_export.write_csv')
     def test_command_succeeds(self, mock_write_csv):
