@@ -1,5 +1,6 @@
 from django.contrib import admin
 from rangefilter.filter import DateTimeRangeFilter
+from history.enums import HistoryModel
 
 from common.admin import InputFilter
 from history.models import (
@@ -7,7 +8,9 @@ from history.models import (
     HistoricalSchemeAccount,
     HistoricalPaymentCardAccountEntry,
     HistoricalSchemeAccountEntry,
-    HistoricalCustomUser, HistoricalVopActivation, HistoricalPaymentCardSchemeEntry
+    HistoricalCustomUser,
+    HistoricalVopActivation,
+    HistoricalPaymentCardSchemeEntry,
 )
 
 
@@ -20,10 +23,10 @@ class PaymentCardAccountFilter(InputFilter):
         if term is None:
             return
 
-        if "Entry" in queryset.model.__name__:
-            query = {"payment_card_account_id": term}
-        else:
+        if queryset.model.__name__ == HistoryModel.PAYMENT_CARD_ACCOUNT.model_name:
             query = {"instance_id": term}
+        else:
+            query = {"payment_card_account_id": term}
 
         return queryset.filter(**query)
 
@@ -37,12 +40,24 @@ class SchemeAccountFilter(InputFilter):
         if term is None:
             return
 
-        if "Entry" in queryset.model.__name__:
-            query = {"scheme_account_id": term}
-        else:
+        if queryset.model.__name__ == HistoryModel.SCHEME_ACCOUNT.model_name:
             query = {"instance_id": term}
+        else:
+            query = {"scheme_account_id": term}
 
         return queryset.filter(**query)
+
+
+class SchemeFilter(InputFilter):
+    parameter_name = "scheme_id"
+    title = "Scheme ID:"
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+
+        return queryset.filter(scheme_id=term)
 
 
 class UserFilter(InputFilter):
@@ -54,8 +69,8 @@ class UserFilter(InputFilter):
         if term is None:
             return
 
-        if "User" in queryset.model.__name__:
-            query = {"id": term}
+        if queryset.model.__name__ == HistoryModel.CUSTOM_USER.model_name:
+            query = {"instance_id": term}
         else:
             query = {"user_id": term}
 
@@ -73,14 +88,14 @@ class HistoricalCustomUserAdmin(admin.ModelAdmin):
         "created",
         "change_type",
     )
-    search_fields = ("created", "email", "external_id")
+    search_fields = ("instance_id", "email", "external_id", "created")
     list_filter = (
         UserFilter,
         "channel",
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalPaymentCardAccount)
@@ -94,7 +109,7 @@ class HistoricalPaymentCardAccountAdmin(admin.ModelAdmin):
         "change_type",
         "change_details",
     )
-    search_fields = ("created",)
+    search_fields = ("instance_id", "created")
     list_filter = (
         PaymentCardAccountFilter,
         UserFilter,
@@ -102,7 +117,7 @@ class HistoricalPaymentCardAccountAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalPaymentCardAccountEntry)
@@ -124,7 +139,7 @@ class HistoricalPaymentCardAccountEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalSchemeAccount)
@@ -139,7 +154,7 @@ class HistoricalSchemeAccountAdmin(admin.ModelAdmin):
         "created",
         "change_details",
     )
-    search_fields = ("created",)
+    search_fields = ("instance_id", "created")
     list_filter = (
         SchemeAccountFilter,
         UserFilter,
@@ -148,7 +163,7 @@ class HistoricalSchemeAccountAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalSchemeAccountEntry)
@@ -170,7 +185,7 @@ class HistoricalSchemeAccountEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalVopActivation)
@@ -186,15 +201,16 @@ class HistoricalVopActivationAdmin(admin.ModelAdmin):
         "created",
         "change_details",
     )
-    search_fields = ("instance_id", "scheme_id", "created")
+    search_fields = ("instance_id", "created")
     list_filter = (
-        PaymentCardAccountFilter,
         UserFilter,
+        PaymentCardAccountFilter,
+        SchemeFilter,
         "channel",
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
 
 
 @admin.register(HistoricalPaymentCardSchemeEntry)
@@ -219,4 +235,4 @@ class HistoricalPaymentCardSchemeEntryAdmin(admin.ModelAdmin):
         "change_type",
         ("created", DateTimeRangeFilter),
     )
-    readonly_fields = ('created',)
+    readonly_fields = ("created",)
