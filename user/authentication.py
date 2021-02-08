@@ -67,7 +67,7 @@ class JwtAuthentication(BaseAuthentication):
         bundle_id = credentials.get('bundle_id', '')
         if not bundle_id:
             bundle_id = 'com.bink.wallet'
-        setattr(request, 'channels_permit', Permit(bundle_id, user.client))
+        setattr(request, 'channels_permit', Permit(bundle_id, user.client, user=user))
         return user, None
 
     def authenticate_credentials(self, key):

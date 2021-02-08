@@ -2,6 +2,7 @@ import arrow
 from django.contrib import admin
 from django.utils.html import format_html
 
+from history.utils import HistoryAdmin
 from payment_card import models
 from ubiquity.models import PaymentCardAccountEntry
 
@@ -41,7 +42,7 @@ def titled_filter(title):
 
 
 @admin.register(models.PaymentCardAccount)
-class PaymentCardAccountAdmin(admin.ModelAdmin):
+class PaymentCardAccountAdmin(HistoryAdmin):
     def obfuscated_hash(self, obj):
         if obj.hash:
             obf_hash = "*" * (len(obj.hash) - 4) + obj.hash[-4:]
@@ -58,10 +59,10 @@ class PaymentCardAccountAdmin(admin.ModelAdmin):
         ("issuer__name", titled_filter("issuer")),
         "is_deleted",
     )
-    readonly_fields = ("obfuscated_hash", "token", "psp_token", "PLL_consent", "user_email")
-    search_fields = ("pan_start", "pan_end", "token", "paymentcardaccountentry__user__email", "hash")
+    readonly_fields = ("obfuscated_hash", "token", "psp_token", "PLL_consent", "user_email", "created", "updated")
+    search_fields = ("pan_start", "pan_end", "psp_token", "fingerprint", "paymentcardaccountentry__user__email",
+                     "hash", "agent_data", "token", "id", "created")
     exclude = ("consent", "hash")
-    list_per_page = 10
 
     def user_email(self, obj):
         user_list = [
@@ -125,7 +126,7 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
 
 
 @admin.register(PaymentCardUserAssociation)
-class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
+class PaymentCardUserAssociationAdmin(HistoryAdmin):
     list_display = (
         "payment_card_account",
         "user",

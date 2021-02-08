@@ -2,10 +2,7 @@ import csv
 import json
 import logging
 from io import StringIO
-from typing import TYPE_CHECKING
 
-import requests
-import sentry_sdk
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.shortcuts import redirect, render
@@ -20,7 +17,6 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
-from payment_card.models import PaymentCardAccount
 from payment_card.payment import Payment
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
@@ -41,8 +37,6 @@ from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, Tr
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
 
-if TYPE_CHECKING:
-    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +68,6 @@ class SchemesList(ListAPIView):
     def get_queryset(self):
         queryset = Scheme.objects
         query = {}
-
-        if not self.request.user.is_tester:
-            query['test_scheme'] = False
-
         return self.request.channels_permit.scheme_query(queryset.filter(**query))
 
 
@@ -90,12 +80,7 @@ class RetrieveScheme(RetrieveAPIView):
 
     def get_queryset(self):
         queryset = Scheme.objects
-        query = {}
-
-        if not self.request.user.is_tester:
-            query['test_scheme'] = False
-
-        return self.request.channels_permit.scheme_query(queryset.filter(**query))
+        return self.request.channels_permit.scheme_query(queryset)
 
 
 class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
@@ -109,13 +94,8 @@ class RetrieveDeleteAccount(SwappableSerializerMixin, RetrieveAPIView):
     }
 
     def get_queryset(self):
-        queryset = SchemeAccount.objects
-        query = {}
-        if not self.request.user.is_tester:
-            query['scheme__test_scheme'] = False
-
         return self.request.channels_permit.scheme_account_query(
-            queryset.filter(**query),
+            SchemeAccount.objects,
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -266,10 +246,6 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
         channels_permit = self.request.channels_permit
         queryset = SchemeAccount.objects
 
-        filter_by = {}
-        if not self.request.user.is_tester:
-            filter_by['scheme__test_scheme'] = False
-
         exclude_by = {}
         suspended_schemes = Scheme.get_suspended_schemes_by_bundle(channels_permit.bundle)
         if suspended_schemes:
@@ -279,7 +255,7 @@ class CreateAccount(SchemeAccountCreationMixin, ListCreateAPIView):
             }
 
         return channels_permit.scheme_account_query(
-            queryset.filter(**filter_by).exclude(**exclude_by),
+            queryset.exclude(**exclude_by),
             user_id=self.request.user.id,
             user_filter=True
         )
@@ -412,7 +388,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
     def process_active_accounts(self, scheme_account, journey, new_status_code):
         if journey in ['join', 'join-with-balance'] and new_status_code == SchemeAccount.ACTIVE:
-            scheme = scheme_account.scheme
             join_date = timezone.now()
             scheme_account.join_date = join_date
             scheme_account.save(update_fields=["join_date"])
@@ -420,8 +395,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             if journey == "join":
                 async_join_journey_fetch_balance_and_update_status.delay(scheme_account.id)
 
-            if scheme.tier in Scheme.TRANSACTION_MATCHING_TIERS:
-                self.notify_rollback_transactions(scheme.slug, scheme_account, join_date)
         elif new_status_code == SchemeAccount.ACTIVE and not (scheme_account.link_date or scheme_account.join_date):
             date_time_now = timezone.now()
             scheme_slug = scheme_account.scheme.slug
@@ -457,33 +430,6 @@ class UpdateSchemeAccountStatus(GenericAPIView):
                         scheme_account,
                         user,
                         dict(scheme_account.STATUSES).get(new_status_code))
-
-    @staticmethod
-    def notify_rollback_transactions(scheme_slug: str, scheme_account: SchemeAccount, join_date: 'datetime'):
-        if settings.ROLLBACK_TRANSACTIONS_URL:
-            user_id = scheme_account.get_transaction_matching_user_id()
-            payment_cards = PaymentCardAccount.objects.values('token').filter(user_set__id=user_id).all()
-            data = json.dumps({
-                'date_joined': join_date.date().isoformat(),
-                'scheme_provider': scheme_slug,
-                'payment_card_token': [card['token'] for card in payment_cards],
-                'user_id': user_id,
-                'credentials': scheme_account.credentials(),
-                'loyalty_card_id': scheme_account.third_party_identifier,
-                'scheme_account_id': scheme_account.id,
-            })
-            headers = {
-                'Content-Type': "application/json",
-                'Authorization': "token " + settings.SERVICE_API_KEY,
-            }
-            try:
-                resp = requests.post(settings.ROLLBACK_TRANSACTIONS_URL + '/transaction_info/post_join', data=data,
-                                     headers=headers)
-                resp.raise_for_status()
-            except requests.exceptions.RequestException:
-                logging.exception('Failed to send join data to thanatos.')
-                if settings.HERMES_SENTRY_DSN:
-                    sentry_sdk.capture_exception()
 
 
 class UpdateSchemeAccountTransactions(GenericAPIView, MembershipTransactionsMixin):
@@ -558,11 +504,6 @@ class SchemeAccountsCredentials(RetrieveAPIView, UpdateCredentialsMixin):
         user_filter = False
         if self.request.user.uid != 'api_user':
             user_filter = True
-            query = {}
-            if not self.request.user.is_tester:
-                query['scheme__test_scheme'] = False
-
-            queryset = queryset.filter(**query)
 
         return self.request.channels_permit.scheme_account_query(
             queryset,

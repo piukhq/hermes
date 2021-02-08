@@ -82,4 +82,13 @@ ENCRYPTED_CREDENTIALS = (
     REGULAR_RESTAURANT,
 )
 
+CASE_SENSITIVE_CREDENTIALS = (
+    USER_NAME,
+    PASSWORD,
+    PAYMENT_CARD_HASH,
+    PIN,
+    CARD_NUMBER,
+    BARCODE,
+)
+
 credential_types_set = {credential_type[0] for credential_type in CREDENTIAL_TYPES}

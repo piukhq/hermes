@@ -53,6 +53,7 @@ LOCAL_APPS = (
     "payment_card",
     "order",
     "ubiquity",
+    "history",
     "daedalus_messaging",
     "periodic_retry",
     "prometheus.apps.PrometheusPusherConfig",
@@ -73,6 +74,7 @@ INSTALLED_APPS = (
     "mail_templated",
     "anymail",
     "storages",
+    "rangefilter",
     "django_prometheus",
     *LOCAL_APPS,
 )
@@ -91,6 +93,7 @@ MIDDLEWARE = (
     "django.middleware.common.CommonMiddleware",
     "dictfilter.django.middleware.DictFilterMiddleware",
     "hermes.middleware.AcceptVersion",
+    "history.middleware.HistoryRequestMiddleware",
     "prometheus.middleware.CustomPrometheusAfterMiddleware",
 )
 
@@ -209,15 +212,19 @@ NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
 
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-    AZURE_ACCOUNT_NAME = env_var("AZURE_ACCOUNT_NAME")
-    AZURE_ACCOUNT_KEY = env_var("AZURE_ACCOUNT_KEY")
-    AZURE_CONTAINER = env_var("AZURE_CONTAINER")
-    AZURE_CUSTOM_DOMAIN = env_var("AZURE_CUSTOM_DOMAIN")
+    AZURE_CONTAINER = env_var("HERMES_BLOB_STORAGE_CONTAINER", "media/hermes")
+    HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
+    AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
+    # For generating image urls with a custom domain
+    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
+    AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
+
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
-STATIC_URL = env_var("HERMES_STATIC_URL", "/static/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
-STATIC_ROOT = os.path.join(BASE_DIR, "static/")
+
+STATIC_URL = env_var("HERMES_STATIC_URL", "/admin/static/")
+STATIC_ROOT = "/tmp/static/"
 
 AUTH_USER_MODEL = "user.CustomUser"
 
@@ -380,8 +387,28 @@ REDIS_DB = env_var("REDIS_DB", 1)
 REDIS_API_CACHE_DB = env_var("REDIS_API_CACHE_DB", 2)
 REDIS_MPLANS_CACHE_EXPIRY = int(env_var("REDIS_MPLANS_CACHE_EXPIRY", 60 * 60 * 24))  # 60*60*24  # 24 hrs in seconds
 
-REDIS_API_CACHE_POOL = Redis_ConnectionPool(
-    host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, db=REDIS_API_CACHE_DB
+REDIS_READ_TIMEOUT = float(env_var("REDIS_READ_TIMEOUT", 0.3))
+REDIS_WRITE_TIMEOUT = float(env_var("REDIS_WRITE_TIMEOUT", 20))
+REDIS_RETRY_COUNT = 3
+REDIS_READ_HEALTH_CHECK_INTERVAL = 1
+REDIS_WRITE_HEALTH_CHECK_INTERVAL = 1
+
+
+REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    password=REDIS_PASSWORD,
+    db=REDIS_API_CACHE_DB,
+    socket_timeout=REDIS_READ_TIMEOUT,
+    health_check_interval=REDIS_READ_HEALTH_CHECK_INTERVAL,
+)
+REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    password=REDIS_PASSWORD,
+    db=REDIS_API_CACHE_DB,
+    socket_timeout=REDIS_WRITE_TIMEOUT,
+    health_check_interval=REDIS_WRITE_HEALTH_CHECK_INTERVAL,
 )
 
 cache_options = {
@@ -440,18 +467,6 @@ PAYMENT_EXPIRY_CHECK_INTERVAL = env_var("PAYMENT_EXPIRY_CHECK_INTERVAL", "600")
 PAYMENT_EXPIRY_TIME = env_var("PAYMENT_EXPIRY_TIME", "120")
 
 ATLAS_URL = env_var("ATLAS_URL")
-ROLLBACK_TRANSACTIONS_URL = "http://test.url" if TESTING else env_var("ROLLBACK_TRANSACTIONS_URL", None)
-
-MANUAL_CHECK_SCHEMES = env_var("MANUAL_CHECK_SCHEMES", "").split(",")
-MANUAL_CHECK_LOCAL_CSV_PATH = env_var("MANUAL_CHECK_LOCAL_CSV_PATH", "/tmp/output/hn/test.csv")
-
-MANUAL_CHECK_USE_AZURE = env_var("MANUAL_CHECK_USE_AZURE", False)
-if MANUAL_CHECK_USE_AZURE:
-    MANUAL_CHECK_AZURE_CSV_FILENAME = env_var("MANUAL_CHECK_AZURE_CSV_FILENAME", "harvey_nichols_white_list.csv")
-    MANUAL_CHECK_AZURE_ACCOUNT_NAME = env_var("MANUAL_CHECK_AZURE_ACCOUNT_NAME")
-    MANUAL_CHECK_AZURE_ACCOUNT_KEY = env_var("MANUAL_CHECK_AZURE_ACCOUNT_KEY")
-    MANUAL_CHECK_AZURE_CONTAINER = env_var("MANUAL_CHECK_AZURE_CONTAINER")
-    MANUAL_CHECK_AZURE_FOLDER = env_var("MANUAL_CHECK_AZURE_FOLDER")
 
 SCHEMES_COLLECTING_METRICS = env_var("SCHEMES_COLLECTING_METRICS", "cooperative").split(",")
 
@@ -517,9 +532,10 @@ OIDC_OP_TOKEN_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b
 OIDC_OP_USER_ENDPOINT = "https://graph.microsoft.com/oidc/userinfo"
 OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 60 * 30
 
-
 PROMETHEUS_EXPORT_MIGRATIONS = False
 PROMETHEUS_LATENCY_BUCKETS = (.050, .125, .150, .2, .375, .450, .6, .8, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 10.0, 12.0,
                               15.0, 20.0, 30.0, float("inf"))
 PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9100')
 PROMETHEUS_JOB = "hermes"
+
+ENCRYPTED_VALUES_LENGTH_CONTROL = int(env_var("ENCRYPTED_VALUES_LENGTH_CONTROL", "255"))

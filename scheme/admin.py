@@ -8,6 +8,8 @@ from django.db.models import Q
 from django.forms import BaseInlineFormSet, ModelForm
 from django.utils.html import format_html
 from redis import Redis
+
+from history.utils import HistoryAdmin
 from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
@@ -16,7 +18,7 @@ from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Categor
 from ubiquity.models import SchemeAccountEntry
 
 
-r = Redis(connection_pool=settings.REDIS_API_CACHE_POOL)
+r = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
 
 
 def delete_membership_plans_cache():
@@ -240,7 +242,7 @@ class CredentialEmailFilter(InputFilter):
 
 
 @admin.register(SchemeAccount)
-class SchemeAccountAdmin(admin.ModelAdmin):
+class SchemeAccountAdmin(HistoryAdmin):
     inlines = (SchemeAccountCredentialAnswerInline,)
     list_filter = (CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
@@ -320,7 +322,7 @@ class AssocUserEmailFilter(InputFilter):
 
 
 @admin.register(SchemeUserAssociation)
-class SchemeUserAssociationAdmin(admin.ModelAdmin):
+class SchemeUserAssociationAdmin(HistoryAdmin):
     list_display = ('scheme_account', 'user', 'scheme_account_link', 'user_link', 'scheme_status', 'scheme_is_deleted',
                     'scheme_created')
     search_fields = ['scheme_account__scheme__name', 'user__email', 'user__external_id', ]
@@ -458,9 +460,10 @@ admin.site.register(Category)
 
 @admin.register(SchemeBundleAssociation)
 class SchemeBundleAssociationAdmin(CacheResetAdmin):
-    list_display = ('bundle', 'scheme', 'status')
+    list_display = ('bundle', 'scheme', 'status', 'test_scheme')
     search_fields = ('bundle_id', 'scheme__name')
     raw_id_fields = ("scheme",)
+    list_filter = ('bundle', 'scheme', 'status', 'test_scheme')
 
     def save_form(self, request, form, change):
         ret = super().save_form(request, form, change)

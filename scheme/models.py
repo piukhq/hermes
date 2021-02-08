@@ -144,6 +144,7 @@ class SchemeBundleAssociation(models.Model):
     scheme = models.ForeignKey('Scheme', on_delete=models.CASCADE)
     bundle = models.ForeignKey('user.ClientApplicationBundle', on_delete=models.CASCADE)
     status = models.IntegerField(choices=STATUSES, default=ACTIVE)
+    test_scheme = models.BooleanField(default=False)
 
     @classmethod
     @lru_cache(maxsize=2048)
@@ -236,7 +237,6 @@ class Scheme(models.Model):
     colour = RGBColorField(blank=True)
     secondary_colour = models.CharField(max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"',
                                         validators=[validate_hex_colour])
-    test_scheme = models.BooleanField(default=False)
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -1364,6 +1364,7 @@ class ConsentStatus(IntEnum):
     PENDING = 0
     SUCCESS = 1
     FAILED = 2
+    NOT_SENT = 3
 
 
 class UserConsent(models.Model):

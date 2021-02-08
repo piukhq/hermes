@@ -1,12 +1,11 @@
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test import TestCase
 from django.utils import timezone
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
 from common.models import Image
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL, BARCODE, CARD_NUMBER, TITLE
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, Control, JourneyTypes
 from scheme.tests.factories import (SchemeBundleAssociationFactory, SchemeCredentialQuestionChoiceFactory,
@@ -16,10 +15,10 @@ from user.models import ClientApplication, ClientApplicationBundle
 from user.tests.factories import UserFactory
 
 
-class TestSchemeImages(APITestCase):
+class TestSchemeImages(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         user = UserFactory()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
         cls.image = SchemeImageFactory(status=Image.DRAFT,
@@ -37,8 +36,6 @@ class TestSchemeImages(APITestCase):
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                        status=SchemeBundleAssociation.ACTIVE)
 
-        super().setUpClass()
-
     def test_no_draft_images_in_schemes_list(self):
         resp = self.client.get('/schemes', **self.auth_headers)
         our_scheme = [s for s in resp.json() if s['slug'] == self.image.scheme.slug][0]
@@ -52,10 +49,10 @@ class TestSchemeImages(APITestCase):
         self.assertEqual(1, len(our_scheme['images']))
 
 
-class TestSchemeViews(APITestCase):
+class TestSchemeViews(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
         cls.bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
@@ -63,7 +60,6 @@ class TestSchemeViews(APITestCase):
         cls.scheme = SchemeFactory()
         SchemeBundleAssociation.objects.create(bundle=cls.bundle, scheme=cls.scheme)
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_scheme_list(self):
         SchemeCredentialQuestionFactory(manual_question=True)
@@ -71,7 +67,7 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
+        scheme_bundle_assoc, _ = SchemeBundleAssociation.objects.get_or_create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/', **self.auth_headers)
 
         self.assertEqual(response.status_code, 200, )
@@ -84,8 +80,8 @@ class TestSchemeViews(APITestCase):
         self.assertIn('status', response.data[0])
         self.assertIn('is_active', response.data[0])
 
-        scheme.test_scheme = True
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = True
+        scheme_bundle_assoc.save()
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertNotIn(scheme.id, [s['id'] for s in response.json()])
 
@@ -95,8 +91,8 @@ class TestSchemeViews(APITestCase):
         response = self.client.get('/schemes/', **self.auth_headers)
         self.assertIn(scheme.id, [s['id'] for s in response.json()])
 
-        scheme.test_scheme = False
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = False
+        scheme_bundle_assoc.save()
         self.user.is_tester = False
         self.user.save()
         if created:
@@ -193,7 +189,7 @@ class TestSchemeViews(APITestCase):
         bundle, created = ClientApplicationBundle.objects.get_or_create(
             bundle_id='com.bink.wallet',
             client=self.user.client)
-        SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
+        scheme_bundle_assoc = SchemeBundleAssociation.objects.create(bundle=bundle, scheme=scheme)
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
 
         self.assertEqual(response.status_code, 200)
@@ -203,8 +199,8 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.data['link_questions'][0]['id'], link_question.id)
         self.assertEqual(response.data['join_questions'][0]['id'], join_question.id)
 
-        scheme.test_scheme = True
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = True
+        scheme_bundle_assoc.save()
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
@@ -214,8 +210,8 @@ class TestSchemeViews(APITestCase):
         response = self.client.get('/schemes/{0}'.format(scheme.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        scheme.test_scheme = False
-        scheme.save()
+        scheme_bundle_assoc.test_scheme = False
+        scheme_bundle_assoc.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -279,7 +275,7 @@ class TestSchemeViews(APITestCase):
         self.assertEqual(response.json()['scheme_id'], 5)
 
 
-class TestSchemeModel(TestCase):
+class TestSchemeModel(GlobalMockAPITestCase):
 
     def test_link_questions(self):
         scheme = SchemeFactory()

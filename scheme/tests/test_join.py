@@ -1,5 +1,5 @@
-from django.test import TestCase
-
+from history.utils import GlobalMockAPITestCase
+from scheme import credentials
 from scheme.models import (
     Category,
     Scheme,
@@ -8,60 +8,62 @@ from scheme.models import (
     SchemeAccountCredentialAnswer,
     SchemeBundleAssociation,
 )
-from user.models import CustomUser, Organisation, ClientApplication, ClientApplicationBundle
 from ubiquity.models import SchemeAccountEntry
-from ubiquity.views import MembershipCardView
 from ubiquity.tests.property_token import GenerateJWToken
-from scheme import credentials
+from ubiquity.views import MembershipCardView
+from user.models import CustomUser, Organisation, ClientApplication, ClientApplicationBundle
 
 
-class TestJoinExisting(TestCase):
-    def setUp(self):
-        self.join_email = "new_joiner@bink.com"
+class TestJoinExisting(GlobalMockAPITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.join_email = "new_joiner@bink.com"
 
         SchemeAccountEntry.objects.all().delete()
 
         category = Category.objects.create()
-        self.scheme = Scheme.objects.create(tier=Scheme.PLL, category=category, slug="fatface")
+        cls.scheme = Scheme.objects.create(tier=Scheme.PLL, category=category, slug="fatface")
         question = SchemeCredentialQuestion.objects.create(
-            scheme=self.scheme, type=credentials.EMAIL, manual_question=True, label="Email"
+            scheme=cls.scheme, type=credentials.EMAIL, manual_question=True, label="Email"
         )
-        SchemeCredentialQuestion.objects.create(scheme=self.scheme, type=credentials.FIRST_NAME, label="First name")
-        SchemeCredentialQuestion.objects.create(scheme=self.scheme, type=credentials.LAST_NAME, label="Last name")
+        SchemeCredentialQuestion.objects.create(scheme=cls.scheme, type=credentials.FIRST_NAME, label="First name")
+        SchemeCredentialQuestion.objects.create(scheme=cls.scheme, type=credentials.LAST_NAME, label="Last name")
 
         organisation = Organisation.objects.create(name="test_organisation")
-        self.client_app = ClientApplication.objects.create(
+        cls.client_app = ClientApplication.objects.create(
             organisation=organisation,
             name="set up client application",
             client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi",
         )
-        self.bundle = ClientApplicationBundle.objects.create(bundle_id="test.auth.fake", client=self.client_app)
+        cls.bundle = ClientApplicationBundle.objects.create(bundle_id="test.auth.fake", client=cls.client_app)
 
         SchemeBundleAssociation.objects.create(
-            scheme=self.scheme, bundle=self.bundle, status=SchemeBundleAssociation.ACTIVE
+            scheme=cls.scheme, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
         )
 
-        self.old_user = CustomUser.objects.create_user("existing_user@bink.com", "Password01")
-        self.old_user.client = self.client_app
-        self.old_user.external_id = self.old_user.email
-        self.old_user.save()
-        self.new_user = CustomUser.objects.create_user(self.join_email, "Password02")
-        self.new_user.client = self.client_app
-        self.new_user.external_id = self.new_user.email
-        self.new_user.save()
+        cls.old_user = CustomUser.objects.create_user("existing_user@bink.com", "Password01")
+        cls.old_user.client = cls.client_app
+        cls.old_user.external_id = cls.old_user.email
+        cls.old_user.save()
+        cls.new_user = CustomUser.objects.create_user(cls.join_email, "Password02")
+        cls.new_user.client = cls.client_app
+        cls.new_user.external_id = cls.new_user.email
+        cls.new_user.save()
 
-        self.scheme_account = SchemeAccount.objects.create(scheme=self.scheme, order=0)
+        cls.scheme_account = SchemeAccount.objects.create(scheme=cls.scheme, order=0)
         SchemeAccountCredentialAnswer.objects.create(
-            question=question, scheme_account=self.scheme_account, answer=self.join_email
+            question=question, scheme_account=cls.scheme_account, answer=cls.join_email
         )
 
-        SchemeAccountEntry.objects.create(user=self.old_user, scheme_account=self.scheme_account)
+        SchemeAccountEntry.objects.create(user=cls.old_user, scheme_account=cls.scheme_account)
 
-        self.auth_headers = {
-            "HTTP_AUTHORIZATION": "{}".format(self._get_auth_header(self.old_user, self.bundle.bundle_id))
+        cls.auth_headers = {
+            "HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))
         }
 
-    def _get_auth_header(self, user, bundle_id):
+    @staticmethod
+    def _get_auth_header(user, bundle_id):
         token = GenerateJWToken(
             user.client.organisation.name, user.client.secret, bundle_id, user.external_id
         ).get_token()

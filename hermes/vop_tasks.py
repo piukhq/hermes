@@ -1,8 +1,12 @@
 import requests
 from celery import shared_task
 from django.conf import settings
+
+from history.signals import HISTORY_CONTEXT
+from history.utils import set_history_kwargs, clean_history_kwargs
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
+from prometheus.metrics import VopStatus, push_metric, vop_activation_status
 
 
 def vop_activate_request(activation):
@@ -10,10 +14,14 @@ def vop_activate_request(activation):
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
         'merchant_slug': activation.scheme.slug,
-        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
+        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
 
-    send_activation.delay(activation, data)
+    try:
+        history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+    except AttributeError:
+        history_kwargs = None
+    send_activation.delay(activation, data, history_kwargs)
 
 
 def process_result(rep, activation, link_action):
@@ -34,11 +42,21 @@ def process_result(rep, activation, link_action):
         if activation_id and link_action == activation.ACTIVATING:
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
-            activation.save()
+            activation.save(update_fields=["activation_id", "status"])
+
+            vop_activation_status.labels(status=VopStatus.ACTIVATING.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.ACTIVATED.value).inc()
+            push_metric("vop")
+
         elif link_action == activation.DEACTIVATING:
             # todo May be try periodic delete or delete it now instead of save
             activation.status = activation.DEACTIVATED
-            activation.save()
+            activation.save(update_fields=["status"])
+
+            vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.ACTIVATED.value).dec(1)
+            vop_activation_status.labels(status=VopStatus.DEACTIVATED.value).inc()
+            push_metric("vop")
 
         status = PeriodicRetryStatus.SUCCESSFUL
         return status, response_data
@@ -49,17 +67,24 @@ def process_result(rep, activation, link_action):
 
 
 def activate(activation, data: dict):
-    activation.status = activation.ACTIVATING
-    activation.save()
+    if activation.status != activation.ACTIVATING:
+        activation.status = activation.ACTIVATING
+        activation.save(update_fields=["status"])
+
     rep = requests.post(settings.METIS_URL + '/visa/activate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
+
+    vop_activation_status.labels(status=VopStatus.ACTIVATING.value).inc()
+    push_metric("vop")
+
     return process_result(rep, activation, activation.ACTIVATING)
 
 
 @shared_task
-def send_activation(activation, data: dict):
+def send_activation(activation, data: dict, history_kwargs: dict = None):
+    set_history_kwargs(history_kwargs)
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
@@ -74,10 +99,16 @@ def send_activation(activation, data: dict):
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
 
+    clean_history_kwargs(history_kwargs)
+
 
 def deactivate(activation, data: dict):
     activation.status = activation.DEACTIVATING
-    activation.save()
+    activation.save(update_fields=["status"])
+
+    vop_activation_status.labels(status=VopStatus.DEACTIVATING.value).inc()
+    push_metric("vop")
+
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
@@ -86,12 +117,13 @@ def deactivate(activation, data: dict):
 
 
 @shared_task
-def send_deactivation(activation):
+def send_deactivation(activation, history_kwargs: dict = None):
+    set_history_kwargs(history_kwargs)
     data = {
         'payment_token': activation.payment_card_account.psp_token,
         'partner_slug': 'visa',
         'activation_id': activation.activation_id,
-        'id': activation.payment_card_account.id        # improves tracking via logs esp. in Metis
+        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
     }
     status, result = deactivate(activation, data)
 
@@ -107,3 +139,4 @@ def send_deactivation(activation):
             context={"activation_id": activation.id, "post_data": data},
             retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
         )
+    clean_history_kwargs(history_kwargs)

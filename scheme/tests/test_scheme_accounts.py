@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
-from rest_framework.test import APITestCase
 from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
 from scheme.encyption import AESCipher
@@ -20,16 +20,15 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
                                     SchemeBalanceDetailsFactory)
-from scheme.views import UpdateSchemeAccountStatus
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle
 from user.tests.factories import (SettingFactory, UserFactory, UserSettingFactory, ClientApplicationFactory)
 
 
-class TestSchemeAccountViews(APITestCase):
+class TestSchemeAccountViews(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         cls.scheme_image = SchemeImageFactory(scheme=cls.scheme)
         SchemeCredentialQuestionFactory(scheme=cls.scheme,
@@ -91,14 +90,13 @@ class TestSchemeAccountViews(APITestCase):
         cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme, bundle=cls.bundle,
                                                                        status=SchemeBundleAssociation.ACTIVE)
 
-        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
-                                                                       status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association1 = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
+                                                                        status=SchemeBundleAssociation.ACTIVE)
 
         cls.scheme_account1.update_barcode_and_card_number()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token(bundle_id=cls.bundle.bundle_id)}
 
         cls.scheme1_balance_details = SchemeBalanceDetailsFactory(scheme_id=cls.scheme1)
-        super().setUpClass()
 
     @patch.object(SchemeAccount, 'call_analytics')
     @patch('scheme.models.requests.get')
@@ -141,8 +139,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertNotIn('card_number_prefix', response.data['scheme'])
         self.assertEqual(response.data['display_status'], SchemeAccount.ACTIVE)
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.save()
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 404)
 
@@ -151,8 +149,8 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.get('/schemes/accounts/{0}'.format(self.scheme_account.id), **self.auth_headers)
         self.assertEqual(response.status_code, 200)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -191,8 +189,8 @@ class TestSchemeAccountViews(APITestCase):
         self.assertListEqual(expected_transaction_headers, response.data[0]['scheme']["transaction_headers"])
         schemes_number = len(response.json())
 
-        self.scheme.test_scheme = True
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = True
+        self.scheme_bundle_association.save()
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertLess(len(response.json()), schemes_number)
 
@@ -201,8 +199,8 @@ class TestSchemeAccountViews(APITestCase):
         response = self.client.get('/schemes/accounts', **self.auth_headers)
         self.assertEqual(len(response.json()), schemes_number)
 
-        self.scheme.test_scheme = False
-        self.scheme.save()
+        self.scheme_bundle_association.test_scheme = False
+        self.scheme_bundle_association.save()
         self.user.is_tester = False
         self.user.save()
 
@@ -283,8 +281,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_bink_user(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_bink_user(self, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
         user_set = str(self.bink_user.id)
@@ -301,12 +298,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_ubiquity_user(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_ubiquity_user(self, *_):
         client_app = ClientApplicationFactory(name='barclays')
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         user = UserFactory(client=client_app)
@@ -326,12 +321,10 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_join_callback(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_join_callback(self, *_):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
         SchemeAccountEntryFactory(scheme_account=scheme_account, user=self.bink_user)
 
@@ -348,11 +341,9 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.data['status'], SchemeAccount.MIDAS_UNREACHABLE)
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.status, SchemeAccount.MIDAS_UNREACHABLE)
-        self.assertFalse(mock_notify_rollback.called)
 
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_multiple_values(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_multiple_values(self, *_):
         entries = SchemeAccountEntry.objects.filter(scheme_account=self.scheme_account1)
         user_set = [str(entry.user.id) for entry in entries]
         self.assertTrue(len(user_set) > 1)
@@ -376,7 +367,6 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['id'], self.scheme_account.id)
         self.assertEqual(response.data['status'], 9)
-        self.assertFalse(mock_notify_rollback.called)
 
     def test_scheme_account_update_status_bad(self):
         response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account.id),
@@ -392,8 +382,7 @@ class TestSchemeAccountViews(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, mock_notify_rollback, *_):
+    def test_scheme_account_update_status_async_join_fail_deletes_main_answer(self, *_):
         client_app = ClientApplicationFactory(name='barclays')
         scheme_account = SchemeAccountFactory(status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS)
         user = UserFactory(client=client_app)
@@ -417,34 +406,6 @@ class TestSchemeAccountViews(APITestCase):
         scheme_account.refresh_from_db()
         self.assertEqual(scheme_account.main_answer, "")
         self.assertEqual(scheme_account.status, SchemeAccount.ENROL_FAILED)
-        self.assertFalse(mock_notify_rollback.called)
-
-    @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
-    def test_scheme_account_status_rollback_transactions_update(self, mock_notify_rollback, *_):
-        user_info = {
-            'user_set': ', '.join([str(x.id) for x in self.scheme_account1.user_set.all()])
-        }
-        data = {
-            'status': 1,
-            'journey': 'join',
-            'user_info': user_info
-        }
-        response = self.client.post('/schemes/accounts/{}/status/'.format(self.scheme_account1.id), data, format='json',
-                                    **self.auth_service_headers)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['id'], self.scheme_account1.id)
-        self.assertEqual(response.data['status'], 1)
-        self.assertTrue(mock_notify_rollback.called)
-
-    @patch('scheme.views.sentry_sdk')
-    @patch('scheme.views.requests.post')
-    def test_notify_join_for_rollback_transactions(self, mock_post, mock_sentry):
-        UpdateSchemeAccountStatus.notify_rollback_transactions('harvey-nichols', self.scheme_account,
-                                                               datetime.datetime.now())
-
-        self.assertFalse(mock_sentry.capture_exception.called)
-        self.assertTrue(mock_post.called)
 
     def test_scheme_account_update_transactions(self):
         transactions = [
@@ -1042,7 +1003,7 @@ class TestSchemeAccountViews(APITestCase):
         self.assertEqual(user_consent.status, ConsentStatus.SUCCESS)
 
 
-class TestSchemeAccountModel(APITestCase):
+class TestSchemeAccountModel(GlobalMockAPITestCase):
     def test_missing_credentials(self):
         scheme_account = SchemeAccountFactory()
         SchemeCredentialQuestionFactory(scheme=scheme_account.scheme, type=PASSWORD,
@@ -1233,9 +1194,9 @@ class TestSchemeAccountModel(APITestCase):
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
 
-class TestAccessTokens(APITestCase):
+class TestAccessTokens(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         # Scheme Account 3
         cls.scheme_account_entry = SchemeAccountEntryFactory()
         cls.scheme_account = cls.scheme_account_entry.scheme_account
@@ -1277,7 +1238,6 @@ class TestAccessTokens(APITestCase):
 
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
-        super(TestAccessTokens, cls).setUpClass()
 
     def setUp(self):
         self.test_scheme_acc_entry = SchemeAccountEntryFactory()
@@ -1408,9 +1368,9 @@ class TestAccessTokens(APITestCase):
         self.assertEqual(self.test_scheme_acc.manual_answer.answer, 'testemail@testbink.com')
 
 
-class TestSchemeAccountImages(APITestCase):
+class TestSchemeAccountImages(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme_account_entry = SchemeAccountEntryFactory()
         cls.scheme_account = cls.scheme_account_entry.scheme_account
         cls.scheme_account_image = SchemeAccountImageFactory(image_type_code=2)
@@ -1424,7 +1384,6 @@ class TestSchemeAccountImages(APITestCase):
 
         cls.user = cls.scheme_account_entry.user
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
-        super().setUpClass()
 
     def test_image_property(self):
         serializer = ListSchemeAccountSerializer()
@@ -1448,7 +1407,7 @@ class TestSchemeAccountImages(APITestCase):
         self.assertEqual(images[2]['object_type'], 'scheme_image')
 
 
-class TestExchange(APITestCase):
+class TestExchange(GlobalMockAPITestCase):
     def test_get_donor_schemes(self):
         host_scheme = self.create_scheme()
         donor_scheme_1 = self.create_scheme()
@@ -1502,9 +1461,9 @@ class TestExchange(APITestCase):
         return scheme
 
 
-class TestSchemeAccountCredentials(APITestCase):
+class TestSchemeAccountCredentials(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.scheme = SchemeFactory()
         cls.bink_client_app = ClientApplication.objects.get(client_id=settings.BINK_CLIENT_ID)
         cls.bundle = ClientApplicationBundle.objects.get(client=cls.bink_client_app, bundle_id='com.bink.wallet')
@@ -1547,8 +1506,6 @@ class TestSchemeAccountCredentials(APITestCase):
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
         cls.auth_headers2 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user2.create_token()}
         cls.auth_headers3 = {'HTTP_AUTHORIZATION': 'Token ' + cls.user3.create_token()}
-
-        super().setUpClass()
 
     def send_delete_credential_request(self, data):
         response = self.client.delete('/schemes/accounts/{0}/credentials'.format(self.scheme_account.id),

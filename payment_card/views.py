@@ -7,17 +7,19 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from history.utils import history_bulk_update
 from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
 from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
 from periodic_retry.tasks import PeriodicRetryHandler
-from prometheus.metrics import payment_card_status_counter
-from rest_framework import generics, serializers as rest_framework_serializers, status
-from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from prometheus.metrics import payment_card_status_change_counter, payment_card_processing_seconds_histogram
 from scheme.models import Scheme
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
@@ -80,7 +82,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
 
         if instance.user_set.count() < 1:
             instance.is_deleted = True
-            instance.save()
+            instance.save(update_fields=["is_deleted"])
             PaymentCardSchemeEntry.objects.filter(payment_card_account=instance).delete()
 
             metis.delete_payment_card(instance)
@@ -343,7 +345,10 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         'token': Optional for backward compatibility
         "deactivated_list": List of ids of associated deactivations so as to set the new status in the activations table
         "deactivate_errors": Dict of deactivation errors for reporting in retry task
+        "agent_card_uid": Returned when the agent receives a card identity during an add request - saved in agent data
+                        for reference
         """
+        agent_data = {}
         card_id = request.data.get('id', None)
         token = request.data.get('token', None)
         response_status = request.data.get('response_status', None)
@@ -352,8 +357,12 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         retry_id = request.data.get('retry_id', None)
         response_action = request.data.get('response_action', "Add")
         new_status_code = request.data.get('status', None)
-        deactivated_list = request.data.get('deactivated_list', [])
-        deactivate_errors = request.data.get('deactivate_errors', {})
+        # deactivated_list = request.data.get('deactivated_list', [])
+        # deactivate_errors = request.data.get('deactivate_errors', {})
+        agent_card_uid = request.data.get('agent_card_uid', None)
+
+        if agent_card_uid:
+            agent_data['card_uid'] = agent_card_uid
 
         if new_status_code is not None:
             new_status_code = int(new_status_code)
@@ -366,25 +375,37 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         else:
             payment_card_account = get_object_or_404(PaymentCardAccount, token=token)
 
+        if agent_data:
+            payment_card_account.agent_data = agent_data
+
         if response_action == "Delete":
-            # Retry with delete action is only called for providers which support it eg VOP path
-            retry_task = "retry_delete_payment_card"
-            deactivated_list = request.data.get('deactivated_list', [])
-            deactivate_errors = request.data.get('deactivate_errors', {})
-            if deactivate_errors:
-                response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
-
-            if deactivated_list:
-                VopActivation.objects.filter(id__in=deactivated_list).update(status=VopActivation.DEACTIVATED)
-
+            retry_task, response_message = self._process_delete_response_action(request, response_message)
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
-
             return Response({
                 'id': payment_card_account.id
             })
 
         return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
                                   response_message, response_status, card_id)
+
+    @staticmethod
+    def _process_delete_response_action(request, response_message):
+        # Retry with delete action is only called for providers which support it eg VOP path
+        retry_task = "retry_delete_payment_card"
+        deactivated_list = request.data.get('deactivated_list', [])
+        deactivate_errors = request.data.get('deactivate_errors', {})
+        if deactivate_errors:
+            response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
+
+        if deactivated_list:
+            updated_activations = []
+            for activation in VopActivation.objects.filter(id__in=deactivated_list).all():
+                activation.status = VopActivation.DEACTIVATED
+                updated_activations.append(activation)
+
+            history_bulk_update(VopActivation, updated_activations, update_fields=["status"])
+
+        return retry_task, response_message
 
     def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
                       response_message, response_status, card_id):
@@ -395,11 +416,19 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             raise rest_framework_serializers.ValidationError('Invalid status code sent.')
 
         if new_status_code != payment_card_account.status:
-            payment_card_account.status = new_status_code
-            payment_card_account.save()
+            if payment_card_account.status == PaymentCardAccount.PENDING:
+                activation_time = timezone.now() - payment_card_account.updated
+                payment_card_processing_seconds_histogram.labels(
+                    provider=payment_card_account.payment_card.system_name
+                ).observe(activation_time.total_seconds())
 
-            payment_card_status_counter.labels(scheme=payment_card_account.payment_card.name,
-                                               status=payment_card_account.status_name).inc()
+            payment_card_account.status = new_status_code
+            payment_card_account.save(update_fields=["status", "agent_data"])
+
+            payment_card_status_change_counter.labels(
+                provider=payment_card_account.payment_card.system_name,
+                status=payment_card_account.status_name
+            ).inc()
 
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:

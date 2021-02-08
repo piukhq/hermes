@@ -1,18 +1,19 @@
 import json
 
 import arrow
-from rest_framework.test import APITestCase
+from django.urls import reverse
 
+from history.utils import GlobalMockAPITestCase
 from ubiquity.tests.property_token import GenerateJWToken
+from user.models import CustomUser
 from user.tests.factories import ClientApplicationBundleFactory, OrganisationFactory, ClientApplicationFactory
 
 
-class TestRegistration(APITestCase):
+class TestRegistration(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.bundle = ClientApplicationBundleFactory()
         cls.token_generator = GenerateJWToken
-        super().setUpClass()
 
     def test_service_registration(self):
         data = {
@@ -52,6 +53,36 @@ class TestRegistration(APITestCase):
 
         resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
         self.assertEqual(resp.status_code, 201)
+
+    def test_service_registration_with_malformed_data_existing_user(self):
+        BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+        BINK_BUNDLE_ID = 'com.bink.wallet'
+
+        user_response = self.client.post(
+            reverse('register_user'),
+            {
+                'email': 'test_1@example.com',
+                'password': 'Password1',
+                'client_id': BINK_CLIENT_ID,
+                'bundle_id': BINK_BUNDLE_ID
+            }
+        )
+
+        token = user_response.json()['api_key']
+        auth_headers = {'HTTP_AUTHORIZATION': 'token {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'email': user_response.json()['email'],
+                'timestamp': "abc"
+            }
+        })
+
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
+        # Check it has not deactivated the user going through this journey.
+        user = CustomUser.objects.get(uid=user_response.json()['uid'])
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(user.is_active)
 
     def test_service_registration_wrong_data(self):
         data = {
