@@ -159,9 +159,7 @@ class AutoLinkOnCreationMixin:
     ) -> None:
 
         # Ensure that we only consider membership cards in a user's wallet which can be PLL linked
-        wallet_scheme_accounts = SchemeAccount.objects.filter(
-            user_set=user, scheme__tier=Scheme.PLL, schemeaccountentry__auth_status=SchemeAccountEntry.AUTHORISED
-        ).all()
+        wallet_scheme_accounts = SchemeAccount.objects.filter(user_set=user, scheme__tier=Scheme.PLL).all()
 
         if wallet_scheme_accounts:
             if payment_card_account.status == PaymentCardAccount.ACTIVE:
@@ -686,14 +684,12 @@ class MembershipCardView(
         account.delete_saved_balance()
         account.delete_cached_balance()
 
-        entries = request.user.schemeaccountentry_set.all()
-
         if enrol_fields:
             self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
             metrics_route = MembershipCardAddRoute.ENROL
         else:
             metrics_route = self._replace_add_and_auth_fields(
-                account, add_fields, auth_fields, scheme, payment_cards_to_link, entries
+                account, add_fields, auth_fields, scheme, payment_cards_to_link
             )
 
         if metrics_route:
@@ -703,6 +699,7 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
+        entries = request.user.schemeaccountentry_set.all()
         mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
         return Response(
             self.get_serializer_by_request(
@@ -757,7 +754,6 @@ class MembershipCardView(
         auth_fields: dict,
         scheme: Scheme,
         payment_cards_to_link: list,
-        entries: 'QuerySet[SchemeAccountEntry]'
     ) -> t.Optional[MembershipCardAddRoute]:
         if auth_fields:
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -1387,7 +1383,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
         except PaymentCardAccount.DoesNotExist:
             raise NotFound(f"The payment card of id {payment_card_id} was not found.")
         except SchemeAccount.DoesNotExist:
-            raise NotFound(f"The membership card of id {membership_card_id} was not found or is not authorised.")
+            raise NotFound(f"The membership card of id {membership_card_id} was not found.")
         except KeyError:
             raise ParseError
 
