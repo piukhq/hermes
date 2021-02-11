@@ -545,10 +545,10 @@ class MembershipCardView(
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
         entries = request.user.schemeaccountentry_set.all()
-        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
 
         return Response(self.get_serializer_by_request(
-            account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+            account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
         ).data)
 
     def log_update(self, scheme_account_id):
@@ -589,10 +589,10 @@ class MembershipCardView(
             ).inc()
 
         entries = request.user.schemeaccountentry_set.all()
-        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
         return Response(
             self.get_serializer_by_request(
-                updated_account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+                updated_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
             ).data, status=status.HTTP_200_OK
         )
 
@@ -692,7 +692,9 @@ class MembershipCardView(
             self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
             metrics_route = MembershipCardAddRoute.ENROL
         else:
-            metrics_route = self._replace_add_and_auth_fields(account, add_fields, auth_fields, scheme, payment_cards_to_link, entries)
+            metrics_route = self._replace_add_and_auth_fields(
+                account, add_fields, auth_fields, scheme, payment_cards_to_link, entries
+            )
 
         if metrics_route:
             membership_card_update_counter.labels(
@@ -701,10 +703,10 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
-        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
         return Response(
             self.get_serializer_by_request(
-                account, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+                account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
             ).data, status=status.HTTP_200_OK
         )
 
@@ -774,9 +776,7 @@ class MembershipCardView(
             async_balance.delay(account.id)
 
             if payment_cards_to_link:
-                mcard_entry = entries.get(scheme_account=account)
-                if mcard_entry.authorised_for_autolink():
-                    auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+                auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
 
         return metrics_route
 
@@ -890,9 +890,9 @@ class MembershipCardView(
         add_fields, auth_fields, enrol_fields = self._collect_credentials_answers(self.request.data, scheme=scheme)
         return scheme, auth_fields, enrol_fields, add_fields
 
-
     def _handle_existing_scheme_account(
-        self,scheme_account: SchemeAccount,
+        self,
+        scheme_account: SchemeAccount,
         user: CustomUser,
         auth_fields: dict,
         payment_cards_to_link: list
@@ -909,15 +909,17 @@ class MembershipCardView(
             existing_answers = scheme_account.get_auth_credentials()
             self._validate_auth_fields(auth_fields, existing_answers)
 
-            mcard_entry = SchemeAccountEntry.update_or_create_link(
+            SchemeAccountEntry.update_or_create_link(
                 user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
             )
-            if payment_cards_to_link and mcard_entry.authorised_for_autolink():
-                auto_link_membership_to_payments(payment_cards_to_link, scheme_account,
-                history_kwargs={
-                    "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
-                },
-            )
+            if payment_cards_to_link:
+                auto_link_membership_to_payments(
+                    payment_cards_to_link,
+                    scheme_account,
+                    history_kwargs={
+                        "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+                    },
+                )
 
     @staticmethod
     def _validate_auth_fields(auth_fields, existing_answers):
@@ -1195,13 +1197,13 @@ class MembershipCardView(
             scheme_account.save(update_fields=["status"])
             logger.info(f"Set SchemeAccount (id={scheme_account.id}) to Wallet Only status")
 
-        # if payment_cards_to_link:
-        #     auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-
         scheme_account.update_barcode_and_card_number()
         SchemeAccountEntry.create_link(
             user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.UNAUTHORISED
         )
+
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     @staticmethod
     def match_consents(consent_links, data_provided):
@@ -1234,10 +1236,10 @@ class ListMembershipCardView(MembershipCardView):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
 
         entries = request.user.schemeaccountentry_set.all()
-        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
 
         response = self.get_serializer_by_request(
-            accounts, many=True, context={"user_mcard_auth_status_map": user_mcard_auth_status_map}
+            accounts, many=True, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
         ).data
 
         return Response(response, status=200)
@@ -1278,19 +1280,18 @@ class ListMembershipCardView(MembershipCardView):
             ).inc()
 
         entries = request.user.schemeaccountentry_set.all()
-        user_mcard_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
 
         return Response(
             self.get_serializer_by_request(
                 account,
                 context={
                     "request": request,
-                    "user_mcard_auth_status_map": user_mcard_auth_status_map
+                    "mcard_user_auth_status_map": mcard_user_auth_status_map
                 }
             ).data,
             status=status_code
         )
-
 
 
 class CardLinkView(VersionedSerializerMixin, ModelViewSet):
@@ -1380,7 +1381,6 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
             membership_card = user.scheme_account_set.get(
                 pk=membership_card_id,
-                schemeaccountentry__auth_status=SchemeAccountEntry.AUTHORISED,
                 **filters
             )
 

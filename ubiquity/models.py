@@ -63,17 +63,12 @@ class SchemeAccountEntry(models.Model):
         scheme_account: "SchemeAccount",
         auth_status: AUTH_STATUSES = UNAUTHORISED
     ) -> "SchemeAccountEntry":
-        return SchemeAccountEntry.objects.update_or_create(
-            user=user,
-            scheme_account=scheme_account,
-            auth_status=auth_status
-        )
-
-    def authorised_for_autolink(self):
-        return {
-            self.AUTHORISED: True,
-            self.UNAUTHORISED: False,
-        }[self.auth_status]
+        with transaction.atomic():
+            return SchemeAccountEntry.objects.update_or_create(
+                user=user,
+                scheme_account=scheme_account,
+                defaults={"auth_status": auth_status}
+            )
 
 
 class PaymentCardAccountEntry(models.Model):

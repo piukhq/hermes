@@ -65,9 +65,7 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
         BaseLinkMixin.link_account(serializer, scheme_account, user)
 
         if payment_cards_to_link:
-            mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
-            if mcard_entry.authorised_for_autolink():
-                auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         clean_history_kwargs(history_kwargs)
     except serializers.ValidationError as e:
@@ -113,9 +111,7 @@ def async_join(scheme_account_id: int, user_id: int, serializer: 'Serializer', s
     SchemeAccountJoinMixin().handle_join_request(validated_data, user, scheme_id, scheme_account, serializer, channel)
 
     if payment_cards_to_link:
-        mcard_entry = user.schemeaccountentry_set.get(scheme_account=scheme_account)
-        if mcard_entry.authorised_for_autolink():
-            auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     clean_history_kwargs(history_kwargs)
 
@@ -398,7 +394,7 @@ def auto_link_membership_to_payments(
             payment_card_account=payment_card_account
         ).get_instance_with_active_status()
         link_entries_to_create.append(entry)
-        if entry.active_link is True:
+        if entry.active_link:
             pll_activated_payment_cards.append(payment_card_account.id)
             if payment_card_account.payment_card.slug == PaymentCard.VISA:
                 vop_activated_cards.append(payment_card_account.id)

@@ -629,7 +629,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
 
-        status, balances, transactions, vouchers = self._wallet_only_filter(instance)
+        status, balances, transactions, vouchers, pll_links = self._wallet_only_filter(instance)
 
         status = self.get_translated_status(instance, status)
         balances = self._strip_reward_tier(balances)
@@ -640,7 +640,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         card_repr = {
             'id': instance.id,
             'membership_plan': instance.scheme_id,
-            'payment_cards': instance.pll_links,
+            'payment_cards': pll_links,
             'membership_transactions': transactions,
             'status': status,
             'card': {
@@ -661,27 +661,31 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
     def _wallet_only_filter(
         self, instance: 'SchemeAccount'
-    ) -> t.Tuple['SchemeAccount.STATUSES', list, list, t.Union[list, dict]]:
-        status = instance.status
-        balances = instance.balances
-        transactions = instance.transactions
-        vouchers = instance.vouchers
+    ) -> t.Tuple['SchemeAccount.STATUSES', list, list, t.Union[list, dict], list]:
+        status = SchemeAccount.WALLET_ONLY
+        balances = []
+        transactions = []
+        vouchers = {}
+        pll_links = []
 
-        user_mcard_auth_status_map = self.context.get("user_mcard_auth_status_map", {})
+        mcard_user_auth_status_map = self.context.get("mcard_user_auth_status_map", {})
         try:
-            auth_status = user_mcard_auth_status_map[instance.id]
-            if auth_status == SchemeAccountEntry.UNAUTHORISED:
-                status = SchemeAccount.WALLET_ONLY
-                balances = []
-                transactions = []
-                vouchers = {}
+            auth_status = mcard_user_auth_status_map[instance.id]
+            if auth_status == SchemeAccountEntry.AUTHORISED:
+                status = instance.status
+                balances = instance.balances
+                transactions = instance.transactions
+                vouchers = instance.vouchers
+                pll_links = instance.pll_links
         except KeyError:
-            logger.warning(
+            logger.error(
                 f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
-                " - User may not be linked to this membership card"
+                " - Defaulting user to Unauthorised status - This will hide the following fields: "
+                "status, balances, transactions, vouchers, pll_links\n"
+                "Has a mcard_user_auth_status_map been provided to the serializer context?"
             )
 
-        return status, balances, transactions, vouchers
+        return status, balances, transactions, vouchers, pll_links
 
 
 class LinkMembershipCardSerializer(SchemeAnswerSerializer):
