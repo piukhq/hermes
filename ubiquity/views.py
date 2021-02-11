@@ -572,7 +572,7 @@ class MembershipCardView(
         self.log_update(account.pk)
         scheme = account.scheme
         scheme_questions = scheme.questions.all()
-        sch_acc_entry = request.user.schemeaccountentry_set.all()
+        sch_acc_entry = request.user.schemeaccountentry_set.get(scheme_account=account)
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
