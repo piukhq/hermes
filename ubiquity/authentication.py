@@ -36,7 +36,8 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         else:
             try:
                 channels_permit.user = CustomUser.objects.get(
-                    external_id=auth_user_id, client=channels_permit.bundle.client)
+                    external_id=auth_user_id, client=channels_permit.bundle.client
+                )
             except CustomUser.DoesNotExist:
                 raise no_user_error
 

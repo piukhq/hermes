@@ -98,6 +98,12 @@ class ConflictError(APIException):
     default_code = "conflict"
 
 
+class AuthFieldError(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Missing Auth fields"
+    default_code = "auth_field_error"
+
+
 def auto_link(req):
     auto_link_mapping = {
         "true": True,
@@ -566,6 +572,7 @@ class MembershipCardView(
         self.log_update(account.pk)
         scheme = account.scheme
         scheme_questions = scheme.questions.all()
+        sch_acc_entry = request.user.schemeaccountentry_set.all()
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
@@ -578,16 +585,24 @@ class MembershipCardView(
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
+            auth_questions = {question.type for question in scheme_questions if question.auth_field}
+            if (sch_acc_entry.auth_status == SchemeAccountEntry.UNAUTHORISED and
+                    not auth_questions.issubset(update_fields.keys())):
+                raise AuthFieldError("All auth fields must be provided for an unauthorised card")
+
             updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions)
             metrics_route = MembershipCardAddRoute.UPDATE
+
+            if sch_acc_entry.auth_status != SchemeAccountEntry.AUTHORISED:
+                sch_acc_entry.auth_status = SchemeAccountEntry.AUTHORISED
+                sch_acc_entry.save(update_fields=["auth_status"])
 
         if metrics_route:
             membership_card_update_counter.labels(
                 channel=request.channels_permit.bundle_id, scheme=scheme.slug, route=metrics_route.value
             ).inc()
 
-        entries = request.user.schemeaccountentry_set.all()
-        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        mcard_user_auth_status_map = {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_status}
         return Response(
             self.get_serializer_by_request(
                 updated_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
@@ -595,7 +610,11 @@ class MembershipCardView(
         )
 
     def _handle_update_fields(
-            self, account: SchemeAccount, scheme: Scheme, update_fields: dict, scheme_questions: list
+        self,
+        account: SchemeAccount,
+        scheme: Scheme,
+        update_fields: dict,
+        scheme_questions: list
     ) -> SchemeAccount:
         if "consents" in update_fields:
             del update_fields["consents"]
