@@ -27,6 +27,8 @@ from django.utils.translation import gettext_lazy as _
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
+from history.utils import get_channel_from_context
+from prometheus.metrics import membership_card_status_change_counter, format_membership_card_status_change
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -36,9 +38,7 @@ if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
     from django.db.models import QuerySet
 
-
 logger = logging.getLogger(__name__)
-
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -922,10 +922,10 @@ class SchemeAccount(models.Model):
         self.save(update_fields=['barcode', 'card_number'])
 
     def _update_barcode_and_card_number(
-        self,
-        primary_cred: 'SchemeAccountCredentialAnswer',
-        answers: Iterable['SchemeAccountCredentialAnswer'],
-        primary_cred_type: str
+            self,
+            primary_cred: 'SchemeAccountCredentialAnswer',
+            answers: Iterable['SchemeAccountCredentialAnswer'],
+            primary_cred_type: str
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
@@ -994,6 +994,11 @@ class SchemeAccount(models.Model):
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status
         if status_update:
+            membership_card_status_change_counter.labels(
+                channel=get_channel_from_context(),
+                scheme=self.scheme.slug,
+                status_change=format_membership_card_status_change(old_status, self.status)
+            ).inc()
             update_fields.append("status")
 
         if update_fields:

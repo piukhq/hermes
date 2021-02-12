@@ -17,7 +17,9 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 
 import analytics
+from history.utils import get_channel_from_context
 from payment_card.payment import Payment
+from prometheus.metrics import membership_card_status_change_counter, format_membership_card_status_change
 from scheme.account_status_summary import scheme_account_status_data
 from scheme.forms import CSVUploadForm
 from scheme.mixins import (IdentifyCardMixin, SchemeAccountCreationMixin, SchemeAccountJoinMixin,
@@ -366,6 +368,12 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         self.process_active_accounts(scheme_account, journey, new_status_code)
 
         if new_status_code != previous_status:
+            membership_card_status_change_counter.labels(
+                channel=get_channel_from_context(),
+                scheme=scheme_account.scheme.slug,
+                status_change=format_membership_card_status_change(previous_status, new_status_code)
+            ).inc()
+
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
 
             # delete main answer credential if an async join failed
