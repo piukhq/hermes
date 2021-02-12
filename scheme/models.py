@@ -922,10 +922,10 @@ class SchemeAccount(models.Model):
         self.save(update_fields=['barcode', 'card_number'])
 
     def _update_barcode_and_card_number(
-            self,
-            primary_cred: 'SchemeAccountCredentialAnswer',
-            answers: Iterable['SchemeAccountCredentialAnswer'],
-            primary_cred_type: str
+        self,
+        primary_cred: 'SchemeAccountCredentialAnswer',
+        answers: Iterable['SchemeAccountCredentialAnswer'],
+        primary_cred_type: str
     ) -> None:
         """
         Updates the given primary credential of either card number or barcode. The non-provided (secondary)
