@@ -545,12 +545,50 @@ class MembershipCardView(
             SchemeAccount.objects.select_related("scheme"), user_id=self.request.user.id, user_filter=True
         )
 
+    @staticmethod
+    def _get_mcard_user_auth_status_map(request: 'Request', accounts: t.List[SchemeAccount]) -> dict:
+        """
+        Used by .retrieve() and .list() endpoints to generate a mapping of scheme account ids to
+        scheme account entry auth statuses. This function chooses the least expensive query
+        based on if a singular scheme account or a list of all the user's scheme accounts is provided.
+
+        For internal service users, the auth_status values are all returned as Authorised.
+        """
+        def get_singular_card_mapping(account):
+            if request.channels_permit.service_allow_all:
+                mapping = {account.id: SchemeAccountEntry.AUTHORISED}
+            else:
+                try:
+                    entry = account.schemeaccountentry_set.get(user=request.user)
+                    mapping = {entry.scheme_account_id: entry.auth_status}
+                except SchemeAccountEntry.DoesNotExist:
+                    mapping = {}
+            return mapping
+
+        if isinstance(accounts, SchemeAccount):
+            mcard_user_auth_status_map = get_singular_card_mapping(accounts)
+        elif len(accounts) == 1:
+            mcard_user_auth_status_map = get_singular_card_mapping(accounts[0])
+        else:
+            entries = request.user.schemeaccountentry_set.filter()
+            if request.channels_permit.service_allow_all:
+                mcard_user_auth_status_map = {
+                    entry.scheme_account_id: SchemeAccountEntry.AUTHORISED
+                    for entry in entries
+                }
+            else:
+                mcard_user_auth_status_map = {
+                    entry.scheme_account_id: entry.auth_status
+                    for entry in entries
+                }
+
+        return mcard_user_auth_status_map
+
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
-        entry = account.schemeaccountentry_set.get(user=request.user)
         return Response(self.get_serializer_by_request(
-            account, context={"mcard_user_auth_status_map": {entry.scheme_account_id: entry.auth_status}}
+            account, context={"mcard_user_auth_status_map": self._get_mcard_user_auth_status_map(request, account)}
         ).data)
 
     def log_update(self, scheme_account_id):
@@ -719,10 +757,9 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
-        entry = account.schemeaccountentry_set.get(user=request.user)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_status_map": {entry.scheme_account_id: entry.auth_status}}
+                account, context={"mcard_user_auth_status_map": self._get_mcard_user_auth_status_map(request, account)}
             ).data, status=status.HTTP_200_OK
         )
 
@@ -1268,11 +1305,12 @@ class ListMembershipCardView(MembershipCardView):
     def list(self, request, *args, **kwargs):
         accounts = self.filter_queryset(self.get_queryset()).exclude(status=SchemeAccount.JOIN)
 
-        entries = request.user.schemeaccountentry_set.all()
-        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
-
         response = self.get_serializer_by_request(
-            accounts, many=True, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
+            accounts,
+            many=True,
+            context={
+                "mcard_user_auth_status_map": self._get_mcard_user_auth_status_map(request, accounts)
+            }
         ).data
 
         return Response(response, status=200)
