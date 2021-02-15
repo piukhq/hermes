@@ -803,6 +803,99 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertFalse(payment_scheme_entry.active_link)
 
+    def test_wallet_only_card_patch_authorises_link(self):
+        existing_answer_value = "36543456787656"
+        existing_scheme_account = SchemeAccountFactory(
+            scheme=self.scheme,
+            barcode=existing_answer_value,
+            status=SchemeAccount.WALLET_ONLY
+        )
+        entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            auth_status=SchemeAccountEntry.UNAUTHORISED
+        )
+        SchemeAccountCredentialAnswer(
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value
+        )
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": self.secondary_question.label,
+                        "value": "Test"
+                    }
+                ]
+            }
+        }
+
+        resp = self.client.patch(
+            reverse("membership-card", kwargs={"pk": existing_scheme_account.id}),
+            data=json.dumps(payload),
+            content_type='application/json',
+            **self.auth_headers
+        )
+
+        self.assertEqual(200, resp.status_code)
+        entry.refresh_from_db()
+        self.assertEqual(SchemeAccountEntry.AUTHORISED, entry.auth_status)
+        self.assertEqual(existing_scheme_account.id, resp.data["id"])
+
+    def test_wallet_only_patch_fails_if_missing_auth_fields(self):
+        second_auth_question = SchemeCredentialQuestionFactory(
+            scheme=self.scheme,
+            type=POSTCODE,
+            label=POSTCODE,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True
+        )
+        existing_answer_value = "36543456787656"
+        existing_scheme_account = SchemeAccountFactory(
+            scheme=self.scheme,
+            barcode=existing_answer_value,
+            status=SchemeAccount.WALLET_ONLY
+        )
+        entry = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=self.user,
+            auth_status=SchemeAccountEntry.UNAUTHORISED
+        )
+        SchemeAccountCredentialAnswer(
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value
+        )
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": self.secondary_question.label,
+                        "value": "Test"
+                    }
+                ]
+            }
+        }
+
+        resp = self.client.patch(
+            reverse("membership-card", kwargs={"pk": existing_scheme_account.id}),
+            data=json.dumps(payload),
+            content_type='application/json',
+            **self.auth_headers
+        )
+
+        self.assertEqual(400, resp.status_code)
+        self.assertEqual("All auth fields must be provided for an unauthorised card", resp.data.get("detail"))
+        entry.refresh_from_db()
+        self.assertEqual(SchemeAccountEntry.UNAUTHORISED, entry.auth_status)
+
+        second_auth_question.delete()
+
     @patch('ubiquity.views.async_link', autospec=True)
     def test_membership_card_link_with_consents(self, *_):
         consent_label = "Test Consent"

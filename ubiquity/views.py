@@ -548,11 +548,9 @@ class MembershipCardView(
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
         account = self.get_object()
-        entries = request.user.schemeaccountentry_set.all()
-        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
-
+        entry = account.schemeaccountentry_set.get(user=request.user)
         return Response(self.get_serializer_by_request(
-            account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
+            account, context={"mcard_user_auth_status_map": {entry.scheme_account_id: entry.auth_status}}
         ).data)
 
     def log_update(self, scheme_account_id):
@@ -572,7 +570,7 @@ class MembershipCardView(
         self.log_update(account.pk)
         scheme = account.scheme
         scheme_questions = scheme.questions.all()
-        sch_acc_entry = request.user.schemeaccountentry_set.get(scheme_account=account)
+        sch_acc_entry = account.schemeaccountentry_set.get(user=request.user)
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
         if registration_fields:
@@ -602,10 +600,12 @@ class MembershipCardView(
                 channel=request.channels_permit.bundle_id, scheme=scheme.slug, route=metrics_route.value
             ).inc()
 
-        mcard_user_auth_status_map = {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_status}
         return Response(
             self.get_serializer_by_request(
-                updated_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
+                updated_account,
+                context={
+                    "mcard_user_auth_status_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_status}
+                }
             ).data, status=status.HTTP_200_OK
         )
 
@@ -708,7 +708,8 @@ class MembershipCardView(
             metrics_route = MembershipCardAddRoute.ENROL
         else:
             metrics_route = self._replace_add_and_auth_fields(
-                account, add_fields, auth_fields, scheme, payment_cards_to_link
+                account, add_fields, auth_fields, scheme, payment_cards_to_link, user_id,
+                request.channels_permit.bundle_id
             )
 
         if metrics_route:
@@ -718,11 +719,10 @@ class MembershipCardView(
                 route=metrics_route.value,
             ).inc()
 
-        entries = request.user.schemeaccountentry_set.all()
-        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
+        entry = account.schemeaccountentry_set.get(user=request.user)
         return Response(
             self.get_serializer_by_request(
-                account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
+                account, context={"mcard_user_auth_status_map": {entry.scheme_account_id: entry.auth_status}}
             ).data, status=status.HTTP_200_OK
         )
 
@@ -773,6 +773,8 @@ class MembershipCardView(
         auth_fields: dict,
         scheme: Scheme,
         payment_cards_to_link: list,
+        user_id: int,
+        channel: str
     ) -> t.Optional[MembershipCardAddRoute]:
         if auth_fields:
             auth_fields = detect_and_handle_escaped_unicode(auth_fields)
@@ -791,7 +793,13 @@ class MembershipCardView(
             async_balance.delay(account.id)
 
             if payment_cards_to_link:
-                auto_link_membership_to_payments.delay(payment_cards_to_link, account.id)
+                auto_link_membership_to_payments.delay(
+                    payment_cards_to_link,
+                    account.id,
+                    history_kwargs={
+                        "user_info": user_info(user_id=user_id, channel=channel)
+                    }
+                )
 
         return metrics_route
 
@@ -911,12 +919,12 @@ class MembershipCardView(
         user: CustomUser,
         auth_fields: dict,
         payment_cards_to_link: list
-    ) -> None:
+    ) -> SchemeAccountEntry:
         """This function assumes that auth fields are always provided"""
         if scheme_account.status == SchemeAccount.WALLET_ONLY:
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_pending()
-            SchemeAccountEntry.update_or_create_link(
+            entry = SchemeAccountEntry.create_link(
                 user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
             )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
@@ -924,7 +932,7 @@ class MembershipCardView(
             existing_answers = scheme_account.get_auth_credentials()
             self._validate_auth_fields(auth_fields, existing_answers)
 
-            SchemeAccountEntry.update_or_create_link(
+            entry = SchemeAccountEntry.create_link(
                 user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
             )
             if payment_cards_to_link:
@@ -935,6 +943,8 @@ class MembershipCardView(
                         "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
                     },
                 )
+
+        return entry
 
     @staticmethod
     def _validate_auth_fields(auth_fields, existing_answers):
@@ -972,7 +982,7 @@ class MembershipCardView(
         auth_fields: dict,
         add_fields: dict,
         payment_cards_to_link: list
-    ) -> t.Tuple[SchemeAccount, int, MembershipCardAddRoute]:
+    ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int, MembershipCardAddRoute]:
         history_journey = SchemeAccountJourney.ADD.value
         HISTORY_CONTEXT.journey = history_journey
         link_consents = add_fields.get("consents", []) + auth_fields.get("consents", [])
@@ -1000,22 +1010,28 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            SchemeAccountEntry.create_link(user, scheme_account, auth_status=SchemeAccountEntry.AUTHORISED)
+            sch_acc_entry = SchemeAccountEntry.create_link(
+                user, scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+            )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
         elif not auth_fields:
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
-            self._handle_add_fields_only_link(user, scheme_account, payment_cards_to_link, account_created)
+            sch_acc_entry = self._handle_add_fields_only_link(
+                user, scheme_account, payment_cards_to_link, account_created
+            )
         else:
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
-            self._handle_existing_scheme_account(scheme_account, user, auth_fields, payment_cards_to_link)
+            sch_acc_entry = self._handle_existing_scheme_account(
+                scheme_account, user, auth_fields, payment_cards_to_link
+            )
 
-        return scheme_account, return_status, metrics_route
+        return scheme_account, sch_acc_entry, return_status, metrics_route
 
     @staticmethod
     def _handle_create_join_route(
             user: CustomUser, channels_permit: Permit, scheme: Scheme, enrol_fields: dict, payment_cards_to_link: list
-    ) -> t.Tuple[SchemeAccount, int]:
+    ) -> t.Tuple[SchemeAccount, SchemeAccountEntry, int]:
         history_journey = SchemeAccountJourney.ENROL.value
         HISTORY_CONTEXT.journey = history_journey
 
@@ -1051,11 +1067,11 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                SchemeAccountEntry.objects.get_or_create(
+                sch_acc_entry = SchemeAccountEntry.objects.get_or_create(
                     scheme_account=scheme_account,
                     user=user,
                 )
-                return scheme_account, status.HTTP_201_CREATED
+                return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
         scheme_account = SchemeAccount(
             order=0, scheme_id=scheme.id, status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, main_answer=main_answer
@@ -1070,7 +1086,7 @@ class MembershipCardView(
         )
 
         scheme_account.save()
-        SchemeAccountEntry.objects.create(
+        sch_acc_entry = SchemeAccountEntry.objects.create(
             user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
         )
         async_join.delay(
@@ -1086,7 +1102,7 @@ class MembershipCardView(
                 "journey": history_journey,
             },
         )
-        return scheme_account, status.HTTP_201_CREATED
+        return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
     @staticmethod
     def _get_manual_question(scheme_slug, scheme_questions):
@@ -1205,7 +1221,7 @@ class MembershipCardView(
         scheme_account: 'SchemeAccount',
         payment_cards_to_link: list,
         account_created: bool,
-    ) -> None:
+    ) -> SchemeAccountEntry:
         """Handles scheme accounts for when only add fields are provided."""
         if account_created:
             scheme_account.status = SchemeAccount.WALLET_ONLY
@@ -1213,12 +1229,14 @@ class MembershipCardView(
             logger.info(f"Set SchemeAccount (id={scheme_account.id}) to Wallet Only status")
 
         scheme_account.update_barcode_and_card_number()
-        SchemeAccountEntry.create_link(
+        entry = SchemeAccountEntry.create_link(
             user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.UNAUTHORISED
         )
 
         if payment_cards_to_link:
             auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+        return entry
 
     @staticmethod
     def match_consents(consent_links, data_provided):
@@ -1275,14 +1293,14 @@ class ListMembershipCardView(MembershipCardView):
         if enrol_fields:
             enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
             metrics_route = MembershipCardAddRoute.ENROL
-            account, status_code = self._handle_create_join_route(
+            account, sch_acc_entry, status_code = self._handle_create_join_route(
                 request.user, request.channels_permit, scheme, enrol_fields, payment_cards_to_link
             )
         else:
             if auth_fields:
                 auth_fields = detect_and_handle_escaped_unicode(auth_fields)
 
-            account, status_code, metrics_route = self._handle_create_link_route(
+            account, sch_acc_entry, status_code, metrics_route = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields, payment_cards_to_link
             )
 
@@ -1294,15 +1312,12 @@ class ListMembershipCardView(MembershipCardView):
                 channel=request.channels_permit.bundle_id, scheme=scheme.slug, route=metrics_route.value
             ).inc()
 
-        entries = request.user.schemeaccountentry_set.all()
-        mcard_user_auth_status_map = {entry.scheme_account_id: entry.auth_status for entry in entries}
-
         return Response(
             self.get_serializer_by_request(
                 account,
                 context={
                     "request": request,
-                    "mcard_user_auth_status_map": mcard_user_auth_status_map
+                    "mcard_user_auth_status_map": {sch_acc_entry.scheme_account_id: sch_acc_entry.auth_status}
                 }
             ).data,
             status=status_code
