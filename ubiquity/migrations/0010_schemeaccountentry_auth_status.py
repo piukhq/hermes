@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='schemeaccountentry',
             name='auth_status',
-            field=models.IntegerField(choices=[(0, 'authorised'), (1, 'unauthorised')], default=1),
+            field=models.IntegerField(choices=[(0, 'authorised'), (1, 'unauthorised')], default=0),
         ),
     ]
