@@ -47,3 +47,4 @@ mozilla-django-oidc = "*"
 django-prometheus = "*"
 django-admin-rangefilter = "*"
 django-storages = {extras = ["azure"], version = "*"}
+cryptography = "*"

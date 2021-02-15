@@ -1,27 +1,8 @@
 from enum import Enum
-from urllib.error import URLError
 
-import sentry_sdk
-from django.conf import settings
 from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
-from prometheus_client import Counter, Gauge, Histogram, CollectorRegistry, push_to_gateway
-
-
-registry = CollectorRegistry()
-
-
-# Manually push metrics that's not capture via the middleware. i.e. celery
-def push_metric(grouping_key: str):
-    try:
-        push_to_gateway(
-            settings.PROMETHEUS_PUSH_GATEWAY,
-            job='hermes',
-            registry=registry,
-            grouping_key={grouping_key: grouping_key}
-        )
-    except URLError as e:
-        sentry_sdk.capture_exception(e)
+from prometheus_client import Counter, Histogram
 
 
 def m(metric_name: str) -> str:
@@ -47,13 +28,6 @@ class MembershipCardAddRoute(str, Enum):
     UPDATE = "Update"
     WALLET_ONLY = "Wallet Only"
     MULTI_WALLET = "Multi Wallet"
-
-
-class VopStatus(str, Enum):
-    ACTIVATING = "Activating"
-    ACTIVATED = "Activated"
-    DEACTIVATING = "Deactivating"
-    DEACTIVATED = "Deactivated"
 
 
 class CustomMetrics(Metrics):
@@ -108,10 +82,9 @@ membership_card_update_counter = Counter(
     namespace=NAMESPACE,
 )
 
-vop_activation_status = Gauge(
-    name="vop_activation_status_count",
-    documentation="Vop activation status count.",
-    labelnames=("status",),
+membership_card_status_change_counter = Counter(
+    name="membership_card_status_change_total",
+    documentation="Total number of membership cards status changes.",
+    labelnames=("channel", "scheme", "status_change"),
     namespace=NAMESPACE,
-    registry=registry
 )
