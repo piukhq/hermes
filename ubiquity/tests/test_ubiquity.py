@@ -803,7 +803,12 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertFalse(payment_scheme_entry.active_link)
 
-    def test_wallet_only_card_patch_authorises_link(self):
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch('ubiquity.views.async_registration', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_wallet_only_card_patch_authorises_link(self, *_):
         existing_answer_value = "36543456787656"
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme,
@@ -845,7 +850,12 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(SchemeAccountEntry.AUTHORISED, entry.auth_status)
         self.assertEqual(existing_scheme_account.id, resp.data["id"])
 
-    def test_wallet_only_patch_fails_if_missing_auth_fields(self):
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch('ubiquity.views.async_balance', autospec=True)
+    @patch('ubiquity.views.async_registration', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_wallet_only_patch_fails_if_missing_auth_fields(self, *_):
         second_auth_question = SchemeCredentialQuestionFactory(
             scheme=self.scheme,
             type=POSTCODE,
