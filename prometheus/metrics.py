@@ -81,3 +81,10 @@ membership_card_update_counter = Counter(
     labelnames=("channel", "scheme", "route"),
     namespace=NAMESPACE,
 )
+
+membership_card_status_change_counter = Counter(
+    name="membership_card_status_change_total",
+    documentation="Total number of membership cards status changes.",
+    labelnames=("channel", "scheme", "status_change"),
+    namespace=NAMESPACE,
+)
