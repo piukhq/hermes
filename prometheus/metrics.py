@@ -4,8 +4,6 @@ from django_prometheus.conf import NAMESPACE
 from django_prometheus.middleware import Metrics
 from prometheus_client import Counter, Histogram
 
-from ubiquity.reason_codes import ubiquity_status_translation
-
 
 def m(metric_name: str) -> str:
     return f"django_http_{metric_name}"
@@ -30,12 +28,6 @@ class MembershipCardAddRoute(str, Enum):
     UPDATE = "Update"
     WALLET_ONLY = "Wallet Only"
     MULTI_WALLET = "Multi Wallet"
-
-
-def format_membership_card_status_change(old_status: int, new_status: int) -> str:
-    old_status = ubiquity_status_translation.get(old_status, "unknown")
-    new_status = ubiquity_status_translation.get(new_status, "unknown")
-    return f"{old_status} -> {new_status}"
 
 
 class CustomMetrics(Metrics):
