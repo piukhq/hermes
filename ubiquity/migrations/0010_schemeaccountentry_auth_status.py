@@ -3,6 +3,19 @@
 from django.db import migrations, models
 
 
+def unauthorise_wallet_only_links(apps, schema_editor):
+    SchemeAccountEntry = apps.get_model('ubiquity', 'SchemeAccountEntry')
+    wallet_only_card_links = SchemeAccountEntry.objects.filter(
+        scheme_account__status=10,    # Wallet only status
+    )
+
+    wallet_only_card_links.update(auth_status=1)
+
+
+def revert_unauthorise_wallet_only_links(apps, schema_editor):
+    pass
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -15,4 +28,5 @@ class Migration(migrations.Migration):
             name='auth_status',
             field=models.IntegerField(choices=[(0, 'authorised'), (1, 'unauthorised')], default=0),
         ),
+        migrations.RunPython(unauthorise_wallet_only_links, reverse_code=revert_unauthorise_wallet_only_links)
     ]
