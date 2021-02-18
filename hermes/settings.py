@@ -18,7 +18,6 @@ from enum import Enum
 
 import sentry_sdk
 from sentry_sdk.integrations import celery, django
-from sentry_sdk.integrations.celery import CeleryIntegration
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
@@ -329,7 +328,7 @@ LOGGING = {
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
-SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "1"))
+SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "0.0"))
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
