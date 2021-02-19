@@ -17,11 +17,15 @@ from collections import namedtuple
 from enum import Enum
 
 import sentry_sdk
+from sentry_sdk.integrations import celery, django
+
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
+from hermes.sentry import _make_celery_event_processor, _make_django_event_processor
 from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
 
 read_env()
 
@@ -173,7 +177,8 @@ APPEND_SLASH = False
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        # "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "hermes.traced_db_wrapper",
         "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
         "USER": env_var("HERMES_DATABASE_USER", "postgres"),
         "PASSWORD": env_var("HERMES_DATABASE_PASS"),
@@ -212,10 +217,13 @@ NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
 
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-    AZURE_ACCOUNT_NAME = env_var("AZURE_ACCOUNT_NAME")
-    AZURE_ACCOUNT_KEY = env_var("AZURE_ACCOUNT_KEY")
-    AZURE_CONTAINER = env_var("AZURE_CONTAINER")
-    AZURE_CUSTOM_DOMAIN = env_var("AZURE_CUSTOM_DOMAIN")
+    AZURE_CONTAINER = env_var("HERMES_BLOB_STORAGE_CONTAINER", "media/hermes")
+    HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
+    AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
+    # For generating image urls with a custom domain
+    CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
+    AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
+
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
 MEDIA_ROOT = os.path.join(BASE_DIR, "media/")
@@ -320,13 +328,20 @@ LOGGING = {
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
+SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "0.0"))
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
         environment=HERMES_SENTRY_ENV,
         release=__version__,
-        integrations=[DjangoIntegration(transaction_style="function_name")],
+        integrations=[DjangoIntegration(transaction_style="url", middleware_spans=False),
+                      RedisIntegration()],
+        traces_sample_rate=SENTRY_SAMPLE_RATE,
+        send_default_pii=False
     )
+    # Monkey patching sentry integrations to allow scrubbing of sensitive data in performance traces
+    celery._make_event_processor = _make_celery_event_processor
+    django._make_event_processor = _make_django_event_processor
 
 ANYMAIL = {
     "MAILGUN_API_KEY": "b09950929bd21cbece22c22b2115736d-e5e67e3e-068f44cc",
@@ -464,17 +479,6 @@ PAYMENT_EXPIRY_CHECK_INTERVAL = env_var("PAYMENT_EXPIRY_CHECK_INTERVAL", "600")
 PAYMENT_EXPIRY_TIME = env_var("PAYMENT_EXPIRY_TIME", "120")
 
 ATLAS_URL = env_var("ATLAS_URL")
-
-MANUAL_CHECK_SCHEMES = env_var("MANUAL_CHECK_SCHEMES", "").split(",")
-MANUAL_CHECK_LOCAL_CSV_PATH = env_var("MANUAL_CHECK_LOCAL_CSV_PATH", "/tmp/output/hn/test.csv")
-
-MANUAL_CHECK_USE_AZURE = env_var("MANUAL_CHECK_USE_AZURE", False)
-if MANUAL_CHECK_USE_AZURE:
-    MANUAL_CHECK_AZURE_CSV_FILENAME = env_var("MANUAL_CHECK_AZURE_CSV_FILENAME", "harvey_nichols_white_list.csv")
-    MANUAL_CHECK_AZURE_ACCOUNT_NAME = env_var("MANUAL_CHECK_AZURE_ACCOUNT_NAME")
-    MANUAL_CHECK_AZURE_ACCOUNT_KEY = env_var("MANUAL_CHECK_AZURE_ACCOUNT_KEY")
-    MANUAL_CHECK_AZURE_CONTAINER = env_var("MANUAL_CHECK_AZURE_CONTAINER")
-    MANUAL_CHECK_AZURE_FOLDER = env_var("MANUAL_CHECK_AZURE_FOLDER")
 
 SCHEMES_COLLECTING_METRICS = env_var("SCHEMES_COLLECTING_METRICS", "cooperative").split(",")
 

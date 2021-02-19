@@ -42,6 +42,7 @@ def process_result(rep, activation, link_action):
             activation.activation_id = activation_id
             activation.status = activation.ACTIVATED
             activation.save(update_fields=["activation_id", "status"])
+
         elif link_action == activation.DEACTIVATING:
             # todo May be try periodic delete or delete it now instead of save
             activation.status = activation.DEACTIVATED
@@ -64,6 +65,7 @@ def activate(activation, data: dict):
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
                                  'Content-Type': 'application/json'})
+
     return process_result(rep, activation, activation.ACTIVATING)
 
 
@@ -90,6 +92,7 @@ def send_activation(activation, data: dict, history_kwargs: dict = None):
 def deactivate(activation, data: dict):
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
+
     rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
                         json=data,
                         headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
