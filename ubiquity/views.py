@@ -3,6 +3,7 @@ import re
 import typing as t
 
 import arrow
+import sentry_sdk
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
@@ -806,7 +807,8 @@ class MembershipCardView(
         if needs_decryption(fields.values()):
             rsa_key_pem = get_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
             try:
-                decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
+                with sentry_sdk.start_span(op="decryption", description="membership card"):
+                    decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
             except ValueError as e:
                 raise ValueError("Failed to decrypt sensitive fields") from e
 

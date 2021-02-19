@@ -17,11 +17,15 @@ from collections import namedtuple
 from enum import Enum
 
 import sentry_sdk
+from sentry_sdk.integrations import celery, django
+
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
+from hermes.sentry import _make_celery_event_processor, _make_django_event_processor
 from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
 
 read_env()
 
@@ -173,7 +177,8 @@ APPEND_SLASH = False
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        # "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "ENGINE": "hermes.traced_db_wrapper",
         "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
         "USER": env_var("HERMES_DATABASE_USER", "postgres"),
         "PASSWORD": env_var("HERMES_DATABASE_PASS"),
@@ -323,13 +328,20 @@ LOGGING = {
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
+SENTRY_SAMPLE_RATE = float(env_var("SENTRY_SAMPLE_RATE", "0.0"))
 if HERMES_SENTRY_DSN:
     sentry_sdk.init(
         dsn=HERMES_SENTRY_DSN,
         environment=HERMES_SENTRY_ENV,
         release=__version__,
-        integrations=[DjangoIntegration(transaction_style="function_name")],
+        integrations=[DjangoIntegration(transaction_style="url", middleware_spans=False),
+                      RedisIntegration()],
+        traces_sample_rate=SENTRY_SAMPLE_RATE,
+        send_default_pii=False
     )
+    # Monkey patching sentry integrations to allow scrubbing of sensitive data in performance traces
+    celery._make_event_processor = _make_celery_event_processor
+    django._make_event_processor = _make_django_event_processor
 
 ANYMAIL = {
     "MAILGUN_API_KEY": "b09950929bd21cbece22c22b2115736d-e5e67e3e-068f44cc",

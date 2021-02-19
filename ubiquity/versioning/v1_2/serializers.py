@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+import sentry_sdk
 from rest_framework import serializers
 from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
@@ -63,7 +64,8 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         if needs_decryption(values_to_decrypt):
             rsa_key_pem = get_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
             try:
-                decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
+                with sentry_sdk.start_span(op="decryption", description="payment card"):
+                    decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))
             except ValueError as e:
                 raise ValueError("Failed to decrypt sensitive fields") from e
 
