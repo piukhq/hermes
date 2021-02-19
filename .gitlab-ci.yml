@@ -72,8 +72,9 @@ performance:
     - docker build --pull -t "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" .
     - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
     - docker push "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA"
+  when: manual
   only:
-    - sandbox-datadog-apm-develop
+    - performance
 
 preprod:
   stage: preprod

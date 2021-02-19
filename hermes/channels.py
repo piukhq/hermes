@@ -1,5 +1,6 @@
 import logging
 
+import sentry_sdk
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db.models import Q
@@ -72,8 +73,9 @@ class Permit:
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
         try:
-            self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
-                self.bundle_id, organisation_name)
+            with sentry_sdk.start_span(op="first db call", description="get bundle"):
+                self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
+                    self.bundle_id, organisation_name)
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError

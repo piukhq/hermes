@@ -1,6 +1,7 @@
 from threading import local
 from typing import Tuple, Optional
 
+import sentry_sdk
 from django.db.models import signals
 from django.utils import timezone
 
@@ -74,34 +75,35 @@ def get_user_and_channel() -> Tuple[Optional[int], str]:
 
 
 def signal_record_history(sender, instance, **kwargs) -> None:
-    created_at = timezone.now()
-    change_type, change_details = _get_change_type_and_details(instance, kwargs)
-    if not change_type:
-        return None
+    with sentry_sdk.start_span(op="signal", description="signal_record_history"):
+        created_at = timezone.now()
+        change_type, change_details = _get_change_type_and_details(instance, kwargs)
+        if not change_type:
+            return None
 
-    instance_id = instance.id
-    model_name = sender.__name__
+        instance_id = instance.id
+        model_name = sender.__name__
 
-    user_id, channel = get_user_and_channel()
-    required_extra_fields = get_required_extra_fields(model_name)
-    extra = {"user_id": user_id, "channel": channel}
+        user_id, channel = get_user_and_channel()
+        required_extra_fields = get_required_extra_fields(model_name)
+        extra = {"user_id": user_id, "channel": channel}
 
-    if "body" in required_extra_fields:
-        extra["body"] = get_body_serializer(model_name)(instance).data
+        if "body" in required_extra_fields:
+            extra["body"] = get_body_serializer(model_name)(instance).data
 
-    if "journey" in required_extra_fields and hasattr(HISTORY_CONTEXT, "journey"):
-        extra["journey"] = HISTORY_CONTEXT.journey
-        del HISTORY_CONTEXT.journey
+        if "journey" in required_extra_fields and hasattr(HISTORY_CONTEXT, "journey"):
+            extra["journey"] = HISTORY_CONTEXT.journey
+            del HISTORY_CONTEXT.journey
 
-    for field in required_extra_fields:
-        if field not in extra and hasattr(instance, field):
-            extra[field] = getattr(instance, field)
+        for field in required_extra_fields:
+            if field not in extra and hasattr(instance, field):
+                extra[field] = getattr(instance, field)
 
-    record_history.delay(
-        model_name,
-        created=created_at,
-        change_type=change_type,
-        change_details=change_details,
-        instance_id=instance_id,
-        **extra
-    )
+        record_history.delay(
+            model_name,
+            created=created_at,
+            change_type=change_type,
+            change_details=change_details,
+            instance_id=instance_id,
+            **extra
+        )
