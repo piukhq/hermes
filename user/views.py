@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from typing import Tuple
 
+import arrow
 import jwt
 import requests
 from django.conf import settings
@@ -51,6 +52,12 @@ class UserConflictError(APIException):
     status_code = status.HTTP_409_CONFLICT
     default_detail = "Attempting to create two or more identical users at the same time."
     default_code = "conflict"
+
+
+class MagicLinkExpiredTokenError(APIException):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    default_detail = "Token is expired."
+    default_code = "unauthorised"
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -733,6 +740,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
     Exchange a magic link temporary token for a new or existing user's authorisation token.
     """
     authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
 
     @staticmethod
     def _get_jwt_secret(token: str) -> str:
@@ -756,10 +764,10 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         token_secret = self._get_jwt_secret(token)
 
         if not token:
-            raise ValidationError("Token not provided.")
+            raise ValidationError(detail="Token not provided.")
 
         if cache.get(f"ml:{token}"):
-            raise ValidationError("Token is expired.")
+            raise ValidationError(detail="Token is expired.")
 
         try:
             token_data = jwt.decode(
@@ -770,17 +778,15 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             )
             email = token_data["email"]
             bundle_id = token_data["bundle_id"]
-            iat = int(token_data["iat"])
             exp = int(token_data["exp"])
 
+        except jwt.ExpiredSignatureError:
+            raise MagicLinkExpiredTokenError
+
         except (KeyError, ValueError, jwt.DecodeError):
-            raise ValidationError("Token is invalid.")
+            raise ValidationError(detail="Token is invalid.")
 
-        remaining = exp - iat
-        if remaining <= 0:
-            raise ValidationError("Token is expired.", code=status.HTTP_401_UNAUTHORIZED)
-
-        return email, bundle_id, remaining
+        return email, bundle_id, exp - arrow.utcnow().timestamp
 
     def create(self, request, *args, **kwargs):
         tmp_token = request.data.get("token")
@@ -791,7 +797,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         ).first()
 
         if not client_id:
-            raise ValidationError("Token is invalid.")
+            raise ValidationError(detail="Token is invalid.")
 
         try:
             user = CustomUser.objects.get(email=email, client_id=client_id)
