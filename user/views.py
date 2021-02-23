@@ -8,7 +8,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.core.exceptions import MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ValidationError as CoreValidationError
 from django.db import IntegrityError
 from django.http import Http404
 from django.utils.crypto import get_random_string
@@ -91,7 +91,7 @@ class NoPasswordUserCreationMixin(object):
             "external_id": external_id,
         }
 
-        new_user = UbiquityRegisterSerializer(data=new_user_data, context={"bearer_registration": True})
+        new_user = UbiquityRegisterSerializer(data=new_user_data, context={"passwordless": True})
         new_user.is_valid(raise_exception=True)
 
         try:
@@ -632,7 +632,7 @@ class UserSettings(APIView):
             user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
             try:
                 user_setting.full_clean()
-            except ValidationError as e:
+            except CoreValidationError as e:
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
@@ -730,7 +730,7 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
 
 class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
     """
-        Exchange a magic link temporary token for a long lived auth jwt for a new or existing user.
+    Exchange a magic link temporary token for a new or existing user's authorisation token.
     """
     authentication_classes = (OpenAuthentication,)
 
@@ -773,7 +773,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             iat = int(token_data["iat"])
             exp = int(token_data["exp"])
 
-        except (KeyError,  ValueError, jwt.DecodeError):
+        except (KeyError, ValueError, jwt.DecodeError):
             raise ValidationError("Token is invalid.")
 
         remaining = exp - iat
