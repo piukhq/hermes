@@ -1,12 +1,15 @@
 import base64
 import logging
 from datetime import datetime
+from typing import Tuple
 
 import jwt
 import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
-from django.core.exceptions import ValidationError, MultipleObjectsReturned
+from django.core.cache import cache
+from django.core.exceptions import MultipleObjectsReturned
+from django.db import IntegrityError
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
@@ -14,8 +17,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import mixins, exceptions
+from rest_framework import mixins, exceptions, status
 from rest_framework.authentication import SessionAuthentication
+from rest_framework.exceptions import ValidationError, APIException
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
 from rest_framework.mixins import UpdateModelMixin
@@ -31,15 +35,22 @@ from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVA
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
 from prometheus.metrics import service_creation_counter
+from ubiquity.channel_vault import get_jwt_secret
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer, AppleRegisterSerializer)
+                              UserSettingSerializer, AppleRegisterSerializer, UbiquityRegisterSerializer)
 
 logger = logging.getLogger(__name__)
+
+
+class UserConflictError(APIException):
+    status_code = status.HTTP_409_CONFLICT
+    default_detail = "Attempting to create two or more identical users at the same time."
+    default_code = "conflict"
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -67,6 +78,28 @@ class CustomRegisterMixin(object):
             return Response(serializer.data, 201)
         else:
             return error_response(REGISTRATION_FAILED)
+
+
+class NoPasswordUserCreationMixin(object):
+
+    @staticmethod
+    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: str) -> CustomUser:
+        new_user_data = {
+            "client_id": client_id,
+            "bundle_id": bundle_id,
+            "email": email,
+            "external_id": external_id,
+        }
+
+        new_user = UbiquityRegisterSerializer(data=new_user_data, context={"bearer_registration": True})
+        new_user.is_valid(raise_exception=True)
+
+        try:
+            user = new_user.save()
+        except IntegrityError:
+            raise UserConflictError
+
+        return user
 
 
 # TODO: Could be merged with users
@@ -693,3 +726,83 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
         return Response({
             'terms_and_conditions': terms_and_conditions,
         }, status=200)
+
+
+class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
+    """
+        Exchange a magic link temporary token for a long lived auth jwt for a new or existing user.
+    """
+    authentication_classes = (OpenAuthentication,)
+
+    @staticmethod
+    def _get_jwt_secret(token: str) -> str:
+        try:
+            bundle_id = jwt.decode(
+                token,
+                verify=False,
+                algorithms=['HS512', 'HS256']
+            )["bundle_id"]
+        except (KeyError, jwt.DecodeError):
+            raise ValidationError("Token is invalid.")
+
+        return get_jwt_secret(bundle_id)
+
+    def _validate_token(self, token: str) -> Tuple[str, str, int]:
+        """
+        :param token: magic link temporary token
+        :return: email, bundle_id, remaining token validity time in seconds
+        """
+
+        token_secret = self._get_jwt_secret(token)
+
+        if not token:
+            raise ValidationError("Token not provided.")
+
+        if cache.get(f"ml:{token}"):
+            raise ValidationError("Token is expired.")
+
+        try:
+            token_data = jwt.decode(
+                token,
+                token_secret,
+                verify=True,
+                algorithms=['HS512', 'HS256']
+            )
+            email = token_data["email"]
+            bundle_id = token_data["bundle_id"]
+            iat = int(token_data["iat"])
+            exp = int(token_data["exp"])
+
+        except (KeyError,  ValueError, jwt.DecodeError):
+            raise ValidationError("Token is invalid.")
+
+        remaining = exp - iat
+        if remaining <= 0:
+            raise ValidationError("Token is expired.", code=status.HTTP_401_UNAUTHORIZED)
+
+        return email, bundle_id, remaining
+
+    def create(self, request, *args, **kwargs):
+        tmp_token = request.data.get("token")
+        email, bundle_id, valid_for = self._validate_token(tmp_token)
+
+        client_id = ClientApplication.objects.values_list("pk", flat=True).filter(
+            clientapplicationbundle__bundle_id=bundle_id
+        ).first()
+
+        if not client_id:
+            raise ValidationError("Token is invalid.")
+
+        try:
+            user = CustomUser.objects.get(email=email, client_id=client_id)
+        except CustomUser.DoesNotExist:
+            user = self.create_new_user(
+                client_id=client_id,
+                bundle_id=bundle_id,
+                email=email,
+                external_id="",
+            )
+
+        cache.set(f"ml:{tmp_token}", True, valid_for + 1)
+        token = user.create_token(bundle_id)
+        return Response({"access_token": token})
