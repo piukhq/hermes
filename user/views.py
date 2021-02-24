@@ -1,7 +1,8 @@
 import base64
+import hashlib
 import logging
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Optional
 
 import arrow
 import jwt
@@ -9,7 +10,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
-from django.core.exceptions import MultipleObjectsReturned, ValidationError as CoreValidationError
+from django.core.exceptions import MultipleObjectsReturned, ValidationError
 from django.db import IntegrityError
 from django.http import Http404
 from django.utils.crypto import get_random_string
@@ -20,7 +21,7 @@ from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
 from rest_framework import mixins, exceptions, status
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import ValidationError, APIException
+from rest_framework.exceptions import APIException, AuthenticationFailed
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
 from rest_framework.mixins import UpdateModelMixin
@@ -60,6 +61,12 @@ class MagicLinkExpiredTokenError(APIException):
     default_code = "unauthorised"
 
 
+class MagicLinkValidationError(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Token is invalid."
+    default_code = "invalid"
+
+
 class OpenAuthentication(SessionAuthentication):
     """
     We need to disable csrf as we are running hermes on production through a proxy.
@@ -90,13 +97,15 @@ class CustomRegisterMixin(object):
 class NoPasswordUserCreationMixin(object):
 
     @staticmethod
-    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: str) -> CustomUser:
+    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: Optional[str]) -> CustomUser:
         new_user_data = {
             "client_id": client_id,
             "bundle_id": bundle_id,
             "email": email,
-            "external_id": external_id,
         }
+
+        if external_id:
+            new_user_data["external_id"] = external_id
 
         new_user = UbiquityRegisterSerializer(data=new_user_data, context={"passwordless": True})
         new_user.is_valid(raise_exception=True)
@@ -639,7 +648,7 @@ class UserSettings(APIView):
             user_setting = self._create_or_update_user_setting(request.user, slug_key, value)
             try:
                 user_setting.full_clean()
-            except CoreValidationError as e:
+            except ValidationError as e:
                 validation_errors.extend(e.messages)
             else:
                 user_setting.save()
@@ -750,24 +759,26 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
                 verify=False,
                 algorithms=['HS512', 'HS256']
             )["bundle_id"]
-        except (KeyError, jwt.DecodeError):
-            raise ValidationError("Token is invalid.")
+            jwt_secret = get_jwt_secret(bundle_id)
+        except (KeyError, jwt.DecodeError, AuthenticationFailed):
+            raise MagicLinkValidationError
 
-        return get_jwt_secret(bundle_id)
+        return jwt_secret
 
-    def _validate_token(self, token: str) -> Tuple[str, str, int]:
+    def _validate_token(self, token: str) -> Tuple[str, str, str, int]:
         """
         :param token: magic link temporary token
-        :return: email, bundle_id, remaining token validity time in seconds
+        :return: email, bundle_id, md5 token hash, remaining token validity time in seconds
         """
+
+        if not token:
+            raise MagicLinkValidationError
 
         token_secret = self._get_jwt_secret(token)
 
-        if not token:
-            raise ValidationError(detail="Token not provided.")
-
-        if cache.get(f"ml:{token}"):
-            raise ValidationError(detail="Token is expired.")
+        token_hash = hashlib.md5(token.encode()).hexdigest()
+        if cache.get(f"ml:{token_hash}"):
+            raise MagicLinkExpiredTokenError
 
         try:
             token_data = jwt.decode(
@@ -784,20 +795,20 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             raise MagicLinkExpiredTokenError
 
         except (KeyError, ValueError, jwt.DecodeError):
-            raise ValidationError(detail="Token is invalid.")
+            raise MagicLinkValidationError
 
-        return email, bundle_id, exp - arrow.utcnow().timestamp
+        return email, bundle_id, token_hash, exp - arrow.utcnow().timestamp
 
     def create(self, request, *args, **kwargs):
         tmp_token = request.data.get("token")
-        email, bundle_id, valid_for = self._validate_token(tmp_token)
+        email, bundle_id, token_hash, valid_for = self._validate_token(tmp_token)
 
         client_id = ClientApplication.objects.values_list("pk", flat=True).filter(
             clientapplicationbundle__bundle_id=bundle_id
         ).first()
 
         if not client_id:
-            raise ValidationError(detail="Token is invalid.")
+            raise MagicLinkValidationError
 
         try:
             user = CustomUser.objects.get(email=email, client_id=client_id)
@@ -806,9 +817,9 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
                 client_id=client_id,
                 bundle_id=bundle_id,
                 email=email,
-                external_id="",
+                external_id=None,
             )
 
-        cache.set(f"ml:{tmp_token}", True, valid_for + 1)
+        cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
         return Response({"access_token": token})
