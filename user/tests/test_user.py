@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import time
 from unittest import mock
@@ -16,14 +17,31 @@ from rest_framework.utils.serializer_helpers import ReturnList
 
 from hermes import settings
 from history.utils import GlobalMockAPITestCase
+from ubiquity.tests.property_token import GenerateJWToken
 from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
                          ClientApplication, ClientApplicationBundle, ClientApplicationKit)
 from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
-                                  MarketingCodeFactory)
+                                  MarketingCodeFactory, ClientApplicationBundleFactory, ClientApplicationFactory)
 from user.views import facebook_login, twitter_login, social_login, apple_login, generate_apple_client_secret
 
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
+
+
+class MockCache:
+
+    def __init__(self, expired_token: str):
+        self.expired_token = expired_token
+
+    def get(self, key, *args, **kwargs):
+        if key == f"ml:{hashlib.md5(self.expired_token.encode()).hexdigest()}":
+            return True
+
+        return False
+
+    @staticmethod
+    def set(*args, **kwargs):
+        return True
 
 
 class TestRegisterNewUserViews(GlobalMockAPITestCase):
@@ -304,6 +322,69 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
                                                             })
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
+
+    @mock.patch("user.views.cache")
+    @mock.patch("user.views.get_jwt_secret")
+    def test_magic_link_access_token_auth(self, mocked_vault, mocked_cache):
+        client = ClientApplicationFactory()
+        bundle = ClientApplicationBundleFactory(client=client)
+
+        mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
+        mocked_vault.return_value = client.secret
+
+        email = "test_ml@user.bink"
+        payload = json.dumps({
+            "token": GenerateJWToken(
+                organisation_id=client.organisation_id,
+                bundle_id=bundle.bundle_id,
+                email=email,
+                client_secret=client.secret,
+                magic_link=True
+            ).get_token()
+        })
+        resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(CustomUser.objects.filter(email=email, client=client).exists())
+
+        payload = json.dumps({
+            "token": GenerateJWToken(
+                organisation_id=client.organisation_id,
+                bundle_id=bundle.bundle_id,
+                email=email,
+                client_secret=client.secret,
+                magic_link=True,
+                expired=True
+            ).get_token()
+        })
+
+        resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
+        self.assertEqual(resp.status_code, 401)
+
+        payload = json.dumps({
+            "token": GenerateJWToken(
+                organisation_id=client.organisation_id,
+                bundle_id=bundle.bundle_id,
+                email=email,
+                client_secret="wrong secret",
+                magic_link=True
+            ).get_token()
+        })
+        resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
+        self.assertEqual(resp.status_code, 400)
+
+        mocked_cache.configure_mock(get=lambda *args, **kwargs: True, set=lambda *args, **kwargs: True)
+        mocked_cache.get.return_value = True
+        payload = json.dumps({
+            "token": GenerateJWToken(
+                organisation_id=client.organisation_id,
+                bundle_id=bundle.bundle_id,
+                email="test-used-token",
+                client_secret=client.secret,
+                magic_link=True
+            ).get_token()
+        })
+        resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
+        self.assertEqual(resp.status_code, 401)
 
 
 class TestUserProfileViews(GlobalMockAPITestCase):
