@@ -12,6 +12,7 @@ urlpatterns = [
     re_path(r"^v2_login/?$", views.NewLogin.as_view(), name="new_login"),
     re_path(r"^login/?$", views.NewLogin.as_view(), name="login"),
     re_path(r"me/?$", views.Users.as_view(), name="user_detail"),
+    re_path(r"magic_links/?$", views.MakeMagicLink.as_view(), name="user_make_magic_link"),
     re_path(r"me/password/?$", views.ResetPassword.as_view(), name="reset_password"),
     re_path(r"me/settings/?$", views.UserSettings.as_view(), name="user_settings"),
     re_path(r"me/logout/?$", views.Logout.as_view(), name="logout"),

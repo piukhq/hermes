@@ -693,3 +693,35 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
         return Response({
             'terms_and_conditions': terms_and_conditions,
         }, status=200)
+
+
+class MakeMagicLink(APIView):
+
+    @method_decorator(csrf_exempt)
+    def post(self, request):
+        """
+        Make a magic link and send it in a user email
+        ---
+        type:
+
+            email:
+                required: true
+                type: json
+            slug:
+                required: true
+                type: json
+            locale:
+                required: true
+                type: json
+            bundle_id:
+                required: true
+                type: json
+        """
+        return Response({
+            'uid': str(request.user.uid),
+            'id': str(request.user.id),
+            "email": str(request.user.email),
+            "slug": str(request.user.slug),
+            "locale": str(request.user.locals),
+            "bundle_id": str(request.user.bundle_id)
+        })
