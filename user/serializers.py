@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 from django.contrib.auth.password_validation import validate_password as validate_pass
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework import serializers
 
 from hermes.currencies import CURRENCIES
@@ -290,3 +291,26 @@ class UpdateUserSettingSerializer(serializers.Serializer):
     slug1 = serializers.SlugField(required=True)
     slug2 = serializers.SlugField(required=False)
     slug3 = serializers.SlugField(required=False)
+
+
+class MakeMagicLinkSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    slug = serializers.CharField(max_length=50, required=True, write_only=True)
+    locale = serializers.ChoiceField(choices=("en_GB", "English"), required=True, write_only=True)
+    bundle_id = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        data = super().validate(data)
+        try:
+            if data.get("bundle_id"):
+                bundle = ClientApplicationBundle.objects.get(bundle_id=data["bundle_id"])
+                if not bundle.magic_link_url:
+                    raise serializers.ValidationError(f'Magic links not permitted for bundle id {data["bundle_id"]}')
+                data['url'] = bundle.magic_link_url
+                data['expiry'] = 1 if not bundle.magic_lifetime else float(bundle.magic_lifetime)
+                data['token'] = "my token here"
+        except (MultipleObjectsReturned, ObjectDoesNotExist) as e:
+            raise serializers.ValidationError(f'Invalid bundle id {e}')
+        return data
+
+

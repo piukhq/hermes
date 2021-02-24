@@ -131,6 +131,8 @@ class ClientApplicationBundle(models.Model):
     issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
     scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
                                     related_name='related_bundle')
+    magic_link_url = models.CharField(max_length=200, null=True, default='')
+    magic_lifetime = models.DecimalField(max_digits=3, decimal_places=1, blank=True, null=True, default='1.0')
 
     class Meta:
         unique_together = ('client', 'bundle_id',)

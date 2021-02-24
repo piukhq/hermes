@@ -37,7 +37,7 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer, AppleRegisterSerializer)
+                              UserSettingSerializer, AppleRegisterSerializer, MakeMagicLinkSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -695,7 +695,15 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
         }, status=200)
 
 
+def send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
+    logger.info(f"Send magic link: {email}, {url}, {slug}, {locale}, bundle_id: {bundle_id}, expiry: {expiry},"
+                f" token: '{token}'")
+
+
 class MakeMagicLink(APIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = MakeMagicLinkSerializer
 
     @method_decorator(csrf_exempt)
     def post(self, request):
@@ -717,11 +725,15 @@ class MakeMagicLink(APIView):
                 required: true
                 type: json
         """
-        return Response({
-            'uid': str(request.user.uid),
-            'id': str(request.user.id),
-            "email": str(request.user.email),
-            "slug": str(request.user.slug),
-            "locale": str(request.user.locals),
-            "bundle_id": str(request.user.bundle_id)
-        })
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            status = HTTP_200_OK
+            message = f"Magic Link Email sent to {email}"
+            send_magic_link(**serializer.validated_data)
+        else:
+            status = HTTP_400_BAD_REQUEST
+            message = serializer.errors
+            logger.info(f"Make Magic Links Error: {serializer.errors}")
+
+        return Response(message, status)
+
