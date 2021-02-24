@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import json
 import time
 from unittest import mock
@@ -26,22 +25,6 @@ from user.views import facebook_login, twitter_login, social_login, apple_login,
 
 BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
 BINK_BUNDLE_ID = 'com.bink.wallet'
-
-
-class MockCache:
-
-    def __init__(self, expired_token: str):
-        self.expired_token = expired_token
-
-    def get(self, key, *args, **kwargs):
-        if key == f"ml:{hashlib.md5(self.expired_token.encode()).hexdigest()}":
-            return True
-
-        return False
-
-    @staticmethod
-    def set(*args, **kwargs):
-        return True
 
 
 class TestRegisterNewUserViews(GlobalMockAPITestCase):

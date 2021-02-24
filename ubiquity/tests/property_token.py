@@ -4,13 +4,13 @@ import jwt
 
 class GenerateJWToken:
     def __init__(
-            self,
-            organisation_id: str,
-            client_secret: str,
-            bundle_id: str,
-            email: str = None,
-            magic_link: bool = False,
-            expired: bool = False,
+        self,
+        organisation_id: str,
+        client_secret: str,
+        bundle_id: str,
+        email: str = None,
+        magic_link: bool = False,
+        expired: bool = False,
     ):
         self.bundle_id = bundle_id
         self.organisation_id = organisation_id
