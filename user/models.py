@@ -10,6 +10,7 @@ import jwt
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import signals
 from django.db.models.fields import CharField
@@ -131,8 +132,8 @@ class ClientApplicationBundle(models.Model):
     issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
     scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
                                     related_name='related_bundle')
-    magic_link_url = models.CharField(max_length=200, null=True, default='')
-    magic_lifetime = models.DecimalField(max_digits=3, decimal_places=1, blank=True, null=True, default='1.0')
+    magic_link_url = models.CharField(max_length=200, default='', blank=True)
+    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
 
     class Meta:
         unique_together = ('client', 'bundle_id',)

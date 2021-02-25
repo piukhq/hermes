@@ -728,7 +728,7 @@ class MakeMagicLink(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             status = HTTP_200_OK
-            message = f"Magic Link Email sent to {email}"
+            message = f"Sending Magic Link Email"
             send_magic_link(**serializer.validated_data)
         else:
             status = HTTP_400_BAD_REQUEST

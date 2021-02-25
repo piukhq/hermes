@@ -1,13 +1,15 @@
 from collections import OrderedDict
+from time import time
 
+import jwt
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework import serializers
 
 from hermes.currencies import CURRENCIES
-from scheme.models import SchemeAccount
-from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting, UserDetail, UserSetting,
-                         valid_promo_code)
+from scheme.models import SchemeAccount, SchemeBundleAssociation
+from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting,
+                         UserDetail, UserSetting, valid_promo_code)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -301,16 +303,32 @@ class MakeMagicLinkSerializer(serializers.Serializer):
 
     def validate(self, data):
         data = super().validate(data)
-        try:
-            if data.get("bundle_id"):
-                bundle = ClientApplicationBundle.objects.get(bundle_id=data["bundle_id"])
+        if data.get("bundle_id") and data.get("slug"):
+            try:
+                bundle = ClientApplicationBundle.objects.get(
+                    bundle_id=data["bundle_id"], scheme__slug=data['slug'],
+                    schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
                 if not bundle.magic_link_url:
-                    raise serializers.ValidationError(f'Magic links not permitted for bundle id {data["bundle_id"]}')
+                    raise serializers.ValidationError(
+                        f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
                 data['url'] = bundle.magic_link_url
-                data['expiry'] = 1 if not bundle.magic_lifetime else float(bundle.magic_lifetime)
-                data['token'] = "my token here"
-        except (MultipleObjectsReturned, ObjectDoesNotExist) as e:
-            raise serializers.ValidationError(f'Invalid bundle id {e}')
+                data['expiry'] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
+                secret = "!2345678"
+                now = int(time())
+                payload = {
+                    'email': data['email'],
+                    'bundle_id': data['bundle_id'],
+                    'iat': now,
+                    'exp': int(now + data['expiry'] * 60)
+                }
+                data['token'] = jwt.encode(payload, secret, algorithm='HS512').decode('UTF-8')
+                print(len(data['token']))
+            except MultipleObjectsReturned:
+                raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
+                                                  f' for slug {data["slug"]}')
+            except ObjectDoesNotExist:
+                raise serializers.ValidationError(f'Config: Invalid bundle id {data["bundle_id"]} was not found or '
+                                                  f'did not have an active slug {data["slug"]}')
         return data
 
 
