@@ -11,18 +11,18 @@ class GenerateJWToken:
         **Bearer tokens:**
 
             GenerateJWToken(
-                organisation_id="Loyalty Angels",
-                client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
-                bundle_id="com.bink.wallet",
+                organisation_id={{Organisation.name}},
+                client_secret={{ClientApplication.secret}},
+                bundle_id={{ClientApplicationBundle.bundle_id}},
                 email="test@user.mail"
             ).get_token()
 
         **Magic Link temporary tokens:**
 
             GenerateJWToken(
-                organisation_id="Loyalty Angels",
-                client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
-                bundle_id="com.bink.wallet",
+                organisation_id={{Organisation.name}},
+                client_secret={{ClientApplication.secret}},
+                bundle_id={{ClientApplicationBundle.bundle_id}},
                 email="test@user.mail",
                 magic_link=True
             ).get_token()
@@ -68,11 +68,14 @@ class GenerateJWToken:
 
 
 if __name__ == "__main__":
-    token = GenerateJWToken(
-        organisation_id="Loyalty Angels",
-        client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
-        bundle_id="com.bink.wallet",
-        email="test@user.mail",
-        magic_link=False,
-    ).get_token()
-    print(token)
+    print(
+        "\n\n%s\n\n" %
+
+        GenerateJWToken(
+            organisation_id="Loyalty Angels",
+            client_secret="ADD CLIENT SECRET",
+            bundle_id="com.bink.wallet",
+            email="user@test.mail",
+            magic_link=False,
+        ).get_token()
+    )
