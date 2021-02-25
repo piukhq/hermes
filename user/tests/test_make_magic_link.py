@@ -75,12 +75,12 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
     def test_view_active_disabled(self):
         self.bink_bundle.magic_link_url = ""
         self.bink_bundle.save()
-        response = self.client.post(reverse('user_make_magic_link'),
-                               {'email': 'test_1@example.com',
-                                'slug': self.bink_scheme_active.slug,
-                                'locale': 'en_GB',
-                                'bundle_id': self.BINK_BUNDLE_ID
-                                })
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1@example.com',
+            'slug': self.bink_scheme_active.slug,
+            'locale': 'en_GB',
+            'bundle_id': self.BINK_BUNDLE_ID
+        })
 
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
