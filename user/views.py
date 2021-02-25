@@ -761,6 +761,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             )["bundle_id"]
             jwt_secret = get_jwt_secret(bundle_id)
         except (KeyError, jwt.DecodeError, AuthenticationFailed):
+            logger.debug("failed to extract bundle_id from magic link temporary token.")
             raise MagicLinkValidationError
 
         return jwt_secret
@@ -772,12 +773,14 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         """
 
         if not token:
+            logger.debug("failed to provide a magic link temporary token.")
             raise MagicLinkValidationError
 
         token_secret = self._get_jwt_secret(token)
 
         token_hash = hashlib.md5(token.encode()).hexdigest()
         if cache.get(f"ml:{token_hash}"):
+            logger.debug("magic link temporary token has already been used.")
             raise MagicLinkExpiredTokenError
 
         try:
@@ -792,9 +795,19 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             exp = int(token_data["exp"])
 
         except jwt.ExpiredSignatureError:
+            logger.debug("magic link temporary token has expired.")
             raise MagicLinkExpiredTokenError
 
-        except (KeyError, ValueError, jwt.DecodeError):
+        except (KeyError, ValueError, jwt.DecodeError) as e:
+            if type(e) in (KeyError, ValueError):
+                message = ("the provided magic link temporary token was signed correctly "
+                           "but did not contain the required information.")
+
+            else:
+                message = ("the provided magic link temporary token was not signed correctly "
+                           "or was not in a valid format")
+
+            logger.debug(message)
             raise MagicLinkValidationError
 
         return email, bundle_id, token_hash, exp - arrow.utcnow().timestamp
@@ -808,7 +821,10 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         ).first()
 
         if not client_id:
+            logger.debug(f"bundle_id: '{bundle_id}' provided in the magic link temporary token is not valid.")
             raise MagicLinkValidationError
+
+        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         try:
             user = CustomUser.objects.get(email=email, client_id=client_id)
@@ -819,6 +835,10 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
                 email=email,
                 external_id=None,
             )
+
+        if not user.magic_link_verified:
+            user.magic_link_verified = datetime.utcnow()
+            user.save(update_fields=["magic_link_verified"])
 
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
