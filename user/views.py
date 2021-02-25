@@ -695,9 +695,27 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
         }, status=200)
 
 
-def send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
+def call_send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
+    """
+    This is function is required for testing and call send_magic_link when implemented
+    :param email:
+    :param url:
+    :param slug:
+    :param locale:
+    :param bundle_id:
+    :param expiry:
+    :param token:
+    :return:
+    """
     logger.info(f"Send magic link: {email}, {url}, {slug}, {locale}, bundle_id: {bundle_id}, expiry: {expiry},"
                 f" token: '{token}'")
+
+    message = "Successful"
+
+    # TODO Delete the following line for security when calling the real email script - message should be just as above
+    message = { "email": email, "url": url, "slug": slug, "locale": locale,"bundle_id": bundle_id,
+                "expiry": expiry, "token": token}
+    return message
 
 
 class MakeMagicLink(APIView):
@@ -728,8 +746,7 @@ class MakeMagicLink(APIView):
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
             status = HTTP_200_OK
-            message = "Successful"
-            send_magic_link(**serializer.validated_data)
+            message = call_send_magic_link(**serializer.validated_data)
         else:
             status = HTTP_400_BAD_REQUEST
             error = serializer.errors
@@ -740,4 +757,3 @@ class MakeMagicLink(APIView):
             logger.info(f"Make Magic Links Error: {serializer.errors}")
 
         return Response(message, status)
-
