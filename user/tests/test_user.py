@@ -327,7 +327,12 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         })
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(CustomUser.objects.filter(email=email, client=client).exists())
+        try:
+            user = CustomUser.objects.get(email=email, client=client)
+        except CustomUser.DoesNotExist:
+            raise AssertionError("failed magic link user creation.")
+
+        self.assertTrue(user.magic_link_verified)
 
         payload = json.dumps({
             "token": GenerateJWToken(

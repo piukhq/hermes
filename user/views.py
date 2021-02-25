@@ -819,11 +819,12 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         client_id = ClientApplication.objects.values_list("pk", flat=True).filter(
             clientapplicationbundle__bundle_id=bundle_id
         ).first()
-        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         if not client_id:
             logger.debug(f"bundle_id: '{bundle_id}' provided in the magic link temporary token is not valid.")
             raise MagicLinkValidationError
+
+        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         try:
             user = CustomUser.objects.get(email=email, client_id=client_id)
