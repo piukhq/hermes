@@ -3,6 +3,35 @@ import jwt
 
 
 class GenerateJWToken:
+    """
+    Generates JWTokens for ubiquity endpoints authorisation and access tokens for magic links user creation.
+
+    **Usage examples:**
+
+        **Bearer tokens:**
+
+            GenerateJWToken(
+                organisation_id="Loyalty Angels",
+                client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
+                bundle_id="com.bink.wallet",
+                email="test@user.mail"
+            ).get_token()
+
+        **Magic Link temporary tokens:**
+
+            GenerateJWToken(
+                organisation_id="Loyalty Angels",
+                client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
+                bundle_id="com.bink.wallet",
+                email="test@user.mail",
+                magic_link=True
+            ).get_token()
+
+            It is also possible to generate an expired magic link token for testing purposes
+            by passing the additional parameter "expired=True".
+            NB: This parameter has no effect on Bearer tokens.
+    """
+
     def __init__(
         self,
         organisation_id: str,
@@ -44,6 +73,6 @@ if __name__ == "__main__":
         client_secret="8vA/fjVA83(n05LWh7R4'$3dWmVCU",
         bundle_id="com.bink.wallet",
         email="test@user.mail",
-        magic_link=True,
+        magic_link=False,
     ).get_token()
     print(token)

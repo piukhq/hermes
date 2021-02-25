@@ -806,6 +806,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         client_id = ClientApplication.objects.values_list("pk", flat=True).filter(
             clientapplicationbundle__bundle_id=bundle_id
         ).first()
+        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         if not client_id:
             raise MagicLinkValidationError
