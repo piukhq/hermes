@@ -838,7 +838,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
 
         if not user.magic_link_verified:
             user.magic_link_verified = datetime.utcnow()
-            user.save(force_update=["magic_link_verified"])
+            user.save(update_fields=["magic_link_verified"])
 
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
