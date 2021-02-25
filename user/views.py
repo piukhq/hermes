@@ -713,8 +713,8 @@ def call_send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
     message = "Successful"
 
     # TODO Delete the following line for security when calling the real email script - message should be just as above
-    message = { "email": email, "url": url, "slug": slug, "locale": locale,"bundle_id": bundle_id,
-                "expiry": expiry, "token": token}
+    message = {"email": email, "url": url, "slug": slug, "locale": locale, "bundle_id": bundle_id,
+               "expiry": expiry, "token": token}
     return message
 
 

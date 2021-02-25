@@ -1,17 +1,16 @@
 import json
-import arrow
-from unittest.mock import patch
 
+import arrow
+import jwt
 from django.test import Client
 from django.urls import reverse
-import jwt
+
 import ubiquity.channel_vault as channel_vault
 from history.utils import GlobalMockAPITestCase
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory)
-from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
 from user.serializers import MakeMagicLinkSerializer
-import time
+from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
 
 
 class TestMakeMagicLinkViews(GlobalMockAPITestCase):
@@ -51,24 +50,23 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         cls.client = Client()
 
     def test_view_active_enabled(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                               {'email': 'test_1@example.com',
-                                'slug': self.bink_scheme_active.slug,
-                                'locale': 'en_GB',
-                                'bundle_id': self.BINK_BUNDLE_ID
-                                })
-
-        content = json.loads(response.content.decode())
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1@example.com',
+            'slug': self.bink_scheme_active.slug,
+            'locale': 'en_GB',
+            'bundle_id': self.BINK_BUNDLE_ID
+        })
         self.assertEqual(response.status_code, 200)
+        # content = json.loads(response.content.decode())
         # todo add this back in when removed retuned values for testing self.assertEqual(content, 'Successful')
 
     def test_view_inactive_enabled(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                               {'email': 'test_1@example.com',
-                                'slug': self.bink_scheme_inactive.slug,
-                                'locale': 'en_GB',
-                                'bundle_id': self.BINK_BUNDLE_ID
-                                })
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1@example.com',
+            'slug': self.bink_scheme_inactive.slug,
+            'locale': 'en_GB',
+            'bundle_id': self.BINK_BUNDLE_ID
+        })
 
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
@@ -89,48 +87,36 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         self.assertEqual(content, 'Bad request parameter')
 
     def test_view_active_bad_email(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                                    {'email': 'test_1',
-                                     'slug': self.bink_scheme_active.slug,
-                                     'locale': 'en_GB',
-                                     'bundle_id': self.BINK_BUNDLE_ID
-                                     })
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1',
+            'slug': self.bink_scheme_active.slug,
+            'locale': 'en_GB',
+            'bundle_id': self.BINK_BUNDLE_ID
+        })
 
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertEqual(content, 'Bad email parameter')
 
     def test_view_active_bad_locale(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                               {'email': 'test_1@example.com',
-                                'slug': self.bink_scheme_active.slug,
-                                'locale': 'en_US',
-                                'bundle_id': self.BINK_BUNDLE_ID
-                                })
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1@example.com',
+            'slug': self.bink_scheme_active.slug,
+            'locale': 'en_US',
+            'bundle_id': self.BINK_BUNDLE_ID
+        })
 
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
         self.assertEqual(content, 'Bad request parameter')
 
     def test_view_unknown_bundle(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                               {'email': 'test_1@example.com',
-                                'slug': self.bink_scheme_active.slug,
-                                'locale': 'en_US',
-                                'bundle_id': "unknown"
-                                })
-
-        content = json.loads(response.content.decode())
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(content, 'Bad request parameter')
-
-    def test_view_unknown_bundle(self):
-        response = self.client.post(reverse('user_make_magic_link'),
-                                    {'email': 'test_1@example.com',
-                                     'slug': self.bink_scheme_active.slug,
-                                     'locale': 'en_US',
-                                     'bundle_id': "unknown"
-                                     })
+        response = self.client.post(reverse('user_make_magic_link'), {
+            'email': 'test_1@example.com',
+            'slug': self.bink_scheme_active.slug,
+            'locale': 'en_GB',
+            'bundle_id': "unknown"
+        })
 
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 400)
