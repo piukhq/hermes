@@ -81,7 +81,7 @@ class CustomUserDetail(UserAdmin):
     filter_horizontal = ()
     search_fields = ('email', 'uid', 'external_id', 'profile__first_name', 'profile__last_name',)
     exclude = ('salt',)
-    readonly_fields = ("magic_link_verified",)
+    readonly_fields = ("delete_token", "magic_link_verified",)
 
 
 class CustomUserConsent(CustomUser):
