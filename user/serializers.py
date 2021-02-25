@@ -5,9 +5,10 @@ import jwt
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework import serializers
-
+from rest_framework.exceptions import AuthenticationFailed
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount, SchemeBundleAssociation
+from ubiquity.channel_vault import get_jwt_secret
 from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting,
                          UserDetail, UserSetting, valid_promo_code)
 
@@ -313,7 +314,7 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
                 data['url'] = bundle.magic_link_url
                 data['expiry'] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
-                secret = "!2345678"
+                secret = get_jwt_secret(data["bundle_id"])
                 now = int(time())
                 payload = {
                     'email': data['email'],
@@ -322,7 +323,9 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                     'exp': int(now + data['expiry'] * 60)
                 }
                 data['token'] = jwt.encode(payload, secret, algorithm='HS512').decode('UTF-8')
-                print(len(data['token']))
+            except AuthenticationFailed as e:
+                raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
+                                                  f' Exception: {e}')
             except MultipleObjectsReturned:
                 raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
                                                   f' for slug {data["slug"]}')
@@ -330,5 +333,3 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f'Config: Invalid bundle id {data["bundle_id"]} was not found or '
                                                   f'did not have an active slug {data["slug"]}')
         return data
-
-
