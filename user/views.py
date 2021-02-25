@@ -799,13 +799,13 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             raise MagicLinkExpiredTokenError
 
         except (KeyError, ValueError, jwt.DecodeError) as e:
-            if e in (KeyError, ValueError):
+            if type(e) in (KeyError, ValueError):
                 message = ("the provided magic link temporary token was signed correctly "
-                           "but did not contain the required informations.")
+                           "but did not contain the required information.")
 
             else:
                 message = ("the provided magic link temporary token was not signed correctly "
-                           "or not in a valid format")
+                           "or was not in a valid format")
 
             logger.debug(message)
             raise MagicLinkValidationError
