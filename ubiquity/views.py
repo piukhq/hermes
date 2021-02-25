@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from rest_framework import status
-from rest_framework.exceptions import APIException, NotFound, ParseError, ValidationError
+from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK, HTTP_201_CREATED
@@ -84,7 +84,7 @@ from ubiquity.versioning.base.serializers import (
     TransactionSerializer,
 )
 from user.models import CustomUser
-from user.serializers import UbiquityRegisterSerializer
+from user.views import NoPasswordUserCreationMixin
 
 if t.TYPE_CHECKING:
     from rest_framework.request import Request
@@ -92,12 +92,6 @@ if t.TYPE_CHECKING:
 
 escaped_unicode_pattern = re.compile(r"\\(\\u[a-fA-F0-9]{4})")
 logger = logging.getLogger(__name__)
-
-
-class ConflictError(APIException):
-    status_code = status.HTTP_409_CONFLICT
-    default_detail = "Attempting to create two or more identical users at the same time."
-    default_code = "conflict"
 
 
 def auto_link(req):
@@ -269,7 +263,7 @@ class AllowedIssuersMixin:
         return self.stored_allowed_issuers
 
 
-class ServiceView(VersionedSerializerMixin, ModelViewSet):
+class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelViewSet):
     authentication_classes = (PropertyOrServiceAuthentication,)
     serializer_class = ServiceConsentSerializer
     response_serializer = SelectSerializer.SERVICE
@@ -292,20 +286,13 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
             else:
                 user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
         except CustomUser.DoesNotExist:
-            new_user_data = {
-                "client_id": request.channels_permit.client.pk,
-                "bundle_id": request.channels_permit.bundle_id,
-                "email": consent_data["email"],
-                "external_id": request.prop_id,
-            }
+            user = self.create_new_user(
+                client_id=request.channels_permit.client.pk,
+                bundle_id=request.channels_permit.bundle_id,
+                email=consent_data["email"],
+                external_id=request.prop_id,
+            )
             status_code = HTTP_201_CREATED
-            new_user = UbiquityRegisterSerializer(data=new_user_data, context={"bearer_registration": True})
-            new_user.is_valid(raise_exception=True)
-
-            try:
-                user = new_user.save()
-            except IntegrityError:
-                raise ConflictError
 
             consent = self._add_consent(user, consent_data, service=True)
             service_creation_counter.labels(channel=request.channels_permit.bundle_id).inc()
