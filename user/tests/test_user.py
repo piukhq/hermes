@@ -822,9 +822,9 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
 
         token = user.generate_reset_token()
 
-        response = self.client.post('/users/reset_password',
-                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
-                                    **self.auth_service_headers)
+        response = self.client.post(
+            '/users/reset_password', {'password': '1stPassword', "token": token}, **self.auth_service_headers
+        )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
@@ -833,10 +833,9 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
         self.assertTrue(user.password)
 
         # Now try again to ensure we can't do it twice
-        response = self.client.post('/users/reset_password',
-                                    {'password': '2ndPassword',
-                                     'token': token.decode('UTF-8'), },
-                                    **self.auth_service_headers)
+        response = self.client.post(
+            '/users/reset_password', {'password': '2ndPassword', 'token': token}, **self.auth_service_headers
+        )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertGreaterEqual(response.status_code, 400)
@@ -859,9 +858,9 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
 
         time.sleep(3)
 
-        response = self.client.post('/users/reset_password',
-                                    {'password': '1stPassword', "token": token.decode('UTF-8'), },
-                                    **self.auth_service_headers)
+        response = self.client.post(
+            '/users/reset_password', {'password': '1stPassword', "token": token}, **self.auth_service_headers
+        )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertGreaterEqual(response.status_code, 400)

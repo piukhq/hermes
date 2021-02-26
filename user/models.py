@@ -224,7 +224,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'expiry_date': expiry_date.timestamp
         }
         reset_token = jwt.encode(payload, self.client.secret)
-        self.reset_token = reset_token.decode("utf-8")
+        self.reset_token = reset_token
         self.save()
         return reset_token
 
@@ -277,8 +277,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, self.client.secret + self.salt)
-        return token.decode('unicode_escape')
+        return jwt.encode(payload, self.client.secret + self.salt)
 
     def soft_delete(self):
         self.is_active = False
@@ -363,7 +362,7 @@ def valid_reset_code(reset_token):
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, user.client.secret)
+    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=['HS512', 'HS256'])
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
 

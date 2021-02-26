@@ -65,7 +65,7 @@ class MembershipTransactionsMixin:
             'sub': user_id
         }
         token = jwt.encode(payload, settings.TOKEN_SECRET)
-        return 'token {}'.format(token.decode('unicode_escape'))
+        return 'token {}'.format(token)
 
     def _get_hades_transactions(self, user_id, mcard_id):
         url = '{}/transactions/scheme_account/{}?page_size=5'.format(settings.HADES_URL, mcard_id)

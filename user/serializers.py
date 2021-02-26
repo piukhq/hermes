@@ -322,7 +322,7 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                     'iat': now,
                     'exp': int(now + data['expiry'] * 60)
                 }
-                data['token'] = jwt.encode(payload, secret, algorithm='HS512').decode('UTF-8')
+                data['token'] = jwt.encode(payload, secret, algorithm='HS512')
             except AuthenticationFailed as e:
                 raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
                                                   f' Exception: {e}')
