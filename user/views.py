@@ -44,7 +44,8 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer, AppleRegisterSerializer, UbiquityRegisterSerializer)
+                              UserSettingSerializer, AppleRegisterSerializer, UbiquityRegisterSerializer,
+                              MakeMagicLinkSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -826,7 +827,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         try:
-            user = CustomUser.objects.get(email=email, client_id=client_id)
+            user = CustomUser.objects.get(email__iexact=email, client_id=client_id)
         except CustomUser.DoesNotExist:
             user = self.create_new_user(
                 client_id=client_id,
@@ -842,3 +843,67 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
         return Response({"access_token": token})
+
+
+def call_send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
+    """
+    This is function is required for testing and call send_magic_link when implemented
+    :param email:
+    :param url:
+    :param slug:
+    :param locale:
+    :param bundle_id:
+    :param expiry:
+    :param token:
+    :return:
+    """
+    logger.info(f"Send magic link: {email}, {url}, {slug}, {locale}, bundle_id: {bundle_id}, expiry: {expiry},"
+                f" token: '{token}'")
+
+    message = "Successful"
+
+    # TODO Delete the following line for security when calling the real email script - message should be just as above
+    message = {"email": email, "url": url, "slug": slug, "locale": locale, "bundle_id": bundle_id,
+               "expiry": expiry, "token": token}
+    return message
+
+
+class MakeMagicLink(APIView):
+    authentication_classes = (OpenAuthentication,)
+    permission_classes = (AllowAny,)
+    serializer_class = MakeMagicLinkSerializer
+
+    @method_decorator(csrf_exempt)
+    def post(self, request):
+        """
+        Make a magic link and send it in a user email
+        ---
+        type:
+
+            email:
+                required: true
+                type: json
+            slug:
+                required: true
+                type: json
+            locale:
+                required: true
+                type: json
+            bundle_id:
+                required: true
+                type: json
+        """
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            status = HTTP_200_OK
+            message = call_send_magic_link(**serializer.validated_data)
+        else:
+            status = HTTP_400_BAD_REQUEST
+            error = serializer.errors
+            if error.get('email'):
+                message = "Bad email parameter"
+            else:
+                message = "Bad request parameter"
+            logger.info(f"Make Magic Links Error: {serializer.errors}")
+
+        return Response(message, status)

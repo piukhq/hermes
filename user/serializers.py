@@ -1,12 +1,16 @@
 from collections import OrderedDict
+from time import time
 
+import jwt
 from django.contrib.auth.password_validation import validate_password as validate_pass
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from rest_framework import serializers
-
+from rest_framework.exceptions import AuthenticationFailed
 from hermes.currencies import CURRENCIES
-from scheme.models import SchemeAccount
-from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting, UserDetail, UserSetting,
-                         valid_promo_code)
+from scheme.models import SchemeAccount, SchemeBundleAssociation
+from ubiquity.channel_vault import get_jwt_secret
+from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting,
+                         UserDetail, UserSetting, valid_promo_code)
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -290,3 +294,42 @@ class UpdateUserSettingSerializer(serializers.Serializer):
     slug1 = serializers.SlugField(required=True)
     slug2 = serializers.SlugField(required=False)
     slug3 = serializers.SlugField(required=False)
+
+
+class MakeMagicLinkSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True, write_only=True)
+    slug = serializers.CharField(max_length=50, required=True, write_only=True)
+    locale = serializers.ChoiceField(choices=("en_GB", "English"), required=True, write_only=True)
+    bundle_id = serializers.CharField(required=True, write_only=True)
+
+    def validate(self, data):
+        data = super().validate(data)
+        if data.get("bundle_id") and data.get("slug"):
+            try:
+                bundle = ClientApplicationBundle.objects.get(
+                    bundle_id=data["bundle_id"], scheme__slug=data['slug'],
+                    schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
+                if not bundle.magic_link_url:
+                    raise serializers.ValidationError(
+                        f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
+                data['url'] = bundle.magic_link_url
+                data['expiry'] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
+                secret = get_jwt_secret(data["bundle_id"])
+                now = int(time())
+                payload = {
+                    'email': data['email'],
+                    'bundle_id': data['bundle_id'],
+                    'iat': now,
+                    'exp': int(now + data['expiry'] * 60)
+                }
+                data['token'] = jwt.encode(payload, secret, algorithm='HS512').decode('UTF-8')
+            except AuthenticationFailed as e:
+                raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
+                                                  f' Exception: {e}')
+            except MultipleObjectsReturned:
+                raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
+                                                  f' for slug {data["slug"]}')
+            except ObjectDoesNotExist:
+                raise serializers.ValidationError(f'Config: Invalid bundle id {data["bundle_id"]} was not found or '
+                                                  f'did not have an active slug {data["slug"]}')
+        return data
