@@ -136,7 +136,7 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         self.assertEqual(self.lifetime, serializer.validated_data['expiry'])
         self.assertEqual(self.url, serializer.validated_data['url'])
         token = serializer.validated_data['token']
-        token_data = jwt.decode(token, verify=True, key=self.bink_web_secret)
+        token_data = jwt.decode(token, key=self.bink_web_secret, algorithms=['HS512'])
         print(token_data)
         self.assertEqual(email, token_data['email'])
         self.assertEqual(self.BINK_BUNDLE_ID, token_data['bundle_id'])
