@@ -64,7 +64,7 @@ class GenerateJWToken:
         return payload
 
     def get_token(self) -> str:
-        return jwt.encode(self.payload, self.secret, algorithm="HS512").decode("UTF-8")
+        return jwt.encode(self.payload, self.secret, algorithm="HS512")
 
 
 if __name__ == "__main__":

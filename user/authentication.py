@@ -80,8 +80,10 @@ class JwtAuthentication(BaseAuthentication):
         try:
             token_contents = jwt.decode(
                 key,
-                verify=False,
-                leeway=settings.CLOCK_SKEW_LEEWAY)
+                options={"verify_signature": False},
+                leeway=settings.CLOCK_SKEW_LEEWAY,
+                algorithms=['HS512', 'HS256']
+            )
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
 
@@ -95,8 +97,9 @@ class JwtAuthentication(BaseAuthentication):
             jwt.decode(
                 key,
                 user.client.secret + user.salt,
-                verify=True,
-                leeway=settings.CLOCK_SKEW_LEEWAY)
+                algorithms=['HS512', 'HS256'],
+                leeway=settings.CLOCK_SKEW_LEEWAY
+            )
         except jwt.DecodeError:
             raise exceptions.AuthenticationFailed(_('Invalid token.'))
         return user, token_contents

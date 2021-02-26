@@ -174,10 +174,10 @@ class SchemeInline(admin.TabularInline):
 
 @admin.register(ClientApplicationBundle)
 class ClientApplicationBundleAdmin(CacheResetAdmin):
-    list_display = ('bundle_id', 'client')
+    list_display = ('bundle_id', 'client', 'magic_link_url', 'magic_lifetime')
     search_fields = ('bundle_id', 'client__name', 'client__organisation__name')
     filter_horizontal = ('scheme', 'issuer')
-    list_filter = ('client__organisation__name', 'client__name', 'issuer', 'scheme')
+    list_filter = ('client__organisation__name', 'client__name', 'issuer', 'magic_link_url', 'scheme')
     inlines = [
         SchemeInline,
     ]
@@ -210,7 +210,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
     def get_fieldsets(self, request, obj=None):
         allowed_issuers = None
         bundle_id = None
-        return_fields = ((None, {'fields': ('bundle_id', 'client')}),)
+        return_fields = ((None, {'fields': (('bundle_id', 'client'), ('magic_link_url', 'magic_lifetime'))}),)
         choice_description = "Schemes"
 
         if obj:
