@@ -828,7 +828,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=bundle_id)
 
         try:
-            user = CustomUser.objects.get(email=email, client_id=client_id)
+            user = CustomUser.objects.get(email__iexact=email, client_id=client_id)
         except CustomUser.DoesNotExist:
             user = self.create_new_user(
                 client_id=client_id,
