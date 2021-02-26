@@ -28,4 +28,5 @@ urlpatterns = [
         views.OrganisationTermsAndConditions.as_view(),
         name="terms_and_conditions",
     ),
+    re_path(r"^magic_links/access_tokens/?$", views.MagicLinkAuthView().as_view(), name="magic_link_auth"),
 ]

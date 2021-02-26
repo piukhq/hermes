@@ -99,7 +99,7 @@ class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
     password = serializers.CharField(write_only=True, required=False)
 
     def validate_password(self, value):
-        if self.context.get('bearer_registration', False):
+        if self.context.get('passwordless', False):
             return None
 
         validate_pass(value)
