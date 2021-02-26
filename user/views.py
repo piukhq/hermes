@@ -515,7 +515,7 @@ def generate_apple_client_secret():
         key=key,
         headers=headers,
         algorithm="ES256",
-    ).decode("utf-8")
+    )
 
     return client_secret
 
@@ -541,7 +541,7 @@ def apple_login(code):
     resp.raise_for_status()
 
     id_token = resp.json()["id_token"]
-    user_info = jwt.decode(id_token, verify=False)
+    user_info = jwt.decode(id_token, options={"verify_signature": False}, algorithms=['HS512', 'HS256'])
 
     logger.info("Successful Apple Sign In")
     return social_response(
@@ -756,7 +756,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         try:
             bundle_id = jwt.decode(
                 token,
-                verify=False,
+                options={"verify_signature": False},
                 algorithms=['HS512', 'HS256']
             )["bundle_id"]
             jwt_secret = get_jwt_secret(bundle_id)
@@ -787,7 +787,6 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             token_data = jwt.decode(
                 token,
                 token_secret,
-                verify=True,
                 algorithms=['HS512', 'HS256']
             )
             email = token_data["email"]
