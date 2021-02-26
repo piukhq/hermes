@@ -87,7 +87,6 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
 
         auth_user_id = jwt.decode(token, channels_permit.bundle.client.secret,
                                   leeway=settings.CLOCK_SKEW_LEEWAY,
-                                  options={"verify_signature": False},
                                   algorithms=['HS512', 'HS256'])['user_id']
         return channels_permit, auth_user_id
 
