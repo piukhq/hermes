@@ -20,7 +20,6 @@ class TestTask(APITestCase):
             'Expiry',
             'some_token',
             'test_bink.com',
-            'bink-web',
             'web'
         )
 

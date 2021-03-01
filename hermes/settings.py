@@ -352,7 +352,7 @@ ANYMAIL = {
 }
 EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
 DEFAULT_FROM_EMAIL = "Bink Support <support@bink.com>"
-MAGIC_LINK_FROM_EMAIL = "{channel}@bink.com"
+MAGIC_LINK_FROM_EMAIL = "{external_name}@bink.com"
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002"]
 if env_var("HERMES_NO_DB_TEST", False):
