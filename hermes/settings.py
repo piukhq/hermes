@@ -60,6 +60,7 @@ LOCAL_APPS = (
     "history",
     "daedalus_messaging",
     "periodic_retry",
+    "magic_link",
     "prometheus.apps.PrometheusPusherConfig",
 )
 
@@ -223,6 +224,7 @@ if not NO_AZURE_STORAGE:
     # For generating image urls with a custom domain
     CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
     AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
+    MAGIC_LINK_TEMPLATE = 'email/magic_link_email.txt'
 
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
@@ -350,6 +352,7 @@ ANYMAIL = {
 }
 EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
 DEFAULT_FROM_EMAIL = "Bink Support <support@bink.com>"
+MAGIC_LINK_FROM_EMAIL = "{channel}@bink.com"
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002"]
 if env_var("HERMES_NO_DB_TEST", False):
