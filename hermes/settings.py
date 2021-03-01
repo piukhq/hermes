@@ -26,7 +26,6 @@ from hermes.sentry import _make_celery_event_processor, _make_django_event_proce
 from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
 
 read_env()
 
