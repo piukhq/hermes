@@ -4,6 +4,7 @@ import arrow
 import jwt
 from django.test import Client
 from django.urls import reverse
+from django.test import override_settings
 
 import ubiquity.channel_vault as channel_vault
 from history.utils import GlobalMockAPITestCase
@@ -49,6 +50,9 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
                                                                             )
         cls.client = Client()
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     def test_view_active_enabled(self):
         response = self.client.post(reverse('user_make_magic_link'), {
             'email': 'test_1@example.com',
@@ -60,6 +64,9 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         # content = json.loads(response.content.decode())
         # todo add this back in when removed retuned values for testing self.assertEqual(content, 'Successful')
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     def test_view_inactive_enabled(self):
         response = self.client.post(reverse('user_make_magic_link'), {
             'email': 'test_1@example.com',
@@ -72,6 +79,9 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(content, 'Bad request parameter')
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
     def test_view_active_disabled(self):
         self.bink_bundle.magic_link_url = ""
         self.bink_bundle.save()
