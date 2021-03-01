@@ -36,6 +36,7 @@ from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVA
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
+from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
 from ubiquity.channel_vault import get_jwt_secret
 from user.authentication import JwtAuthentication
@@ -857,15 +858,9 @@ def call_send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
     :param token:
     :return:
     """
-    logger.info(f"Send magic link: {email}, {url}, {slug}, {locale}, bundle_id: {bundle_id}, expiry: {expiry},"
-                f" token: '{token}'")
 
-    message = "Successful"
-
-    # TODO Delete the following line for security when calling the real email script - message should be just as above
-    message = {"email": email, "url": url, "slug": slug, "locale": locale, "bundle_id": bundle_id,
-               "expiry": expiry, "token": token}
-    return message
+    send_magic_link.delay(email, expiry, token, url, bundle_id)
+    return "Successful"
 
 
 class MakeMagicLink(APIView):
