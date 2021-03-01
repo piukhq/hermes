@@ -21,6 +21,7 @@ class TestTask(APITestCase):
             'some_token',
             'test_bink.com',
             'bink-web',
+            'web'
         )
 
         self.assertEqual(len(mail.outbox), 1)

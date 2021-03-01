@@ -309,6 +309,11 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 bundle = ClientApplicationBundle.objects.get(
                     bundle_id=data["bundle_id"], scheme__slug=data['slug'],
                     schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
+                if not bundle.external_name:
+                    data['external_name'] = "web"
+                else:
+                    data['external_name'] = bundle.external_name
+                    
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
