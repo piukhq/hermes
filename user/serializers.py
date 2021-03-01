@@ -313,7 +313,6 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                     data['external_name'] = "web"
                 else:
                     data['external_name'] = bundle.external_name
-                    
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
