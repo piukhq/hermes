@@ -61,8 +61,8 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
             'bundle_id': self.BINK_BUNDLE_ID
         })
         self.assertEqual(response.status_code, 200)
-        # content = json.loads(response.content.decode())
-        # todo add this back in when removed retuned values for testing self.assertEqual(content, 'Successful')
+        content = json.loads(response.content.decode())
+        self.assertEqual(content, 'Successful')
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
