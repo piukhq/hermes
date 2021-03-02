@@ -334,6 +334,6 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
                                                   f' for slug {data["slug"]}')
             except ObjectDoesNotExist:
-                raise serializers.ValidationError(f'Config: Invalid bundle id {data["bundle_id"]} was not found or '
+                raise serializers.ValidationError(f'Config: invalid bundle id {data["bundle_id"]} was not found or '
                                                   f'did not have an active slug {data["slug"]}')
         return data
