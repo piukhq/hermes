@@ -309,6 +309,10 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 bundle = ClientApplicationBundle.objects.get(
                     bundle_id=data["bundle_id"], scheme__slug=data['slug'],
                     schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
+                if not bundle.external_name:
+                    data['external_name'] = "web"
+                else:
+                    data['external_name'] = bundle.external_name
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
@@ -330,6 +334,6 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
                                                   f' for slug {data["slug"]}')
             except ObjectDoesNotExist:
-                raise serializers.ValidationError(f'Config: Invalid bundle id {data["bundle_id"]} was not found or '
+                raise serializers.ValidationError(f'Config: invalid bundle id {data["bundle_id"]} was not found or '
                                                   f'did not have an active slug {data["slug"]}')
         return data

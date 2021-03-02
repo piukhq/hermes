@@ -16,12 +16,12 @@ def get_email_template():
 
 
 @shared_task
-def send_magic_link(email, expiry, token, url, bundle_id):
+def send_magic_link(email, expiry, token, url, external_name):
     template = get_email_template()
     send_mail(
         'Magic Link Request',
-        template.format(url=url, token=token, expiry=expiry),
-        settings.MAGIC_LINK_FROM_EMAIL.format(channel=bundle_id),
+        template.format(url=url, token=token, expiry=expiry, external_name=external_name),
+        settings.MAGIC_LINK_FROM_EMAIL.format(external_name=external_name),
         [email],
         fail_silently=False
     )
