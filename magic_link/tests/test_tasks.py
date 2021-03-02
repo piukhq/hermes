@@ -21,7 +21,6 @@ class TestTask(APITestCase):
         expiry_date = make_aware(datetime.fromtimestamp(int(time() + 60)))
         send_magic_link(
             self.test_email,
-            'Expiry',
             'some_token',
             'test_bink.com',
             'web',
