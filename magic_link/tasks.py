@@ -21,7 +21,7 @@ def send_magic_link(email, expiry, token, url, external_name):
     send_mail(
         'Magic Link Request',
         template.format(url=url, token=token, expiry=expiry, external_name=external_name),
-        settings.MAGIC_LINK_FROM_EMAIL.format(exaternal_name=external_name),
+        settings.MAGIC_LINK_FROM_EMAIL.format(external_name=external_name),
         [email],
         fail_silently=False
     )
