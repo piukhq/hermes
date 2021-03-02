@@ -846,7 +846,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         return Response({"access_token": token})
 
 
-def call_send_magic_link(email, url, bundle_id, expiry, token, external_name, slug="", locale=""):
+def call_send_magic_link(email, url, expiry_date, bundle_id, expiry, token, external_name, slug="", locale=""):
     """
     This is function is required for testing and call send_magic_link when implemented
     :param email:
@@ -860,7 +860,7 @@ def call_send_magic_link(email, url, bundle_id, expiry, token, external_name, sl
     :param
     """
 
-    send_magic_link.delay(email, expiry, token, url, external_name)
+    send_magic_link.delay(email, token, url, external_name, expiry_date)
 
 
 class MakeMagicLink(APIView):

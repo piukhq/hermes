@@ -4,7 +4,6 @@ stages:
   - staging
   - performance
   - preprod
-  - build
   - prod
 
 tests:
@@ -43,9 +42,10 @@ dev:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:develop-$CI_COMMIT_SHORT_SHA" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:develop-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:develop-$CI_COMMIT_SHORT_SHA"
+    - export CTAG="develop-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   only:
     - develop
 
@@ -56,9 +56,10 @@ staging:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:staging-$CI_COMMIT_SHORT_SHA" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:staging-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:staging-$CI_COMMIT_SHORT_SHA"
+    - export CTAG="staging-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   only:
     - staging
 
@@ -69,9 +70,10 @@ performance:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:performance-$CI_COMMIT_SHORT_SHA"
+    - export CTAG="performance-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   when: manual
   only:
     - performance
@@ -83,31 +85,23 @@ preprod:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:preprod-$CI_COMMIT_SHORT_SHA"
+    - export CTAG="preprod-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   when: manual
   only:
     - master
 
-build:
-  stage: build
+prod:
+  stage: prod
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:$CI_COMMIT_TAG"
-  only:
-    - tags
-
-release-prod:
-  stage: prod
-  image: binkops.azurecr.io/tagbot:latest
-  environment:
-    name: prod
-  script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --tag "prod-$CI_COMMIT_TAG"
+    - export CTAG="prod-$CI_COMMIT_TAG"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   when: manual
   only:
     - tags

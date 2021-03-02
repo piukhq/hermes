@@ -1,6 +1,9 @@
+from datetime import datetime
+from time import time
 from unittest.mock import patch
 
 from django.core import mail
+from django.utils.timezone import make_aware
 from rest_framework.test import APITestCase
 
 from magic_link.tasks import send_magic_link
@@ -15,12 +18,13 @@ class TestTask(APITestCase):
     @patch('magic_link.tasks.get_email_template')
     @patch('magic_link.tasks.send_magic_link')
     def test_send_magic_link(self, mock_template, mock_email):
+        expiry_date = make_aware(datetime.fromtimestamp(int(time() + 60)))
         send_magic_link(
             self.test_email,
-            'Expiry',
             'some_token',
             'test_bink.com',
-            'web'
+            'web',
+            expiry_date
         )
 
         self.assertEqual(len(mail.outbox), 1)

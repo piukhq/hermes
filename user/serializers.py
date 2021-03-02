@@ -1,11 +1,14 @@
 from collections import OrderedDict
+from datetime import datetime
 from time import time
 
 import jwt
 from django.contrib.auth.password_validation import validate_password as validate_pass
 from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
+from django.utils.timezone import make_aware
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
+
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from ubiquity.channel_vault import get_jwt_secret
@@ -320,13 +323,17 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 data['expiry'] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
                 secret = get_jwt_secret(data["bundle_id"])
                 now = int(time())
+                expiry = int(now + data['expiry'] * 60)
                 payload = {
                     'email': data['email'],
                     'bundle_id': data['bundle_id'],
                     'iat': now,
-                    'exp': int(now + data['expiry'] * 60)
+                    'exp': expiry
                 }
                 data['token'] = jwt.encode(payload, secret, algorithm='HS512')
+                # note sensitive to settings.USE_TZ == True
+                data['expiry_date'] = make_aware(datetime.fromtimestamp(expiry))
+
             except AuthenticationFailed as e:
                 raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
                                                   f' Exception: {e}')
