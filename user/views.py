@@ -36,6 +36,7 @@ from errors import (FACEBOOK_CANT_VALIDATE, FACEBOOK_GRAPH_ACCESS, FACEBOOK_INVA
                     INCORRECT_CREDENTIALS, REGISTRATION_FAILED, error_response)
 from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
+from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
 from ubiquity.channel_vault import get_jwt_secret
 from user.authentication import JwtAuthentication
@@ -845,27 +846,21 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         return Response({"access_token": token})
 
 
-def call_send_magic_link(email, url, slug, locale, bundle_id, expiry, token):
+def call_send_magic_link(email, url, bundle_id, expiry, token, external_name, slug="", locale=""):
     """
     This is function is required for testing and call send_magic_link when implemented
     :param email:
     :param url:
-    :param slug:
-    :param locale:
     :param bundle_id:
     :param expiry:
     :param token:
-    :return:
+    :param external_name:   external channel name used in template from  external_name.bink.com
+    :param slug: not used identifies the scheme
+    :param locale: may be used in future templates for internationalisation
+    :param
     """
-    logger.info(f"Send magic link: {email}, {url}, {slug}, {locale}, bundle_id: {bundle_id}, expiry: {expiry},"
-                f" token: '{token}'")
 
-    message = "Successful"
-
-    # TODO Delete the following line for security when calling the real email script - message should be just as above
-    message = {"email": email, "url": url, "slug": slug, "locale": locale, "bundle_id": bundle_id,
-               "expiry": expiry, "token": token}
-    return message
+    send_magic_link.delay(email, expiry, token, url, external_name)
 
 
 class MakeMagicLink(APIView):
@@ -895,10 +890,11 @@ class MakeMagicLink(APIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            status = HTTP_200_OK
-            message = call_send_magic_link(**serializer.validated_data)
+            call_send_magic_link(**serializer.validated_data)
+            r_status = HTTP_200_OK
+            message = "Successful"
         else:
-            status = HTTP_400_BAD_REQUEST
+            r_status = HTTP_400_BAD_REQUEST
             error = serializer.errors
             if error.get('email'):
                 message = "Bad email parameter"
@@ -906,4 +902,4 @@ class MakeMagicLink(APIView):
                 message = "Bad request parameter"
             logger.info(f"Make Magic Links Error: {serializer.errors}")
 
-        return Response(message, status)
+        return Response(message, r_status)

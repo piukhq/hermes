@@ -127,6 +127,7 @@ class ClientApplication(models.Model):
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
+    external_name = models.CharField(max_length=100, blank=True, default='')
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
     issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
