@@ -4,7 +4,7 @@ from typing import Union, Type, TYPE_CHECKING
 import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import signals
 from django.dispatch import receiver
 
@@ -14,17 +14,50 @@ from history.signals import HISTORY_CONTEXT
 if TYPE_CHECKING:
     from scheme.models import SchemeAccount  # noqa
     from payment_card.models import PaymentCardAccount  # noqa
+    from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
+    AUTHORISED = 0
+    UNAUTHORISED = 1
+
+    AUTH_STATUSES = (
+        (AUTHORISED, 'authorised'),
+        (UNAUTHORISED, 'unauthorised'),
+    )
+
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Scheme Account")
     user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
+    auth_status = models.IntegerField(choices=AUTH_STATUSES, default=UNAUTHORISED)
 
     class Meta:
         unique_together = ("scheme_account", "user")
+
+    @staticmethod
+    def create_link(
+        user: "CustomUser",
+        scheme_account: "SchemeAccount",
+        auth_status: AUTH_STATUSES = UNAUTHORISED
+    ) -> "SchemeAccountEntry":
+        entry = SchemeAccountEntry(
+            user=user,
+            scheme_account=scheme_account,
+            auth_status=auth_status
+        )
+        try:
+            # required to rollback transactions when running into an expected IntegrityError
+            # tests will fail without this as TestCase already wraps tests in an atomic
+            # block and will not know how to correctly rollback otherwise
+            with transaction.atomic():
+                entry.save()
+        except IntegrityError:
+            # The id of the record is not currently required but if it is in the future then
+            # we may need to add a .get() here to retrieve the conflicting record.
+            pass
+        return entry
 
 
 class PaymentCardAccountEntry(models.Model):

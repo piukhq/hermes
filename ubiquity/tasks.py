@@ -7,7 +7,6 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
-from django.utils import timezone
 from rest_framework import serializers
 
 import analytics
@@ -84,23 +83,6 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
         scheme_account.delete_saved_balance()
 
     scheme_account.get_cached_balance()
-
-
-@shared_task
-def async_add_field_only_link(instance_id: int, payment_cards_to_link: list, history_kwargs: dict = None) -> None:
-    set_history_kwargs(history_kwargs)
-
-    scheme_account = SchemeAccount.objects.get(id=instance_id)
-    scheme_account.get_cached_balance()
-
-    if scheme_account.status == SchemeAccount.ACTIVE:
-        scheme_account.link_date = timezone.now()
-        scheme_account.save(update_fields=['link_date'])
-
-    if payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
-
-    clean_history_kwargs(history_kwargs)
 
 
 @shared_task
@@ -412,7 +394,7 @@ def auto_link_membership_to_payments(
             payment_card_account=payment_card_account
         ).get_instance_with_active_status()
         link_entries_to_create.append(entry)
-        if entry.active_link is True:
+        if entry.active_link:
             pll_activated_payment_cards.append(payment_card_account.id)
             if payment_card_account.payment_card.slug == PaymentCard.VISA:
                 vop_activated_cards.append(payment_card_account.id)
