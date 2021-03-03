@@ -55,8 +55,11 @@ class SchemeAccountEntry(models.Model):
                 entry.save()
         except IntegrityError:
             # The id of the record is not currently required but if it is in the future then
-            # we may need to add a .get() here to retrieve the conflicting record.
-            pass
+            # we may need to use .get() here to retrieve the conflicting record.
+            # An update is done here instead of initially using an update_or_create to avoid the db call
+            # to check if a record exists, since this is an edge case.
+            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(auth_status=auth_status)
+
         return entry
 
 
