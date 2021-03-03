@@ -9,10 +9,12 @@ import requests
 from arrow.parser import ParserError
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
+from rest_framework.validators import UniqueValidator
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
 from ubiquity.reason_codes import get_state_and_reason_code
 
@@ -27,6 +29,9 @@ from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument
 from ubiquity.tasks import async_balance
+from user.exceptions import UserConflictError
+from user.models import CustomUser
+from user.serializers import UbiquityRegisterSerializer
 
 if t.TYPE_CHECKING:
     from requests import Response
@@ -81,9 +86,13 @@ class MembershipTransactionsMixin:
 
 
 class TimestampField(serializers.Field):
+    """A timestamp representation. Validates a timestamp value to be a valid datetime."""
+    def to_representation(self, value):
+        return value.timestamp.timestamp()
+
     def to_internal_value(self, data):
         try:
-            return arrow.get(data).timestamp
+            return arrow.get(data).datetime
         except ParserError as e:
             raise serializers.ValidationError("Invalid value for timestamp") from e
 
@@ -94,38 +103,92 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
         fields = '__all__'
         write_only_fields = ('user',)
 
-    timestamp = serializers.IntegerField()
+    # user is only required to create a ServiceConsent, but not used for API input
+    # validation so required=False
+    user = serializers.PrimaryKeyRelatedField(
+        queryset=CustomUser.objects.all(),
+        validators=[UniqueValidator(queryset=ServiceConsent.objects.all())],
+        required=False
+    )
+    email = serializers.EmailField()
+    timestamp = TimestampField()
+
+    def create(self, validated_data):
+        create_data = self.get_create_data(validated_data)
+        return ServiceConsent.objects.create(**create_data)
 
     @staticmethod
-    def validate_timestamp(timestamp):
-        try:
-            datetime = arrow.get(timestamp).datetime
-        except ParserError:
-            raise serializers.ValidationError('timestamp field is not a timestamp.')
+    def get_create_data(validated_data):
+        if not validated_data.get("user"):
+            raise TypeError(
+                "A user id must be provided when instantiating the serializer "
+                f"to save a new instance of {ServiceConsentSerializer.Meta.model.__name__}"
+            )
 
-        return datetime
-
-    @staticmethod
-    def _is_valid(value):
-        if value or isinstance(value, (int, float)):
-            return True
-        return False
-
-    def to_representation(self, instance):
-        response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
-        if self._is_valid(instance.latitude) and self._is_valid(instance.longitude):
-            response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
-        return response
+        return {k: v for k, v in validated_data.items() if k != "email"}
 
 
 class ServiceSerializer(serializers.Serializer):
-    class ConsentSerializer(serializers.Serializer):
-        email = serializers.EmailField()
-        timestamp = TimestampField()
-        longitude = serializers.FloatField(required=False)
-        latitude = serializers.FloatField(required=False)
+    consent = ServiceConsentSerializer()
 
-    consent = ConsentSerializer()
+    def to_representation(self, instance):
+        response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
+        if instance.latitude and instance.longitude:
+            response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
+        return response
+
+    def create(self, validated_data):
+        service_consent_created = False
+        user, user_created = self.context.get("user") or self.get_user()
+
+        if not user_created and hasattr(user, "serviceconsent"):
+            return user.serviceconsent, user, service_consent_created
+
+        validated_data["consent"]["user"] = user
+        create_data = ServiceConsentSerializer.get_create_data(validated_data["consent"])
+        service_consent_created = True
+        return ServiceConsent.objects.create(**create_data), user, service_consent_created
+
+    def get_user(self):
+        user_created = False
+        request = self.context["request"]
+        try:
+            if request.channels_permit.auth_by == "bink":
+                user = request.channels_permit.user
+            else:
+                user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
+        except CustomUser.DoesNotExist:
+            user = self.create_new_user(
+                client_id=request.channels_permit.client.pk,
+                bundle_id=request.channels_permit.bundle_id,
+                email=self.validated_data["consent"]["email"],
+                external_id=request.prop_id,
+            )
+            user_created = True
+
+        self.context["user"] = user
+        return user, user_created
+
+    @staticmethod
+    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: t.Optional[str]) -> CustomUser:
+        new_user_data = {
+            "client_id": client_id,
+            "bundle_id": bundle_id,
+            "email": email,
+        }
+
+        if external_id:
+            new_user_data["external_id"] = external_id
+
+        new_user = UbiquityRegisterSerializer(data=new_user_data, context={"passwordless": True})
+        new_user.is_valid(raise_exception=True)
+
+        try:
+            user = new_user.save()
+        except IntegrityError:
+            raise UserConflictError
+
+        return user
 
 
 class PaymentCardConsentSerializer(serializers.Serializer):

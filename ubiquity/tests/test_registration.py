@@ -102,7 +102,7 @@ class TestRegistration(GlobalMockAPITestCase):
         wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
                                               **auth_headers)
         self.assertEqual(wrong_consent_resp.status_code, 400)
-        self.assertIn('Malformed request.', wrong_consent_resp.json().get('detail'))
+        self.assertEqual({'consent': {'timestamp': ['Invalid value for timestamp']}}, wrong_consent_resp.json())
 
     def test_service_registration_wrong_header(self):
         data = {

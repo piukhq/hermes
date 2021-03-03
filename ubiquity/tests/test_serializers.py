@@ -1,8 +1,7 @@
 import typing as t
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from rest_framework import serializers
-from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from history.utils import GlobalMockAPITestCase
@@ -12,6 +11,7 @@ from ubiquity.versioning.base.serializers import ServiceSerializer
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
+from user.tests.factories import ClientApplicationBundleFactory
 
 private_key = (
     '-----BEGIN RSA PRIVATE KEY-----\nMIIJJwIBAAKCAgEAr4Exi9NZlKwjFn8G6tapAGjEvn/E77Nbq0UZfiGFfsf3O'
@@ -74,7 +74,7 @@ mock_secrets = {
 }
 
 
-class TestBaseSerializers(APITestCase):
+class TestBaseSerializers(GlobalMockAPITestCase):
 
     def test_service_serializer(self):
         serializer_class = ServiceSerializer
@@ -137,12 +137,35 @@ class TestBaseSerializers(APITestCase):
             serializer.is_valid(raise_exception=True)
             validated_data = serializer.validated_data
 
-            self.assertEqual(data, validated_data)
+            self.assertIn("email", validated_data["consent"])
+            self.assertIn("timestamp", validated_data["consent"])
 
         for invalid_data in all_invalid_data_list:
             with self.assertRaises(serializers.ValidationError):
                 serializer = serializer_class(data=invalid_data)
                 serializer.is_valid(raise_exception=True)
+
+    def test_service_create(self):
+        client_application_bundle = ClientApplicationBundleFactory.create()
+
+        request = MagicMock()
+        request.channels_permit.auth_by = "external"
+        request.channels_permit.client.pk = client_application_bundle.client.pk
+        request.channels_permit.bundle_id = client_application_bundle.bundle_id
+        request.prop_id = "some_external_id"
+
+        serializer_class = ServiceSerializer
+        valid_data_with_optionals = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377,
+                "longitude": 1.1,
+                "latitude": 2.2,
+            },
+        }
+        serializer = serializer_class(data=valid_data_with_optionals, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):

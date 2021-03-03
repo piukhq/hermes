@@ -83,7 +83,6 @@ from ubiquity.versioning.base.serializers import (
     TransactionSerializer,
 )
 from user.models import CustomUser
-from user.views import NoPasswordUserCreationMixin
 
 if t.TYPE_CHECKING:
     from rest_framework.request import Request
@@ -262,7 +261,7 @@ class AllowedIssuersMixin:
         return self.stored_allowed_issuers
 
 
-class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelViewSet):
+class ServiceView(VersionedSerializerMixin, ModelViewSet):
     authentication_classes = (PropertyOrServiceAuthentication,)
     serializer_class = ServiceSerializer
     response_serializer = SelectSerializer.SERVICE
@@ -274,35 +273,17 @@ class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelVi
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        consent_data = serializer.validated_data['consent']
-        status_code = HTTP_200_OK
 
-        try:
-            if request.channels_permit.auth_by == "bink":
-                user = request.channels_permit.user
-            else:
-                user = CustomUser.objects.get(client=request.channels_permit.client, external_id=request.prop_id)
-        except CustomUser.DoesNotExist:
-            user = self.create_new_user(
-                client_id=request.channels_permit.client.pk,
-                bundle_id=request.channels_permit.bundle_id,
-                email=consent_data["email"],
-                external_id=request.prop_id,
-            )
+        service_consent, user, service_consent_created = serializer.save()
+
+        status_code = HTTP_200_OK
+        if service_consent_created:
+            service_creation_counter.labels(channel=request.channels_permit.bundle_id).inc()
             status_code = HTTP_201_CREATED
 
-            consent = self._add_consent(user, consent_data, service=True)
-            service_creation_counter.labels(channel=request.channels_permit.bundle_id).inc()
-        else:
-            if not hasattr(user, "serviceconsent"):
-                status_code = HTTP_201_CREATED
-                consent = self._add_consent(user, consent_data)
-
-            else:
-                consent = self.get_serializer_by_request(user.serviceconsent)
-
+        consent = self.get_serializer_by_request(service_consent)
         return Response(consent.data, status=status_code)
 
     @censor_and_decorate
@@ -316,14 +297,14 @@ class ServiceView(NoPasswordUserCreationMixin, VersionedSerializerMixin, ModelVi
         user_id = request.user.id
         deleted_service_cleanup.delay(
             user_id,
-            response["consent"],
+            response,
             history_kwargs={"user_info": user_info(user_id=user_id, channel=request.channels_permit.bundle_id)},
         )
         return Response(response)
 
     def _add_consent(self, user: CustomUser, consent_data: dict, service: bool = False) -> dict:
         try:
-            consent = self.get_serializer_by_request(data={"user": user.id, **consent_data})
+            consent = self.get_serializer_by_request(data={"consent": {"user": user.id, **consent_data}})
             consent.is_valid(raise_exception=True)
             consent.save()
         except ValidationError:
