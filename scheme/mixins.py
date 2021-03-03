@@ -95,6 +95,8 @@ class BaseLinkMixin(object):
             scheme_account.link_date = timezone.now()
             scheme_account.save(update_fields=['link_date'])
 
+            user.schemeaccountentry_set.update(scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED)
+
             for user_consent in user_consents:
                 user_consent.status = ConsentStatus.SUCCESS
                 user_consent.save()
@@ -228,7 +230,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 status=create_status,
                 main_answer=data[answer_type]
             )
-            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=self._get_question_from_type(scheme_account, answer_type),

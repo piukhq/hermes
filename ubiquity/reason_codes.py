@@ -109,7 +109,7 @@ ubiquity_status_translation = {
     1: AUTHORISED,
     5: UNAUTHORISED,
     9: FAILED,
-    10: PENDING,
+    10: UNAUTHORISED,
     204: PENDING,
     401: FAILED,
     403: FAILED,
