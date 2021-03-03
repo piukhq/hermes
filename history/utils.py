@@ -65,6 +65,15 @@ def clean_history_kwargs(kwargs: Optional[dict]) -> None:
                 delattr(HISTORY_CONTEXT, k)
 
 
+def get_channel_from_context() -> str:
+    try:
+        channel = HISTORY_CONTEXT.user_info.channel
+    except AttributeError:
+        channel = "internal_service"
+
+    return channel
+
+
 def _get_change_type_and_details(update_fields: list, is_deleted: Tuple[str, bool]) -> Tuple[Optional[str], str]:
     change_details = ""
     deleted_key, deleted_value = is_deleted

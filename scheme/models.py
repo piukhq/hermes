@@ -7,7 +7,7 @@ import uuid
 from decimal import ROUND_HALF_UP, Decimal
 from enum import IntEnum
 from functools import lru_cache
-from typing import Dict, Iterable, TYPE_CHECKING
+from typing import Dict, Iterable, TYPE_CHECKING, Union, Type
 
 import arrow
 import requests
@@ -27,6 +27,7 @@ from django.utils.translation import gettext_lazy as _
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
+from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
 from scheme.encyption import AESCipher
@@ -36,9 +37,7 @@ if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
     from django.db.models import QuerySet
 
-
 logger = logging.getLogger(__name__)
-
 
 BARCODE_TYPES = (
     (0, 'CODE128 (B or C)'),
@@ -310,6 +309,11 @@ class Scheme(models.Model):
 
     @classmethod
     @lru_cache(maxsize=256)
+    def get_scheme_slug_by_scheme_id(cls, scheme_id: Union[Type[int], int]) -> str:
+        return cls.objects.values_list("slug", flat=True).get(pk=scheme_id)
+
+    @classmethod
+    @lru_cache(maxsize=256)
     def get_suspended_schemes_by_bundle(cls, bundle: 'ClientApplicationBundle') -> 'Scheme':
         return cls.objects.filter(
             schemebundleassociation__bundle=bundle,
@@ -321,7 +325,9 @@ class Scheme(models.Model):
 
 
 def clear_scheme_lru_cache(sender, **kwargs):
+    logger.info("A scheme was updated, deleted, or created, invalidating schemes' lru cache.")
     sender.get_scheme_and_questions_by_scheme_id.cache_clear()
+    sender.get_scheme_slug_by_scheme_id.cache_clear()
 
 
 signals.post_save.connect(clear_scheme_lru_cache, sender=Scheme)
@@ -995,6 +1001,11 @@ class SchemeAccount(models.Model):
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status
         if status_update:
+            capture_membership_card_status_change_metric(
+                scheme_slug=Scheme.get_scheme_slug_by_scheme_id(self.scheme_id),
+                old_status=old_status,
+                new_status=self.status
+            )
             update_fields.append("status")
 
         if update_fields:
