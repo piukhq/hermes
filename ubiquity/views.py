@@ -574,8 +574,8 @@ class MembershipCardView(
             updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions)
             metrics_route = MembershipCardAddRoute.UPDATE
 
-            if sch_acc_entry.auth_status != SchemeAccountEntry.AUTHORISED:
-                sch_acc_entry.auth_status = SchemeAccountEntry.AUTHORISED
+            if sch_acc_entry.auth_status != SchemeAccountEntry.AUTH_PROVIDED:
+                sch_acc_entry.auth_status = SchemeAccountEntry.AUTH_PROVIDED
                 sch_acc_entry.save(update_fields=["auth_status"])
 
         if metrics_route:
@@ -910,7 +910,7 @@ class MembershipCardView(
             scheme_account.update_barcode_and_card_number()
             scheme_account.set_pending()
             entry = SchemeAccountEntry.create_link(
-                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTH_PROVIDED
             )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link)
         else:
@@ -918,7 +918,7 @@ class MembershipCardView(
             self._validate_auth_fields(auth_fields, existing_answers)
 
             entry = SchemeAccountEntry.create_link(
-                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+                user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTH_PROVIDED
             )
             if payment_cards_to_link:
                 auto_link_membership_to_payments(
@@ -996,7 +996,7 @@ class MembershipCardView(
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
             sch_acc_entry = SchemeAccountEntry.create_link(
-                user, scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+                user, scheme_account, auth_status=SchemeAccountEntry.AUTH_PROVIDED
             )
             async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
         elif not auth_fields:
@@ -1072,7 +1072,7 @@ class MembershipCardView(
 
         scheme_account.save()
         sch_acc_entry = SchemeAccountEntry.objects.create(
-            user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTHORISED
+            user=user, scheme_account=scheme_account, auth_status=SchemeAccountEntry.AUTH_PROVIDED
         )
         async_join.delay(
             scheme_account.id,
