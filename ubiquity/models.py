@@ -20,11 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
-    AUTHORISED = 0
+    AUTH_PROVIDED = 0
     UNAUTHORISED = 1
 
     AUTH_STATUSES = (
-        (AUTHORISED, 'authorised'),
+        (AUTH_PROVIDED, 'auth_provided'),
         (UNAUTHORISED, 'unauthorised'),
     )
 
