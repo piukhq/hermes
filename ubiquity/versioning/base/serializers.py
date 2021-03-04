@@ -30,6 +30,7 @@ from ubiquity.tasks import async_balance
 
 if t.TYPE_CHECKING:
     from requests import Response
+    from rest_framework.request import Request
 
 logger = logging.getLogger(__name__)
 
@@ -613,6 +614,75 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             for balance in balances
         ]
 
+    def _wallet_only_filter(
+        self, instance: 'SchemeAccount'
+    ) -> t.Tuple['SchemeAccount.STATUSES', list, list, t.Union[list, dict], list]:
+        status = SchemeAccount.WALLET_ONLY
+        balances = []
+        transactions = []
+        vouchers = {}
+        pll_links = []
+
+        mcard_user_auth_status_map = self.context.get("mcard_user_auth_status_map", {})
+        try:
+            auth_status = mcard_user_auth_status_map[instance.id]
+            if auth_status == SchemeAccountEntry.AUTHORISED:
+                status = instance.status
+                balances = instance.balances
+                transactions = instance.transactions
+                vouchers = instance.vouchers
+                pll_links = instance.pll_links
+        except KeyError:
+            logger.error(
+                f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
+                " - Defaulting user to Unauthorised status - This will hide the following fields: "
+                "status, balances, transactions, vouchers, pll_links\n"
+                "Has a mcard_user_auth_status_map been provided to the serializer context?"
+            )
+
+        return status, balances, transactions, vouchers, pll_links
+
+    @staticmethod
+    def get_mcard_user_auth_status_map(
+        request: 'Request', accounts: t.Union[SchemeAccount, t.List[SchemeAccount]]
+    ) -> dict:
+        """
+        Used by .retrieve() and .list() endpoints to generate a mapping of scheme account ids to
+        scheme account entry auth statuses. This function chooses the least expensive query
+        based on if a singular scheme account or a list of all the user's scheme accounts is provided.
+
+        For internal service users, the auth_status values are all returned as Authorised.
+        """
+        def get_singular_card_mapping(account):
+            if request.channels_permit.service_allow_all:
+                mapping = {account.id: SchemeAccountEntry.AUTHORISED}
+            else:
+                try:
+                    entry = account.schemeaccountentry_set.get(user=request.user)
+                    mapping = {entry.scheme_account_id: entry.auth_status}
+                except SchemeAccountEntry.DoesNotExist:
+                    mapping = {}
+            return mapping
+
+        if isinstance(accounts, SchemeAccount):
+            mcard_user_auth_status_map = get_singular_card_mapping(accounts)
+        elif len(accounts) == 1:
+            mcard_user_auth_status_map = get_singular_card_mapping(accounts[0])
+        else:
+            entries = request.user.schemeaccountentry_set.filter()
+            if request.channels_permit.service_allow_all:
+                mcard_user_auth_status_map = {
+                    entry.scheme_account_id: SchemeAccountEntry.AUTHORISED
+                    for entry in entries
+                }
+            else:
+                mcard_user_auth_status_map = {
+                    entry.scheme_account_id: entry.auth_status
+                    for entry in entries
+                }
+
+        return mcard_user_auth_status_map
+
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:
             async_balance.delay(instance.id)
@@ -658,34 +728,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         }
 
         return card_repr
-
-    def _wallet_only_filter(
-        self, instance: 'SchemeAccount'
-    ) -> t.Tuple['SchemeAccount.STATUSES', list, list, t.Union[list, dict], list]:
-        status = SchemeAccount.WALLET_ONLY
-        balances = []
-        transactions = []
-        vouchers = {}
-        pll_links = []
-
-        mcard_user_auth_status_map = self.context.get("mcard_user_auth_status_map", {})
-        try:
-            auth_status = mcard_user_auth_status_map[instance.id]
-            if auth_status == SchemeAccountEntry.AUTHORISED:
-                status = instance.status
-                balances = instance.balances
-                transactions = instance.transactions
-                vouchers = instance.vouchers
-                pll_links = instance.pll_links
-        except KeyError:
-            logger.error(
-                f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
-                " - Defaulting user to Unauthorised status - This will hide the following fields: "
-                "status, balances, transactions, vouchers, pll_links\n"
-                "Has a mcard_user_auth_status_map been provided to the serializer context?"
-            )
-
-        return status, balances, transactions, vouchers, pll_links
 
 
 class LinkMembershipCardSerializer(SchemeAnswerSerializer):
