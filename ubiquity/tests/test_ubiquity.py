@@ -207,7 +207,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account_entry = SchemeAccountEntryFactory.create(
             scheme_account=self.scheme_account,
             user=self.user,
-            auth_status=SchemeAccountEntry.AUTHORISED
+            auth_status=SchemeAccountEntry.AUTH_PROVIDED
         )
 
         self.scheme_account.update_barcode_and_card_number()
@@ -490,7 +490,7 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_status_mapping_active(self, *_):
         self.scheme_account.status = SchemeAccount.ACTIVE
         self.scheme_account.save()
-        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTHORISED}
+        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTH_PROVIDED}
         data = MembershipCardSerializer(
             self.scheme_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
         ).data
@@ -506,7 +506,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
-        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTHORISED}
+        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTH_PROVIDED}
         data = MembershipCardSerializer(
             self.scheme_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
         ).data
@@ -532,7 +532,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.balances = {}
         self.scheme_account.save()
 
-        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTHORISED}
+        mcard_user_auth_status_map = {self.scheme_account.id: SchemeAccountEntry.AUTH_PROVIDED}
         data = MembershipCardSerializer(
             self.scheme_account, context={"mcard_user_auth_status_map": mcard_user_auth_status_map}
         ).data
@@ -847,7 +847,7 @@ class TestResources(GlobalMockAPITestCase):
 
         self.assertEqual(200, resp.status_code)
         entry.refresh_from_db()
-        self.assertEqual(SchemeAccountEntry.AUTHORISED, entry.auth_status)
+        self.assertEqual(SchemeAccountEntry.AUTH_PROVIDED, entry.auth_status)
         self.assertEqual(existing_scheme_account.id, resp.data["id"])
 
     @patch('scheme.mixins.analytics', autospec=True)

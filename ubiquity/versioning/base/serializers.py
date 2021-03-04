@@ -626,7 +626,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         mcard_user_auth_status_map = self.context.get("mcard_user_auth_status_map", {})
         try:
             auth_status = mcard_user_auth_status_map[instance.id]
-            if auth_status == SchemeAccountEntry.AUTHORISED:
+            if auth_status == SchemeAccountEntry.AUTH_PROVIDED:
                 status = instance.status
                 balances = instance.balances
                 transactions = instance.transactions
@@ -655,7 +655,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         """
         def get_singular_card_mapping(account):
             if request.channels_permit.service_allow_all:
-                mapping = {account.id: SchemeAccountEntry.AUTHORISED}
+                mapping = {account.id: SchemeAccountEntry.AUTH_PROVIDED}
             else:
                 try:
                     entry = account.schemeaccountentry_set.get(user=request.user)
@@ -672,7 +672,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             entries = request.user.schemeaccountentry_set.filter()
             if request.channels_permit.service_allow_all:
                 mcard_user_auth_status_map = {
-                    entry.scheme_account_id: SchemeAccountEntry.AUTHORISED
+                    entry.scheme_account_id: SchemeAccountEntry.AUTH_PROVIDED
                     for entry in entries
                 }
             else:
