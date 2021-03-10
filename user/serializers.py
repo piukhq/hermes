@@ -243,15 +243,18 @@ class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
     email = serializers.CharField(max_length=600, required=False, write_only=True)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class TwitterRegisterSerializer(serializers.Serializer):
     access_token_secret = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class AppleRegisterSerializer(serializers.Serializer):
     authorization_code = serializers.CharField(max_length=120)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class ResponseAuthSerializer(serializers.Serializer):
@@ -303,7 +306,7 @@ class MakeMagicLinkSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True, write_only=True)
     slug = serializers.CharField(max_length=50, required=True, write_only=True)
     locale = serializers.ChoiceField(choices=("en_GB", "English"), required=True, write_only=True)
-    bundle_id = serializers.CharField(required=True, write_only=True)
+    bundle_id = serializers.CharField(max_length=200, required=True, write_only=True)
 
     def validate(self, data):
         data = super().validate(data)

@@ -40,7 +40,8 @@ from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
 from ubiquity.channel_vault import get_jwt_secret
 from user.authentication import JwtAuthentication
-from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code)
+from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code,
+                         BINK_APP_ID)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
@@ -363,12 +364,13 @@ class FaceBookLogin(CreateAPIView):
         access_token = request.data['access_token']
         user_id = request.data['user_id']
         email = request.data.get('email', None)
+        client_id = request.data.get('client_id', BINK_APP_ID)
         r = requests.get("https://graph.facebook.com/me?access_token={0}".format(access_token))
         if not r.ok:
             return error_response(FACEBOOK_CANT_VALIDATE)
         if r.json()['id'] != user_id.strip():
             return error_response(FACEBOOK_INVALID_USER)
-        return facebook_login(access_token, email)
+        return facebook_login(access_token, email, client_id)
 
 
 class TwitterLogin(CreateAPIView):
@@ -459,7 +461,7 @@ class ResetPasswordFromToken(CreateAPIView, UpdateModelMixin):
         return obj
 
 
-def facebook_login(access_token, user_email=None):
+def facebook_login(access_token, user_email=None, client_id=BINK_APP_ID):
     params = {"access_token": access_token, "fields": "email,name,id"}
     # Retrieve information about the current user.
     r = requests.get('https://graph.facebook.com/me', params=params)
@@ -469,10 +471,10 @@ def facebook_login(access_token, user_email=None):
     # Email from client over-rides the facebook one
     if not user_email:
         user_email = profile.get('email')
-    return social_response(profile['id'], user_email, 'facebook')
+    return social_response(profile['id'], user_email, 'facebook', client_id)
 
 
-def twitter_login(access_token, access_token_secret):
+def twitter_login(access_token, access_token_secret, client_id=BINK_APP_ID):
     """
     https://dev.twitter.com/web/sign-in/implementing
     https://dev.twitter.com/rest/reference/get/account/verify_credentials
@@ -494,7 +496,7 @@ def twitter_login(access_token, access_token_secret):
     email = profile.get('email')
     if not email:
         email = None
-    return social_response(profile['id_str'], email, 'twitter')
+    return social_response(profile['id_str'], email, 'twitter', client_id)
 
 
 def generate_apple_client_secret():
@@ -526,6 +528,10 @@ def apple_login(code):
     url = "https://appleid.apple.com/auth/token"
     grant_type = "authorization_code"
     headers = {"content-type": "application/x-www-form-urlencoded"}
+    # this is confusing client id is set to the bundle id which defaults in settings to com.bink.wallet
+    # the call to social_response will assume BINK_APP_ID which is the only client_id mapping to com.bink.wallet
+    # todo fix APPLE_APP_ID in settings it should have been client id not bundle id so do we do a lookup or add another
+    # settings value. The answer depends on how we will manage client ids.
     params = {
         "client_id": settings.APPLE_APP_ID,
         "client_secret": generate_apple_client_secret(),
@@ -549,21 +555,24 @@ def apple_login(code):
     return social_response(
         social_id=user_info["sub"],
         email=user_info["email"],
-        service="apple"
+        service="apple",
     )
 
 
-def social_response(social_id, email, service):
-    status, user = social_login(social_id, email, service)
+def social_response(social_id, email, service, client_id=BINK_APP_ID):
+    status, user = social_login(social_id, email, service, client_id)
 
     out_serializer = ResponseAuthSerializer({'email': user.email, 'api_key': user.create_token(), 'uid': user.uid})
     return Response(out_serializer.data, status=status)
 
 
-def social_login(social_id, email, service):
+def social_login(social_id, email, service, client_id=BINK_APP_ID):
     status = 200
     try:
-        user = CustomUser.objects.get(**{service: social_id})
+        # By default the user is always set to user models BINK_APP_ID therefore provided client_id is also set to same
+        # default we will always find users which were created before the change to search for client_id
+        # Note client id  is same as client__client_id because client_id is a primary index
+        user = CustomUser.objects.get(**{service: social_id, 'client_id': client_id})
         if not user.email and email:
             user.email = email
             user.save()
@@ -572,13 +581,16 @@ def social_login(social_id, email, service):
             if not email:
                 raise CustomUser.DoesNotExist
             # User exists in our system but hasn't been linked
-            user = CustomUser.objects.get(email__iexact=email)
+            # Before we tested for client_id it is possible we linked users with a different client_id
+            # that user should not have been linked to a service and a new user created in BINK_APP_ID
+            user = CustomUser.objects.get(email__iexact=email, client_id=client_id)
             setattr(user, service, social_id)
             user.save()
         except CustomUser.DoesNotExist:
             # We are creating a new user
             password = get_random_string(length=32)
-            user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id})
+            user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id,
+                                                     'client_id': client_id})
             status = 201
     return status, user
 
