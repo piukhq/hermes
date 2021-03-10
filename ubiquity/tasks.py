@@ -239,7 +239,7 @@ def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, us
 
     else:
         user_mcard_auth_statuses = entries_query.values_list("auth_status", flat=True)
-        if all({status == SchemeAccountEntry.UNAUTHORISED for status in user_mcard_auth_statuses}):
+        if all((status == SchemeAccountEntry.UNAUTHORISED for status in user_mcard_auth_statuses)):
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save(update_fields=["status"])
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
