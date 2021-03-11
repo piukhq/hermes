@@ -539,7 +539,7 @@ def social_login(social_id, email, service, client_id=BINK_APP_ID):
             # We are creating a new user
             password = get_random_string(length=32)
             user = CustomUser.objects.create_user(**{'email': email, 'password': password, service: social_id,
-                                                     'client': client_id})
+                                                     'client_id': client_id})
             status = 201
     return status, user
 
