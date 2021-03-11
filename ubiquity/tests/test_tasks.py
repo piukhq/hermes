@@ -9,7 +9,9 @@ from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion, SchemeAccount, SchemeBundleAssociation
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
-from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration
+from ubiquity.models import SchemeAccountEntry
+from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration, \
+    deleted_membership_card_cleanup
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory, ClientApplicationBundleFactory, ClientApplicationFactory, \
     OrganisationFactory
@@ -29,12 +31,23 @@ class TestTasks(GlobalMockAPITestCase):
 
         cls.link_entry = SchemeAccountEntryFactory(user=cls.user)
         cls.link_scheme = cls.link_entry.scheme_account.scheme
-        cls.manual_question = SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=EMAIL,
-                                                              manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=PASSWORD,
-                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=POSTCODE,
-                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        cls.manual_question = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=EMAIL,
+            manual_question=True,
+        )
+        cls.auth_question_1 = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=PASSWORD,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
+        cls.auth_question_2 = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=POSTCODE,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
 
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')
@@ -150,3 +163,38 @@ class TestTasks(GlobalMockAPITestCase):
 
         self.link_entry.scheme_account.refresh_from_db()
         self.assertEqual(self.link_entry.scheme_account.status, SchemeAccount.REGISTRATION_FAILED)
+
+    @patch("ubiquity.tasks.send_merchant_metrics_for_link_delete.delay")
+    def test_deleted_membership_card_cleanup_wallet_only(self, mock_metrics):
+        """
+        Tests that auth credentials are deleted when only wallet only cards are left linked to
+        a scheme account and that the status is set to WALLET_ONLY
+        """
+        external_id_1 = "testuser@testbink.com"
+        user2 = UserFactory(external_id=external_id_1, email=external_id_1)
+        external_id_2 = "testuser2@testbink.com"
+        user3 = UserFactory(external_id=external_id_2, email=external_id_2)
+
+        scheme_account = SchemeAccountFactory()
+
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1)
+        SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2)
+
+        SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user2, auth_status=SchemeAccountEntry.UNAUTHORISED
+        )
+        SchemeAccountEntryFactory(
+            scheme_account=scheme_account, user=user3, auth_status=SchemeAccountEntry.UNAUTHORISED
+        )
+
+        answers = scheme_account.schemeaccountcredentialanswer_set
+        self.assertEqual(3, answers.count())
+
+        deleted_membership_card_cleanup(scheme_account.id, "", self.user.id)
+
+        scheme_account.refresh_from_db()
+
+        self.assertEqual(scheme_account.WALLET_ONLY, scheme_account.status)
+        self.assertEqual(1, answers.count())
+        self.assertTrue(answers.first().question.manual_question)
