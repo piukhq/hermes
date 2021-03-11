@@ -236,15 +236,18 @@ class FacebookRegisterSerializer(serializers.Serializer):
     user_id = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
     email = serializers.CharField(max_length=600, required=False, write_only=True)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class TwitterRegisterSerializer(serializers.Serializer):
     access_token_secret = serializers.CharField(max_length=600)
     access_token = serializers.CharField(max_length=120)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class AppleRegisterSerializer(serializers.Serializer):
     authorization_code = serializers.CharField(max_length=120)
+    client_id = serializers.CharField(max_length=128, required=False, write_only=True)
 
 
 class ResponseAuthSerializer(serializers.Serializer):
