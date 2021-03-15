@@ -1,19 +1,18 @@
 import arrow
 import jwt
-
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.test import Client, TestCase
+from django.test import Client
 
+from history.utils import GlobalMockAPITestCase
 from user.models import CustomUser, ClientApplication, valid_reset_code
 from user.tests.factories import UserFactory
 
 
-class TestResetPassword(TestCase):
+class TestResetPassword(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = UserFactory()
-        super().setUpClass()
 
     def test_reset_token(self):
         client = Client()
@@ -56,7 +55,7 @@ class TestResetPassword(TestCase):
         self.assertEqual(token_is_valid, False)
 
 
-class TestValidatePassword(TestCase):
+class TestValidatePassword(GlobalMockAPITestCase):
     def test_password_too_short(self):
         expected_messages = ['This password is too short. It must contain at least 8 characters.']
         self.assertRaisesMessage(ValidationError, str(expected_messages), validate_password, password='aBc4')

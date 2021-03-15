@@ -4,11 +4,11 @@ import requests
 from django.conf import settings
 from django.urls import reverse
 from faker import Factory
-from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from hermes.spreedly import SpreedlyError, Spreedly
 from hermes.tasks import RetryTaskStore
+from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
 from payment_card.payment import Payment, PaymentError
 from payment_card.tests.factories import PaymentCardAccountFactory, PaymentAuditFactory
@@ -31,18 +31,20 @@ mock_secret_keys = {
 }
 
 
-class TestPayment(APITestCase):
-    def setUp(self):
-        fake = Factory.create()
-        self.organisation = OrganisationFactory(name=fake.text(max_nb_chars=100))
-        self.client_app = ClientApplicationFactory(organisation=self.organisation, name=fake.text(max_nb_chars=100))
-        self.user = UserFactory()
-        self.scheme_account = SchemeAccountFactory()
-        test_hash = BLAKE2sHash().new(obj=TEST_HASH, key=TEST_SECRET)
-        self.payment_card_account = PaymentCardAccountFactory(hash=test_hash)
-        PaymentCardAccountEntryFactory(user=self.user, payment_card_account=self.payment_card_account)
+class TestPayment(GlobalMockAPITestCase):
 
-        self.spreedly = Spreedly(
+    @classmethod
+    def setUpTestData(cls):
+        fake = Factory.create()
+        cls.organisation = OrganisationFactory(name=fake.text(max_nb_chars=100))
+        cls.client_app = ClientApplicationFactory(organisation=cls.organisation, name=fake.text(max_nb_chars=100))
+        cls.user = UserFactory()
+        cls.scheme_account = SchemeAccountFactory()
+        test_hash = BLAKE2sHash().new(obj=TEST_HASH, key=TEST_SECRET)
+        cls.payment_card_account = PaymentCardAccountFactory(hash=test_hash)
+        PaymentCardAccountEntryFactory(user=cls.user, payment_card_account=cls.payment_card_account)
+
+        cls.spreedly = Spreedly(
             TEST_SPREEDLY_ENVIRONMENT_KEY,
             TEST_SPREEDLY_ACCESS_SECRET
         )
@@ -451,7 +453,6 @@ class TestPayment(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_successful_join_processes_successful_payment(
@@ -478,7 +479,6 @@ class TestPayment(APITestCase):
 
     @patch('analytics.api.requests.post')
     @patch('scheme.views.async_join_journey_fetch_balance_and_update_status')
-    @patch('scheme.views.UpdateSchemeAccountStatus.notify_rollback_transactions')
     @patch.object(Payment, "process_payment_void")
     @patch.object(Payment, "process_payment_success")
     def test_failed_join_voids_payment(

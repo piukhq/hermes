@@ -10,6 +10,8 @@ from rest_framework.exceptions import NotFound
 from rest_framework.generics import get_object_or_404
 
 from hermes.channels import Permit
+from history.signals import HISTORY_CONTEXT
+from history.utils import user_info
 from user.authentication import JwtAuthentication
 from user.models import ClientApplicationBundle, CustomUser
 
@@ -34,7 +36,8 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         else:
             try:
                 channels_permit.user = CustomUser.objects.get(
-                    external_id=auth_user_id, client=channels_permit.bundle.client)
+                    external_id=auth_user_id, client=channels_permit.bundle.client
+                )
             except CustomUser.DoesNotExist:
                 raise no_user_error
 
@@ -42,7 +45,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
 
     def authenticate_credentials(self, token, token_type=""):
         try:
-            token_data = jwt.decode(token, verify=False, algorithms=['HS512', 'HS256'])
+            token_data = jwt.decode(token, options={"verify_signature": False}, algorithms=['HS512', 'HS256'])
             bundle_id = token_data['bundle_id']
             if token_type == b'bearer':
                 channels_permit, auth_user_id = self._authenticate_bearer(token, token_data, bundle_id)
@@ -63,6 +66,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
         channels_permit, auth_user_id = self.authenticate_request(request)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
+        HISTORY_CONTEXT.user_info = user_info(user_id=None, channel=channels_permit.bundle_id)
         return channels_permit, None
 
     @staticmethod
@@ -84,7 +88,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
 
         auth_user_id = jwt.decode(token, channels_permit.bundle.client.secret,
                                   leeway=settings.CLOCK_SKEW_LEEWAY,
-                                  verify=True, algorithms=['HS512'])['user_id']
+                                  algorithms=['HS512', 'HS256'])['user_id']
         return channels_permit, auth_user_id
 
     @staticmethod
@@ -102,7 +106,7 @@ class ServiceRegistrationAuthentication(JwtAuthentication):
 
         jwt.decode(token, channels_permit.bundle.client.secret + channels_permit.user.salt,
                    leeway=settings.CLOCK_SKEW_LEEWAY,
-                   verify=True, algorithms=['HS256', 'HS512'])
+                   algorithms=['HS256', 'HS512'])
         auth_user_id = channels_permit.user.email
 
         return channels_permit, auth_user_id
@@ -118,6 +122,7 @@ class ServiceAuthentication(ServiceRegistrationAuthentication):
         channels_permit, auth_user_id = self.user_authenticate(request, NotFound)
         setattr(request, 'channels_permit', channels_permit)
         setattr(request, 'prop_id', auth_user_id)
+        HISTORY_CONTEXT.user_info = user_info(user_id=channels_permit.user.id, channel=channels_permit.bundle_id)
         return channels_permit.user, None
 
 
@@ -126,9 +131,11 @@ class PropertyAuthentication(ServiceRegistrationAuthentication):
     def authenticate(self, request):
         # authenticate user raising Invalid token if user does not exist.  This is the expected error for all
         # non service end points.
-        channels_permit, auth_user_id = self.user_authenticate(request,
-                                                               exceptions.AuthenticationFailed(_('Invalid token.')))
+        channels_permit, auth_user_id = self.user_authenticate(
+            request, exceptions.AuthenticationFailed(_('Invalid token.'))
+        )
         setattr(request, 'channels_permit', channels_permit)
+        HISTORY_CONTEXT.user_info = user_info(user_id=channels_permit.user.id, channel=channels_permit.bundle_id)
         return channels_permit.user, None
 
 

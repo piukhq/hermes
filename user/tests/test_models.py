@@ -1,12 +1,11 @@
-from django.test import TestCase
+from history.utils import GlobalMockAPITestCase
 from user.models import Setting, UserSetting, CustomUser, UserDetail
 
 
-class TestSettings(TestCase):
+class TestSettings(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.setting = Setting(slug='test-setting', value_type=Setting.NUMBER, default_value='10')
-        super().setUpClass()
 
     def test_value_type_name(self):
         self.assertEqual('number', self.setting.value_type_name)
@@ -15,13 +14,12 @@ class TestSettings(TestCase):
         self.assertEqual('(number) test-setting: 10', str(self.setting))
 
 
-class TestUserSettings(TestCase):
+class TestUserSettings(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = CustomUser(email='test@test.com')
         setting = Setting(slug='test-setting', value_type=Setting.NUMBER, default_value='10')
         cls.user_setting = UserSetting(user=cls.user, setting=setting, value='5')
-        super().setUpClass()
 
     def test_model_description(self):
         self.assertEqual('test@test.com - test-setting: 5', str(self.user_setting))
@@ -39,12 +37,11 @@ class TestUserSettings(TestCase):
         self.assertIsNone(user_setting.to_boolean())
 
 
-class TestUserProfile(TestCase):
+class TestUserProfile(GlobalMockAPITestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpTestData(cls):
         cls.user = CustomUser(email='test@test.com')
         cls.user_profile = UserDetail(user=cls.user)
-        super().setUpClass()
 
     def test_set_field_no_conversion(self):
         phone_number = '123'

@@ -4,26 +4,63 @@ from typing import Union, Type, TYPE_CHECKING
 import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import signals
 from django.dispatch import receiver
 
 from hermes.vop_tasks import vop_activate_request, send_deactivation
+from history.signals import HISTORY_CONTEXT
 
 if TYPE_CHECKING:
     from scheme.models import SchemeAccount  # noqa
     from payment_card.models import PaymentCardAccount  # noqa
+    from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
+    AUTH_PROVIDED = 0
+    UNAUTHORISED = 1
+
+    AUTH_STATUSES = (
+        (AUTH_PROVIDED, 'auth_provided'),
+        (UNAUTHORISED, 'unauthorised'),
+    )
+
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Scheme Account")
     user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
+    auth_status = models.IntegerField(choices=AUTH_STATUSES, default=UNAUTHORISED)
 
     class Meta:
         unique_together = ("scheme_account", "user")
+
+    @staticmethod
+    def create_link(
+        user: "CustomUser",
+        scheme_account: "SchemeAccount",
+        auth_status: AUTH_STATUSES = UNAUTHORISED
+    ) -> "SchemeAccountEntry":
+        entry = SchemeAccountEntry(
+            user=user,
+            scheme_account=scheme_account,
+            auth_status=auth_status
+        )
+        try:
+            # required to rollback transactions when running into an expected IntegrityError
+            # tests will fail without this as TestCase already wraps tests in an atomic
+            # block and will not know how to correctly rollback otherwise
+            with transaction.atomic():
+                entry.save()
+        except IntegrityError:
+            # The id of the record is not currently required but if it is in the future then
+            # we may need to use .get() here to retrieve the conflicting record.
+            # An update is done here instead of initially using an update_or_create to avoid the db call
+            # to check if a record exists, since this is an edge case.
+            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(auth_status=auth_status)
+
+        return entry
 
 
 class PaymentCardAccountEntry(models.Model):
@@ -75,30 +112,30 @@ class VopActivation(models.Model):
                 pass
         return activations
 
-    @classmethod
-    def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=ACTIVATED):
-        """Find activations matching account id and return a serializable object"""
-        activation_dict = {}
-
-        activations = cls.objects.filter(
-                payment_card_account_id=payment_card_account_id,
-                status=status
-        )
-
-        for activation in activations:
-            activation_id = activation.activation_id
-            activation_dict[activation.id] = {
-                'scheme': activation.scheme.slug,
-                'activation_id': activation_id
-            }
-
-        activations.update(status=VopActivation.DEACTIVATING)
-
-        return activation_dict
+    # @classmethod
+    # def deactivation_dict_by_payment_card_id(cls, payment_card_account_id, status=ACTIVATED):
+    #     """Find activations matching account id and return a serializable object"""
+    #     activation_dict = {}
+    #
+    #     activations = cls.objects.filter(
+    #             payment_card_account_id=payment_card_account_id,
+    #             status=status
+    #     )
+    #
+    #     for activation in activations:
+    #         activation_id = activation.activation_id
+    #         activation_dict[activation.id] = {
+    #             'scheme': activation.scheme.slug,
+    #             'activation_id': activation_id
+    #         }
+    #         activation.status = VopActivation.DEACTIVATING
+    #
+    #     history_bulk_update(VopActivation, activations, update_fields=["status"])
+    #
+    #     return activation_dict
 
 
 class PaymentCardSchemeEntry(models.Model):
-
     payment_card_account = models.ForeignKey('payment_card.PaymentCardAccount', on_delete=models.CASCADE,
                                              verbose_name="Associated Payment Card Account")
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
@@ -119,8 +156,8 @@ class PaymentCardSchemeEntry(models.Model):
             return True
         return False
 
-    def vop_activate_check(self):
-        if self.payment_card_account.payment_card.slug == "visa" and self.active_link:
+    def vop_activate_check(self, prechecked=False):
+        if prechecked or (self.payment_card_account.payment_card.slug == "visa" and self.active_link):
             # use get_or_create to ensure we avoid race conditions
             try:
                 vop_activation, created = VopActivation.objects.get_or_create(
@@ -128,7 +165,7 @@ class PaymentCardSchemeEntry(models.Model):
                     scheme=self.scheme_account.scheme,
                     defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
                 )
-                if created or vop_activation.status == VopActivation.DEACTIVATED\
+                if created or vop_activation.status == VopActivation.DEACTIVATED \
                         or vop_activation.status == VopActivation.DEACTIVATING:
                     vop_activate_request(vop_activation)
 
@@ -173,7 +210,12 @@ class PaymentCardSchemeEntry(models.Model):
                 active_link=True
             ).count()
             if not matches and activation.status == VopActivation.ACTIVATED:
-                send_deactivation.delay(activation)
+                try:
+                    history_kwargs = {"user_info": HISTORY_CONTEXT.user_info}
+                except AttributeError:
+                    history_kwargs = None
+
+                send_deactivation.delay(activation, history_kwargs)
 
     @classmethod
     def update_soft_links(cls, query):
@@ -185,8 +227,8 @@ def _remove_pll_link(instance: PaymentCardSchemeEntry) -> None:
     logger.info('payment card scheme entry of id %s has been deleted or deactivated', instance.id)
 
     def _remove_deleted_link_from_card(
-        card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
-        linked_card_id: Type[int]
+            card_to_update: Union['PaymentCardAccount', 'SchemeAccount'],
+            linked_card_id: Type[int]
     ) -> None:
         model = card_to_update.__class__
         card_id = card_to_update.id
@@ -212,8 +254,8 @@ def update_pll_links_on_save(instance: PaymentCardSchemeEntry, created: bool, **
     if instance.active_link:
 
         def _add_new_link_to_card(
-            card: Union['PaymentCardAccount', 'SchemeAccount'],
-            linked_card_id: Type[int]
+                card: Union['PaymentCardAccount', 'SchemeAccount'],
+                linked_card_id: Type[int]
         ) -> None:
             model = card.__class__
             card_id = card.id

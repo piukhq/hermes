@@ -10,6 +10,7 @@ import jwt
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import signals
 from django.db.models.fields import CharField
@@ -17,10 +18,7 @@ from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from hashids import Hashids
 
-from payment_card import metis
-from payment_card.models import PaymentCardAccount
-from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+from scheme.models import Scheme
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
 
@@ -129,11 +127,14 @@ class ClientApplication(models.Model):
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
+    external_name = models.CharField(max_length=100, blank=True, default='')
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
     issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
     scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
                                     related_name='related_bundle')
+    magic_link_url = models.CharField(max_length=200, default='', blank=True)
+    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
 
     class Meta:
         unique_together = ('client', 'bundle_id',)
@@ -192,6 +193,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     salt = models.CharField(max_length=8)
     external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
     delete_token = models.CharField(max_length=255, blank=True, default='')
+    magic_link_verified = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -223,7 +225,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'expiry_date': expiry_date.timestamp
         }
         reset_token = jwt.encode(payload, self.client.secret)
-        self.reset_token = reset_token.decode("utf-8")
+        self.reset_token = reset_token
         self.save()
         return reset_token
 
@@ -276,8 +278,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, self.client.secret + self.salt)
-        return token.decode('unicode_escape')
+        return jwt.encode(payload, self.client.secret + self.salt)
 
     def soft_delete(self):
         self.is_active = False
@@ -288,36 +289,6 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     # @property
     # def is_superuser(self):
     #     return self.is_superuser
-
-    def delete_membership_cards(self, send_deactivation=True) -> None:
-        cards_to_delete = []
-        for card in self.scheme_account_set.prefetch_related('user_set').all():
-            if card.user_set.count() == 1:
-                card.is_deleted = True
-                cards_to_delete.append(card)
-
-        # VOP deactivate
-        links_to_remove = PaymentCardSchemeEntry.objects.filter(scheme_account__in=cards_to_delete)
-        if send_deactivation:
-            vop_links = links_to_remove.filter(payment_card_account__payment_card__slug="visa")
-            activations = VopActivation.find_activations_matching_links(vop_links)
-            PaymentCardSchemeEntry.deactivate_activations(activations)
-        links_to_remove.delete()
-        SchemeAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
-        self.schemeaccountentry_set.all().delete()
-
-    def delete_payment_cards(self, run_async=True) -> None:
-        cards_to_delete = []
-        for card in self.payment_card_account_set.prefetch_related('user_set').all():
-            if card.user_set.count() == 1:
-                card.is_deleted = True
-                cards_to_delete.append(card)
-                metis.delete_payment_card(card, run_async=run_async)
-
-        PaymentCardSchemeEntry.objects.filter(
-            payment_card_account_id__in=[card.id for card in cards_to_delete]).delete()
-        PaymentCardAccount.objects.bulk_update(cards_to_delete, ['is_deleted'])
-        self.paymentcardaccountentry_set.all().delete()
 
 
 NOTIFICATIONS_SETTING = (
@@ -392,7 +363,7 @@ def valid_reset_code(reset_token):
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, user.client.secret)
+    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=['HS512', 'HS256'])
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
 

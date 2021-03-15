@@ -1,8 +1,8 @@
 from unittest.mock import patch
 
 from rest_framework.reverse import reverse
-from rest_framework.test import APITestCase
 
+from history.utils import GlobalMockAPITestCase
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, SchemeAccount
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
@@ -15,7 +15,7 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
                                   UserFactory)
 
 
-class TestResources(APITestCase):
+class TestResources(GlobalMockAPITestCase):
 
     @classmethod
     def _get_auth_header(cls, user):
@@ -118,7 +118,10 @@ class TestResources(APITestCase):
 
         self.assertNotIn('dark_mode_url', image_v1_1)
         self.assertNotIn('dark_mode_url', image_v1_2)
+        self.assertNotIn('cta_url', image_v1_1)
+        self.assertNotIn('cta_url', image_v1_2)
         self.assertIn('dark_mode_url', image_v1_3)
+        self.assertIn('cta_url', image_v1_3)
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')

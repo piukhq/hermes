@@ -1,11 +1,11 @@
 import typing as t
 from unittest.mock import patch
 
-from rest_framework.test import APITestCase
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
-from ubiquity.channel_vault import SecretKeyName
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
+from ubiquity.channel_vault import SecretKeyName
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
@@ -71,10 +71,10 @@ mock_secrets = {
 }
 
 
-class TestSerializersV1_2(APITestCase):
+class TestSerializersV1_2(GlobalMockAPITestCase):
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setUpTestData(cls) -> None:
         cls.bundle_id = 'com.barclays.test'
         cls.rsa = RSACipher()
         cls.pub_key = mock_secrets["bundle_secrets"][cls.bundle_id]['public_key']
@@ -82,44 +82,55 @@ class TestSerializersV1_2(APITestCase):
         IssuerFactory(name='Barclays')
         PaymentCardFactory(slug='mastercard')
 
-    @classmethod
-    def tearDownClass(cls):
-        pass
-
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
     @patch('ubiquity.channel_vault._bundle_secrets', mock_secrets['bundle_secrets'])
     def test_payment_card_translation_serializer(self):
         serializer = PaymentCardTranslationSerializerV1_2
-        hash1 = 'hash1'
         data = {
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
             'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)
         }
 
-        hash2 = BLAKE2sHash().new(
-            obj=hash1,
-            key=t.cast(str, mock_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET])
-        )
-
         expected_data = {
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': hash2,
             'pan_start': '555555',
             'pan_end': '4444',
             'expiry_month': 12,
             'expiry_year': 2025
         }
 
-        serialized_data = serializer(data, context={'bundle_id': self.bundle_id}).data
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
+        self.assertTrue(expected_data.items() < serialized_data.items())
 
+        data_unencrypted = {
+            'fingerprint': 'testfingerprint00068',
+            'token': 'testtoken00068',
+            'name_on_card': 'Test Card',
+            'first_six_digits': '555555',
+            'last_four_digits': '4444',
+            'month': 12,
+            'year': 2025
+        }
+
+        serialized_data = serializer(data_unencrypted, context={'bundle_id': self.bundle_id}).data
+        self.assertTrue(expected_data.items() < serialized_data.items())
+
+        hash1 = 'hash1'
+        hash2 = BLAKE2sHash().new(
+            obj=hash1,
+            key=t.cast(str, mock_secrets['secret_keys'][SecretKeyName.PCARD_HASH_SECRET])
+        )
+        data["hash"] = self.rsa.encrypt(hash1, pub_key=self.pub_key)
+        expected_data["hash"] = hash2
+
+        serialized_data = serializer(data.copy(), context={'bundle_id': self.bundle_id}).data
         self.assertTrue(expected_data.items() < serialized_data.items())
 
     @patch('ubiquity.channel_vault._secret_keys', mock_secrets['secret_keys'])
@@ -131,7 +142,7 @@ class TestSerializersV1_2(APITestCase):
             'fingerprint': 'testfingerprint00068',
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
-            'hash': 'aGFzaDE=',
+            'hash': self.rsa.encrypt('aGFzaDE', pub_key=self.pub_key) + "wrong",
             'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key),
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
@@ -149,7 +160,7 @@ class TestSerializersV1_2(APITestCase):
             'token': 'testtoken00068',
             'name_on_card': 'Test Card',
             'hash': self.rsa.encrypt(hash1, pub_key=self.pub_key),
-            'first_six_digits': '555555',
+            'first_six_digits': self.rsa.encrypt('555555', pub_key=self.pub_key) + 'wrong',
             'last_four_digits': self.rsa.encrypt('4444', pub_key=self.pub_key),
             'month': self.rsa.encrypt(12, pub_key=self.pub_key),
             'year': self.rsa.encrypt(2025, pub_key=self.pub_key)

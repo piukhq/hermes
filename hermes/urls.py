@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, re_path, path
+from django.conf.urls.static import serve
 
 urlpatterns = [
     re_path(r"^admin/oidc/", include("mozilla_django_oidc.urls")),
@@ -11,4 +13,5 @@ urlpatterns = [
     re_path(r"^order", include("order.urls")),
     re_path(r"^ubiquity", include("ubiquity.urls")),
     re_path(r"", include("common.urls")),
+    re_path(r'^admin/static/(?P<path>.*)$', serve, kwargs={'document_root': settings.STATIC_ROOT}),
 ]

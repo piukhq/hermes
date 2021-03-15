@@ -1,5 +1,6 @@
 import logging
 
+import sentry_sdk
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.db.models import Q
@@ -47,7 +48,7 @@ class Permit:
             self.service_allow_all = True
 
         # User is defined with client to server permits
-        if user:
+        if user and not self.client:
             self.client = user.client
 
         self._authenticate_bundle(organisation_name, bundle_id)
@@ -72,8 +73,9 @@ class Permit:
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
         # to permit authentication to continue
         try:
-            self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
-                self.bundle_id, organisation_name)
+            with sentry_sdk.start_span(op="first db call", description="get bundle"):
+                self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
+                    self.bundle_id, organisation_name)
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError
@@ -128,10 +130,12 @@ class Permit:
             query = self._user_filter(query, user_id)
         return self.related_model_query(query, 'scheme__', allow)
 
-    @staticmethod
-    def _user_filter(query, user_id):
+    def _user_filter(self, query, user_id):
         if not user_id:
-            raise ValueError("user_id is required when filtering by user")
+            if self.user:
+                user_id = self.user.id
+            else:
+                raise ValueError("user_id or permit.user is required when filtering by user")
         return query.filter(user_set__id=user_id)
 
     def scheme_payment_account_query(self, query, allow=None):
@@ -142,6 +146,11 @@ class Permit:
             query = self._user_filter(query, user_id)
         return query
 
+    def permit_test_access(self, scheme):
+        bundle_assoc = scheme.schemebundleassociation_set.get(bundle=self.bundle)
+        not_permitted = not self.user.is_tester and bundle_assoc.test_scheme
+        return not not_permitted
+
     def related_model_query(self, query, relation='', allow=None):
         if self.service_allow_all:
             return query
@@ -150,7 +159,10 @@ class Permit:
         bundle = {f'{bundle_root}bundle': self.bundle}
         active = {status_key: SchemeBundleAssociation.ACTIVE}
         suspended = {status_key: SchemeBundleAssociation.SUSPENDED}
+        not_test_scheme = {f'{bundle_root}test_scheme': False}
         q = Q(**bundle)
+        if self.user and not self.user.is_tester:
+            q = q & Q(**not_test_scheme)
 
         if allow == self.AVAILABLE or allow is None:
             # By default permit query filter selects only defined schemes which are not inactive

@@ -1,11 +1,11 @@
 import time
 from unittest.mock import patch
 
-from django.test import TestCase
-from django.urls import reverse
 from django.conf import settings
+from django.urls import reverse
 
 from hermes.channels import Permit
+from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.models import SchemeBundleAssociation, Scheme
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory, SchemeAccountFactory)
@@ -16,37 +16,38 @@ from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicat
                                   UserFactory)
 
 
-class TestPermit(TestCase):
+class TestPermit(GlobalMockAPITestCase):
 
-    def setUp(self):
-        self.BINK_CLIENT_ID = 'ffhfhfhfhplqszzccgbnmml987tvgcxznnkn'
-        self.BINK_BUNDLE_ID = 'com.bink.wallet'
-        self.bink_organisation = OrganisationFactory(name='loyalty')
-        self.bink_client_app = ClientApplicationFactory(organisation=self.bink_organisation,
-                                                        name='loyalty client application',
-                                                        client_id=self.BINK_CLIENT_ID)
+    @classmethod
+    def setUpTestData(cls):
+        cls.BINK_CLIENT_ID = 'ffhfhfhfhplqszzccgbnmml987tvgcxznnkn'
+        cls.BINK_BUNDLE_ID = 'com.bink.wallet'
+        cls.bink_organisation = OrganisationFactory(name='loyalty')
+        cls.bink_client_app = ClientApplicationFactory(organisation=cls.bink_organisation,
+                                                       name='loyalty client application',
+                                                       client_id=cls.BINK_CLIENT_ID)
 
-        self.bink_bundle = ClientApplicationBundleFactory(client=self.bink_client_app, bundle_id=self.BINK_BUNDLE_ID)
-        self.bink_scheme = SchemeFactory()
-        self.bink_scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.bink_scheme,
-                                                                             bundle=self.bink_bundle,
-                                                                             status=SchemeBundleAssociation.INACTIVE)
+        cls.bink_bundle = ClientApplicationBundleFactory(client=cls.bink_client_app, bundle_id=cls.BINK_BUNDLE_ID)
+        cls.bink_scheme = SchemeFactory()
+        cls.bink_scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.bink_scheme,
+                                                                            bundle=cls.bink_bundle,
+                                                                            status=SchemeBundleAssociation.INACTIVE)
 
-        self.UBIQUITY_CLIENT_ID = 'cjcdcjdji8oupisqwie0kjpkapkdsks21efjeopgi'
-        self.UBIQUITY_BUNDLE_ID = 'com.barclays.test'
-        self.UBIQUITY_ORG = 'barclays'
-        self.ubiquity_organisation = OrganisationFactory(name=self.UBIQUITY_ORG)
-        self.ubiquity_client_app = ClientApplicationFactory(organisation=self.ubiquity_organisation,
-                                                            name='ubiquity client application',
-                                                            client_id=self.UBIQUITY_CLIENT_ID)
+        cls.UBIQUITY_CLIENT_ID = 'cjcdcjdji8oupisqwie0kjpkapkdsks21efjeopgi'
+        cls.UBIQUITY_BUNDLE_ID = 'com.barclays.test'
+        cls.UBIQUITY_ORG = 'barclays'
+        cls.ubiquity_organisation = OrganisationFactory(name=cls.UBIQUITY_ORG)
+        cls.ubiquity_client_app = ClientApplicationFactory(organisation=cls.ubiquity_organisation,
+                                                           name='ubiquity client application',
+                                                           client_id=cls.UBIQUITY_CLIENT_ID)
 
-        self.ubiquity_bundle = ClientApplicationBundleFactory(bundle_id=self.UBIQUITY_BUNDLE_ID,
-                                                              client=self.ubiquity_client_app)
+        cls.ubiquity_bundle = ClientApplicationBundleFactory(bundle_id=cls.UBIQUITY_BUNDLE_ID,
+                                                             client=cls.ubiquity_client_app)
 
-        self.ubiquity_scheme = SchemeFactory()
-        self.ubiquity_scheme_bundle_association = \
-            SchemeBundleAssociationFactory(scheme=self.ubiquity_scheme,
-                                           bundle=self.ubiquity_bundle,
+        cls.ubiquity_scheme = SchemeFactory()
+        cls.ubiquity_scheme_bundle_association = \
+            SchemeBundleAssociationFactory(scheme=cls.ubiquity_scheme,
+                                           bundle=cls.ubiquity_bundle,
                                            status=SchemeBundleAssociation.ACTIVE)
 
     def set_status(self, assoc, status):
@@ -183,37 +184,38 @@ class TestPermit(TestCase):
         self.assertEqual(self.ubiquity_scheme.id, ubiquity_query[0].id)
 
 
-class TestPermitSharedScheme(TestCase):
+class TestPermitSharedScheme(GlobalMockAPITestCase):
 
-    def setUp(self):
-        self.BINK_CLIENT_ID = 'ffhfhfhfhplqszzccgbnmml987tvgcxznnkn'
-        self.BINK_BUNDLE_ID = 'com.bink.wallet'
-        self.bink_organisation = OrganisationFactory(name='loyalty')
-        self.bink_client_app = ClientApplicationFactory(organisation=self.bink_organisation,
-                                                        name='loyalty client application',
-                                                        client_id=self.BINK_CLIENT_ID)
+    @classmethod
+    def setUpTestData(cls):
+        cls.BINK_CLIENT_ID = 'ffhfhfhfhplqszzccgbnmml987tvgcxznnkn'
+        cls.BINK_BUNDLE_ID = 'com.bink.wallet'
+        cls.bink_organisation = OrganisationFactory(name='loyalty')
+        cls.bink_client_app = ClientApplicationFactory(organisation=cls.bink_organisation,
+                                                       name='loyalty client application',
+                                                       client_id=cls.BINK_CLIENT_ID)
 
-        self.bink_bundle = ClientApplicationBundleFactory(client=self.bink_client_app, bundle_id=self.BINK_BUNDLE_ID)
+        cls.bink_bundle = ClientApplicationBundleFactory(client=cls.bink_client_app, bundle_id=cls.BINK_BUNDLE_ID)
 
-        self.scheme = SchemeFactory()
-        self.bink_scheme_bundle_association = SchemeBundleAssociationFactory(scheme=self.scheme,
-                                                                             bundle=self.bink_bundle,
-                                                                             status=SchemeBundleAssociation.INACTIVE)
+        cls.scheme = SchemeFactory()
+        cls.bink_scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.scheme,
+                                                                            bundle=cls.bink_bundle,
+                                                                            status=SchemeBundleAssociation.INACTIVE)
 
-        self.UBIQUITY_CLIENT_ID = 'cjcdcjdji8oupisqwie0kjpkapkdsks21efjeopgi'
-        self.UBIQUITY_BUNDLE_ID = 'com.barclays.test'
-        self.UBIQUITY_ORG = 'barclays'
-        self.ubiquity_organisation = OrganisationFactory(name=self.UBIQUITY_ORG)
-        self.ubiquity_client_app = ClientApplicationFactory(organisation=self.ubiquity_organisation,
-                                                            name='ubiquity client application',
-                                                            client_id=self.UBIQUITY_CLIENT_ID)
+        cls.UBIQUITY_CLIENT_ID = 'cjcdcjdji8oupisqwie0kjpkapkdsks21efjeopgi'
+        cls.UBIQUITY_BUNDLE_ID = 'com.barclays.test'
+        cls.UBIQUITY_ORG = 'barclays'
+        cls.ubiquity_organisation = OrganisationFactory(name=cls.UBIQUITY_ORG)
+        cls.ubiquity_client_app = ClientApplicationFactory(organisation=cls.ubiquity_organisation,
+                                                           name='ubiquity client application',
+                                                           client_id=cls.UBIQUITY_CLIENT_ID)
 
-        self.ubiquity_bundle = ClientApplicationBundleFactory(bundle_id=self.UBIQUITY_BUNDLE_ID,
-                                                              client=self.ubiquity_client_app)
+        cls.ubiquity_bundle = ClientApplicationBundleFactory(bundle_id=cls.UBIQUITY_BUNDLE_ID,
+                                                             client=cls.ubiquity_client_app)
 
-        self.ubiquity_scheme_bundle_association = \
-            SchemeBundleAssociationFactory(scheme=self.scheme,
-                                           bundle=self.ubiquity_bundle,
+        cls.ubiquity_scheme_bundle_association = \
+            SchemeBundleAssociationFactory(scheme=cls.scheme,
+                                           bundle=cls.ubiquity_bundle,
                                            status=SchemeBundleAssociation.ACTIVE)
 
     def set_status(self, assoc, status):
@@ -334,54 +336,55 @@ class TestPermitSharedScheme(TestCase):
         self.assertEqual(self.scheme.id, ubiquity_query[0].id)
 
 
-class TestInternalService(TestCase):
-    def setUp(self):
-        self.bink_org = Organisation.objects.get(name='Loyalty Angels')
-        self.internal_service_client = ClientApplication.objects.get(organisation=self.bink_org, name='Daedalus')
-        self.internal_service_bundle = ClientApplicationBundle.objects.get(bundle_id=settings.INTERNAL_SERVICE_BUNDLE)
+class TestInternalService(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.bink_org = Organisation.objects.get(name='Loyalty Angels')
+        cls.internal_service_client = ClientApplication.objects.get(organisation=cls.bink_org, name='Daedalus')
+        cls.internal_service_bundle = ClientApplicationBundle.objects.get(bundle_id=settings.INTERNAL_SERVICE_BUNDLE)
 
-        self.other_org = OrganisationFactory(name='Other Organisation')
-        self.other_client = ClientApplicationFactory(organisation=self.other_org)
-        self.other_bundle = ClientApplicationBundleFactory(client=self.other_client)
+        cls.other_org = OrganisationFactory(name='Other Organisation')
+        cls.other_client = ClientApplicationFactory(organisation=cls.other_org)
+        cls.other_bundle = ClientApplicationBundleFactory(client=cls.other_client)
 
-        self.internal_service_id = 'external_id@testbink.com'
+        cls.internal_service_id = 'external_id@testbink.com'
         other_external_id = 'someotherexternalid@testbink.com'
-        self.bink_user = UserFactory(client=self.internal_service_client, external_id=self.internal_service_id)
-        self.other_user = UserFactory(client=self.other_client, external_id=other_external_id)
+        cls.bink_user = UserFactory(client=cls.internal_service_client, external_id=cls.internal_service_id)
+        cls.other_user = UserFactory(client=cls.other_client, external_id=other_external_id)
 
-        self.scheme = SchemeFactory()
+        cls.scheme = SchemeFactory()
 
-        SchemeBundleAssociationFactory(scheme=self.scheme,
-                                       bundle=self.other_bundle,
+        SchemeBundleAssociationFactory(scheme=cls.scheme,
+                                       bundle=cls.other_bundle,
                                        status=SchemeBundleAssociation.ACTIVE)
 
-        self.scheme_account_1 = SchemeAccountFactory(scheme=self.scheme)
-        self.scheme_account_2 = SchemeAccountFactory(scheme=self.scheme)
+        cls.scheme_account_1 = SchemeAccountFactory(scheme=cls.scheme)
+        cls.scheme_account_2 = SchemeAccountFactory(scheme=cls.scheme)
 
-        SchemeAccountEntryFactory(user=self.bink_user, scheme_account=self.scheme_account_1)
-        SchemeAccountEntryFactory(user=self.other_user, scheme_account=self.scheme_account_2)
+        SchemeAccountEntryFactory(user=cls.bink_user, scheme_account=cls.scheme_account_1)
+        SchemeAccountEntryFactory(user=cls.other_user, scheme_account=cls.scheme_account_2)
 
-        self.payment_card_account_1 = PaymentCardAccountFactory()
-        self.payment_card_account_2 = PaymentCardAccountFactory()
+        cls.payment_card_account_1 = PaymentCardAccountFactory()
+        cls.payment_card_account_2 = PaymentCardAccountFactory()
 
-        PaymentCardAccountEntryFactory(user=self.bink_user, payment_card_account=self.payment_card_account_1)
-        PaymentCardAccountEntryFactory(user=self.other_user, payment_card_account=self.payment_card_account_2)
+        PaymentCardAccountEntryFactory(user=cls.bink_user, payment_card_account=cls.payment_card_account_1)
+        PaymentCardAccountEntryFactory(user=cls.other_user, payment_card_account=cls.payment_card_account_2)
 
         internal_service_token = GenerateJWToken(
-            self.internal_service_client.organisation.name,
-            self.internal_service_client.secret,
-            self.internal_service_bundle.bundle_id,
-            self.internal_service_id
+            cls.internal_service_client.organisation.name,
+            cls.internal_service_client.secret,
+            cls.internal_service_bundle.bundle_id,
+            cls.internal_service_id
         ).get_token()
-        self.internal_service_auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(internal_service_token)}
+        cls.internal_service_auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(internal_service_token)}
 
         token = GenerateJWToken(
-            self.other_client.organisation.name,
-            self.other_client.secret,
-            self.other_bundle.bundle_id,
+            cls.other_client.organisation.name,
+            cls.other_client.secret,
+            cls.other_bundle.bundle_id,
             other_external_id
         ).get_token()
-        self.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     def test_get_single_membership_card(self, mock_get_midas_balance):

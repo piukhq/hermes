@@ -1,8 +1,8 @@
 stages:
   - tests
-  - build
   - dev
   - staging
+  - performance
   - preprod
   - prod
 
@@ -35,89 +35,73 @@ flake8:
     - pip install flake8
     - flake8
 
-build-develop:
-  stage: build
+dev:
+  stage: dev
+  environment:
+    name: dev
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:latest" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:latest" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:latest"
+    - export CTAG="develop-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   only:
     - develop
 
-build-master:
-  stage: build
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --pull -t "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" .
-    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
-    - docker push "$CI_REGISTRY/hermes:$CI_COMMIT_TAG"
-  only:
-    - tags
-
-tag-develop:
-  stage: dev
-  image: binkops.azurecr.io/tagbot:latest
-  environment: dev
-  script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:latest" --tag "develop-$CI_COMMIT_SHORT_SHA"
-  only:
-    - develop
-
-statics-dev:
-  stage: dev
-  image: binkops.azurecr.io/kubedeployer:latest
-  script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=dev deploystatic
-  only:
-    - develop
-
-tag-staging:
+staging:
   stage: staging
-  image: binkops.azurecr.io/tagbot:latest
-  environment: staging
+  environment:
+    name: staging
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --tag "staging-$CI_COMMIT_TAG"
+    - export CTAG="staging-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   only:
-    - tags
+    - staging
 
-tag-preprod:
+performance:
+  stage: performance
+  environment:
+    name: performance
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - export CTAG="performance-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
+  when: manual
+  only:
+    - performance
+
+preprod:
   stage: preprod
-  image: binkops.azurecr.io/tagbot:latest
-  environment: prod
+  environment:
+    name: preprod
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --tag "preprod-$CI_COMMIT_TAG"
+    - export CTAG="preprod-$(date +%F-%H%M%S)"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   when: manual
   only:
-    - tags
+    - master
 
-statics-staging:
-  stage: staging
-  image: binkops.azurecr.io/kubedeployer:latest
-  script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=staging deploystatic
-  only:
-    - tags
-
-tag-prod:
+prod:
   stage: prod
-  image: binkops.azurecr.io/tagbot:latest
-  environment: prod
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - tagbot --username "$CI_REGISTRY_USER" --password "$CI_REGISTRY_PASSWORD" --source "$CI_REGISTRY/hermes:$CI_COMMIT_TAG" --tag "prod-$CI_COMMIT_TAG"
+    - export CTAG="prod-$CI_COMMIT_TAG"
+    - docker build --pull -t "$CI_REGISTRY/hermes:$CTAG" .
+    - docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$CI_REGISTRY/aqua-scanner:5.0" scan --local "$CI_REGISTRY/hermes:$CTAG" --host https://aqua.uksouth.bink.sh:30001/ --user scanner --password $AQUA_PASSWORD --show-negligible --policies Bink --text
+    - docker push "$CI_REGISTRY/hermes:$CTAG"
   when: manual
-  only:
-    - tags
-
-statics-prod:
-  stage: prod
-  image: binkops.azurecr.io/kubedeployer:latest
-  script:
-    - bash collectstatic.sh
-    - ENVIRONMENT=prod deploystatic
   only:
     - tags

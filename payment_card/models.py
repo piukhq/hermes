@@ -3,7 +3,6 @@ import uuid
 from enum import IntEnum
 from functools import lru_cache
 
-from bulk_update.helper import bulk_update
 from django.contrib.postgres.fields import JSONField
 from django.db import models
 from django.db.models import F, Q, signals
@@ -209,9 +208,10 @@ class PaymentCardAccountManager(models.Manager):
     def get_queryset(self):
         return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
 
-    def bulk_update(self, objs, update_fields=None, exclude_fields=None):
-        bulk_update(objs, update_fields=update_fields,
-                    exclude_fields=exclude_fields, using=self.db)
+    # TODO check to see why we have this code here and uncomment if needed
+    # def bulk_update(self, objs, update_fields=None, exclude_fields=None):
+    #     bulk_update(objs, update_fields=update_fields,
+    #                 exclude_fields=exclude_fields, using=self.db)
 
 
 class PaymentCardAccount(models.Model):
@@ -260,6 +260,7 @@ class PaymentCardAccount(models.Model):
     hash = models.CharField(null=True, blank=True, max_length=255, db_index=True)
     formatted_images = JSONField(default=dict, blank=True)
     pll_links = JSONField(default=list)
+    agent_data = JSONField(default=dict, null=True, blank=True)
 
     all_objects = models.Manager()
     objects = PaymentCardAccountManager()
@@ -272,7 +273,6 @@ class PaymentCardAccount(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.token:
-
             self.token = PaymentCard.TokenMethod.dispatch(self.payment_card.token_method, self.psp_token)
         super().save(*args, **kwargs)
 
@@ -329,12 +329,12 @@ class AuthTransaction(models.Model):
 
 
 class PaymentStatus(IntEnum):
-    PURCHASE_PENDING = 0       # Starting payment process but no purchase request has yet been made to Spreedly
-    PURCHASE_FAILED = 1        # Purchase request to Spreedly has failed
-    AUTHORISED = 2             # Purchase request to Spreedly was successful but Join is not complete
-    SUCCESSFUL = 3             # Purchase request to Spreedly was successful and Join is completed with active card
-    VOID_REQUIRED = 4          # Purchase request requires Voiding when Join fails
-    VOID_SUCCESSFUL = 5        # Successfully Voided a purchase
+    PURCHASE_PENDING = 0  # Starting payment process but no purchase request has yet been made to Spreedly
+    PURCHASE_FAILED = 1  # Purchase request to Spreedly has failed
+    AUTHORISED = 2  # Purchase request to Spreedly was successful but Join is not complete
+    SUCCESSFUL = 3  # Purchase request to Spreedly was successful and Join is completed with active card
+    VOID_REQUIRED = 4  # Purchase request requires Voiding when Join fails
+    VOID_SUCCESSFUL = 5  # Successfully Voided a purchase
 
 
 def _generate_tx_ref() -> str:

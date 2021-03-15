@@ -2,14 +2,15 @@ import arrow
 from django.contrib import admin
 from django.utils.html import format_html
 
+from history.utils import HistoryAdmin
 from payment_card import models
 from ubiquity.models import PaymentCardAccountEntry
 
 
 @admin.register(models.PaymentCard)
 class PaymentCardAdmin(admin.ModelAdmin):
-    list_display = ('name', 'id', 'is_active',)
-    list_filter = ('is_active',)
+    list_display = ("name", "id", "is_active")
+    list_filter = ("is_active",)
 
 
 admin.site.register(models.Issuer)
@@ -17,10 +18,10 @@ admin.site.register(models.Issuer)
 
 @admin.register(models.PaymentCardImage)
 class PaymentCardImageAdmin(admin.ModelAdmin):
-    list_display = ('payment_card', 'description', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('payment_card', 'status', 'created',)
-    search_fields = ('payment_card__name', 'description')
-    raw_id_fields = ('payment_card',)
+    list_display = ("payment_card", "description", "status", "start_date", "end_date", "created")
+    list_filter = ("payment_card", "status", "created")
+    search_fields = ("payment_card__name", "description")
+    raw_id_fields = ("payment_card",)
 
     def get_queryset(self, request):
         qs = self.model.all_objects.get_queryset()
@@ -32,7 +33,6 @@ class PaymentCardImageAdmin(admin.ModelAdmin):
 
 def titled_filter(title):
     class Wrapper(admin.RelatedFieldListFilter):
-
         def __new__(cls, *args, **kwargs):
             instance = admin.RelatedFieldListFilter.create(*args, **kwargs)
             instance.title = title
@@ -42,36 +42,52 @@ def titled_filter(title):
 
 
 @admin.register(models.PaymentCardAccount)
-class PaymentCardAccountAdmin(admin.ModelAdmin):
-    list_display = ('payment_card', 'status', 'user_email', 'pan_start', 'pan_end', 'is_deleted', 'created',)
-    list_filter = (('payment_card__name', titled_filter('payment card')),
-                   'status',
-                   ('issuer__name', titled_filter('issuer')),
-                   'is_deleted',)
-    readonly_fields = ('token', 'psp_token', 'PLL_consent', 'user_email')
-    search_fields = ['pan_start', 'pan_end', 'token', 'paymentcardaccountentry__user__email', 'hash']
-    exclude = ('consent',)
-    list_per_page = 10
+class PaymentCardAccountAdmin(HistoryAdmin):
+    def obfuscated_hash(self, obj):
+        if obj.hash:
+            obf_hash = "*" * (len(obj.hash) - 4) + obj.hash[-4:]
+        else:
+            obf_hash = "N/A"
+
+        return obf_hash
+
+    obfuscated_hash.short_description = "Hash"
+    list_display = ("payment_card", "status", "user_email", "pan_start", "pan_end", "is_deleted", "created")
+    list_filter = (
+        ("payment_card__name", titled_filter("payment card")),
+        "status",
+        ("issuer__name", titled_filter("issuer")),
+        "is_deleted",
+    )
+    readonly_fields = ("obfuscated_hash", "token", "psp_token", "PLL_consent", "user_email", "created", "updated")
+    search_fields = ("pan_start", "pan_end", "psp_token", "fingerprint", "paymentcardaccountentry__user__email",
+                     "hash", "agent_data", "token", "id", "created")
+    exclude = ("consent", "hash")
 
     def user_email(self, obj):
-        user_list = [format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
-                                 assoc.user.id, assoc.user.email if assoc.user.email else assoc.user.uid)
-                     for assoc in PaymentCardAccountEntry.objects.filter(payment_card_account=obj.id)]
-        return format_html('</br>'.join(user_list))
+        user_list = [
+            format_html(
+                '<a href="/admin/user/customuser/{}/change/">{}</a>',
+                assoc.user.id,
+                assoc.user.email if assoc.user.email else assoc.user.uid,
+            )
+            for assoc in PaymentCardAccountEntry.objects.filter(payment_card_account=obj.id)
+        ]
+        return format_html("</br>".join(user_list))
 
     user_email.allow_tags = True
 
     def PLL_consent(self, obj):
-        when = arrow.get(obj.consent['timestamp']).format('HH:mm DD/MM/YYYY')
-        return 'Date Time: {} \nCoordinates: {}, {}'.format(when, obj.consent['latitude'], obj.consent['longitude'])
+        when = arrow.get(obj.consent["timestamp"]).format("HH:mm DD/MM/YYYY")
+        return "Date Time: {} \nCoordinates: {}, {}".format(when, obj.consent["latitude"], obj.consent["longitude"])
 
 
 @admin.register(models.PaymentCardAccountImage)
 class PaymentCardAccountImageAdmin(admin.ModelAdmin):
-    list_display = ('payment_card', 'description', 'status', 'start_date', 'end_date', 'created',)
-    list_filter = ('payment_card', 'status', 'created',)
-    search_fields = ('payment_card__name', 'description')
-    raw_id_fields = ('payment_card_accounts',)
+    list_display = ("payment_card", "description", "status", "start_date", "end_date", "created")
+    list_filter = ("payment_card", "status", "created")
+    search_fields = ("payment_card__name", "description")
+    raw_id_fields = ("payment_card_accounts",)
 
     def get_queryset(self, request):
         qs = self.model.all_objects.get_queryset()
@@ -83,15 +99,15 @@ class PaymentCardAccountImageAdmin(admin.ModelAdmin):
 
 @admin.register(models.ProviderStatusMapping)
 class ProviderStatusMappingAdmin(admin.ModelAdmin):
-    list_display = ('provider', 'provider_status_code', 'bink_status_code')
-    list_filter = ('provider', 'bink_status_code')
-    search_fields = ('provider_status_code', 'bink_status_code')
+    list_display = ("provider", "provider_status_code", "bink_status_code")
+    list_filter = ("provider", "bink_status_code")
+    search_fields = ("provider_status_code", "bink_status_code")
 
 
 @admin.register(models.AuthTransaction)
 class AuthTransactionAdmin(admin.ModelAdmin):
-    list_display = ('payment_card_account', 'time', 'amount', 'mid', 'third_party_id',)
-    search_fields = ('payment_card_account', 'mid', 'third_party_id',)
+    list_display = ("payment_card_account", "time", "amount", "mid", "third_party_id")
+    search_fields = ("payment_card_account", "mid", "third_party_id")
 
 
 class PaymentCardUserAssociation(PaymentCardAccountEntry):
@@ -106,27 +122,43 @@ class PaymentCardUserAssociation(PaymentCardAccountEntry):
     class Meta:
         proxy = True
         verbose_name = "Payment Card Account to User Association"
-        verbose_name_plural = "".join([verbose_name, 's'])
+        verbose_name_plural = "".join([verbose_name, "s"])
 
 
 @admin.register(PaymentCardUserAssociation)
-class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
-    list_display = ('payment_card_account', 'user', 'payment_card_account_link', 'user_link', 'card_status',
-                    'card_is_deleted', 'card_created')
-    search_fields = ('payment_card_account__pan_start', 'payment_card_account__pan_end', 'payment_card_account__token',
-                     'user__email', 'user__external_id')
+class PaymentCardUserAssociationAdmin(HistoryAdmin):
+    list_display = (
+        "payment_card_account",
+        "user",
+        "payment_card_account_link",
+        "user_link",
+        "card_status",
+        "card_is_deleted",
+        "card_created",
+    )
+    search_fields = (
+        "payment_card_account__pan_start",
+        "payment_card_account__pan_end",
+        "payment_card_account__token",
+        "user__email",
+        "user__external_id",
+    )
 
-    list_filter = (('payment_card_account__payment_card__name', titled_filter('payment card')),
-                   'payment_card_account__status',
-                   ('payment_card_account__issuer__name', titled_filter('issuer')),
-                   'payment_card_account__is_deleted')
-    raw_id_fields = ('payment_card_account', 'user',)
+    list_filter = (
+        ("payment_card_account__payment_card__name", titled_filter("payment card")),
+        "payment_card_account__status",
+        ("payment_card_account__issuer__name", titled_filter("issuer")),
+        "payment_card_account__is_deleted",
+    )
+    raw_id_fields = ("payment_card_account", "user")
 
     def payment_card_account_link(self, obj):
-        return format_html('<a href="/admin/payment_card/paymentcardaccount/{0}/change/">'
-                           'card (id{0}) No. {1}...{2}</a>',
-                           obj.payment_card_account.id, obj.payment_card_account.pan_start,
-                           obj.payment_card_account.pan_end)
+        return format_html(
+            '<a href="/admin/payment_card/paymentcardaccount/{0}/change/">card (id{0}) No. {1}...{2}</a>',
+            obj.payment_card_account.id,
+            obj.payment_card_account.pan_start,
+            obj.payment_card_account.pan_end,
+        )
 
     def user_link(self, obj):
         user_name = obj.user.external_id
@@ -134,8 +166,7 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
             user_name = obj.user.get_username()
         if not user_name:
             user_name = obj.user.email
-        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>',
-                           obj.user.id, user_name)
+        return format_html('<a href="/admin/user/customuser/{}/change/">{}</a>', obj.user.id, user_name)
 
     def card_status(self, obj):
         return obj.payment_card_account.status_name
@@ -151,9 +182,34 @@ class PaymentCardUserAssociationAdmin(admin.ModelAdmin):
 
 @admin.register(models.PaymentAudit)
 class PaymentAuditAdmin(admin.ModelAdmin):
-    list_display = ('scheme_account', 'user_id', 'transaction_ref', 'transaction_token', 'status', 'created_on',
-                    'modified_on',)
-    search_fields = ('scheme_account__id', 'user_id', 'scheme_account__scheme__name', 'transaction_ref',
-                     'transaction_token', 'status', 'payment_card_hash', 'payment_card_id',)
-    readonly_fields = ('user_id', 'scheme_account', 'transaction_ref', 'transaction_token', 'created_on', 'modified_on',
-                       'void_attempts', 'status', 'payment_card_hash', 'payment_card_id',)
+    list_display = (
+        "scheme_account",
+        "user_id",
+        "transaction_ref",
+        "transaction_token",
+        "status",
+        "created_on",
+        "modified_on",
+    )
+    search_fields = (
+        "scheme_account__id",
+        "user_id",
+        "scheme_account__scheme__name",
+        "transaction_ref",
+        "transaction_token",
+        "status",
+        "payment_card_hash",
+        "payment_card_id",
+    )
+    readonly_fields = (
+        "user_id",
+        "scheme_account",
+        "transaction_ref",
+        "transaction_token",
+        "created_on",
+        "modified_on",
+        "void_attempts",
+        "status",
+        "payment_card_hash",
+        "payment_card_id",
+    )
