@@ -27,7 +27,7 @@ def strip_sensitive_data(event, hint):
             if isinstance(account[field_type], list):
                 for field in account[field_type]:
                     try:
-                        if field["column"].lower() in SENSITIVE_FIELDS:
+                        if field["column"].lower() in SENSITIVE_FIELDS and "value" in field:
                             field["value"] = "[Filtered]"
                     except KeyError:
                         pass
