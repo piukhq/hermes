@@ -244,7 +244,7 @@ class CredentialEmailFilter(InputFilter):
 class SchemeAccountEntryInline(admin.TabularInline):
     model = SchemeAccountEntry
     extra = 0
-    readonly_fields = ('scheme_account', 'user', 'auth_status')
+    readonly_fields = ('scheme_account', 'user')
 
     def has_change_permission(self, request, obj=None):
         return False

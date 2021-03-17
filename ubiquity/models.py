@@ -20,47 +20,24 @@ logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
-    AUTH_PROVIDED = 0
-    UNAUTHORISED = 1
-
-    AUTH_STATUSES = (
-        (AUTH_PROVIDED, 'auth_provided'),
-        (UNAUTHORISED, 'unauthorised'),
-    )
-
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Scheme Account")
     user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
-    auth_status = models.IntegerField(choices=AUTH_STATUSES, default=UNAUTHORISED)
 
     class Meta:
         unique_together = ("scheme_account", "user")
 
     @staticmethod
-    def create_link(
-        user: "CustomUser",
-        scheme_account: "SchemeAccount",
-        auth_status: AUTH_STATUSES = UNAUTHORISED
-    ) -> "SchemeAccountEntry":
-        entry = SchemeAccountEntry(
-            user=user,
-            scheme_account=scheme_account,
-            auth_status=auth_status
-        )
+    def create_link(user: "CustomUser", scheme_account: "SchemeAccount") -> None:
         try:
             # required to rollback transactions when running into an expected IntegrityError
             # tests will fail without this as TestCase already wraps tests in an atomic
             # block and will not know how to correctly rollback otherwise
             with transaction.atomic():
-                entry.save()
+                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
         except IntegrityError:
-            # The id of the record is not currently required but if it is in the future then
-            # we may need to use .get() here to retrieve the conflicting record.
-            # An update is done here instead of initially using an update_or_create to avoid the db call
-            # to check if a record exists, since this is an edge case.
-            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(auth_status=auth_status)
-
-        return entry
+            # If it already exists, nothing else needs to be done here.
+            pass
 
 
 class PaymentCardAccountEntry(models.Model):
