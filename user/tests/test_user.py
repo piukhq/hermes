@@ -382,7 +382,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
     @mock.patch("user.views.get_jwt_secret")
     def test_magic_link_auto_add_loyalty(self, mocked_vault, mocked_cache):
         user = UserFactory(email="test_auto_add@user.bink")
-        scheme = SchemeFactory(company="Wasabi")
+        scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
 

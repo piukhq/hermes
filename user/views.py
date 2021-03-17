@@ -769,7 +769,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
     permission_classes = (AllowAny,)
 
     @staticmethod
-    def auto_add_loyalty_with_email(user, bundle_id):
+    def auto_add_membership_cards_with_email(user, bundle_id):
         """
         Auto add loyalty card when user auth with magic link. Checks for schemes that have email as
         an auth field.
@@ -778,24 +778,23 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         # LOY-1609 - we only want to do this for wasabi for for now until later on.
         # Remove this when we want to open this up for all schemes.
         if bundle_id == 'com.wasabi.bink.web':
-            schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.select_related('scheme').filter(
-                type=EMAIL, auth_field=True, scheme__company="Wasabi").values_list('scheme__pk', flat=True)
-
-            # Uncomment this when we want to move to all schemes with email as a auth field
-            # schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.select_related('scheme').filter(
-            #     type=EMAIL, auth_field=True).values_list('scheme__pk', flat=True)
+            try:
+                schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.get(
+                    type=EMAIL, auth_field=True, scheme__slug="wasabi-club")
+            except SchemeCredentialQuestion.DoesNotExist:
+                return
 
             # Make sure scheme account is authorised with the same email in the magic link
-            scheme_account_entry = SchemeAccountEntry.objects.select_related('user', 'scheme_account').filter(
+            scheme_account_entry_ids = SchemeAccountEntry.objects.filter(
                 user__email=user.email,
-                scheme_account__scheme__pk__in=schemes_with_email_enrol_field,
+                scheme_account__scheme__pk=schemes_with_email_enrol_field.scheme.pk,
             ).values_list('scheme_account__pk', flat=True)
 
             entries_to_create = [
                 SchemeAccountEntry(
                     scheme_account_id=scheme_account_id,
                     user_id=user.id,
-                ) for scheme_account_id in scheme_account_entry
+                ) for scheme_account_id in scheme_account_entry_ids
             ]
 
             if entries_to_create:
@@ -890,7 +889,7 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             user.save(update_fields=["magic_link_verified"])
 
         # Auto add email auth based loyalty card using the same email
-        self.auto_add_loyalty_with_email(user, bundle_id)
+        self.auto_add_membership_cards_with_email(user, bundle_id)
 
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
