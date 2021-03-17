@@ -789,14 +789,12 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
             scheme_account_entry = SchemeAccountEntry.objects.select_related('user', 'scheme_account').filter(
                 user__email=user.email,
                 scheme_account__scheme__pk__in=schemes_with_email_enrol_field,
-                auth_status=SchemeAccountEntry.AUTH_PROVIDED,
             ).values_list('scheme_account__pk', flat=True)
 
             entries_to_create = [
                 SchemeAccountEntry(
                     scheme_account_id=scheme_account_id,
                     user_id=user.id,
-                    auth_status=SchemeAccountEntry.AUTH_PROVIDED,
                 ) for scheme_account_id in scheme_account_entry
             ]
 
