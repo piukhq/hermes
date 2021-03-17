@@ -5,7 +5,7 @@ from django.urls import path
 
 from .models import ScriptResult
 from .scripts import SCRIPT_TITLES, SCRIPT_FUNCTIONS, DataScripts
-from .vop_actions import do_un_eroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
+from .vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
 
 
 # See scripts.py on hoe to add a new script find records function
@@ -22,7 +22,7 @@ def apply_correction(modeladmin, request, queryset):
         success = False
         if not entry.done:
             if entry.apply == ScriptResult.UN_ENROLL:
-                success = do_un_eroll(entry)
+                success = do_un_enroll(entry)
             elif entry.apply == ScriptResult.DEACTIVATE:
                 success = do_deactivate(entry)
             elif entry.apply == ScriptResult.RE_ENROLL:

@@ -1,26 +1,8 @@
 import arrow
+from django.conf import settings
+from requests import request
+from ubiquity.models import VopActivation
 from payment_card.enums import RequestMethod
-from payment_card.tasks import metis_request
-from time import sleep
-from .models import ScriptResult
-from .scripts import DataScripts, SCRIPT_TITLES
-from django.core.exceptions import ObjectDoesNotExist
-
-
-def delete_metis_callback():
-    try:
-        s_obj = ScriptResult.objects.get(item_id=999, script_name=SCRIPT_TITLES[DataScripts.METIS_CALLBACK])
-        s_obj.delete()
-    except ObjectDoesNotExist:
-        pass
-
-
-def get_metis_callback():
-    try:
-        s_obj = ScriptResult.objects.get(item_id=999, script_name=SCRIPT_TITLES[DataScripts.METIS_CALLBACK])
-        return s_obj.data
-    except ObjectDoesNotExist:
-        return None
 
 
 def get_card_data(entry):
@@ -33,44 +15,51 @@ def get_card_data(entry):
     }
 
 
-def get_metis_result(method, data):
-    args = (
-        RequestMethod.DELETE,
-        '/payment_service/payment_card',
-        data,
+def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
+    response = request(
+        method.value,
+        settings.METIS_URL + endpoint,
+        json=payload,
+        headers={
+            'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
+            'Content-Type': 'application/json'
+        }
     )
-    metis_request(*args)
-    waiting_rely = True
-    result = {}
-    while waiting_rely:
-        sleep(1)
-        result = get_metis_callback()
-        if result:
-            waiting_rely = False
-    return result
+    return response.json()
 
 
-def do_un_eroll(entry):
-    delete_metis_callback()
-    data = get_card_data(entry)
-    data['activations'] = {}
-    result = get_metis_result(requestMethod.DELETE, data)
-    if result.get('response_status', "") == 'Delete:SUCCESS':
+def do_un_enroll(entry):
+    data = {
+        'payment_token': entry.data['payment_token'],
+        'id': entry.data['card_id']
+    }
+    reply = metis_request(RequestMethod.POST, '/foundation/visa/remove', data)
+    if reply.get('agent_error_code') == 'Delete:SUCCESS' and reply.get('status_code') == 201:
         return True
     return False
 
 
 def do_deactivate(entry):
-
-    return True
+    data = {
+        'payment_token': entry.data['payment_token'],
+        'activation_id': entry.data['activation_id'],
+        'id': entry.data['card_id']
+    }
+    reply = metis_request(RequestMethod.POST, '/visa/deactivate', data)
+    if reply.get('agent_response_code') == 'Deactivate:SUCCESS':
+        do_mark_as_deactivated(entry)
+        return True
+    return False
 
 
 def do_re_enroll(entry):
-    # This is a re-enrol for purposes of removing activations or ensuring an un-enrol
-    # create duplicate data for call back account
-    delete_metis_callback()
-    result = get_metis_result(RequestMethod.POST, get_card_data(entry))
-    if result.get('response_status', "") == 'Add:SUCCESS':
+    data = {
+        'payment_token': entry.data['payment_token'],
+        'card_token': entry.data['card_token'],
+        'id': entry.data['card_id']
+    }
+    reply = metis_request(RequestMethod.POST, '/foundation/spreedly/visa/add', data)
+    if reply.get('agent_error_code') == 'Add:SUCCESS' and reply.get('status_code') == 200:
         return True
     return False
 
@@ -80,4 +69,7 @@ def do_transfer_activation(entry):
 
 
 def do_mark_as_deactivated(entry):
+    act = VopActivation.objects.get(id=entry.data['activation'])
+    act.status = VopActivation.DEACTIVATED
+    act.save(update_fields=['status'])
     return True

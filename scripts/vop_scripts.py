@@ -15,34 +15,35 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
     try:
         for a in activations:
             if a.payment_card_account.is_deleted:
-                # We have found a deleted card which should not have an activation
-                # Three corrective actions are possible:
-                #     1) Mark it as deactivated because another card with same token has an activation
-                #     2) Transfer activation record to a card with same token provided it is linked to same scheme
-                #     3) deactivate Enroll, Deactivate and Unenroll
+                # When we have found a deleted card which has an activation record in the ACTIVATED state
+                # we should probably deactivate it by  Enroll, Deactivate and Unenroll
+                # However, we should not do this if another undeleted active card exists with the same token
+                # So we start by looking for cards having the same token which share an activation since we use
+                # objects manager it won't find the deleted card so we don't expect any to be found.
+                # But if we do find an active card and it has an identical activation we don't want to deactivate it
+                # instead just mark the card with this activation as deactivated
 
-                duplicated_card_tokens = PaymentCardAccount.objects.filter(psp_token=a.payment_card_account.psp_token)
+                duplicated_card_tokens = PaymentCardAccount.objects.filter(psp_token=a.payment_card_account.psp_token,
+                                                                           status=PaymentCardAccount.ACTIVE)
                 duplicate_activations = False
-                duplicate_without_activation = False
+
                 dup_card_id = None
                 correction = ScriptResult.DEACTIVATE_UN_ENROLLED
                 for dup in duplicated_card_tokens:
-                    duplicate_without_activation = True
-                    correction = ScriptResult.TRANSFER_ACTIVATION
                     dup_card_id = dup.id
                     dup_active = VopActivation.objects.filter(payment_card_account=dup,
                                                               scheme=a.scheme,
                                                               status=VopActivation.ACTIVATED)
                     if dup_active:
                         duplicate_activations = True
-                        duplicate_without_activation = False
                         correction = ScriptResult.MARK_AS_DEACTIVATED
                         break
 
-                result.append(f"id: {a.id},{status_names[a.status]}, payment card id: {a.payment_card_account.id}, "
-                              f"scheme {a.scheme},"
+                result.append(f"activation: {a.id},{status_names[a.status]}, "
+                              f"payment card id: {a.payment_card_account.id}, "
+                              f"scheme {a.scheme}, "
                               f"deleted: {a.payment_card_account.is_deleted}, token: {a.payment_card_account.psp_token}"
-                              f", other activations: {duplicate_activations}, transfer: {duplicate_without_activation}"
+                              f", other activations: {duplicate_activations}"
                               f", duplicated_card_id: {dup_card_id}, correction: {correction_titles[correction]}")
                 found += 1
                 if correction == ScriptResult.DEACTIVATE_UN_ENROLLED:
@@ -52,6 +53,7 @@ def find_deleted_vop_cards_with_activations(script_id, script_name):
 
                 data = {
                     'script_id': script_id,
+                    'activation': a.id,
                     'card_id': a.payment_card_account.id,
                     'payment_token': a.payment_card_account.psp_token,
                     'card_token': a.payment_card_account.token,
