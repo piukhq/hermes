@@ -417,6 +417,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         except CustomUser.DoesNotExist:
             raise AssertionError("failed magic link user creation.")
 
+
 class TestUserProfileViews(GlobalMockAPITestCase):
     def test_empty_profile(self):
         user = UserFactory()
