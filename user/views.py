@@ -779,22 +779,22 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         # Remove this when we want to open this up for all schemes.
         if bundle_id == 'com.wasabi.bink.web':
             try:
-                schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.get(
+                scheme_with_email_enrol_field = SchemeCredentialQuestion.objects.get(
                     type=EMAIL, auth_field=True, scheme__slug="wasabi-club")
             except SchemeCredentialQuestion.DoesNotExist:
                 return
 
             # Make sure scheme account is authorised with the same email in the magic link
-            scheme_account_entry_ids = SchemeAccountEntry.objects.filter(
+            scheme_account_ids = SchemeAccountEntry.objects.filter(
                 user__email=user.email,
-                scheme_account__scheme__pk=schemes_with_email_enrol_field.scheme.pk,
+                scheme_account__scheme__id=scheme_with_email_enrol_field.scheme_id,
             ).values_list('scheme_account__pk', flat=True)
 
             entries_to_create = [
                 SchemeAccountEntry(
                     scheme_account_id=scheme_account_id,
                     user_id=user.id,
-                ) for scheme_account_id in scheme_account_entry_ids
+                ) for scheme_account_id in scheme_account_ids
             ]
 
             if entries_to_create:
