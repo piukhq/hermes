@@ -7,6 +7,7 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
 import analytics
@@ -73,6 +74,23 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
         scheme_account.save()
         clean_history_kwargs(history_kwargs)
         raise e
+
+
+@shared_task
+def async_add_field_only_link(instance_id: int, payment_cards_to_link: list, history_kwargs: dict = None) -> None:
+    set_history_kwargs(history_kwargs)
+
+    scheme_account = SchemeAccount.objects.get(id=instance_id)
+    scheme_account.get_cached_balance()
+
+    if scheme_account.status == SchemeAccount.ACTIVE:
+        scheme_account.link_date = timezone.now()
+        scheme_account.save(update_fields=['link_date'])
+
+    if payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
+
+    clean_history_kwargs(history_kwargs)
 
 
 @shared_task
@@ -238,17 +256,6 @@ def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, us
                 old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
 
     else:
-        user_mcard_auth_statuses = entries_query.values_list("auth_status", flat=True)
-        if all((status == SchemeAccountEntry.UNAUTHORISED for status in user_mcard_auth_statuses)):
-            scheme_account.status = SchemeAccount.WALLET_ONLY
-            scheme_account.save(update_fields=["status"])
-            PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})
-
-            scheme_account.schemeaccountcredentialanswer_set.filter(
-                question__auth_field=True,
-                question__manual_question=False,
-            ).delete()
-
         m_card_users = entries_query.values_list('user_id', flat=True)
         pll_links = pll_links.exclude(payment_card_account__user_set__in=m_card_users)
 
