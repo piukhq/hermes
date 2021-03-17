@@ -38,7 +38,10 @@ from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
 from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
+from scheme.credentials import EMAIL
+from scheme.models import SchemeCredentialQuestion
 from ubiquity.channel_vault import get_jwt_secret
+from ubiquity.models import SchemeAccountEntry
 from user.authentication import JwtAuthentication
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code,
                          BINK_APP_ID)
@@ -766,6 +769,41 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
     permission_classes = (AllowAny,)
 
     @staticmethod
+    def auto_add_loyalty_with_email(user, bundle_id):
+        """
+        Auto add loyalty card when user auth with magic link. Checks for schemes that have email as
+        an auth field.
+        """
+
+        # LOY-1609 - we only want to do this for wasabi for for now until later on.
+        # Remove this when we want to open this up for all schemes.
+        if bundle_id == 'com.wasabi.bink.web':
+            schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.select_related('scheme').filter(
+                type=EMAIL, auth_field=True, scheme__company="Wasabi").values_list('scheme__pk', flat=True)
+
+            # Uncomment this when we want to move to all schemes with email as a auth field
+            # schemes_with_email_enrol_field = SchemeCredentialQuestion.objects.select_related('scheme').filter(
+            #     type=EMAIL, auth_field=True).values_list('scheme__pk', flat=True)
+
+            # Make sure scheme account is authorised with the same email in the magic link
+            scheme_account_entry = SchemeAccountEntry.objects.select_related('user', 'scheme_account').filter(
+                user__email=user.email,
+                scheme_account__scheme__pk__in=schemes_with_email_enrol_field,
+                auth_status=SchemeAccountEntry.AUTH_PROVIDED,
+            ).values_list('scheme_account__pk', flat=True)
+
+            entries_to_create = [
+                SchemeAccountEntry(
+                    scheme_account_id=scheme_account_id,
+                    user_id=user.id,
+                    auth_status=SchemeAccountEntry.AUTH_PROVIDED,
+                ) for scheme_account_id in scheme_account_entry
+            ]
+
+            if entries_to_create:
+                SchemeAccountEntry.objects.bulk_create(entries_to_create)
+
+    @staticmethod
     def _get_jwt_secret(token: str) -> str:
         try:
             bundle_id = jwt.decode(
@@ -852,6 +890,9 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         if not user.magic_link_verified:
             user.magic_link_verified = datetime.utcnow()
             user.save(update_fields=["magic_link_verified"])
+
+        # Auto add email auth based loyalty card using the same email
+        self.auto_add_loyalty_with_email(user, bundle_id)
 
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
