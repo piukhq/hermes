@@ -67,7 +67,7 @@ from ubiquity.tasks import (
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
     deleted_service_cleanup,
-    send_merchant_metrics_for_new_account,
+    send_merchant_metrics_for_new_account, async_add_field_only_link,
 )
 from ubiquity.utils import needs_decryption
 from ubiquity.versioning import SelectSerializer, get_api_version, versioned_serializer_class
@@ -941,7 +941,7 @@ class MembershipCardView(
         scheme_account, _, account_created = self.create_account_with_valid_data(serializer, user, scheme)
         return_status = status.HTTP_201_CREATED if account_created else status.HTTP_200_OK
 
-        if account_created and auth_fields:
+        if account_created:
             scheme_account.update_barcode_and_card_number()
             history_kwargs = {
                 "user_info": user_info(
@@ -954,15 +954,21 @@ class MembershipCardView(
             else:
                 metrics_route = MembershipCardAddRoute.WALLET_ONLY
 
-            async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
+            SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
+
+            if auth_fields:
+                async_link.delay(auth_fields, scheme_account.id, user.id, payment_cards_to_link, history_kwargs)
+            else:
+                async_add_field_only_link.delay(scheme_account.id, payment_cards_to_link, history_kwargs)
+
         else:
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
             auth_fields = auth_fields or {}
             self._handle_existing_scheme_account(
                 scheme_account, user, auth_fields, payment_cards_to_link
             )
+            SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
 
-        SchemeAccountEntry.create_link(user=user, scheme_account=scheme_account)
         return scheme_account, return_status, metrics_route
 
     @staticmethod
