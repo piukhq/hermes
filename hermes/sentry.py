@@ -5,6 +5,8 @@ from sentry_sdk.utils import capture_internal_exceptions
 
 from typing import TYPE_CHECKING
 
+from scheme.credentials import PASSWORD, PIN
+
 if TYPE_CHECKING:
     from typing import Any
     from typing import Optional
@@ -13,6 +15,23 @@ if TYPE_CHECKING:
 
     from sentry_sdk._types import EventProcessor, Event, Hint
     from django.core.handlers.wsgi import WSGIRequest
+
+
+SENSITIVE_FIELDS = {PASSWORD, PIN, }
+
+
+def strip_sensitive_data(event, hint):
+    if event.get("request"):
+        account = event["request"]["data"].get("account", {})
+        for field_type in account:
+            if isinstance(account[field_type], list):
+                for field in account[field_type]:
+                    try:
+                        if field["column"].lower() in SENSITIVE_FIELDS and "value" in field:
+                            field["value"] = "[Filtered]"
+                    except KeyError:
+                        pass
+    return event
 
 
 """
