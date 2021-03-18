@@ -4,7 +4,7 @@ from typing import Union, Type, TYPE_CHECKING
 import django
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError, models
+from django.db import IntegrityError, models, transaction
 from django.db.models import signals
 from django.dispatch import receiver
 
@@ -14,6 +14,7 @@ from history.signals import HISTORY_CONTEXT
 if TYPE_CHECKING:
     from scheme.models import SchemeAccount  # noqa
     from payment_card.models import PaymentCardAccount  # noqa
+    from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,18 @@ class SchemeAccountEntry(models.Model):
 
     class Meta:
         unique_together = ("scheme_account", "user")
+
+    @staticmethod
+    def create_link(user: "CustomUser", scheme_account: "SchemeAccount") -> None:
+        try:
+            # required to rollback transactions when running into an expected IntegrityError
+            # tests will fail without this as TestCase already wraps tests in an atomic
+            # block and will not know how to correctly rollback otherwise
+            with transaction.atomic():
+                SchemeAccountEntry.objects.create(user=user, scheme_account=scheme_account)
+        except IntegrityError:
+            # If it already exists, nothing else needs to be done here.
+            pass
 
 
 class PaymentCardAccountEntry(models.Model):

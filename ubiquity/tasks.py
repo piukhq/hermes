@@ -77,16 +77,6 @@ def async_link(auth_fields: dict, scheme_account_id: int, user_id: int, payment_
 
 
 @shared_task
-def async_balance(instance_id: int, delete_balance=False) -> None:
-    scheme_account = SchemeAccount.objects.get(id=instance_id)
-    if delete_balance:
-        scheme_account.delete_cached_balance()
-        scheme_account.delete_saved_balance()
-
-    scheme_account.get_cached_balance()
-
-
-@shared_task
 def async_add_field_only_link(instance_id: int, payment_cards_to_link: list, history_kwargs: dict = None) -> None:
     set_history_kwargs(history_kwargs)
 
@@ -101,6 +91,16 @@ def async_add_field_only_link(instance_id: int, payment_cards_to_link: list, his
         auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
     clean_history_kwargs(history_kwargs)
+
+
+@shared_task
+def async_balance(instance_id: int, delete_balance=False) -> None:
+    scheme_account = SchemeAccount.objects.get(id=instance_id)
+    if delete_balance:
+        scheme_account.delete_cached_balance()
+        scheme_account.delete_saved_balance()
+
+    scheme_account.get_cached_balance()
 
 
 @shared_task
@@ -242,7 +242,7 @@ def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, us
 
     pll_links = PaymentCardSchemeEntry.objects.filter(
         scheme_account_id=scheme_account.id
-    ).prefetch_related('scheme_account')
+    ).prefetch_related("scheme_account")
     entries_query = SchemeAccountEntry.objects.filter(scheme_account=scheme_account)
 
     if entries_query.count() <= 0:
@@ -412,7 +412,7 @@ def auto_link_membership_to_payments(
             payment_card_account=payment_card_account
         ).get_instance_with_active_status()
         link_entries_to_create.append(entry)
-        if entry.active_link is True:
+        if entry.active_link:
             pll_activated_payment_cards.append(payment_card_account.id)
             if payment_card_account.payment_card.slug == PaymentCard.VISA:
                 vop_activated_cards.append(payment_card_account.id)

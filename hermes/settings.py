@@ -60,6 +60,7 @@ LOCAL_APPS = (
     "history",
     "daedalus_messaging",
     "periodic_retry",
+    "magic_link",
     "prometheus.apps.PrometheusPusherConfig",
 )
 
@@ -223,6 +224,7 @@ if not NO_AZURE_STORAGE:
     # For generating image urls with a custom domain
     CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
     AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
+    MAGIC_LINK_TEMPLATE = 'email/magic_link_email.txt'
 
 
 MEDIA_URL = env_var("HERMES_MEDIA_URL", "/media/")
@@ -350,6 +352,7 @@ ANYMAIL = {
 }
 EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
 DEFAULT_FROM_EMAIL = "Bink Support <support@bink.com>"
+MAGIC_LINK_FROM_EMAIL = "{external_name}@bink.com"
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002"]
 if env_var("HERMES_NO_DB_TEST", False):
@@ -396,6 +399,9 @@ REDIS_HOST = env_var("REDIS_HOST", "localhost")
 REDIS_PASSWORD = env_var("REDIS_PASSWORD", "")
 REDIS_PORT = env_var("REDIS_PORT", 6379)
 REDIS_DB = env_var("REDIS_DB", 1)
+REDIS_URL = env_var('REDIS_URL',
+                    f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}')
+
 REDIS_API_CACHE_DB = env_var("REDIS_API_CACHE_DB", 2)
 REDIS_MPLANS_CACHE_EXPIRY = int(env_var("REDIS_MPLANS_CACHE_EXPIRY", 60 * 60 * 24))  # 60*60*24  # 24 hrs in seconds
 
@@ -406,19 +412,13 @@ REDIS_READ_HEALTH_CHECK_INTERVAL = 1
 REDIS_WRITE_HEALTH_CHECK_INTERVAL = 1
 
 
-REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    password=REDIS_PASSWORD,
-    db=REDIS_API_CACHE_DB,
+REDIS_READ_API_CACHE_POOL = Redis_ConnectionPool.from_url(
+    url=REDIS_URL,
     socket_timeout=REDIS_READ_TIMEOUT,
     health_check_interval=REDIS_READ_HEALTH_CHECK_INTERVAL,
 )
-REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool(
-    host=REDIS_HOST,
-    port=REDIS_PORT,
-    password=REDIS_PASSWORD,
-    db=REDIS_API_CACHE_DB,
+REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool.from_url(
+    url=REDIS_URL,
     socket_timeout=REDIS_WRITE_TIMEOUT,
     health_check_interval=REDIS_WRITE_HEALTH_CHECK_INTERVAL,
 )
@@ -426,9 +426,7 @@ REDIS_WRITE_API_CACHE_POOL = Redis_ConnectionPool(
 cache_options = {
     "redis": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
-            password=REDIS_PASSWORD, host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB
-        ),
+        "LOCATION": REDIS_URL,
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient"},
         "KEY_PREFIX": "hermes",
     },
@@ -440,9 +438,7 @@ CACHES = {
     "default": cache_options["test"] if TESTING else cache_options["redis"],
     "retry_tasks": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://:{password}@{host}:{port}/{db}".format(
-            password=REDIS_PASSWORD, host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB
-        ),
+        "LOCATION": REDIS_URL,
         "OPTIONS": {"CLIENT_CLASS": "django_redis.client.DefaultClient", "MAX_ENTRIES": 10000, "CULL_FREQUENCY": 100},
         "KEY_PREFIX": "hermes-retry-task-",
         "TIMEOUT": None,

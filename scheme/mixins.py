@@ -228,7 +228,6 @@ class SchemeAccountCreationMixin(SwappableSerializerMixin):
                 status=create_status,
                 main_answer=data[answer_type]
             )
-            SchemeAccountEntry.objects.create(scheme_account=scheme_account, user=user)
             SchemeAccountCredentialAnswer.objects.create(
                 scheme_account=scheme_account,
                 question=self._get_question_from_type(scheme_account, answer_type),

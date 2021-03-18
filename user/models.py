@@ -10,6 +10,7 @@ import jwt
 from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import signals
 from django.db.models.fields import CharField
@@ -126,11 +127,14 @@ class ClientApplication(models.Model):
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
+    external_name = models.CharField(max_length=100, blank=True, default='')
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
     issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
     scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
                                     related_name='related_bundle')
+    magic_link_url = models.CharField(max_length=200, default='', blank=True)
+    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
 
     class Meta:
         unique_together = ('client', 'bundle_id',)
@@ -189,6 +193,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     salt = models.CharField(max_length=8)
     external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
     delete_token = models.CharField(max_length=255, blank=True, default='')
+    magic_link_verified = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'uid'
 
@@ -220,7 +225,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'expiry_date': expiry_date.timestamp
         }
         reset_token = jwt.encode(payload, self.client.secret)
-        self.reset_token = reset_token.decode("utf-8")
+        self.reset_token = reset_token
         self.save()
         return reset_token
 
@@ -273,8 +278,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             'sub': self.id,
             'iat': arrow.utcnow().datetime,
         }
-        token = jwt.encode(payload, self.client.secret + self.salt)
-        return token.decode('unicode_escape')
+        return jwt.encode(payload, self.client.secret + self.salt)
 
     def soft_delete(self):
         self.is_active = False
@@ -359,7 +363,7 @@ def valid_reset_code(reset_token):
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, user.client.secret)
+    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=['HS512', 'HS256'])
     expiry_date = arrow.get(token_payload['expiry_date'])
     return expiry_date > arrow.utcnow()
 

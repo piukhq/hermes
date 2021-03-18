@@ -241,16 +241,31 @@ class CredentialEmailFilter(InputFilter):
         return queryset.filter(any_email)
 
 
+class SchemeAccountEntryInline(admin.TabularInline):
+    model = SchemeAccountEntry
+    extra = 0
+    readonly_fields = ('scheme_account', 'user')
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
-    inlines = (SchemeAccountCredentialAnswerInline,)
+    inlines = (SchemeAccountEntryInline, SchemeAccountCredentialAnswerInline,)
     list_filter = (CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
     list_per_page = 25
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return self.readonly_fields + ('scheme', 'link_date', 'user_email')
+            return self.readonly_fields + ('scheme', 'link_date')
         return self.readonly_fields
 
     def credential_email(self, obj):

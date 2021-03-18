@@ -29,12 +29,23 @@ class TestTasks(GlobalMockAPITestCase):
 
         cls.link_entry = SchemeAccountEntryFactory(user=cls.user)
         cls.link_scheme = cls.link_entry.scheme_account.scheme
-        cls.manual_question = SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=EMAIL,
-                                                              manual_question=True)
-        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=PASSWORD,
-                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
-        SchemeCredentialQuestionFactory(scheme=cls.link_scheme, type=POSTCODE,
-                                        options=SchemeCredentialQuestion.LINK_AND_JOIN)
+        cls.manual_question = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=EMAIL,
+            manual_question=True,
+        )
+        cls.auth_question_1 = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=PASSWORD,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
+        cls.auth_question_2 = SchemeCredentialQuestionFactory(
+            scheme=cls.link_scheme,
+            type=POSTCODE,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+            auth_field=True,
+        )
 
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')
