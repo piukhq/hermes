@@ -61,6 +61,7 @@ LOCAL_APPS = (
     "daedalus_messaging",
     "periodic_retry",
     "magic_link",
+    "scripts",
     "prometheus.apps.PrometheusPusherConfig",
 )
 
