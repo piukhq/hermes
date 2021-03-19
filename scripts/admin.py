@@ -3,12 +3,12 @@ from django.contrib import messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import ScriptResult
-from .scripts import SCRIPT_TITLES, SCRIPT_FUNCTIONS, DataScripts
-from .vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_transfer_activation
+from .models import ScriptResult, Correction
+from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES, DataScripts
+from .actions.vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation
 
 
-# See scripts.py on hoe to add a new script find records function
+# See scripts.py on how to add a new script find records function
 
 
 def apply_correction(modeladmin, request, queryset):
@@ -16,20 +16,20 @@ def apply_correction(modeladmin, request, queryset):
     success_count = 0
     failed_count = 0
     done_count = 0
-    correction_titles = dict(ScriptResult.CORRECTION_SCRIPTS)
+    correction_titles = dict(Correction.CORRECTION_SCRIPTS)
     for entry in queryset:
         count += 1
         success = False
         if not entry.done:
-            if entry.apply == ScriptResult.UN_ENROLL:
+            if entry.apply == Correction.UN_ENROLL:
                 success = do_un_enroll(entry)
-            elif entry.apply == ScriptResult.DEACTIVATE:
+            elif entry.apply == Correction.DEACTIVATE:
                 success = do_deactivate(entry)
-            elif entry.apply == ScriptResult.RE_ENROLL:
+            elif entry.apply == Correction.RE_ENROLL:
                 success = do_re_enroll(entry)
-            elif entry.apply == ScriptResult.TRANSFER_ACTIVATION:
-                success = do_transfer_activation(entry)
-            elif entry.apply == ScriptResult.MARK_AS_DEACTIVATED:
+            elif entry.apply == Correction.ACTIVATE:
+                success = do_activation(entry)
+            elif entry.apply == Correction.MARK_AS_DEACTIVATED:
                 success = do_mark_as_deactivated(entry)
             if success:
                 success_count += 1
@@ -38,7 +38,7 @@ def apply_correction(modeladmin, request, queryset):
                 entry.results.append(f"{correction_titles[entry.apply]}: success")
                 if sequence_pos >= len(sequence):
                     entry.done = True
-                    entry.apply = ScriptResult.NO_CORRECTION
+                    entry.apply = Correction.NO_CORRECTION
                     done_count += 1
 
                 else:
@@ -85,10 +85,10 @@ def scripts_to_run(script_id):
         'html_report': "",
     }
 
-    for data_script, function in SCRIPT_FUNCTIONS.items():
+    for data_script, function in SCRIPT_CLASSES.items():
         if script_id == data_script.value:
             result['run_title'] = SCRIPT_TITLES[DataScripts.DEL_VOP_WITH_ACT]
-            result['summary'], result['corrections'], result['html_report'] = \
-                function(script_id, result['run_title'])
+            script_class = function(script_id, result['run_title'])
+            result['summary'], result['corrections'], result['html_report'] = script_class.run()
             break
     return result

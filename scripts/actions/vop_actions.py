@@ -5,16 +5,6 @@ from ubiquity.models import VopActivation
 from payment_card.enums import RequestMethod
 
 
-def get_card_data(entry):
-    return {
-        'payment_token': entry.data['payment_token'],
-        'card_token': entry.data['card_token'],
-        'partner_slug': entry.data['partner_slug'],
-        'id': 999,
-        'date': arrow.utcnow().timestamp
-    }
-
-
 def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
     response = request(
         method.value,
@@ -34,7 +24,7 @@ def do_un_enroll(entry):
         'id': entry.data['card_id']
     }
     reply = metis_request(RequestMethod.POST, '/foundation/visa/remove', data)
-    if reply.get('agent_error_code') == 'Delete:SUCCESS' and reply.get('status_code') == 201:
+    if reply.get('agent_response_code') == 'Delete:SUCCESS' and reply.get('status_code') == 201:
         return True
     return False
 
@@ -59,17 +49,33 @@ def do_re_enroll(entry):
         'id': entry.data['card_id']
     }
     reply = metis_request(RequestMethod.POST, '/foundation/spreedly/visa/add', data)
-    if reply.get('agent_error_code') == 'Add:SUCCESS' and reply.get('status_code') == 200:
+    if reply.get('agent_response_code') == 'Add:SUCCESS' and reply.get('status_code') == 200:
         return True
     return False
 
 
-def do_transfer_activation(entry):
-    return True
+def do_activation(entry):
+    data = {
+        'payment_token': entry.data['payment_token'],
+        'merchant_slug': entry.data['scheme_slug'],
+        'id': entry.data['card_id']
+    }
+    reply = metis_request(RequestMethod.POST, '/visa/activate', data)
+    if reply.get('agent_response_code') == 'Activate:SUCCESS':
+        do_mark_as_activated(entry)
+        return True
+    return False
 
 
 def do_mark_as_deactivated(entry):
     act = VopActivation.objects.get(id=entry.data['activation'])
     act.status = VopActivation.DEACTIVATED
+    act.save(update_fields=['status'])
+    return True
+
+
+def do_mark_as_activated(entry):
+    act = VopActivation.objects.get(id=entry.data['activation'])
+    act.status = VopActivation.ACTIVATED
     act.save(update_fields=['status'])
     return True

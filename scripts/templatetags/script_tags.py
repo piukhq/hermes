@@ -1,5 +1,5 @@
 from django import template
-from ..admin import DataScripts, SCRIPT_TITLES, SCRIPT_FUNCTIONS
+from ..admin import DataScripts, SCRIPT_TITLES, SCRIPT_CLASSES
 
 register = template.Library()
 
@@ -12,7 +12,7 @@ def script_list(parser, token):
 class ListScript(template.Node):
     def render(self, context):
         lines = []
-        for data_script in SCRIPT_FUNCTIONS.keys():
+        for data_script in SCRIPT_CLASSES.keys():
             lines.append(f'<a href="scriptresult/run_script/{data_script.value}">find records for:'
                          f' {SCRIPT_TITLES[data_script]}</a>')
         return "<br/>".join(lines)
