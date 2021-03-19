@@ -12,13 +12,12 @@ from .actions.vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_m
 
 
 def apply_correction(modeladmin, request, queryset):
-    count = 0
+    count = len(queryset)
     success_count = 0
     failed_count = 0
     done_count = 0
     correction_titles = dict(Correction.CORRECTION_SCRIPTS)
     for entry in queryset:
-        count += 1
         success = False
         if not entry.done:
             if entry.apply == Correction.UN_ENROLL:
