@@ -1,8 +1,8 @@
-import arrow
 from django.conf import settings
 from requests import request
-from ubiquity.models import VopActivation
+
 from payment_card.enums import RequestMethod
+from ubiquity.models import VopActivation
 
 
 def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
