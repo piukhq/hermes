@@ -225,7 +225,7 @@ class UserEmailFilter(InputFilter):
         if term is None:
             return
         any_email = Q(schemeaccountentry__user__email__icontains=term)
-        return queryset.filter(any_email)
+        return queryset.filter(any_email).distinct()
 
 
 class CredentialEmailFilter(InputFilter):
