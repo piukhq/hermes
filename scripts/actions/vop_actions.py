@@ -3,6 +3,8 @@ from requests import request
 
 from payment_card.enums import RequestMethod
 from ubiquity.models import VopActivation
+from payment_card.models import PaymentCardAccount
+from scheme.models import Scheme
 
 
 def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
@@ -57,8 +59,8 @@ def do_re_enroll(entry):
 def do_activation(entry):
 
     vop_activation, created = VopActivation.objects.get_or_create(
-        payment_card_account=entry.data['card_id'],
-        scheme=entry.data['scheme_id'],
+        payment_card_account=PaymentCardAccount.objects.get(id=entry.data['card_id']),
+        scheme=Scheme.objects.get(id=entry.data['scheme_id']),
         defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
     )
 
