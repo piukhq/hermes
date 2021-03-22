@@ -5,7 +5,8 @@ from django.urls import path
 
 from .models import ScriptResult, Correction
 from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES, DataScripts
-from .actions.vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation
+from .actions.vop_actions import (do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation,
+                                  do_fix_enroll, do_retain)
 
 
 # See scripts.py on how to add a new script find records function
@@ -30,6 +31,10 @@ def apply_correction(modeladmin, request, queryset):
                 success = do_activation(entry)
             elif entry.apply == Correction.MARK_AS_DEACTIVATED:
                 success = do_mark_as_deactivated(entry)
+            elif entry.apply == Correction.FIX_ENROLL:
+                success = do_fix_enroll(entry)
+            elif entry.apply == Correction.RETAIN:
+                success = do_retain(entry)
             if success:
                 success_count += 1
                 sequence = entry.data['sequence']
@@ -86,7 +91,7 @@ def scripts_to_run(script_id):
 
     for data_script, function in SCRIPT_CLASSES.items():
         if script_id == data_script.value:
-            result['run_title'] = SCRIPT_TITLES[DataScripts.DEL_VOP_WITH_ACT]
+            result['run_title'] = SCRIPT_TITLES[script_id]
             script_class = function(script_id, result['run_title'])
             result['summary'], result['corrections'], result['html_report'] = script_class.run()
             break
