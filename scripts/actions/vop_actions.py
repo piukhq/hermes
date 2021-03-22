@@ -55,6 +55,16 @@ def do_re_enroll(entry):
 
 
 def do_activation(entry):
+
+    vop_activation, created = VopActivation.objects.get_or_create(
+        payment_card_account=entry.data['card_id'],
+        scheme=entry.data['scheme_id'],
+        defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
+    )
+
+    if created:
+        entry.data['activation'] = vop_activation.id
+
     data = {
         'payment_token': entry.data['payment_token'],
         'merchant_slug': entry.data['scheme_slug'],
@@ -79,3 +89,4 @@ def do_mark_as_activated(entry):
     act.status = VopActivation.ACTIVATED
     act.save(update_fields=['status'])
     return True
+
