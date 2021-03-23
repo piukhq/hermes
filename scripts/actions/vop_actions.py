@@ -65,14 +65,16 @@ def do_activation(entry):
         defaults={'activation_id': "", "status": VopActivation.ACTIVATING}
     )
 
-    if created:
+    if not entry.data.get('activation'):
         entry.data['activation'] = vop_activation.id
+        entry.save(update_fields=['data'])
 
     data = {
         'payment_token': entry.data['payment_token'],
         'merchant_slug': entry.data['scheme_slug'],
         'id': entry.data['card_id']
     }
+
     reply = metis_request(RequestMethod.POST, '/visa/activate', data)
     if reply.get('agent_response_code') == 'Activate:SUCCESS':
         do_mark_as_activated(entry)
@@ -92,4 +94,3 @@ def do_mark_as_activated(entry):
     act.status = VopActivation.ACTIVATED
     act.save(update_fields=['status'])
     return True
-
