@@ -11,6 +11,20 @@ from .actions.vop_actions import (do_un_enroll, do_re_enroll, do_deactivate, do_
 
 # See scripts.py on how to add a new script find records function
 
+def get_correction(entry):
+    actions = {
+        Correction.UN_ENROLL: do_un_enroll,
+        Correction.DEACTIVATE: do_deactivate,
+        Correction.RE_ENROLL: do_re_enroll,
+        Correction.ACTIVATE: do_activation,
+        Correction.MARK_AS_DEACTIVATED: do_mark_as_deactivated,
+        Correction.FIX_ENROLL: do_fix_enroll,
+        Correction.RETAIN: do_retain,
+    }
+    if entry.apply not in actions.keys():
+        return False
+    return actions[entry.apply](entry)
+
 
 def apply_correction(modeladmin, request, queryset):
     count = len(queryset)
@@ -19,22 +33,8 @@ def apply_correction(modeladmin, request, queryset):
     done_count = 0
     correction_titles = dict(Correction.CORRECTION_SCRIPTS)
     for entry in queryset:
-        success = False
         if not entry.done:
-            if entry.apply == Correction.UN_ENROLL:
-                success = do_un_enroll(entry)
-            elif entry.apply == Correction.DEACTIVATE:
-                success = do_deactivate(entry)
-            elif entry.apply == Correction.RE_ENROLL:
-                success = do_re_enroll(entry)
-            elif entry.apply == Correction.ACTIVATE:
-                success = do_activation(entry)
-            elif entry.apply == Correction.MARK_AS_DEACTIVATED:
-                success = do_mark_as_deactivated(entry)
-            elif entry.apply == Correction.FIX_ENROLL:
-                success = do_fix_enroll(entry)
-            elif entry.apply == Correction.RETAIN:
-                success = do_retain(entry)
+            success = get_correction(entry)
             if success:
                 success_count += 1
                 sequence = entry.data['sequence']
