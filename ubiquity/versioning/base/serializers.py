@@ -139,7 +139,7 @@ class ServiceSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         service_consent_created = False
-        user, user_created = self.context.get("user") or self.get_user()
+        user, user_created = self.get_user()
 
         if not user_created and hasattr(user, "serviceconsent"):
             return user.serviceconsent, service_consent_created
@@ -167,7 +167,6 @@ class ServiceSerializer(serializers.Serializer):
             )
             user_created = True
 
-        self.context["user"] = user
         return user, user_created
 
     @staticmethod
