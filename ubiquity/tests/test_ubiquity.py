@@ -1843,6 +1843,10 @@ class TestResources(GlobalMockAPITestCase):
 
     @patch('ubiquity.views.async_all_balance.delay')
     def test_get_service(self, mock_async_all_balance):
+        resp = self.client.get(reverse('service'), **self.auth_headers)
+        self.assertEqual(resp.status_code, 404)
+        self.assertFalse(mock_async_all_balance.called)
+
         ServiceConsentFactory(user=self.user)
         resp = self.client.get(reverse('service'), **self.auth_headers)
 

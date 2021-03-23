@@ -1,14 +1,17 @@
 import typing as t
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
+from rest_framework import serializers
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from ubiquity.channel_vault import SecretKeyName
+from ubiquity.versioning.base.serializers import ServiceSerializer
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
+from user.tests.factories import ClientApplicationBundleFactory
 
 private_key = (
     '-----BEGIN RSA PRIVATE KEY-----\nMIIJJwIBAAKCAgEAr4Exi9NZlKwjFn8G6tapAGjEvn/E77Nbq0UZfiGFfsf3O'
@@ -69,6 +72,103 @@ mock_secrets = {
         SecretKeyName.PCARD_HASH_SECRET: 'secret'
     }
 }
+
+
+class TestBaseSerializers(GlobalMockAPITestCase):
+
+    def test_service_serializer(self):
+        serializer_class = ServiceSerializer
+        valid_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        valid_data_with_optionals = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377,
+                "longitude": 1.1,
+                "latitude": 2.2,
+            },
+        }
+
+        missing_consent_email_data = {
+            "consent": {
+                "bademail": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        missing_consent_timestamp_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "badtimestamp": 1610114377
+            },
+        }
+
+        missing_consent_data = {
+            "badconsent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377
+            },
+        }
+
+        invalid_consent_email_data = {
+            "consent": {
+                "email": "notanemail",
+                "timestamp": 1610114377
+            },
+        }
+
+        invalid_consent_timestamp_data = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": "12/12/2020"
+            },
+        }
+
+        all_invalid_data_list = [missing_consent_email_data, missing_consent_timestamp_data, missing_consent_data,
+                                 invalid_consent_email_data, invalid_consent_timestamp_data, ]
+
+        for data in [valid_data, valid_data_with_optionals]:
+            serializer = serializer_class(data=data)
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
+
+            self.assertIn("email", validated_data["consent"])
+            self.assertIn("timestamp", validated_data["consent"])
+
+        for invalid_data in all_invalid_data_list:
+            with self.assertRaises(serializers.ValidationError):
+                serializer = serializer_class(data=invalid_data)
+                serializer.is_valid(raise_exception=True)
+
+    def test_service_create(self):
+        client_application_bundle = ClientApplicationBundleFactory.create()
+
+        request = MagicMock()
+        request.channels_permit.auth_by = "external"
+        request.channels_permit.client.pk = client_application_bundle.client.pk
+        request.channels_permit.bundle_id = client_application_bundle.bundle_id
+        request.prop_id = "some_external_id"
+
+        serializer_class = ServiceSerializer
+        valid_data_with_optionals = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377,
+                "longitude": 1.1,
+                "latitude": 2.2,
+            },
+        }
+        serializer = serializer_class(data=valid_data_with_optionals, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        service_consent, service_consent_created = serializer.save()
+
+        self.assertTrue(service_consent_created)
+        self.assertEqual(request.prop_id, service_consent.user.external_id)
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):
