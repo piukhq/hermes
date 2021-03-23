@@ -1,12 +1,13 @@
+from time import sleep
+
 from django.conf import settings
 from requests import request
+
+from payment_card.enums import RequestMethod
 from payment_card.metis import enrol_existing_payment_card
 from payment_card.models import PaymentCardAccount
-from time import sleep
-from payment_card.enums import RequestMethod
-from ubiquity.models import VopActivation
-from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme
+from ubiquity.models import VopActivation
 
 
 def metis_request(method: RequestMethod, endpoint: str, payload: dict) -> object:
