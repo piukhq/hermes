@@ -45,4 +45,3 @@ class FindVopCardsNeedingActivation(BaseScript):
                 self.make_correction(
                     unique_id_string=f"{scheme.id}.{pca.id}", data=data
                 )
-

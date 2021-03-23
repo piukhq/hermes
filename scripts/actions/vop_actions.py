@@ -57,7 +57,8 @@ def do_re_enroll(entry):
 
 
 def do_activation(entry):
-
+    # Creates a VOPActivation object for the entry (if none exists already), before triggering a metis request to VOP
+    # for activation.
     vop_activation, created = VopActivation.objects.get_or_create(
         payment_card_account=PaymentCardAccount.objects.get(id=entry.data['card_id']),
         scheme=Scheme.objects.get(id=entry.data['scheme_id']),
