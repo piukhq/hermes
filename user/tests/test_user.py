@@ -18,7 +18,7 @@ from hermes import settings
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL
 from scheme.models import SchemeAccount
-from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory
+from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.factories import SchemeAccountEntryFactory
@@ -382,10 +382,14 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
     @mock.patch("user.views.cache")
     @mock.patch("user.views.get_jwt_secret")
     def test_magic_link_auto_add_membership(self, mocked_vault, mocked_cache):
-        user = UserFactory(email="test_auto_add@user.bink")
+        email = "test_auto_add@user.bink"
+        user = UserFactory(email=email)
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
-        SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
-        scheme_account = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
+        question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
+        scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
+
+        SchemeCredentialAnswerFactory(
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email)
 
         client = ClientApplicationFactory()
         bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
@@ -393,7 +397,6 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
         mocked_vault.return_value = client.secret
 
-        email = "test_auto_add@user.bink"
         payload = json.dumps({
             "token": GenerateJWToken(
                 organisation_id=client.organisation_id,
@@ -411,7 +414,7 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
 
         for x in scheme_acc_entry:
             self.assertEqual(x.user.email, user.email)
-            self.assertEqual(x.scheme_account.id, scheme_account.scheme_account.id)
+            self.assertEqual(x.scheme_account.id, scheme_account_entry.scheme_account.id)
 
         try:
             user = CustomUser.objects.get(email=email, client=client)
@@ -421,11 +424,15 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
     @mock.patch("user.views.cache")
     @mock.patch("user.views.get_jwt_secret")
     def test_magic_link_auto_add_membership_on_non_authorised_cards(self, mocked_vault, mocked_cache):
-        user = UserFactory(email="test_auto_add@user.bink")
+        email = "test_auto_add@user.bink"
+        user = UserFactory(email=email)
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
-        SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
-        SchemeAccountEntryFactory(
+        question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
+        scheme_account_entry = SchemeAccountEntryFactory(
             user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.REGISTRATION_FAILED)
+
+        SchemeCredentialAnswerFactory(
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email)
 
         client = ClientApplicationFactory()
         bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
@@ -433,7 +440,48 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
         mocked_vault.return_value = client.secret
 
+        payload = json.dumps({
+            "token": GenerateJWToken(
+                organisation_id=client.organisation_id,
+                bundle_id=bundle.bundle_id,
+                email=email,
+                client_secret=client.secret,
+                magic_link=True
+            ).get_token()
+        })
+        resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
+        self.assertEqual(resp.status_code, 200)
+
+        scheme_acc_entry = SchemeAccountEntry.objects.filter(user__email=user.email)
+        self.assertEqual(len(scheme_acc_entry), 1)
+
+        try:
+            user = CustomUser.objects.get(email=email, client=client)
+        except CustomUser.DoesNotExist:
+            raise AssertionError("failed magic link user creation.")
+
+    @mock.patch("user.views.cache")
+    @mock.patch("user.views.get_jwt_secret")
+    def test_magic_link_auto_add_membership_on_non_matching_email(self, mocked_vault, mocked_cache):
         email = "test_auto_add@user.bink"
+        user = UserFactory(email=email)
+        scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
+        question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
+        scheme_account_entry = SchemeAccountEntryFactory(
+            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.ACTIVE)
+
+        SchemeCredentialAnswerFactory(
+            scheme_account=scheme_account_entry.scheme_account,
+            question=question,
+            answer="test_different_email@bink.com"
+        )
+
+        client = ClientApplicationFactory()
+        bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
+
+        mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
+        mocked_vault.return_value = client.secret
+
         payload = json.dumps({
             "token": GenerateJWToken(
                 organisation_id=client.organisation_id,
