@@ -884,12 +884,13 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
                 external_id=None,
             )
 
+            # Auto add membership cards that has been authorised and using the same email
+            # We only want to do this once when the user is created
+            self.auto_add_membership_cards_with_email(user, bundle_id)
+
         if not user.magic_link_verified:
             user.magic_link_verified = datetime.utcnow()
             user.save(update_fields=["magic_link_verified"])
-
-        # Auto add email auth based loyalty card using the same email
-        self.auto_add_membership_cards_with_email(user, bundle_id)
 
         cache.set(f"ml:{token_hash}", True, valid_for + 1)
         token = user.create_token(bundle_id)
