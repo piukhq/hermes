@@ -268,8 +268,13 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def retrieve(self, request, *args, **kwargs):
+        try:
+            service_consent = request.user.serviceconsent
+        except ServiceConsent.DoesNotExist:
+            raise NotFound
+
         async_all_balance.delay(request.user.id, self.request.channels_permit)
-        return Response(self.get_serializer_by_request(request.user.serviceconsent).data)
+        return Response(self.get_serializer_by_request(service_consent).data)
 
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
