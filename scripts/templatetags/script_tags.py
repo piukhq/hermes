@@ -1,5 +1,6 @@
 from django import template
-from ..admin import DataScripts, SCRIPT_TITLES, SCRIPT_CLASSES
+from ..admin import SCRIPT_TITLES, SCRIPT_CLASSES
+from ..scripts import DataScripts
 
 register = template.Library()
 

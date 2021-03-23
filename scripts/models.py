@@ -2,7 +2,7 @@ from django.contrib.postgres.fields import JSONField
 from django.db import models
 
 
-class Correction(models.Model):
+class Correction:
     NO_CORRECTION = 0
     MARK_AS_DEACTIVATED = 1
     ACTIVATE = 2
@@ -10,6 +10,9 @@ class Correction(models.Model):
     RE_ENROLL = 4
     DEACTIVATE = 5
     UN_ENROLL = 6
+    FIX_ENROLL = 7
+    RETAIN = 8
+    RETAIN_FIX_ENROLL = 9
 
     CORRECTION_SCRIPTS = (
         (NO_CORRECTION, 'No correction available'),
@@ -19,10 +22,14 @@ class Correction(models.Model):
         (RE_ENROLL, 'Re-enroll'),
         (DEACTIVATE, 'VOP Deactivate'),
         (UN_ENROLL, 'Un-enroll'),
+        (FIX_ENROLL, 'Fix-enroll'),
+        (RETAIN, 'Retain'),
+        (RETAIN_FIX_ENROLL, 'Retain, Fix-Enroll'),
     )
 
     COMPOUND_CORRECTION_SCRIPTS = (
         (DEACTIVATE_UN_ENROLLED, [RE_ENROLL, DEACTIVATE, UN_ENROLL]),
+        (RETAIN_FIX_ENROLL, [RETAIN, FIX_ENROLL])
     )
 
 

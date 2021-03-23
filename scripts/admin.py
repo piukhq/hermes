@@ -4,11 +4,26 @@ from django.template.response import TemplateResponse
 from django.urls import path
 
 from .models import ScriptResult, Correction
-from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES, DataScripts
-from .actions.vop_actions import do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation
+from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES
+from .actions.vop_actions import (do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation,
+                                  do_fix_enroll, do_retain)
 
 
 # See scripts.py on how to add a new script find records function
+
+def get_correction(entry):
+    actions = {
+        Correction.UN_ENROLL: do_un_enroll,
+        Correction.DEACTIVATE: do_deactivate,
+        Correction.RE_ENROLL: do_re_enroll,
+        Correction.ACTIVATE: do_activation,
+        Correction.MARK_AS_DEACTIVATED: do_mark_as_deactivated,
+        Correction.FIX_ENROLL: do_fix_enroll,
+        Correction.RETAIN: do_retain,
+    }
+    if entry.apply not in actions.keys():
+        return False
+    return actions[entry.apply](entry)
 
 
 def apply_correction(modeladmin, request, queryset):
@@ -18,18 +33,8 @@ def apply_correction(modeladmin, request, queryset):
     done_count = 0
     correction_titles = dict(Correction.CORRECTION_SCRIPTS)
     for entry in queryset:
-        success = False
         if not entry.done:
-            if entry.apply == Correction.UN_ENROLL:
-                success = do_un_enroll(entry)
-            elif entry.apply == Correction.DEACTIVATE:
-                success = do_deactivate(entry)
-            elif entry.apply == Correction.RE_ENROLL:
-                success = do_re_enroll(entry)
-            elif entry.apply == Correction.ACTIVATE:
-                success = do_activation(entry)
-            elif entry.apply == Correction.MARK_AS_DEACTIVATED:
-                success = do_mark_as_deactivated(entry)
+            success = get_correction(entry)
             if success:
                 success_count += 1
                 sequence = entry.data['sequence']
@@ -86,7 +91,7 @@ def scripts_to_run(script_id):
 
     for data_script, function in SCRIPT_CLASSES.items():
         if script_id == data_script.value:
-            result['run_title'] = SCRIPT_TITLES[DataScripts.DEL_VOP_WITH_ACT]
+            result['run_title'] = SCRIPT_TITLES[script_id]
             script_class = function(script_id, result['run_title'])
             result['summary'], result['corrections'], result['html_report'] = script_class.run()
             break
