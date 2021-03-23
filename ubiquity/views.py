@@ -276,7 +276,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         serializer = self.get_serializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
 
-        service_consent, user, service_consent_created = serializer.save()
+        service_consent, service_consent_created = serializer.save()
 
         status_code = HTTP_200_OK
         if service_consent_created:

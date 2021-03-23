@@ -165,7 +165,10 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         }
         serializer = serializer_class(data=valid_data_with_optionals, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        service_consent, service_consent_created = serializer.save()
+
+        self.assertTrue(service_consent_created)
+        self.assertEqual(request.prop_id, service_consent.user.external_id)
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):

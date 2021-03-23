@@ -142,12 +142,13 @@ class ServiceSerializer(serializers.Serializer):
         user, user_created = self.context.get("user") or self.get_user()
 
         if not user_created and hasattr(user, "serviceconsent"):
-            return user.serviceconsent, user, service_consent_created
+            return user.serviceconsent, service_consent_created
 
         validated_data["consent"]["user"] = user
         create_data = ServiceConsentSerializer.get_create_data(validated_data["consent"])
+        service_consent = ServiceConsent.objects.create(**create_data)
         service_consent_created = True
-        return ServiceConsent.objects.create(**create_data), user, service_consent_created
+        return service_consent, service_consent_created
 
     def get_user(self):
         user_created = False
