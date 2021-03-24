@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-ServiceConsentSerializer = v1_2_serializers.ServiceConsentSerializer
+ServiceSerializer = v1_2_serializers.ServiceSerializer
 PaymentCardSerializer = v1_2_serializers.PaymentCardSerializer
 TransactionSerializer = v1_2_serializers.TransactionSerializer
 PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerializer

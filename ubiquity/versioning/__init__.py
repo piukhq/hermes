@@ -23,7 +23,7 @@ SERIALIZERS_CLASSES = {
 
 
 class SelectSerializer(str, Enum):
-    SERVICE = 'ServiceConsentSerializer'
+    SERVICE = 'ServiceSerializer'
     MEMBERSHIP_PLAN = 'MembershipPlanSerializer'
     MEMBERSHIP_CARD = 'MembershipCardSerializer'
     PAYMENT_CARD = 'PaymentCardSerializer'
