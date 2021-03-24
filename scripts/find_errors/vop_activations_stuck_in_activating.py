@@ -1,31 +1,37 @@
-from base_script import BaseScript
+from .base_script import BaseScript
 from ubiquity.models import VopActivation, PaymentCardSchemeEntry
 from scripts.models import Correction
-from scheme.models import SchemeAccount
 
 
 class FindVOPActivationsStuckInActivating(BaseScript):
 
     """Finds all VOP Activations where the status is set to 'activating', and then added to results log. Correction is
     set for each to try activation again. Script also checks for an equivalent active link in the PaymentSchemeEntry
-    model, to provide extra information, in case the activation should not be retried."""
+    model, to check that activation should be retried. If one is not found then this action is blocked."""
 
     def script(self):
         activating = VopActivation.objects.filter(status=VopActivation.ACTIVATING)
-        self.set_correction(Correction.ACTIVATE)
 
         for a in activating:
+
             pca = a.payment_card_account
             scheme = a.scheme
-            scheme_account = SchemeAccount.objects.filter(scheme=scheme).get()
 
-            active_link_check = PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account,
-                                                                      payment_card_account=pca)
+            active_link_check = PaymentCardSchemeEntry.objects.filter(scheme_account__scheme=scheme,
+                                                                      payment_card_account=pca,
+                                                                      active_link=True)
 
-            if active_link_check.count >= 1:
+            if active_link_check.count() >= 1:
                 active_link = True
             else:
                 active_link = False
+
+            active_link_str = 'True' if active_link else '*NO ACTIVE LINK FOUND!*'
+            if active_link:
+
+                self.set_correction(Correction.ACTIVATE)
+            else:
+                self.set_correction(Correction.NO_CORRECTION)
 
             self.result.append(
                 f"Activation ID: {a.id}, "
@@ -34,8 +40,9 @@ class FindVOPActivationsStuckInActivating(BaseScript):
                 f"Scheme Slug: {scheme.slug}, "
                 f"Activation Status: {a.status}, "
                 f"Activation ID: {a.activation_id}, "
-                f"Correction: {self.correction_title}, "
-                f"Has_active_link: {active_link}"
+                f"Has_active_link: {active_link_str} >> "
+                f"Correction: {self.correction_title}"
+
             )
 
             self.found += 1
@@ -53,6 +60,6 @@ class FindVOPActivationsStuckInActivating(BaseScript):
             }
 
             self.make_correction(
-                unique_id_string="{a.id}.{pca.id}",
+                unique_id_string=f"{a.id}.{pca.id}",
                 data=data
             )
