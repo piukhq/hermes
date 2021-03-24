@@ -188,6 +188,7 @@ class Scheme(models.Model):
         (1, 'PLL'),
         (2, 'Basic'),
         (3, 'Partner'),
+        (4, 'Coming Soon')
     )
     TRANSACTION_MATCHING_TIERS = [PLL, PARTNER]
 
