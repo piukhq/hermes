@@ -1,4 +1,5 @@
-from scripts.models import ScriptResult, Correction
+from scripts.models import ScriptResult
+from scripts.actions.vop_actions import Correction
 
 
 class BaseScript:
@@ -31,11 +32,9 @@ class BaseScript:
 
     def make_correction(self, unique_id_string, data):
         unique_ref = f"{unique_id_string}.{self.script_id}"
-        for correction in Correction.COMPOUND_CORRECTION_SCRIPTS:
-            if self.correction_function == correction[0]:
-                self._sequence = correction[1]
-            else:
-                self._sequence = [self.correction_function]
+
+        self._sequence = Correction.COMPOUND_CORRECTION_SCRIPTS.get(self.correction_function,
+                                                                    [self.correction_function])
 
         data['script_id'] = self.script_id
         data['sequence'] = self._sequence

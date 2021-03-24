@@ -3,9 +3,9 @@ from django.contrib import messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import ScriptResult, Correction
+from .models import ScriptResult
 from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES
-from .actions.vop_actions import (do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation,
+from .actions.vop_actions import (Correction, do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation,
                                   do_fix_enroll, do_retain)
 
 
