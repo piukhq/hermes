@@ -546,7 +546,9 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
         documents = instance.documents.all()
         consents = self._get_scheme_consents(scheme=instance)
 
-        if instance.tier == 1:
+        if instance.tier == Scheme.COMING_SOON:
+            card_type = 3
+        elif instance.tier == Scheme.PLL:
             card_type = 2
         elif instance.has_points or instance.has_transactions:
             card_type = 1
