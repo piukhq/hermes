@@ -13,14 +13,11 @@ class FindVOPActivationsStuckInActivating(BaseScript):
         activating = VopActivation.objects.filter(status=VopActivation.ACTIVATING)
 
         for a in activating:
-
             pca = a.payment_card_account
             scheme = a.scheme
-
             active_link_check = PaymentCardSchemeEntry.objects.filter(scheme_account__scheme=scheme,
                                                                       payment_card_account=pca,
                                                                       active_link=True)
-
             if active_link_check.count() >= 1:
                 active_link = True
             else:
@@ -28,7 +25,6 @@ class FindVOPActivationsStuckInActivating(BaseScript):
 
             active_link_str = 'True' if active_link else '*NO ACTIVE LINK FOUND!*'
             if active_link:
-
                 self.set_correction(Correction.ACTIVATE)
             else:
                 self.set_correction(Correction.NO_CORRECTION)
@@ -42,7 +38,6 @@ class FindVOPActivationsStuckInActivating(BaseScript):
                 f"Activation ID: {a.activation_id}, "
                 f"Has_active_link: {active_link_str} >> "
                 f"Correction: {self.correction_title}"
-
             )
 
             self.found += 1
