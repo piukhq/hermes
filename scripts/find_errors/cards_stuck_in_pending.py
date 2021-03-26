@@ -1,6 +1,5 @@
-from .base_script import BaseScript
+from .base_script import BaseScript, Correction
 from payment_card.models import PaymentCardAccount
-from ..models import Correction
 
 
 class FindCardsStuckInPending(BaseScript):
