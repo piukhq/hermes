@@ -1,6 +1,5 @@
-from .base_script import BaseScript
+from .base_script import BaseScript, Correction
 from ubiquity.models import VopActivation, PaymentCardSchemeEntry
-from scripts.models import Correction
 
 
 class FindVOPActivationsStuckInActivating(BaseScript):
