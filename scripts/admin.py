@@ -2,7 +2,6 @@ from django.contrib import admin
 from django.contrib import messages
 from django.template.response import TemplateResponse
 from django.urls import path
-from django.http import HttpResponse
 
 from .models import ScriptResult, Correction
 from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES
@@ -33,35 +32,35 @@ def apply_correction(modeladmin, request, queryset):
     failed_count = 0
     done_count = 0
     correction_titles = dict(Correction.CORRECTION_SCRIPTS)
-    for entry in queryset:
-        if not entry.done:
-            success = get_correction(entry)
-            if success:
-                success_count += 1
-                sequence = entry.data['sequence']
-                sequence_pos = entry.data['sequence_pos'] + 1
-                entry.results.append(f"{correction_titles[entry.apply]}: success")
-                if sequence_pos >= len(sequence):
-                    entry.done = True
-                    entry.apply = Correction.NO_CORRECTION
-                    done_count += 1
+    if not user_can_run_script(request):
+        messages.add_message(request, messages.WARNING, 'Could not execute the script: Access Denied')
+    else:
+        for entry in queryset:
+            if not entry.done:
+                success = get_correction(entry)
+                if success:
+                    success_count += 1
+                    sequence = entry.data['sequence']
+                    sequence_pos = entry.data['sequence_pos'] + 1
+                    entry.results.append(f"{correction_titles[entry.apply]}: success")
+                    if sequence_pos >= len(sequence):
+                        entry.done = True
+                        entry.apply = Correction.NO_CORRECTION
+                        done_count += 1
 
+                    else:
+                        entry.data['sequence_pos'] = sequence_pos
+                        entry.apply = sequence[sequence_pos]
                 else:
-                    entry.data['sequence_pos'] = sequence_pos
-                    entry.apply = sequence[sequence_pos]
-            else:
-                failed_count += 1
-                entry.results.append(f"{correction_titles[entry.apply]}: failed")
-            entry.save()
-    messages.add_message(request, messages.INFO, f'Process {count} corrections - {success_count} successful,'
-                                                 f' {failed_count} failed, {done_count} completed')
+                    failed_count += 1
+                    entry.results.append(f"{correction_titles[entry.apply]}: failed")
+                entry.save()
+        messages.add_message(request, messages.INFO, f'Process {count} corrections - {success_count} successful,'
+                                                     f' {failed_count} failed, {done_count} completed')
 
 
 def user_can_run_script(request):
-    user = request.user
-    if user.groups.filter(name='Read/Write').exists():
-        return True
-    return False
+    return request.user.has_perm('scripts.add_scriptresult')
 
 
 @admin.register(ScriptResult)
@@ -73,12 +72,6 @@ class ScriptResultAdmin(admin.ModelAdmin):
     list_per_page = 500
     actions = [apply_correction]
 
-    def changelist_view(self, request, extra_context=None):
-        if not user_can_run_script(request):
-            return HttpResponse('Unauthorized', status=401)
-
-        return super(ScriptResultAdmin, self).changelist_view(request, extra_context)
-
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
@@ -87,9 +80,6 @@ class ScriptResultAdmin(admin.ModelAdmin):
         return my_urls + urls
 
     def run_script(self, request, script_id):
-        if not user_can_run_script(request):
-            return HttpResponse('Unauthorized', status=401)
-
         result = scripts_to_run(script_id)
         context = dict(
             self.admin_site.each_context(request),
