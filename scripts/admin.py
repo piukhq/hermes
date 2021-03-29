@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib import messages
 from django.template.response import TemplateResponse
 from django.urls import path
+from django.http import HttpResponse
 
 from .models import ScriptResult, Correction
 from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES
@@ -56,6 +57,13 @@ def apply_correction(modeladmin, request, queryset):
                                                  f' {failed_count} failed, {done_count} completed')
 
 
+def user_can_run_script(request):
+    user = request.user
+    if user.groups.filter(name='Read/Write').exists():
+        return True
+    return False
+
+
 @admin.register(ScriptResult)
 class ScriptResultAdmin(admin.ModelAdmin):
     list_display = ('script_name', 'item_id', 'done', 'apply', 'correction', 'results')
@@ -65,6 +73,12 @@ class ScriptResultAdmin(admin.ModelAdmin):
     list_per_page = 500
     actions = [apply_correction]
 
+    def changelist_view(self, request, extra_context=None):
+        if not user_can_run_script(request):
+            return HttpResponse('Unauthorized', status=401)
+
+        return super(ScriptResultAdmin, self).changelist_view(request, extra_context)
+
     def get_urls(self):
         urls = super().get_urls()
         my_urls = [
@@ -73,6 +87,9 @@ class ScriptResultAdmin(admin.ModelAdmin):
         return my_urls + urls
 
     def run_script(self, request, script_id):
+        if not user_can_run_script(request):
+            return HttpResponse('Unauthorized', status=401)
+
         result = scripts_to_run(script_id)
         context = dict(
             self.admin_site.each_context(request),
