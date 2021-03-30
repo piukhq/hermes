@@ -3,10 +3,10 @@ from django.contrib import messages
 from django.template.response import TemplateResponse
 from django.urls import path
 
-from .models import ScriptResult, Correction
+from .models import ScriptResult
 from .scripts import SCRIPT_TITLES, SCRIPT_CLASSES
-from .actions.vop_actions import (do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated, do_activation,
-                                  do_fix_enroll, do_retain)
+from .actions.vop_actions import (Correction, do_un_enroll, do_re_enroll, do_deactivate, do_mark_as_deactivated,
+                                  do_activation, do_fix_enroll, do_retain)
 
 
 # See scripts.py on how to add a new script find records function
@@ -32,28 +32,35 @@ def apply_correction(modeladmin, request, queryset):
     failed_count = 0
     done_count = 0
     correction_titles = dict(Correction.CORRECTION_SCRIPTS)
-    for entry in queryset:
-        if not entry.done:
-            success = get_correction(entry)
-            if success:
-                success_count += 1
-                sequence = entry.data['sequence']
-                sequence_pos = entry.data['sequence_pos'] + 1
-                entry.results.append(f"{correction_titles[entry.apply]}: success")
-                if sequence_pos >= len(sequence):
-                    entry.done = True
-                    entry.apply = Correction.NO_CORRECTION
-                    done_count += 1
+    if not user_can_run_script(request):
+        messages.add_message(request, messages.WARNING, 'Could not execute the script: Access Denied')
+    else:
+        for entry in queryset:
+            if not entry.done:
+                success = get_correction(entry)
+                if success:
+                    success_count += 1
+                    sequence = entry.data['sequence']
+                    sequence_pos = entry.data['sequence_pos'] + 1
+                    entry.results.append(f"{correction_titles[entry.apply]}: success")
+                    if sequence_pos >= len(sequence):
+                        entry.done = True
+                        entry.apply = Correction.NO_CORRECTION
+                        done_count += 1
 
+                    else:
+                        entry.data['sequence_pos'] = sequence_pos
+                        entry.apply = sequence[sequence_pos]
                 else:
-                    entry.data['sequence_pos'] = sequence_pos
-                    entry.apply = sequence[sequence_pos]
-            else:
-                failed_count += 1
-                entry.results.append(f"{correction_titles[entry.apply]}: failed")
-            entry.save()
-    messages.add_message(request, messages.INFO, f'Process {count} corrections - {success_count} successful,'
-                                                 f' {failed_count} failed, {done_count} completed')
+                    failed_count += 1
+                    entry.results.append(f"{correction_titles[entry.apply]}: failed")
+                entry.save()
+        messages.add_message(request, messages.INFO, f'Process {count} corrections - {success_count} successful,'
+                                                     f' {failed_count} failed, {done_count} completed')
+
+
+def user_can_run_script(request):
+    return request.user.has_perm('scripts.add_scriptresult')
 
 
 @admin.register(ScriptResult)

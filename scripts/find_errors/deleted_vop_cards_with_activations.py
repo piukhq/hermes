@@ -1,7 +1,6 @@
+from .base_script import BaseScript, Correction
 from payment_card.models import PaymentCardAccount
 from ubiquity.models import VopActivation
-from ..models import Correction
-from .base_script import BaseScript
 
 
 class FindDeletedVopCardsWithActivations(BaseScript):
