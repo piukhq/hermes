@@ -23,6 +23,7 @@ omit = *migrations*
        setup.py
        daedalus_messaging*
        gunicorn.py
+       scripts/*
 branch = True
 
 [report]

@@ -2,7 +2,7 @@ import base64
 import hashlib
 import logging
 from datetime import datetime
-from typing import Tuple, Optional
+from typing import Tuple
 
 import arrow
 import jwt
@@ -11,7 +11,6 @@ from django.conf import settings
 from django.contrib.auth import authenticate, login
 from django.core.cache import cache
 from django.core.exceptions import MultipleObjectsReturned, ValidationError
-from django.db import IntegrityError
 from django.http import Http404
 from django.utils.crypto import get_random_string
 from django.utils.decorators import method_decorator
@@ -19,9 +18,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.csrf import csrf_exempt
 from mail_templated import send_mail
 from requests_oauthlib import OAuth1Session
-from rest_framework import mixins, exceptions, status
+from rest_framework import mixins, exceptions
 from rest_framework.authentication import SessionAuthentication
-from rest_framework.exceptions import APIException, AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.generics import (CreateAPIView, GenericAPIView, ListAPIView, RetrieveAPIView,
                                      RetrieveUpdateAPIView, get_object_or_404)
 from rest_framework.mixins import UpdateModelMixin
@@ -38,36 +37,22 @@ from history.signals import HISTORY_CONTEXT
 from history.utils import user_info
 from magic_link.tasks import send_magic_link
 from prometheus.metrics import service_creation_counter
+from scheme.credentials import EMAIL
+from scheme.models import SchemeAccount, SchemeAccountCredentialAnswer
 from ubiquity.channel_vault import get_jwt_secret
+from ubiquity.models import SchemeAccountEntry
+from ubiquity.versioning.base.serializers import ServiceSerializer
 from user.authentication import JwtAuthentication
+from user.exceptions import MagicLinkValidationError, MagicLinkExpiredTokenError
 from user.models import (ClientApplication, ClientApplicationKit, CustomUser, Setting, UserSetting, valid_reset_code,
                          BINK_APP_ID)
 from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializer, LoginSerializer, NewLoginSerializer,
                               NewRegisterSerializer, ApplyPromoCodeSerializer, RegisterSerializer,
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
-                              UserSettingSerializer, AppleRegisterSerializer, UbiquityRegisterSerializer,
-                              MakeMagicLinkSerializer)
+                              UserSettingSerializer, AppleRegisterSerializer, MakeMagicLinkSerializer)
 
 logger = logging.getLogger(__name__)
-
-
-class UserConflictError(APIException):
-    status_code = status.HTTP_409_CONFLICT
-    default_detail = "Attempting to create two or more identical users at the same time."
-    default_code = "conflict"
-
-
-class MagicLinkExpiredTokenError(APIException):
-    status_code = status.HTTP_401_UNAUTHORIZED
-    default_detail = "Token is expired."
-    default_code = "unauthorised"
-
-
-class MagicLinkValidationError(APIException):
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = "Token is invalid."
-    default_code = "invalid"
 
 
 class OpenAuthentication(SessionAuthentication):
@@ -95,30 +80,6 @@ class CustomRegisterMixin(object):
             return Response(serializer.data, 201)
         else:
             return error_response(REGISTRATION_FAILED)
-
-
-class NoPasswordUserCreationMixin(object):
-
-    @staticmethod
-    def create_new_user(client_id: str, bundle_id: str, email: str, external_id: Optional[str]) -> CustomUser:
-        new_user_data = {
-            "client_id": client_id,
-            "bundle_id": bundle_id,
-            "email": email,
-        }
-
-        if external_id:
-            new_user_data["external_id"] = external_id
-
-        new_user = UbiquityRegisterSerializer(data=new_user_data, context={"passwordless": True})
-        new_user.is_valid(raise_exception=True)
-
-        try:
-            user = new_user.save()
-        except IntegrityError:
-            raise UserConflictError
-
-        return user
 
 
 # TODO: Could be merged with users
@@ -758,12 +719,41 @@ class OrganisationTermsAndConditions(RetrieveAPIView):
         }, status=200)
 
 
-class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
+class MagicLinkAuthView(CreateAPIView):
     """
     Exchange a magic link temporary token for a new or existing user's authorisation token.
     """
     authentication_classes = (OpenAuthentication,)
     permission_classes = (AllowAny,)
+
+    @staticmethod
+    def auto_add_membership_cards_with_email(user, bundle_id):
+        """
+        Auto add loyalty card when user auth with magic link. Checks for schemes that have email as
+        an auth field.
+        """
+
+        # LOY-1609 - we only want to do this for wasabi for for now until later on.
+        # Remove this when we want to open this up for all schemes.
+        if bundle_id == 'com.wasabi.bink.web':
+            # Make sure scheme account is authorised with the same email in the magic link
+            scheme_account_ids = SchemeAccountCredentialAnswer.objects.filter(
+                question__type=EMAIL,
+                question__auth_field=True,
+                scheme_account__scheme__slug="wasabi-club",
+                scheme_account__status=SchemeAccount.ACTIVE,
+                answer=user.email
+            ).values_list('scheme_account__pk', flat=True)
+
+            entries_to_create = [
+                SchemeAccountEntry(
+                    scheme_account_id=scheme_account_id,
+                    user_id=user.id,
+                ) for scheme_account_id in scheme_account_ids
+            ]
+
+            if entries_to_create:
+                SchemeAccountEntry.objects.bulk_create(entries_to_create)
 
     @staticmethod
     def _get_jwt_secret(token: str) -> str:
@@ -842,12 +832,16 @@ class MagicLinkAuthView(NoPasswordUserCreationMixin, CreateAPIView):
         try:
             user = CustomUser.objects.get(email__iexact=email, client_id=client_id)
         except CustomUser.DoesNotExist:
-            user = self.create_new_user(
+            user = ServiceSerializer.create_new_user(
                 client_id=client_id,
                 bundle_id=bundle_id,
                 email=email,
                 external_id=None,
             )
+
+            # Auto add membership cards that has been authorised and using the same email
+            # We only want to do this once when the user is created
+            self.auto_add_membership_cards_with_email(user, bundle_id)
 
         if not user.magic_link_verified:
             user.magic_link_verified = datetime.utcnow()

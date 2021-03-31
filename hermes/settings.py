@@ -21,7 +21,7 @@ from sentry_sdk.integrations import celery, django
 
 from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
-from hermes.sentry import _make_celery_event_processor, _make_django_event_processor
+from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
@@ -61,6 +61,7 @@ LOCAL_APPS = (
     "daedalus_messaging",
     "periodic_retry",
     "magic_link",
+    "scripts",
     "prometheus.apps.PrometheusPusherConfig",
 )
 
@@ -339,7 +340,8 @@ if HERMES_SENTRY_DSN:
         integrations=[DjangoIntegration(transaction_style="url", middleware_spans=False),
                       RedisIntegration()],
         traces_sample_rate=SENTRY_SAMPLE_RATE,
-        send_default_pii=False
+        send_default_pii=False,
+        before_send=strip_sensitive_data,
     )
     # Monkey patching sentry integrations to allow scrubbing of sensitive data in performance traces
     celery._make_event_processor = _make_celery_event_processor

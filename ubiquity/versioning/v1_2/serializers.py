@@ -13,7 +13,7 @@ from ubiquity.versioning.base import serializers as base_serializers
 if TYPE_CHECKING:
     from scheme.models import Scheme
 
-ServiceConsentSerializer = base_serializers.ServiceConsentSerializer
+ServiceSerializer = base_serializers.ServiceSerializer
 PaymentCardSerializer = base_serializers.PaymentCardSerializer
 TransactionSerializer = base_serializers.TransactionSerializer
 MembershipCardSerializer = base_serializers.MembershipCardSerializer

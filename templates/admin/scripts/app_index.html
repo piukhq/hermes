@@ -1,0 +1,30 @@
+{% extends "admin/app_index.html" %}
+{% load script_tags i18n %}
+
+{% block content_title %}{% if title %}<h1>Data Correction Administration</h1>{% endif %}{% endblock %}
+
+{% if not is_popup %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo;Data Correction Scripts
+</div>
+{% endblock %}
+{% endif %}
+
+{% block content %}
+    <h3><a href="scriptresult/">Click here to see Result of a script run</a></h3>
+    <br/>
+    <p>Scripts only select data and may populate the script results with corrective action.<br/>
+        The corrective actions are listed for each data record and can be selected and actioned</p>
+    <br/>
+    <h1>Scripts to Run</h1>
+    <p>{% script_list | safe %}</p><br />
+    {% comment %}
+    Can use following to add a named scripts instead of script_list
+    <a href="scriptresult/run_script/{% script_id DEL_VOP_WITH_ACT %}">{% script_title DEL_VOP_WITH_ACT %}</a>
+    {% endcomment %}
+
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
