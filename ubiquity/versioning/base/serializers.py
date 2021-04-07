@@ -135,7 +135,7 @@ class ServiceSerializer(serializers.Serializer):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
         if instance.latitude and instance.longitude:
             response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
-        return response
+        return {"consent": response}
 
     def create(self, validated_data):
         service_consent_created = False
