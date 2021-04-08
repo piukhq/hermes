@@ -307,19 +307,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         )
         return Response(response)
 
-    def _add_consent(self, user: CustomUser, consent_data: dict, service: bool = False) -> dict:
-        try:
-            consent = self.get_serializer_by_request(data={"consent": {"user": user.id, **consent_data}})
-            consent.is_valid(raise_exception=True)
-            consent.save()
-        except ValidationError:
-            # Only mark false if customer user was created via the service endpoint.
-            if service:
-                user.soft_delete()
-            raise ParseError
-
-        return consent
-
 
 class PaymentCardView(
     RetrievePaymentCardAccount,
