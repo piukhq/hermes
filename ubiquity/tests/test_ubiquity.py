@@ -1851,6 +1851,7 @@ class TestResources(GlobalMockAPITestCase):
         resp = self.client.get(reverse('service'), **self.auth_headers)
 
         self.assertEqual(resp.status_code, 200)
+        self.assertIn("consent", resp.data.keys())
         self.assertTrue(mock_async_all_balance.called)
         self.assertEqual(mock_async_all_balance.call_args[0][0], self.user.id)
 
