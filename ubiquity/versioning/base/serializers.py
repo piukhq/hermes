@@ -131,10 +131,14 @@ class ServiceConsentSerializer(serializers.ModelSerializer):
 class ServiceSerializer(serializers.Serializer):
     consent = ServiceConsentSerializer()
 
+    @staticmethod
+    def _is_valid_latlng(value):
+        return value or isinstance(value, (int, float))
+
     def to_representation(self, instance):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
-        if instance.latitude and instance.longitude:
-            response.update({'latitude': instance.latitude, 'longitude': instance.longitude})
+        if self._is_valid_latlng(instance.latitude) and self._is_valid_latlng(instance.longitude):
+            response.update(latitude=instance.latitude, longitude=instance.longitude)
         return {"consent": response}
 
     def create(self, validated_data):
