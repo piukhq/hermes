@@ -209,7 +209,11 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             self.assertIn("email", consent["consent"])
             self.assertIn("timestamp", consent["consent"])
             self.assertIn("latitude", consent["consent"])
+            self.assertEqual(consent["consent"]["latitude"], instance.latitude)
+            self.assertTrue(isinstance(consent["consent"]["latitude"], float))
             self.assertIn("longitude", consent["consent"])
+            self.assertEqual(consent["consent"]["longitude"], instance.longitude)
+            self.assertTrue(isinstance(consent["consent"]["longitude"], float))
 
         service_consent_7 = ServiceConsentFactory(latitude=0.0)
         service_consent_8 = ServiceConsentFactory(latitude=0.0)

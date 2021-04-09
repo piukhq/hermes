@@ -133,12 +133,13 @@ class ServiceSerializer(serializers.Serializer):
 
     @staticmethod
     def _is_valid_latlng(value):
+        # Checks type because zero is a valid value
         return value or isinstance(value, (int, float))
 
     def to_representation(self, instance):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
         if self._is_valid_latlng(instance.latitude) and self._is_valid_latlng(instance.longitude):
-            response.update(latitude=instance.latitude, longitude=instance.longitude)
+            response.update(latitude=float(instance.latitude), longitude=float(instance.longitude))
         return {"consent": response}
 
     def create(self, validated_data):
