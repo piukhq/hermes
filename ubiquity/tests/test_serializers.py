@@ -216,7 +216,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             self.assertTrue(isinstance(consent["consent"]["longitude"], float))
 
         service_consent_7 = ServiceConsentFactory(latitude=0.0)
-        service_consent_8 = ServiceConsentFactory(latitude=0.0)
+        service_consent_8 = ServiceConsentFactory(longitude=0.0)
 
         for instance in (service_consent_7, service_consent_8):
             consent = serializer_class(instance).data
