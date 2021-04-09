@@ -139,7 +139,16 @@ class ServiceSerializer(serializers.Serializer):
     def to_representation(self, instance):
         response = {'email': instance.user.email, 'timestamp': int(instance.timestamp.timestamp())}
         if self._is_valid_latlng(instance.latitude) and self._is_valid_latlng(instance.longitude):
-            response.update(latitude=float(instance.latitude), longitude=float(instance.longitude))
+            try:
+                response.update(latitude=float(instance.latitude), longitude=float(instance.longitude))
+            except ValueError:
+                # This should only occur when attempting to deserialize an unsaved instance of ServiceConsent
+                # since a saved instance would have already had its values converted to floats.
+                logger.warning(
+                    f"Failed to convert provided latitude/longitude to a valid float for user (id={instance.user_id})"
+                    f" - lat: {instance.latitude}, long: {instance.longitude}"
+                )
+
         return {"consent": response}
 
     def create(self, validated_data):

@@ -1,4 +1,5 @@
 import typing as t
+from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 from rest_framework import serializers
@@ -7,12 +8,13 @@ from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
 from ubiquity.channel_vault import SecretKeyName
+from ubiquity.models import ServiceConsent
 from ubiquity.tests.factories import ServiceConsentFactory
 from ubiquity.versioning.base.serializers import ServiceSerializer
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
-from user.tests.factories import ClientApplicationBundleFactory
+from user.tests.factories import ClientApplicationBundleFactory, UserFactory
 
 private_key = (
     '-----BEGIN RSA PRIVATE KEY-----\nMIIJJwIBAAKCAgEAr4Exi9NZlKwjFn8G6tapAGjEvn/E77Nbq0UZfiGFfsf3O'
@@ -215,10 +217,19 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             self.assertEqual(consent["consent"]["longitude"], instance.longitude)
             self.assertTrue(isinstance(consent["consent"]["longitude"], float))
 
-        service_consent_7 = ServiceConsentFactory(latitude=0.0)
-        service_consent_8 = ServiceConsentFactory(longitude=0.0)
+        # This does not use ServiceConsentFactory because that would save the instance and attempts to convert
+        # latitude and longitude to float values. The test checks that deserializing pre-saved instances
+        # will attempt to convert lat/long to floats and fail gracefully.
+        service_consent_7 = ServiceConsent(
+            user=UserFactory(),
+            timestamp=datetime(2019, 1, 1, 12, 00),
+            latitude="hello",
+            longitude=0.0
+        )
+        service_consent_8 = ServiceConsentFactory(latitude=0.0)
+        service_consent_9 = ServiceConsentFactory(longitude=0.0)
 
-        for instance in (service_consent_7, service_consent_8):
+        for instance in (service_consent_7, service_consent_8, service_consent_9):
             consent = serializer_class(instance).data
 
             self.assertIn("consent", consent)
