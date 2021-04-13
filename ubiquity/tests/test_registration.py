@@ -32,6 +32,7 @@ class TestRegistration(GlobalMockAPITestCase):
 
         resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
         self.assertEqual(resp.status_code, 201)
+        self.assertIn("consent", resp.data.keys())
 
         organisation = OrganisationFactory(name='Test other organisation')
         client = ClientApplicationFactory(name='random other client', organisation=organisation)
@@ -53,6 +54,7 @@ class TestRegistration(GlobalMockAPITestCase):
 
         resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
         self.assertEqual(resp.status_code, 201)
+        self.assertIn("consent", resp.data.keys())
 
     def test_service_registration_with_malformed_data_existing_user(self):
         BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
