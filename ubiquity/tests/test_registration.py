@@ -4,9 +4,13 @@ import arrow
 from django.urls import reverse
 
 from history.utils import GlobalMockAPITestCase
+from scheme.models import ConsentStatus
+from scheme.tests.factories import UserConsentFactory
+from ubiquity.tests.factories import ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
-from user.tests.factories import ClientApplicationBundleFactory, OrganisationFactory, ClientApplicationFactory
+from user.tests.factories import ClientApplicationBundleFactory, OrganisationFactory, ClientApplicationFactory, \
+    UserFactory
 
 
 class TestRegistration(GlobalMockAPITestCase):
@@ -56,6 +60,32 @@ class TestRegistration(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertIn("consent", resp.data.keys())
 
+    def test_service_registration_existing_user(self):
+        external_id = "testuser"
+        organisation = OrganisationFactory(name='Test')
+        client = ClientApplicationFactory(name='client', organisation=organisation)
+        bundle = ClientApplicationBundleFactory(bundle_id='test.other.user', client=client)
+
+        user = UserFactory(external_id=external_id, client=client)
+        ServiceConsentFactory(user=user)
+
+        data = {
+            'organisation_id': bundle.client.organisation.name,
+            'client_secret': bundle.client.secret,
+            'bundle_id': bundle.bundle_id,
+            'email': external_id,
+        }
+        token = self.token_generator(**data).get_token()
+        auth_headers = {'HTTP_AUTHORIZATION': 'bearer {}'.format(token)}
+        consent = json.dumps({
+            'consent': {
+                'email': 'test@email.bink',
+                'timestamp': arrow.utcnow().timestamp
+            }
+        })
+        resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json', **auth_headers)
+        self.assertEqual(resp.status_code, 200)
+
     def test_service_registration_with_malformed_data_existing_user(self):
         BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
         BINK_BUNDLE_ID = 'com.bink.wallet'
@@ -84,6 +114,7 @@ class TestRegistration(GlobalMockAPITestCase):
         user = CustomUser.objects.get(uid=user_response.json()['uid'])
 
         self.assertEqual(resp.status_code, 400)
+        self.assertEqual({'detail': 'Malformed request.'}, resp.json())
         self.assertTrue(user.is_active)
 
     def test_service_registration_wrong_data(self):
@@ -104,7 +135,7 @@ class TestRegistration(GlobalMockAPITestCase):
         wrong_consent_resp = self.client.post('/ubiquity/service', data=consent, content_type='application/json',
                                               **auth_headers)
         self.assertEqual(wrong_consent_resp.status_code, 400)
-        self.assertEqual({'consent': {'timestamp': ['Invalid value for timestamp']}}, wrong_consent_resp.json())
+        self.assertEqual({'detail': 'Malformed request.'}, wrong_consent_resp.json())
 
     def test_service_registration_wrong_header(self):
         data = {
