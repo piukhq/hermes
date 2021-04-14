@@ -4,8 +4,6 @@ import arrow
 from django.urls import reverse
 
 from history.utils import GlobalMockAPITestCase
-from scheme.models import ConsentStatus
-from scheme.tests.factories import UserConsentFactory
 from ubiquity.tests.factories import ServiceConsentFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.models import CustomUser
