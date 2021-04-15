@@ -44,7 +44,7 @@ class ApiCache:
         total_retries = settings.REDIS_RETRY_COUNT
         for retry_count in range(total_retries):
             try:
-                with sentry_sdk.start_transaction(op="redis", description="GET"):
+                with sentry_sdk.start_transaction(op="redis", name="GET", description=f"GET - {self.key}"):
                     response_json = r_read.get(self.key)
                 return response_json
             except (RedisTimeoutError, RedisConnectionError) as e:
@@ -75,7 +75,7 @@ class ApiCache:
     def save(self, data):
         save_time = monotonic()
         try:
-            with sentry_sdk.start_transaction(op="redis", description="SET"):
+            with sentry_sdk.start_transaction(op="redis", name="SET", description=f"SET - {self.key}"):
                 r_write.set(self.key, dumps(data), ex=self.expire)
             self.time_it_log(save_time, "Success; wrote plan cache to Redis but")
         except RedisConnectionError:
