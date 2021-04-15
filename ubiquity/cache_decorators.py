@@ -2,6 +2,7 @@ import logging
 import uuid
 from json import loads, dumps
 
+import sentry_sdk
 from django.conf import settings
 from redis import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
@@ -43,7 +44,8 @@ class ApiCache:
         total_retries = settings.REDIS_RETRY_COUNT
         for retry_count in range(total_retries):
             try:
-                response_json = r_read.get(self.key)
+                with sentry_sdk.start_transaction(op="redis", description="GET"):
+                    response_json = r_read.get(self.key)
                 return response_json
             except (RedisTimeoutError, RedisConnectionError) as e:
                 retry_exception = e
@@ -73,7 +75,8 @@ class ApiCache:
     def save(self, data):
         save_time = monotonic()
         try:
-            r_write.set(self.key, dumps(data), ex=self.expire)
+            with sentry_sdk.start_transaction(op="redis", description="SET"):
+                r_write.set(self.key, dumps(data), ex=self.expire)
             self.time_it_log(save_time, "Success; wrote plan cache to Redis but")
         except RedisConnectionError:
             self.time_it_log(save_time, "Failure; did not write plan cache to Redis and", low=0)
