@@ -88,10 +88,24 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             },
         }
 
+        valid_data_float_timestamp = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377.11
+            },
+        }
+
         valid_data_str_timestamp = {
             "consent": {
                 "email": "testuser@bink.com",
                 "timestamp": "1610114377"
+            },
+        }
+
+        valid_data_float_str_timestamp = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": "1610114377.11"
             },
         }
 
@@ -181,7 +195,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             invalid_consent_timestamp_data,
         )
 
-        for data in (valid_data, valid_data_str_timestamp):
+        for data in (valid_data, valid_data_float_timestamp, valid_data_str_timestamp, valid_data_float_str_timestamp):
             serializer = serializer_class(data=data)
             serializer.is_valid(raise_exception=True)
             validated_data = serializer.validated_data
