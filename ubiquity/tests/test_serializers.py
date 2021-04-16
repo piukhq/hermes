@@ -88,6 +88,27 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             },
         }
 
+        valid_data_float_timestamp = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": 1610114377.11
+            },
+        }
+
+        valid_data_str_timestamp = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": "1610114377"
+            },
+        }
+
+        valid_data_float_str_timestamp = {
+            "consent": {
+                "email": "testuser@bink.com",
+                "timestamp": "1610114377.11"
+            },
+        }
+
         valid_data_with_optionals = {
             "consent": {
                 "email": "testuser@bink.com",
@@ -159,22 +180,28 @@ class TestBaseSerializers(GlobalMockAPITestCase):
             },
         }
 
-        all_valid_data_with_optionals_list = [
+        all_valid_data_with_optionals_list = (
             valid_data_with_optionals,
             valid_data_with_optionals_zero_values_1,
             valid_data_with_optionals_zero_values_2,
             valid_data_with_optionals_zero_values_3
-        ]
+        )
 
-        all_invalid_data_list = [missing_consent_email_data, missing_consent_timestamp_data, missing_consent_data,
-                                 invalid_consent_email_data, invalid_consent_timestamp_data, ]
+        all_invalid_data_list = (
+            missing_consent_email_data,
+            missing_consent_timestamp_data,
+            missing_consent_data,
+            invalid_consent_email_data,
+            invalid_consent_timestamp_data,
+        )
 
-        serializer = serializer_class(data=valid_data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
+        for data in (valid_data, valid_data_float_timestamp, valid_data_str_timestamp, valid_data_float_str_timestamp):
+            serializer = serializer_class(data=data)
+            serializer.is_valid(raise_exception=True)
+            validated_data = serializer.validated_data
 
-        self.assertIn("email", validated_data["consent"])
-        self.assertIn("timestamp", validated_data["consent"])
+            self.assertIn("email", validated_data["consent"])
+            self.assertIn("timestamp", validated_data["consent"])
 
         for data in all_valid_data_with_optionals_list:
             serializer = serializer_class(data=data)

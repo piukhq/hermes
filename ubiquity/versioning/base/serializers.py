@@ -92,8 +92,8 @@ class TimestampField(serializers.Field):
 
     def to_internal_value(self, data):
         try:
-            return arrow.get(data).datetime
-        except ParserError as e:
+            return arrow.get(float(data)).datetime
+        except (ParserError, ValueError) as e:
             raise serializers.ValidationError("Invalid value for timestamp") from e
 
 

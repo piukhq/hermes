@@ -279,9 +279,16 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
     @censor_and_decorate
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError:
+            logger.exception("Error serializing Service request data")
+            # Generic response required for Barclays
+            raise ParseError
 
         service_consent, service_consent_created = serializer.save()
+        logger.info(f"Service consent retrieved (id={service_consent.pk}) - created: {service_consent_created}")
 
         status_code = HTTP_200_OK
         if service_consent_created:
@@ -302,7 +309,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         user_id = request.user.id
         deleted_service_cleanup.delay(
             user_id,
-            response,
+            response["consent"],
             history_kwargs={"user_info": user_info(user_id=user_id, channel=request.channels_permit.bundle_id)},
         )
         return Response(response)
