@@ -309,7 +309,7 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         user_id = request.user.id
         deleted_service_cleanup.delay(
             user_id,
-            response,
+            response["consent"],
             history_kwargs={"user_info": user_info(user_id=user_id, channel=request.channels_permit.bundle_id)},
         )
         return Response(response)
