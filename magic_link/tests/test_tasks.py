@@ -24,7 +24,8 @@ class TestTask(APITestCase):
             'some_token',
             'test_bink.com',
             'web',
-            expiry_date
+            expiry_date,
+            'com.wasabi.bink.web'
         )
 
         self.assertEqual(len(mail.outbox), 1)

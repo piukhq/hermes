@@ -20,7 +20,7 @@ def get_email_template():
 
 def populate_template_with_data(bundle_id, template, token):
 
-    bundle = ClientApplicationBundle.objects.get(id=bundle_id)
+    bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id)
     plan = Scheme.objects.filter(related_bundle=bundle).get()
     plan_name = plan.plan_name
     plan_summary = plan.plan_summary
@@ -50,7 +50,7 @@ def send_magic_link(email, token, url, external_name, expiry_date, bundle_id):
     populated_template = populate_template_with_data(bundle_id, template, token)
     send_mail(
         'Magic Link Request',
-        populated_template.format(url=url, token=token, expiry=expiry_date, external_name=external_name),
+        populated_template,
         settings.MAGIC_LINK_FROM_EMAIL.format(external_name=external_name),
         [email],
         fail_silently=False
