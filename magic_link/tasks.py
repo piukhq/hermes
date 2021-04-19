@@ -1,6 +1,6 @@
 from azure.storage.blob import BlockBlobService
 from celery import shared_task
-from scheme.models import Scheme, SchemeBundleAssociation, SchemeImage
+from scheme.models import Scheme, SchemeImage
 from user.models import ClientApplicationBundle
 from common.models import Image
 
