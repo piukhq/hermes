@@ -866,7 +866,7 @@ def call_send_magic_link(email, url, expiry_date, bundle_id, expiry, token, exte
     :param
     """
 
-    send_magic_link.delay(email, token, url, external_name, expiry_date)
+    send_magic_link.delay(email, token, url, external_name, expiry_date, bundle_id)
 
 
 class MakeMagicLink(APIView):
