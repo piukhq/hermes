@@ -135,6 +135,8 @@ class ClientApplicationBundle(models.Model):
                                     related_name='related_bundle')
     magic_link_url = models.CharField(max_length=200, default='', blank=True)
     magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
+    email_from = models.EmailField(max_length=100, blank=True, null=True)
+    subject = models.CharField(max_length=100, blank=True, default="Magic Link Request")
 
     class Meta:
         unique_together = ('client', 'bundle_id',)

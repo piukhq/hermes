@@ -313,29 +313,29 @@ class MakeMagicLinkSerializer(serializers.Serializer):
         if data.get("bundle_id") and data.get("slug"):
             try:
                 bundle = ClientApplicationBundle.objects.get(
-                    bundle_id=data["bundle_id"], scheme__slug=data['slug'],
+                    bundle_id=data["bundle_id"], scheme__slug=data["slug"],
                     schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
-                if not bundle.external_name:
-                    data['external_name'] = "web"
-                else:
-                    data['external_name'] = bundle.external_name
+
+                data["external_name"] = bundle.external_name or "web"
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
-                data['url'] = bundle.magic_link_url
-                data['expiry'] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
+                data["url"] = bundle.magic_link_url
+                data["email_from"] = bundle.email_from
+                data["subject"] = bundle.subject
+                data["expiry"] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
                 secret = get_jwt_secret(data["bundle_id"])
                 now = int(time())
-                expiry = int(now + data['expiry'] * 60)
+                expiry = int(now + data["expiry"] * 60)
                 payload = {
-                    'email': data['email'],
-                    'bundle_id': data['bundle_id'],
-                    'iat': now,
-                    'exp': expiry
+                    "email": data["email"],
+                    "bundle_id": data["bundle_id"],
+                    "iat": now,
+                    "exp": expiry
                 }
-                data['token'] = jwt.encode(payload, secret, algorithm='HS512')
+                data["token"] = jwt.encode(payload, secret, algorithm='HS512')
                 # note sensitive to settings.USE_TZ == True
-                data['expiry_date'] = make_aware(datetime.fromtimestamp(expiry))
+                data["expiry_date"] = make_aware(datetime.fromtimestamp(expiry))
 
             except AuthenticationFailed as e:
                 raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
