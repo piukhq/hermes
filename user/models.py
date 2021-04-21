@@ -19,6 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 from hashids import Hashids
 
 from scheme.models import Scheme
+from user.forms import MagicLinkTemplateFileField
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
 
@@ -124,6 +125,10 @@ class ClientApplication(models.Model):
         return cls.bink_app
 
 
+def magic_link_file_path(instance, filename):
+    return os.path.join("magic_link_templates", instance.client.name.replace(" ", "_").lower(), filename)
+
+
 class ClientApplicationBundle(models.Model):
     """Links a ClientApplication to one or more native app 'bundles'.
     """
@@ -137,6 +142,13 @@ class ClientApplicationBundle(models.Model):
     magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
     email_from = models.EmailField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, default="Magic Link Request")
+    template = MagicLinkTemplateFileField(
+        upload_to=magic_link_file_path,
+        content_types=["text/html", "text/plain"],
+        max_upload_size="5MB",
+        blank=True,
+        null=True
+    )
 
     class Meta:
         unique_together = ('client', 'bundle_id',)
