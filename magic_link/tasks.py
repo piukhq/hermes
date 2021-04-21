@@ -1,6 +1,6 @@
 from azure.storage.blob import BlockBlobService
 from celery import shared_task
-from scheme.models import Scheme, SchemeImage
+from scheme.models import Scheme, SchemeImage, SchemeBundleAssociation
 from user.models import ClientApplicationBundle
 from common.models import Image
 
@@ -18,10 +18,12 @@ def get_email_template():
     return template.content
 
 
-def populate_template_with_data(bundle_id, template, token):
+def populate_template_with_data(bundle_id, template, token, slug):
+    # Replaces relevant existing strings with data values
 
-    bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id)
-    plan = Scheme.objects.filter(related_bundle=bundle).get()
+    bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id, scheme__slug=slug,
+                                                 schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
+    plan = Scheme.objects.get(slug=slug)
     plan_name = plan.plan_name
     plan_summary = plan.plan_summary
     plan_description = plan.description
@@ -45,9 +47,10 @@ def populate_template_with_data(bundle_id, template, token):
 
 
 @shared_task
-def send_magic_link(email, token, url, external_name, expiry_date, bundle_id):
+def send_magic_link(email, token, url, external_name, expiry_date, bundle_id, slug):
+
     template = get_email_template()
-    populated_template = populate_template_with_data(bundle_id, template, token)
+    populated_template = populate_template_with_data(bundle_id, template, token, slug)
     send_mail(
         'Magic Link Request',
         populated_template,

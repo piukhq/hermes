@@ -14,6 +14,7 @@ class TestTask(APITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.test_email = 'test-bink@bink.com'
+        cls.bundle_id = 'com.wasabi.bink.web'
 
     @patch('magic_link.tasks.get_email_template')
     @patch('magic_link.tasks.send_magic_link')
@@ -25,7 +26,7 @@ class TestTask(APITestCase):
             'test_bink.com',
             'web',
             expiry_date,
-            'com.wasabi.bink.web'
+            self.bundle_id
         )
 
         self.assertEqual(len(mail.outbox), 1)
