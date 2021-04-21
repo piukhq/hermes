@@ -20,12 +20,16 @@ class TestTask(APITestCase):
     def test_send_magic_link(self, mock_template, mock_email):
         expiry_date = make_aware(datetime.fromtimestamp(int(time() + 60)))
         send_magic_link(
-            self.test_email,
-            'some_token',
-            'test_bink.com',
-            'web',
-            expiry_date
+            email=self.test_email,
+            email_from='test_from_email@bink.com',
+            subject='Some subject',
+            token='some_token',
+            url='test_bink.com',
+            external_name='web',
+            expiry_date=expiry_date,
         )
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, 'Magic Link Request')
+        self.assertEqual(mail.outbox[0].subject, 'Some subject')
+        self.assertEqual(mail.outbox[0].from_email, 'test_from_email@bink.com')
+        self.assertEqual(mail.outbox[0].reply_to, ['no-reply@bink.com'])

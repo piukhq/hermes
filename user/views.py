@@ -852,11 +852,15 @@ class MagicLinkAuthView(CreateAPIView):
         return Response({"access_token": token})
 
 
-def call_send_magic_link(email, url, expiry_date, bundle_id, expiry, token, external_name, slug="", locale=""):
+def call_send_magic_link(email, url, email_from, subject, expiry_date, bundle_id, expiry, token, external_name,
+                         slug="", locale=""):
     """
     This is function is required for testing and call send_magic_link when implemented
-    :param email:
-    :param url:
+    :param email: Email account to send email to
+    :param url: Magic link url
+    :param email_from: Email account from which the magic link is displayed as being sent from
+    :param subject: Email subject line
+    :param expiry_date:
     :param bundle_id:
     :param expiry:
     :param token:
@@ -866,7 +870,7 @@ def call_send_magic_link(email, url, expiry_date, bundle_id, expiry, token, exte
     :param
     """
 
-    send_magic_link.delay(email, token, url, external_name, expiry_date)
+    send_magic_link.delay(email, email_from, subject, token, url, external_name, expiry_date)
 
 
 class MakeMagicLink(APIView):
