@@ -211,7 +211,7 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
         allowed_issuers = None
         bundle_id = None
         return_fields = ((None, {'fields': (('bundle_id', 'client', 'external_name'),
-                                            ('magic_link_url', 'magic_lifetime'))}),)
+                                            ('magic_link_url', 'magic_lifetime', 'email_from', 'subject'))}),)
         choice_description = "Schemes"
 
         if obj:
