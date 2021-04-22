@@ -62,7 +62,7 @@ LOCAL_APPS = (
     "periodic_retry",
     "magic_link",
     "scripts",
-    #"prometheus.apps.PrometheusPusherConfig",
+    "prometheus.apps.PrometheusPusherConfig",
 )
 
 INSTALLED_APPS = (
