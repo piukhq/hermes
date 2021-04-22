@@ -271,7 +271,9 @@ class SchemeAccountEntryInline(admin.TabularInline):
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
     inlines = (SchemeAccountEntryInline, SchemeAccountCredentialAnswerInline,)
-    list_filter = (BarcodeFilter, CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
+    list_filter = (
+        BarcodeFilter, CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',
+        )
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
     list_per_page = 25
 
