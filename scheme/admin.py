@@ -205,7 +205,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 class CardNumberFilter(InputFilter):
     parameter_name = 'card_number'
-    title = 'Card Number Containing:'
+    title = 'Card Number Containing'
 
     def queryset(self, request, queryset):
         term = self.value()
@@ -241,6 +241,18 @@ class CredentialEmailFilter(InputFilter):
         return queryset.filter(any_email)
 
 
+class BarcodeFilter(InputFilter):
+    parameter_name = 'barcode'
+    title = 'Barcode Containing'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        barcode = Q(barcode__icontains=term)
+        return queryset.filter(barcode)
+
+
 class SchemeAccountEntryInline(admin.TabularInline):
     model = SchemeAccountEntry
     extra = 0
@@ -259,7 +271,7 @@ class SchemeAccountEntryInline(admin.TabularInline):
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
     inlines = (SchemeAccountEntryInline, SchemeAccountCredentialAnswerInline,)
-    list_filter = (CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
+    list_filter = (BarcodeFilter, CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
     list_per_page = 25
 
