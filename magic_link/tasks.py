@@ -1,18 +1,26 @@
+import logging
+
 from azure.storage.blob import BlockBlobService
 from celery import shared_task
 
+from django.template import Template, Context
 from django.conf import settings
 from django.core.mail import get_connection, EmailMultiAlternatives
 
+from scheme.models import Scheme, SchemeImage, Image, SchemeBundleAssociation
+from user.models import ClientApplicationBundle
 
-def get_email_template():
-    blob_client = BlockBlobService(connection_string=settings.AZURE_CONNECTION_STRING)
-    template = blob_client.get_blob_to_text(
-        settings.AZURE_CONTAINER,
-        settings.MAGIC_LINK_TEMPLATE
-    )
 
-    return template.content
+logger = logging.getLogger(__name__)
+
+
+def get_email_template(bundle_id: str) -> [str, ClientApplicationBundle]:
+    try:
+        bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id)
+        return str(bundle.template.readlines()), bundle
+
+    except ClientApplicationBundle.DoesNotExist:
+        logger.exception(f"{ClientApplicationBundle.__name__} not found when retrieving magic link template")
 
 
 def send_mail(subject, message, from_email, recipient_list, reply_to,
@@ -34,15 +42,50 @@ def send_mail(subject, message, from_email, recipient_list, reply_to,
 
 
 @shared_task
-def send_magic_link(email, email_from, subject, token, url, external_name, expiry_date):
-    template = get_email_template()
-    message = template.format(url=url, token=token, expiry=expiry_date, external_name=external_name)
+def send_magic_link(email, email_from, subject, token, url, external_name, expiry_date, slug, bundle_id):
+
+    template, bundle = get_email_template(bundle_id)
+
+    email_content = populate_template(
+        bundle=bundle,
+        token=token,
+        slug=slug,
+        unpopulated_template=template
+    )
+
     send_mail(
         subject=subject,
-        message=message,
-        html_message=message,
+        message=email_content,
+        html_message=email_content,
         from_email=email_from or settings.DEFAULT_MAGIC_LINK_FROM_EMAIL.format(external_name=external_name),
         reply_to=["no-reply@bink.com"],
         recipient_list=[email],
         fail_silently=False
     )
+
+
+def populate_template(bundle, token, slug, unpopulated_template):
+
+    template = Template(unpopulated_template)
+
+    plan = Scheme.objects.get(slug=slug)
+    plan_name = plan.plan_name
+    plan_summary = plan.plan_summary
+    plan_description = plan.plan_description
+    magic_link_url = bundle.magic_link_url+token
+    hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.HERO).image
+    alt_hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.ALT_HERO).image
+
+    context = Context({
+                    'magic_link_url': magic_link_url,
+                    'plan_name': plan_name,
+                    'plan_description': plan_description,
+                    'plan_summary': plan_summary,
+                    'hero_image': hero_image,
+                    'alt_hero_image': alt_hero_image
+    })
+
+    email_content = template.render(context)
+
+    return str(email_content)
+
