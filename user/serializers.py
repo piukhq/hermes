@@ -320,6 +320,8 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
+                data["url"] = bundle.magic_link_url
+                data["template"] = bundle.template.read().decode()
                 data["email_from"] = bundle.email_from
                 data["subject"] = bundle.subject
                 lifetime = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)

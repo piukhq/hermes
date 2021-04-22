@@ -51,6 +51,7 @@ from user.serializers import (ApplicationKitSerializer, FacebookRegisterSerializ
                               ResetPasswordSerializer, ResetTokenSerializer, ResponseAuthSerializer, SettingSerializer,
                               TokenResetPasswordSerializer, TwitterRegisterSerializer, UserSerializer,
                               UserSettingSerializer, AppleRegisterSerializer, MakeMagicLinkSerializer)
+from user.utils import MagicLinkData
 
 logger = logging.getLogger(__name__)
 
@@ -852,8 +853,7 @@ class MagicLinkAuthView(CreateAPIView):
         return Response({"access_token": token})
 
 
-def call_send_magic_link(email, email_from, subject, expiry_date, bundle_id, token, external_name,
-                         slug, locale=""):
+def call_send_magic_link(magic_link_data: MagicLinkData):
     """
     This is function is required for testing and call send_magic_link when implemented
     :param email: recipient email address
@@ -867,7 +867,7 @@ def call_send_magic_link(email, email_from, subject, expiry_date, bundle_id, tok
     :param locale: locale identifier (not used)
     """
 
-    send_magic_link.delay(email, email_from, subject, token, external_name, slug, bundle_id)
+    send_magic_link.delay(magic_link_data)
 
 
 class MakeMagicLink(APIView):
@@ -897,7 +897,8 @@ class MakeMagicLink(APIView):
         """
         serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            call_send_magic_link(**serializer.validated_data)
+            magic_link_data = MagicLinkData(**serializer.validated_data)
+            call_send_magic_link(magic_link_data)
             r_status = HTTP_200_OK
             message = "Successful"
         else:
