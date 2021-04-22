@@ -320,13 +320,12 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
-                data["url"] = bundle.magic_link_url
                 data["email_from"] = bundle.email_from
                 data["subject"] = bundle.subject
-                data["expiry"] = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
+                lifetime = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
                 secret = get_jwt_secret(data["bundle_id"])
                 now = int(time())
-                expiry = int(now + data["expiry"] * 60)
+                expiry = int(now + lifetime * 60)
                 payload = {
                     "email": data["email"],
                     "bundle_id": data["bundle_id"],

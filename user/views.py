@@ -852,25 +852,22 @@ class MagicLinkAuthView(CreateAPIView):
         return Response({"access_token": token})
 
 
-def call_send_magic_link(email, url, email_from, subject, expiry_date, bundle_id, expiry, token, external_name,
-                         slug="", locale=""):
+def call_send_magic_link(email, email_from, subject, expiry_date, bundle_id, token, external_name,
+                         slug, locale=""):
     """
     This is function is required for testing and call send_magic_link when implemented
-    :param email: Email account to send email to
-    :param url: Magic link url
-    :param email_from: Email account from which the magic link is displayed as being sent from
-    :param subject: Email subject line
-    :param expiry_date:
-    :param bundle_id:
-    :param expiry:
-    :param token:
-    :param external_name:   external channel name used in template from  external_name.bink.com
-    :param slug: not used identifies the scheme
-    :param locale: may be used in future templates for internationalisation
-    :param
+    :param email: recipient email address
+    :param email_from: sender email address
+    :param subject: email subject line
+    :param expiry_date: datetime of link expiry (not used)
+    :param bundle_id: str id of bundle
+    :param token: unique token for magic link
+    :param external_name: external channel name used in template from external_name.bink.com
+    :param slug: scheme slug identifier
+    :param locale: locale identifier (not used)
     """
 
-    send_magic_link.delay(email, email_from, subject, token, url, external_name, expiry_date, slug, bundle_id)
+    send_magic_link.delay(email, email_from, subject, token, external_name, slug, bundle_id)
 
 
 class MakeMagicLink(APIView):
