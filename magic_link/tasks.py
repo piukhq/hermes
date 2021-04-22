@@ -73,7 +73,6 @@ def populate_template(bundle, token, slug, unpopulated_template):
     plan_summary = plan.plan_summary
     plan_description = plan.plan_description
     magic_link_url = bundle.magic_link_url+token
-    magic_lifetime = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
     hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.HERO).image
     alt_hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.ALT_HERO).image
 
@@ -84,7 +83,6 @@ def populate_template(bundle, token, slug, unpopulated_template):
                     'plan_summary': plan_summary,
                     'hero_image': hero_image,
                     'alt_hero_image': alt_hero_image,
-                    'magic_lifetime': magic_lifetime
     })
 
     email_content = template.render(context)
