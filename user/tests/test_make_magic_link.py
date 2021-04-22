@@ -1,4 +1,5 @@
 import json
+from unittest.mock import patch, PropertyMock
 
 import arrow
 import jwt
@@ -10,6 +11,7 @@ import ubiquity.channel_vault as channel_vault
 from history.utils import GlobalMockAPITestCase
 from scheme.models import SchemeBundleAssociation
 from scheme.tests.factories import (SchemeFactory, SchemeBundleAssociationFactory)
+from user.models import ClientApplicationBundle
 from user.serializers import MakeMagicLinkSerializer
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
 
@@ -35,8 +37,8 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         cls.bink_bundle = ClientApplicationBundleFactory(client=cls.bink_client_app,
                                                          bundle_id=cls.BINK_BUNDLE_ID,
                                                          magic_link_url=cls.url,
-                                                         magic_lifetime=cls.lifetime
-                                                         )
+                                                         magic_lifetime=cls.lifetime,
+                                                         template="path/to/template")
         cls.bink_scheme_active = SchemeFactory()
         cls.bink_scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.bink_scheme_active,
                                                                             bundle=cls.bink_bundle,
@@ -50,10 +52,12 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
                                                                             )
         cls.client = Client()
 
+    @patch.object(ClientApplicationBundle, "template", new_callable=PropertyMock)
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
                        BROKER_BACKEND='memory')
-    def test_view_active_enabled(self):
+    def test_view_active_enabled(self, mock_template):
+        mock_template.return_value.read.return_value = b"{{ magic_link_url }}"
         response = self.client.post(reverse('user_make_magic_link'), {
             'email': 'test_1@example.com',
             'slug': self.bink_scheme_active.slug,
@@ -132,7 +136,9 @@ class TestMakeMagicLinkViews(GlobalMockAPITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(content, 'Bad request parameter')
 
-    def test_serializer_valid_data(self):
+    @patch.object(ClientApplicationBundle, "template", new_callable=PropertyMock)
+    def test_serializer_valid_data(self, mock_template):
+        mock_template.return_value.read.return_value = b"{{ magic_link_url }}"
         email = 'test_1@example.com'
         serializer = MakeMagicLinkSerializer(data={
             'email': email, 'slug': self.bink_scheme_active.slug, 'locale': 'en_GB',
