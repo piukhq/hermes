@@ -21,8 +21,8 @@ class TestTask(APITestCase):
             subject='Some subject',
             slug='wasabi-club',
             token='some_token',
-            url='test_bink.com',
             external_name='web',
+            bundle_id='wasabi-club'
         )
 
         self.assertEqual(len(mail.outbox), 1)
