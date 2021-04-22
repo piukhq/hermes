@@ -12,9 +12,9 @@ class TestTask(APITestCase):
     def setUpTestData(cls):
         cls.test_email = 'test-bink@bink.com'
 
-    @patch('magic_link.tasks.get_email_template')
-    @patch('magic_link.tasks.send_magic_link')
-    def test_send_magic_link(self, mock_template, mock_email):
+    @patch('magic_link.tasks.get_email_template', return_value=('', ''))
+    @patch('magic_link.tasks.populate_template', return_value='')
+    def test_send_magic_link(self, mock_get_email_template, mock_populate_template):
         send_magic_link(
             email=self.test_email,
             email_from='test_from_email@bink.com',
@@ -22,7 +22,7 @@ class TestTask(APITestCase):
             slug='wasabi-club',
             token='some_token',
             external_name='web',
-            bundle_id='wasabi-club'
+            bundle_id='.com.wasabi.bink.web'
         )
 
         self.assertEqual(len(mail.outbox), 1)
