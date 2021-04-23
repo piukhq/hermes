@@ -52,7 +52,7 @@ class MagicLinkTemplateFileField(FileField):
         except AttributeError:
             pass
 
-        required_tag = "{{magic-link-url}}"
+        required_tag = "{{ magic_link_url }}"
         if required_tag not in str(data.read()):
             raise forms.ValidationError(_(f"Missing required tag in template: {required_tag}"))
 
