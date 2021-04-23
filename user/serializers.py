@@ -308,6 +308,27 @@ class MakeMagicLinkSerializer(serializers.Serializer):
     locale = serializers.ChoiceField(choices=("en_GB", "English"), required=True, write_only=True)
     bundle_id = serializers.CharField(max_length=200, required=True, write_only=True)
 
+    @staticmethod
+    def _set_magic_link_fields(data: dict, bundle: ClientApplicationBundle) -> None:
+        data["external_name"] = bundle.external_name or "web"
+        data["url"] = bundle.magic_link_url
+        data["template"] = bundle.template.read().decode()
+        data["email_from"] = bundle.email_from
+        data["subject"] = bundle.subject
+        lifetime = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
+        secret = get_jwt_secret(data["bundle_id"])
+        now = int(time())
+        expiry = int(now + lifetime * 60)
+        payload = {
+            "email": data["email"],
+            "bundle_id": data["bundle_id"],
+            "iat": now,
+            "exp": expiry
+        }
+        data["token"] = jwt.encode(payload, secret, algorithm='HS512')
+        # note sensitive to settings.USE_TZ == True
+        data["expiry_date"] = make_aware(datetime.fromtimestamp(expiry))
+
     def validate(self, data):
         data = super().validate(data)
         if data.get("bundle_id") and data.get("slug"):
@@ -316,25 +337,15 @@ class MakeMagicLinkSerializer(serializers.Serializer):
                     bundle_id=data["bundle_id"], scheme__slug=data["slug"],
                     schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
 
-                data["external_name"] = bundle.external_name or "web"
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
                         f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
-                data["email_from"] = bundle.email_from
-                data["subject"] = bundle.subject
-                lifetime = 60 if not bundle.magic_lifetime else int(bundle.magic_lifetime)
-                secret = get_jwt_secret(data["bundle_id"])
-                now = int(time())
-                expiry = int(now + lifetime * 60)
-                payload = {
-                    "email": data["email"],
-                    "bundle_id": data["bundle_id"],
-                    "iat": now,
-                    "exp": expiry
-                }
-                data["token"] = jwt.encode(payload, secret, algorithm='HS512')
-                # note sensitive to settings.USE_TZ == True
-                data["expiry_date"] = make_aware(datetime.fromtimestamp(expiry))
+
+                if not bundle.template:
+                    raise serializers.ValidationError(
+                        f'Config: Missing email template for bundle id {data["bundle_id"]}')
+
+                self._set_magic_link_fields(data, bundle)
 
             except AuthenticationFailed as e:
                 raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'

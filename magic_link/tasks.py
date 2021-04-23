@@ -1,4 +1,5 @@
 import logging
+import os
 
 from celery import shared_task
 
@@ -6,21 +7,33 @@ from django.template import Template, Context
 from django.conf import settings
 from django.core.mail import get_connection, EmailMultiAlternatives
 
-from scheme.models import Scheme, SchemeImage, Image, SchemeBundleAssociation
-from user.models import ClientApplicationBundle
-
+from scheme.models import Scheme, SchemeImage, Image
+from user.utils import MagicLinkData
 
 logger = logging.getLogger(__name__)
 
 
-def get_email_template(bundle_id: str, slug: str) -> [str, ClientApplicationBundle]:
-    try:
-        bundle = ClientApplicationBundle.objects.get(bundle_id=bundle_id, scheme__slug=slug,
-                                                     schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
-        return bundle.template.read().decode(), bundle
+def populate_template(magic_link_data: MagicLinkData) -> str:
 
-    except ClientApplicationBundle.DoesNotExist:
-        logger.exception(f"{ClientApplicationBundle.__name__} not found when retrieving magic link template")
+    template = Template(magic_link_data.template)
+
+    plan = Scheme.objects.get(slug=magic_link_data.slug)
+    magic_link_url = os.path.join(magic_link_data.url, magic_link_data.token)
+    hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.HERO).image
+    alt_hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.ALT_HERO).image
+
+    context = Context({
+        'magic_link_url': magic_link_url,
+        'plan_name': plan.name,
+        'plan_description': plan.plan_description,
+        'plan_summary': plan.plan_summary,
+        'hero_image': hero_image,
+        'alt_hero_image': alt_hero_image,
+    })
+
+    email_content = template.render(context)
+
+    return email_content
 
 
 def send_mail(subject, message, from_email, recipient_list, reply_to,
@@ -42,49 +55,16 @@ def send_mail(subject, message, from_email, recipient_list, reply_to,
 
 
 @shared_task
-def send_magic_link(email, email_from, subject, token, external_name, slug, bundle_id):
-
-    template, bundle = get_email_template(bundle_id, slug)
-
-    email_content = populate_template(
-        bundle=bundle,
-        token=token,
-        slug=slug,
-        unpopulated_template=template
-    )
-
+def send_magic_link(magic_link_data: MagicLinkData):
+    email_content = populate_template(magic_link_data=magic_link_data)
     send_mail(
-        subject=subject,
+        subject=magic_link_data.subject,
         message=email_content,
         html_message=email_content,
-        from_email=email_from or settings.DEFAULT_MAGIC_LINK_FROM_EMAIL.format(external_name=external_name),
+        from_email=magic_link_data.email_from or settings.DEFAULT_MAGIC_LINK_FROM_EMAIL.format(
+            external_name=magic_link_data.external_name
+        ),
         reply_to=["no-reply@bink.com"],
-        recipient_list=[email],
+        recipient_list=[magic_link_data.email],
         fail_silently=False
     )
-
-
-def populate_template(bundle, token, slug, unpopulated_template):
-
-    template = Template(unpopulated_template)
-
-    plan = Scheme.objects.get(slug=slug)
-    plan_name = plan.plan_name
-    plan_summary = plan.plan_summary
-    plan_description = plan.plan_description
-    magic_link_url = bundle.magic_link_url+token
-    hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.HERO).image
-    alt_hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.ALT_HERO).image
-
-    context = Context({
-                    'magic_link_url': magic_link_url,
-                    'plan_name': plan_name,
-                    'plan_description': plan_description,
-                    'plan_summary': plan_summary,
-                    'hero_image': hero_image,
-                    'alt_hero_image': alt_hero_image,
-    })
-
-    email_content = template.render(context)
-
-    return email_content
