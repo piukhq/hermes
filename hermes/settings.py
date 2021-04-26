@@ -267,7 +267,7 @@ APPLE_TEAM_ID = env_var("APPLE_TEAM_ID", "HC34M8YE55")
 DEBUG_PROPAGATE_EXCEPTIONS = env_var("HERMES_PROPAGATE_EXCEPTIONS", False)
 
 TESTING = (len(sys.argv) > 1 and sys.argv[1] == "test") or any("pytest" in arg for arg in sys.argv)
-INIT_RUNTIME_APPS = TESTING is False and not ("migrate" in sys.argv or "collectstatic" in sys.argv)
+INIT_RUNTIME_APPS = TESTING is False and not any(x in sys.argv for x in ["migrate", "makemigrations", "collectstatic"])
 LOCAL = env_var("HERMES_LOCAL", False)
 
 ROOT_LOG_LEVEL = env_var("ROOT_LOG_LEVEL", "WARNING")
@@ -354,7 +354,7 @@ ANYMAIL = {
 }
 EMAIL_BACKEND = "anymail.backends.mailgun.EmailBackend"
 DEFAULT_FROM_EMAIL = "Bink Support <support@bink.com>"
-MAGIC_LINK_FROM_EMAIL = "{external_name}@bink.com"
+DEFAULT_MAGIC_LINK_FROM_EMAIL = "{external_name}@bink.com"
 
 SILENCED_SYSTEM_CHECKS = ["urls.W002"]
 if env_var("HERMES_NO_DB_TEST", False):
