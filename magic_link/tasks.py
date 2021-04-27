@@ -18,13 +18,15 @@ def populate_template(magic_link_data: MagicLinkData) -> str:
     template = Template(magic_link_data.template)
 
     plan = Scheme.objects.get(slug=magic_link_data.slug)
-    magic_link_url = os.path.join(magic_link_data.url, magic_link_data.token)
+    # Token is appended for now as url ends in a querystring e.g /?magic-link=
+    # This should be changed in the form of string substitution if we need to modify the url further
+    magic_link_url = f"{magic_link_data.url}{magic_link_data.token}"
     hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.HERO).image
     alt_hero_image = SchemeImage.objects.get(scheme=plan, image_type_code=Image.ALT_HERO).image
 
     context = Context({
         'magic_link_url': magic_link_url,
-        'plan_name': plan.name,
+        'plan_name': plan.plan_name,
         'plan_description': plan.plan_description,
         'plan_summary': plan.plan_summary,
         'hero_image': hero_image,
