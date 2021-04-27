@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 from common.models import Image
 from magic_link.tasks import send_magic_link, populate_template
 from scheme.tests.factories import SchemeFactory, SchemeBundleAssociationFactory, SchemeImageFactory
-from user.tests.factories import ClientApplicationFactory, ClientApplicationBundleFactory
+from user.tests.factories import ClientApplicationBundleFactory
 from user.utils import MagicLinkData
 
 
