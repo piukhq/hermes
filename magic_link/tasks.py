@@ -28,8 +28,8 @@ def populate_template(magic_link_data: MagicLinkData) -> str:
         'plan_name': plan.plan_name,
         'plan_description': plan.plan_description,
         'plan_summary': plan.plan_summary,
-        'hero_image': hero_image,
-        'alt_hero_image': alt_hero_image,
+        'hero_image': hero_image.url,
+        'alt_hero_image': alt_hero_image.url,
     })
 
     email_content = template.render(context)
