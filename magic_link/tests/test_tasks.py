@@ -23,9 +23,9 @@ TEST_TEMPLATE = """
     <br>
     Plan description is: {{ plan_description }}
     <br>
-    Hero image is: {{ hero_image }}
+    Hero image is: <img src="{{ hero_image }}" alt="hero_image">
     <br>
-    Alt-hero image is: {{ alt_hero_image }}
+    Alt-hero image is: <img src="{{ alt_hero_image }}" alt="alt_hero_image">
     <br>
 
 </h2>
