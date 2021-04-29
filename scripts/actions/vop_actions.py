@@ -8,6 +8,7 @@ from payment_card.metis import enrol_existing_payment_card
 from payment_card.models import PaymentCardAccount
 from scheme.models import Scheme
 from ubiquity.models import VopActivation
+from hermes.vop_tasks import activate
 
 
 class Correction:
@@ -129,13 +130,13 @@ def do_activation(entry):
 
     data = {
         'payment_token': entry.data['payment_token'],
+        'payment_slug': 'visa',
         'merchant_slug': entry.data['scheme_slug'],
         'id': entry.data['card_id']
     }
 
-    reply = metis_request(RequestMethod.POST, '/visa/activate', data)
-    if reply.get('agent_response_code') == 'Activate:SUCCESS':
-        do_mark_as_activated(entry)
+    status, response = activate(vop_activation, data)
+    if response.get('agent_response_code') == 'Activate:SUCCESS':
         return True
     return False
 
