@@ -8,6 +8,6 @@ logger = logging.getLogger(__name__)
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc, context)
-    logger.exception(exc)
+    logger.debug(exc, exc_info=True)
 
     return response
