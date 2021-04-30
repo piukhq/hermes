@@ -167,6 +167,7 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
     "DEFAULT_VERSION": DEFAULT_API_VERSION,
     "VERSION_PARAM": "v",
+    "EXCEPTION_HANDLER": "ubiquity.exceptions.custom_exception_handler",
 }
 
 WSGI_APPLICATION = "hermes.wsgi.application"
