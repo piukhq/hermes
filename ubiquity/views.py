@@ -283,7 +283,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError:
-            logger.exception("Error serializing Service request data")
             # Generic response required for Barclays
             raise ParseError
 
