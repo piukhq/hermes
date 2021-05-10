@@ -162,7 +162,7 @@ class SchemeAdmin(CacheResetAdmin):
         CredentialQuestionInline,
     )
     exclude = []
-    list_display = ('name', 'id', 'category', 'company',)
+    list_display = ('name', 'id', 'order', 'category', 'company',)
 
     form = SchemeForm
     search_fields = ['name']
