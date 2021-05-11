@@ -571,7 +571,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
 
         plan = {
             'id': instance.id,
-            'order': instance.order,
+            'plan_popularity': instance.plan_popularity,
             'status': status,
             'feature_set': {
                 'authorisation_required': instance.authorisation_required,
