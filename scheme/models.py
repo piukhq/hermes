@@ -264,6 +264,7 @@ class Scheme(models.Model):
                                            'ie: ADD, REGISTRATION, ENROL')
 
     formatted_images = JSONField(default=dict, blank=True)
+    plan_popularity = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
 
     @cached_property
     def manual_question(self):
