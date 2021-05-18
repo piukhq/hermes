@@ -274,6 +274,9 @@ class PaymentCardAccount(models.Model):
     def save(self, *args, **kwargs):
         if not self.token:
             self.token = PaymentCard.TokenMethod.dispatch(self.payment_card.token_method, self.psp_token)
+        # Only update updated field when performing an update
+        if kwargs.get("update_fields"):
+            kwargs['update_fields'].append('updated')
         super().save(*args, **kwargs)
 
     @property
