@@ -30,6 +30,7 @@ class SchemeAccountEntryFactory(factory.django.DjangoModelFactory):
 
     user = factory.SubFactory(UserFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
+    auth_status = SchemeAccountEntry.AUTH_PROVIDED
 
 
 class ServiceConsentFactory(factory.django.DjangoModelFactory):
