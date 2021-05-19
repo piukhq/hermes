@@ -274,7 +274,7 @@ class SchemeAccountAdmin(HistoryAdmin):
     list_filter = (
         BarcodeFilter, CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',
         )
-    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created', 'updated')
     list_per_page = 25
 
     def get_readonly_fields(self, request, obj=None):

@@ -1216,6 +1216,12 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
+    def save(self, *args, **kwargs):
+        # Only when we update, we update the updated date time.
+        if kwargs.get("update_fields"):
+            kwargs['update_fields'].append('updated')
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return "{} - id: {}".format(self.scheme.name, self.id)
 
