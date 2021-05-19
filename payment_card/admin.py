@@ -52,7 +52,7 @@ class PaymentCardAccountAdmin(HistoryAdmin):
         return obf_hash
 
     obfuscated_hash.short_description = "Hash"
-    list_display = ("payment_card", "status", "user_email", "pan_start", "pan_end", "is_deleted", "created")
+    list_display = ("payment_card", "status", "user_email", "pan_start", "pan_end", "is_deleted", "created", "updated")
     list_filter = (
         ("payment_card__name", titled_filter("payment card")),
         "status",

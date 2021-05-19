@@ -2,6 +2,7 @@ USER_NAME = 'username'
 CARD_NUMBER = 'card_number'
 BARCODE = 'barcode'
 PASSWORD = 'password'
+PASSWORD_2 = 'password_2'
 PLACE_OF_BIRTH = 'place_of_birth'
 EMAIL = 'email'
 POSTCODE = 'postcode'
@@ -31,6 +32,7 @@ CREDENTIAL_TYPES = (
     (CARD_NUMBER, 'card number'),
     (BARCODE, 'barcode'),
     (PASSWORD, 'password'),
+    (PASSWORD_2, 'password 2'),
     (PLACE_OF_BIRTH, 'place of birth'),
     (POSTCODE, 'postcode'),
     (MEMORABLE_DATE, 'memorable date'),
