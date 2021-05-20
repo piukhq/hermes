@@ -237,9 +237,6 @@ STATIC_ROOT = "/tmp/static/"
 
 AUTH_USER_MODEL = "user.CustomUser"
 
-LOCAL_AES_KEY = "OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ"
-AES_KEY = "6gZW4ARFINh4DR1uIzn12l7Mh1UF982L"
-
 SERVICE_API_KEY = "F616CE5C88744DD52DB628FAD8B3D"
 SERVICE_API_METRICS_BUNDLE = "internal_service"
 
@@ -511,16 +508,15 @@ VAULT_CONFIG = dict(
     VAULT_URL=env_var("VAULT_URL", "http://localhost:8200"),
     VAULT_TOKEN=env_var("VAULT_TOKEN", "myroot"),
     # SET Signing secrets for JWT authentication
-    # For deployment set LOCAL_CHANNEL_SECRETS to False and set up Vault envs
-    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
-    # and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
-    # (Do not commit your channels json which might contain real secrets or edit example_channels.json)
-    LOCAL_CHANNEL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", "False"),
-    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_channels.json"),
+    # For deployment set LOCAL_SECRETS to False and set up Vault envs
+    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False to True
+    # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
+    # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
+    LOCAL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", False),
+    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
     SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
-    AES_ENCRYPTION_KEY_PATH=env_var("AES_ENCRYPTION_KEY_PATH", "/aes_key"),
-    LOCAL_AES_ENCRYPTION_KEY_PATH=env_var("LOCAL_AES_ENCRYPTION_KEY_PATH", "/local_aes_key"),
+    AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes_keys"),
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
