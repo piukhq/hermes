@@ -515,8 +515,8 @@ VAULT_CONFIG = dict(
     LOCAL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", False),
     LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
-    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
-    AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes_keys"),
+    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
+    AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes-keys"),
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
