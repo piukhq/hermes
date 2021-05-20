@@ -1,5 +1,3 @@
-from django.conf import settings
-
 from history.utils import GlobalMockAPITestCase
 from scheme.encryption import AESCipher
 from ubiquity.channel_vault import AESKeyNames
