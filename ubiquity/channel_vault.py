@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 loaded = False
 _bundle_secrets = {}
 _secret_keys = {}
+_aes_keys = {}
 
 
 def retry_session(backoff_factor: float = 0.3) -> requests.Session:
@@ -26,6 +27,11 @@ def retry_session(backoff_factor: float = 0.3) -> requests.Session:
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     return session
+
+
+class AESKeyNames(str, Enum):
+    AES_KEY = "AES_KEY"
+    LOCAL_AES_KEY = "LOCAL_AES_KEY"
 
 
 class SecretKeyName(str, Enum):
@@ -60,6 +66,7 @@ def load_secrets(config):
     global loaded
     global _bundle_secrets
     global _secret_keys
+    global _aes_keys
 
     if loaded:
         logger.info("Tried to load the vault secrets more than once, ignoring the request.")
@@ -71,6 +78,7 @@ def load_secrets(config):
 
         _bundle_secrets = all_secrets['bundle_secrets']
         _secret_keys = all_secrets['secret_keys']
+        _aes_keys = all_secrets['aes_keys']
         loaded = True
 
     else:
@@ -78,8 +86,8 @@ def load_secrets(config):
             logger.info(
                 f"JWT bundle secrets - from vault at {config['VAULT_URL']}  secrets: {config['CHANNEL_VAULT_PATH']}"
             )
-            bundle_secrets = read_vault(config['CHANNEL_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
-            logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in bundle_secrets]}")
+            _bundle_secrets = read_vault(config['CHANNEL_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
+            logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in _bundle_secrets]}")
 
         except requests.RequestException as e:
             err_msg = f"JWT bundle secrets - Vault Exception {e}"
@@ -88,14 +96,20 @@ def load_secrets(config):
 
         try:
             logger.info(f"Loading secret keys from vault at {config['VAULT_URL']}")
-            secret_keys = read_vault(config['SECRET_KEYS_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
+            _secret_keys = read_vault(config['SECRET_KEYS_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
         except requests.RequestException as e:
             err_msg = f"Secret keys - Vault Exception {e}"
             logger.exception(err_msg)
             raise VaultError(err_msg) from e
 
-        _bundle_secrets = bundle_secrets
-        _secret_keys = secret_keys
+        try:
+            logger.info(f"Loading AES keys from vault at {config['VAULT_URL']}")
+            _aes_keys = read_vault(config['AES_KEYS_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
+        except requests.RequestException as e:
+            err_msg = f"AES keys - Vault Exception {e}"
+            logger.exception(err_msg)
+            raise VaultError(err_msg) from e
+
         loaded = True
 
 
@@ -106,7 +120,7 @@ def get_jwt_secret(bundle_id):
         raise exceptions.AuthenticationFailed(f"JWT is invalid: {e}") from e
 
 
-def get_key(bundle_id, key_type: str):
+def get_bundle_key(bundle_id, key_type: str):
     try:
         return _bundle_secrets[bundle_id][key_type]
     except KeyError as e:
@@ -116,6 +130,15 @@ def get_key(bundle_id, key_type: str):
 def get_secret_key(secret: str):
     try:
         return _secret_keys[secret]
+    except KeyError as e:
+        err_msg = f"{e} not found in vault"
+        logger.exception(err_msg)
+        raise VaultError(err_msg)
+
+
+def get_aes_key(key_type: str):
+    try:
+        return _aes_keys[key_type]
     except KeyError as e:
         err_msg = f"{e} not found in vault"
         logger.exception(err_msg)

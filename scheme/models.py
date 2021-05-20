@@ -30,8 +30,9 @@ from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
-from scheme.encyption import AESCipher
+from scheme.encryption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
@@ -689,7 +690,8 @@ class SchemeAccount(models.Model):
                 continue
 
             if question.type in ENCRYPTED_CREDENTIALS:
-                credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+                cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
+                credentials[question.type] = cipher.decrypt(answer)
             else:
                 credentials[question.type] = answer
         return credentials
@@ -737,7 +739,8 @@ class SchemeAccount(models.Model):
     def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
         answer = answer_instance.answer
         if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
-            answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+            cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
+            answer = cipher.decrypt(answer)
         return answer
 
     def credentials(self):
@@ -760,7 +763,8 @@ class SchemeAccount(models.Model):
         credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
-        return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+        cipher = AESCipher(AESKeyNames.AES_KEY)
+        return cipher.encrypt(serialized_credentials).decode('utf-8')
 
     def update_or_create_primary_credentials(self, credentials):
         """
@@ -1371,11 +1375,12 @@ class SchemeAccountCredentialAnswer(models.Model):
 @receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
+        cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
         try:
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+            encrypted_answer = cipher.encrypt(instance.answer).decode("utf-8")
         except AttributeError:
             answer = str(instance.answer)
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+            encrypted_answer = cipher.encrypt(answer).decode("utf-8")
 
         instance.answer = encrypted_answer
 

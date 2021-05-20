@@ -47,7 +47,7 @@ from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
-from ubiquity.channel_vault import KeyType, SecretKeyName, get_key, get_secret_key
+from ubiquity.channel_vault import KeyType, SecretKeyName, get_bundle_key, get_secret_key
 from ubiquity.influx_audit import audit
 from ubiquity.models import (
     PaymentCardAccountEntry,
@@ -790,7 +790,7 @@ class MembershipCardView(
     @staticmethod
     def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
         if needs_decryption(fields.values()):
-            rsa_key_pem = get_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
+            rsa_key_pem = get_bundle_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
             try:
                 with sentry_sdk.start_span(op="decryption", description="membership card"):
                     decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
