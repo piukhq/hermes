@@ -140,6 +140,6 @@ def get_aes_key(key_type: str):
     try:
         return _aes_keys[key_type]
     except KeyError as e:
-        err_msg = f"{e} not found in vault"
+        err_msg = f"{e} not found in _aes_keys: ({_aes_keys})."
         logger.exception(err_msg)
         raise VaultError(err_msg)

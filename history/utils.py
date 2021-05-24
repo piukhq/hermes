@@ -21,6 +21,10 @@ if TYPE_CHECKING:
 
 user_info = namedtuple("user_info", ("user_id", "channel"))
 
+mock_aes_keys = {
+  "LOCAL_AES_KEY": "FLNnJPJabsBR31UqMBp2ZibUF1Y7vQ",
+  "AES_KEY": "1oPW4THKINh4DR1uIzn12l7Mh2UH985K"
+}
 
 class HistoryAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
@@ -41,14 +45,17 @@ class GlobalMockAPITestCase(APITestCase):
     def setUpClass(cls):
         cls.history_patcher = patch("history.signals.record_history", autospec=True)
         cls.bulk_history_patcher = patch("history.utils.bulk_record_history", autospec=True)
+        cls.aes_patcher = patch("ubiquity.channel_vault._aes_keys", mock_aes_keys)
         cls.history_patcher.start()
         cls.bulk_history_patcher.start()
+        cls.aes_patcher.start()
         super(GlobalMockAPITestCase, cls).setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
         cls.history_patcher.stop()
         cls.bulk_history_patcher.stop()
+        cls.aes_patcher.stop()
         super().tearDownClass()
 
 
