@@ -297,13 +297,44 @@ class Scheme(models.Model):
 
     @staticmethod
     def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
-        return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
-            }
-            for question in question_list
+        """
+        Returns a dict per field type to map scheme credential column names to the question slug and answer type
+        e.g:
+        {
+            "add_fields": {
+                "Email": {"type": "email", "answer_type": 0},
+                ...
+            },
+            "auth_fields": {
+                "Password": {"type": "password", "answer_type": 1},
+                ...
+            },
+            "enrol_fields": {
+                "Password": {"type": "password_2", "answer_type": 1},
+                ...
+            },
+            "registration_fields": {
+                ...
+            },
         }
+        """
+        fields_to_field = {
+            "add_fields": "add_field",
+            "authorise_fields": "auth_field",
+            "registration_fields": "register_field",
+            "enrol_fields": "enrol_field"
+        }
+
+        question_type_dict = {fields: {} for fields in fields_to_field}
+        for question in question_list:
+            for fields in fields_to_field:
+                if getattr(question, fields_to_field[fields]):
+                    question_type_dict[fields][question.label] = {
+                        "type": question.type,
+                        "answer_type": question.answer_type
+                    }
+
+        return question_type_dict
 
     @classmethod
     @lru_cache(maxsize=256)
