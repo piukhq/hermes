@@ -512,7 +512,7 @@ VAULT_CONFIG = dict(
     # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False to True
     # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
     # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
-    LOCAL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", False),
+    LOCAL_SECRETS=env_var("LOCAL_SECRETS", False),
     LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
     SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
