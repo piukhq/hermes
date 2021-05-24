@@ -26,6 +26,7 @@ mock_aes_keys = {
   "AES_KEY": "1oPW4THKINh4DR1uIzn12l7Mh2UH985K"
 }
 
+
 class HistoryAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if change:
