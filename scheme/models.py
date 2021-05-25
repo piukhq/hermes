@@ -29,7 +29,7 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
 
@@ -786,6 +786,13 @@ class SchemeAccount(models.Model):
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
+
+        for credential in credentials.keys():
+            # Other services only expect a single password, "password", so "password_2" must be converted
+            # before sending if it exists. Ideally, the new credential would be handled in the consuming
+            # service and this should be removed.
+            if credential == PASSWORD_2:
+                credentials[PASSWORD] = credentials.pop(credential)
 
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
