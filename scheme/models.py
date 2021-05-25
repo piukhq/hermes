@@ -29,7 +29,7 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encyption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
 
@@ -297,13 +297,44 @@ class Scheme(models.Model):
 
     @staticmethod
     def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
-        return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
-            }
-            for question in question_list
+        """
+        Returns a dict per field type to map scheme credential column names to the question slug and answer type
+        e.g:
+        {
+            "add_fields": {
+                "Email": {"type": "email", "answer_type": 0},
+                ...
+            },
+            "auth_fields": {
+                "Password": {"type": "password", "answer_type": 1},
+                ...
+            },
+            "enrol_fields": {
+                "Password": {"type": "password_2", "answer_type": 1},
+                ...
+            },
+            "registration_fields": {
+                ...
+            },
         }
+        """
+        fields_to_field = {
+            "add_fields": "add_field",
+            "authorise_fields": "auth_field",
+            "registration_fields": "register_field",
+            "enrol_fields": "enrol_field"
+        }
+
+        question_type_dict = {fields: {} for fields in fields_to_field}
+        for question in question_list:
+            for fields in fields_to_field:
+                if getattr(question, fields_to_field[fields]):
+                    question_type_dict[fields][question.label] = {
+                        "type": question.type,
+                        "answer_type": question.answer_type
+                    }
+
+        return question_type_dict
 
     @classmethod
     @lru_cache(maxsize=256)
@@ -755,6 +786,13 @@ class SchemeAccount(models.Model):
                 self.status = SchemeAccount.INCOMPLETE
                 self.save()
                 return None
+
+        for credential in credentials.keys():
+            # Other services only expect a single password, "password", so "password_2" must be converted
+            # before sending if it exists. Ideally, the new credential would be handled in the consuming
+            # service and this should be removed.
+            if credential == PASSWORD_2:
+                credentials[PASSWORD] = credentials.pop(credential)
 
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)

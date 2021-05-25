@@ -18,7 +18,7 @@ import analytics
 from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS,
-                                CASE_SENSITIVE_CREDENTIALS)
+                                CASE_SENSITIVE_CREDENTIALS, PASSWORD_2, PASSWORD)
 from scheme.encyption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion, Consent)
@@ -431,10 +431,16 @@ class SchemeAccountJoinMixin:
                         ) -> None:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
+
+            if question_type == PASSWORD_2:
+                answer = credentials_dict[PASSWORD]
+            else:
+                answer = credentials_dict[question_type]
+
             SchemeAccountCredentialAnswer.objects.update_or_create(
                 question=scheme_account.question(question_type),
                 scheme_account=scheme_account,
-                defaults={'answer': credentials_dict[question_type]}
+                defaults={'answer': answer}
             )
 
         updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
