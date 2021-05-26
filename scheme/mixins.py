@@ -432,8 +432,11 @@ class SchemeAccountJoinMixin:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
 
-            if question_type == PASSWORD_2:
-                answer = credentials_dict[PASSWORD]
+            if question_type in (PASSWORD, PASSWORD_2):
+                answer = credentials_dict.get(PASSWORD, credentials_dict[PASSWORD_2])
+
+                if PASSWORD_2 in credentials_dict:
+                    credentials_dict[PASSWORD] = credentials_dict.pop(PASSWORD_2)
             else:
                 answer = credentials_dict[question_type]
 
