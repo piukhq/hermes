@@ -12,7 +12,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
-from scheme.encyption import AESCipher
+from scheme.encryption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, UserConsent, SchemeBundleAssociation, )
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer
@@ -20,6 +20,7 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
                                     SchemeBalanceDetailsFactory)
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle
@@ -586,7 +587,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
-        decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
+        decrypted_credentials = json.loads(AESCipher(AESKeyNames.AES_KEY).decrypt(
             self.scheme_account.credentials()))
 
         self.assertEqual(decrypted_credentials['card_number'], self.second_scheme_account_answer.answer)

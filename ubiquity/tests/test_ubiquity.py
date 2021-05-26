@@ -7,7 +7,7 @@ import httpretty
 from django.conf import settings
 from django.test import RequestFactory, override_settings
 from rest_framework.reverse import reverse
-from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash, AESCipher
+from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 from shared_config_storage.credentials.utils import AnswerTypeChoices
 
 from history.utils import GlobalMockAPITestCase
@@ -16,6 +16,7 @@ from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactor
 from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_NAME, PAYMENT_CARD_HASH, \
     MERCHANT_IDENTIFIER, CREDENTIAL_TYPES, DATE_TYPE_CREDENTIALS, PHONE, PHONE_2, ENCRYPTED_CREDENTIALS, \
     CASE_SENSITIVE_CREDENTIALS, EMAIL, POSTCODE
+from scheme.encryption import AESCipher
 from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
     JourneyTypes, SchemeAccountCredentialAnswer
@@ -23,6 +24,7 @@ from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFa
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory, fake)
 from ubiquity.censor_empty_fields import remove_empty
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tasks import deleted_membership_card_cleanup
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
@@ -201,7 +203,7 @@ class TestResources(GlobalMockAPITestCase):
             question=self.secondary_question,
             scheme_account=self.scheme_account
         )
-        self.second_scheme_account_answer.answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(
+        self.second_scheme_account_answer.answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(
             self.second_scheme_account_answer.answer
         )
         self.scheme_account_entry = SchemeAccountEntryFactory.create(
@@ -1610,7 +1612,7 @@ class TestResources(GlobalMockAPITestCase):
             ).answer
 
             if question_type in ENCRYPTED_CREDENTIALS:
-                answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+                answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
 
             question_answer_map[question_type] = answer
 
