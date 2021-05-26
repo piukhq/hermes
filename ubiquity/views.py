@@ -774,7 +774,7 @@ class MembershipCardView(
             encrypted_fields = {}
 
             for item in fields:
-                field_type = label_to_type[item["column"]]
+                field_type = label_to_type[fields_type][item["column"]]
                 self._filter_sensitive_fields(field_content, encrypted_fields, field_type, item, api_version)
 
             if encrypted_fields:

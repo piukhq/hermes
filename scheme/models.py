@@ -29,10 +29,9 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encryption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
-from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
@@ -298,13 +297,44 @@ class Scheme(models.Model):
 
     @staticmethod
     def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
-        return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
-            }
-            for question in question_list
+        """
+        Returns a dict per field type to map scheme credential column names to the question slug and answer type
+        e.g:
+        {
+            "add_fields": {
+                "Email": {"type": "email", "answer_type": 0},
+                ...
+            },
+            "auth_fields": {
+                "Password": {"type": "password", "answer_type": 1},
+                ...
+            },
+            "enrol_fields": {
+                "Password": {"type": "password_2", "answer_type": 1},
+                ...
+            },
+            "registration_fields": {
+                ...
+            },
         }
+        """
+        fields_to_field = {
+            "add_fields": "add_field",
+            "authorise_fields": "auth_field",
+            "registration_fields": "register_field",
+            "enrol_fields": "enrol_field"
+        }
+
+        question_type_dict = {fields: {} for fields in fields_to_field}
+        for question in question_list:
+            for fields in fields_to_field:
+                if getattr(question, fields_to_field[fields]):
+                    question_type_dict[fields][question.label] = {
+                        "type": question.type,
+                        "answer_type": question.answer_type
+                    }
+
+        return question_type_dict
 
     @classmethod
     @lru_cache(maxsize=256)
@@ -690,8 +720,7 @@ class SchemeAccount(models.Model):
                 continue
 
             if question.type in ENCRYPTED_CREDENTIALS:
-                cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
-                credentials[question.type] = cipher.decrypt(answer)
+                credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
             else:
                 credentials[question.type] = answer
         return credentials
@@ -739,8 +768,7 @@ class SchemeAccount(models.Model):
     def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
         answer = answer_instance.answer
         if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
-            cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
-            answer = cipher.decrypt(answer)
+            answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
         return answer
 
     def credentials(self):
@@ -759,12 +787,18 @@ class SchemeAccount(models.Model):
                 self.save()
                 return None
 
+        for credential in credentials.keys():
+            # Other services only expect a single password, "password", so "password_2" must be converted
+            # before sending if it exists. Ideally, the new credential would be handled in the consuming
+            # service and this should be removed.
+            if credential == PASSWORD_2:
+                credentials[PASSWORD] = credentials.pop(credential)
+
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
-        cipher = AESCipher(AESKeyNames.AES_KEY)
-        return cipher.encrypt(serialized_credentials).decode('utf-8')
+        return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
 
     def update_or_create_primary_credentials(self, credentials):
         """
@@ -1375,12 +1409,11 @@ class SchemeAccountCredentialAnswer(models.Model):
 @receiver(signals.pre_save, sender=SchemeAccountCredentialAnswer)
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
-        cipher = AESCipher(AESKeyNames.LOCAL_AES_KEY)
         try:
-            encrypted_answer = cipher.encrypt(instance.answer).decode("utf-8")
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
         except AttributeError:
             answer = str(instance.answer)
-            encrypted_answer = cipher.encrypt(answer).decode("utf-8")
+            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
 
         instance.answer = encrypted_answer
 
