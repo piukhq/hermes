@@ -32,6 +32,7 @@ from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encryption import AESCipher
 from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
@@ -720,7 +721,7 @@ class SchemeAccount(models.Model):
                 continue
 
             if question.type in ENCRYPTED_CREDENTIALS:
-                credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+                credentials[question.type] = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
             else:
                 credentials[question.type] = answer
         return credentials
@@ -768,7 +769,7 @@ class SchemeAccount(models.Model):
     def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
         answer = answer_instance.answer
         if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
-            answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+            answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
         return answer
 
     def credentials(self):
@@ -798,7 +799,7 @@ class SchemeAccount(models.Model):
         credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
-        return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+        return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode('utf-8')
 
     def update_or_create_primary_credentials(self, credentials):
         """
@@ -1410,10 +1411,10 @@ class SchemeAccountCredentialAnswer(models.Model):
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         try:
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+            encrypted_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(instance.answer).decode("utf-8")
         except AttributeError:
             answer = str(instance.answer)
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+            encrypted_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(answer).decode("utf-8")
 
         instance.answer = encrypted_answer
 
