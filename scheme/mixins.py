@@ -19,12 +19,13 @@ from hermes.channels import Permit
 from payment_card.payment import Payment, PaymentError
 from scheme.credentials import (PAYMENT_CARD_HASH, CARD_NUMBER, BARCODE, ENCRYPTED_CREDENTIALS,
                                 CASE_SENSITIVE_CREDENTIALS, PASSWORD_2, PASSWORD)
-from scheme.encyption import AESCipher
+from scheme.encryption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            UserConsent, SchemeCredentialQuestion, Consent)
 from scheme.serializers import (UbiquityJoinSerializer, UpdateCredentialSerializer,
                                 UserConsentSerializer, LinkSchemeSerializer)
 from ubiquity.models import SchemeAccountEntry
+from ubiquity.channel_vault import AESKeyNames
 
 if t.TYPE_CHECKING:
     from user.models import CustomUser
@@ -432,8 +433,12 @@ class SchemeAccountJoinMixin:
         for question in scheme_account.scheme.link_questions:
             question_type = question.type
 
-            if question_type == PASSWORD_2:
-                answer = credentials_dict[PASSWORD]
+            if question_type in (PASSWORD, PASSWORD_2):
+                if PASSWORD_2 in credentials_dict:
+                    answer = credentials_dict[PASSWORD_2]
+                    credentials_dict[PASSWORD] = credentials_dict.pop(PASSWORD_2)
+                else:
+                    answer = credentials_dict[PASSWORD]
             else:
                 answer = credentials_dict[question_type]
 
@@ -445,8 +450,7 @@ class SchemeAccountJoinMixin:
 
         updated_credentials = scheme_account.update_or_create_primary_credentials(credentials_dict)
 
-        encrypted_credentials = AESCipher(
-            settings.AES_KEY.encode()).encrypt(json.dumps(updated_credentials)).decode('utf-8')
+        encrypted_credentials = AESCipher(AESKeyNames.AES_KEY).encrypt(json.dumps(updated_credentials)).decode('utf-8')
 
         data = {
             'scheme_account_id': scheme_account.id,
@@ -481,7 +485,7 @@ class UpdateCredentialsMixin:
             question_type, new_answer = answer_and_type
 
             if question_type in ENCRYPTED_CREDENTIALS:
-                new_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(str(new_answer)).decode("utf-8")
+                new_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(str(new_answer)).decode("utf-8")
 
             if question_id in existing_credentials:
                 credential = existing_credentials[question_id]
