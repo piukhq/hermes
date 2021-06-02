@@ -6,7 +6,7 @@ from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from scheme.models import SchemeContent, SchemeFee
-from ubiquity.channel_vault import KeyType, get_secret_key, SecretKeyName, get_key
+from ubiquity.channel_vault import KeyType, get_secret_key, SecretKeyName, get_bundle_key
 from ubiquity.utils import needs_decryption
 from ubiquity.versioning.base import serializers as base_serializers
 
@@ -62,7 +62,7 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         ] + self.FIELDS_TO_DECRYPT
         values_to_decrypt = [data[key] for key in fields_to_decrypt]
         if needs_decryption(values_to_decrypt):
-            rsa_key_pem = get_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
+            rsa_key_pem = get_bundle_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
             try:
                 with sentry_sdk.start_span(op="decryption", description="payment card"):
                     decrypted_values = zip(fields_to_decrypt, rsa_decrypt_base64(rsa_key_pem, values_to_decrypt))

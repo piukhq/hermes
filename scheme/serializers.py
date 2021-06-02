@@ -191,6 +191,7 @@ class SchemeAnswerSerializer(serializers.Serializer):
     card_number = serializers.CharField(max_length=250, required=False)
     barcode = serializers.CharField(max_length=250, required=False)
     password = serializers.CharField(max_length=250, required=False)
+    password_2 = serializers.CharField(max_length=250, required=False)
     place_of_birth = serializers.CharField(max_length=250, required=False)
     email = serializers.EmailField(max_length=250, required=False)
     postcode = serializers.CharField(max_length=250, required=False)

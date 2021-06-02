@@ -2,14 +2,16 @@ import base64
 import hashlib
 from Crypto import Random
 from Crypto.Cipher import AES
+from ubiquity.channel_vault import get_aes_key
 
 # TODO : this should become its own library
 
 
 class AESCipher(object):
-    def __init__(self, key):
+    def __init__(self, aes_type):
         self.bs = 32
-        self.key = hashlib.sha256(key).digest()
+        _key = get_aes_key(aes_type).encode()
+        self.key = hashlib.sha256(_key).digest()
 
     def encrypt(self, raw):
         if raw == '':

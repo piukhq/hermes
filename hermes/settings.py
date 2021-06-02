@@ -237,9 +237,6 @@ STATIC_ROOT = "/tmp/static/"
 
 AUTH_USER_MODEL = "user.CustomUser"
 
-LOCAL_AES_KEY = "OLNnJPTcsdBXi1UqMBp2ZibUF3C7vQ"
-AES_KEY = "6gZW4ARFINh4DR1uIzn12l7Mh1UF982L"
-
 SERVICE_API_KEY = "F616CE5C88744DD52DB628FAD8B3D"
 SERVICE_API_METRICS_BUNDLE = "internal_service"
 
@@ -511,14 +508,15 @@ VAULT_CONFIG = dict(
     VAULT_URL=env_var("VAULT_URL", "http://localhost:8200"),
     VAULT_TOKEN=env_var("VAULT_TOKEN", "myroot"),
     # SET Signing secrets for JWT authentication
-    # For deployment set LOCAL_CHANNEL_SECRETS to False and set up Vault envs
-    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False  to True
-    # and set LOCAL_SECRETS_PATH to you json file.  See example_channels.json for format
-    # (Do not commit your channels json which might contain real secrets or edit example_channels.json)
-    LOCAL_CHANNEL_SECRETS=env_var("LOCAL_CHANNEL_SECRETS", "False"),
-    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_channels.json"),
+    # For deployment set LOCAL_SECRETS to False and set up Vault envs
+    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False to True
+    # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
+    # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
+    LOCAL_SECRETS=env_var("LOCAL_SECRETS", False),
+    LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
-    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret_keys"),
+    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
+    AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes-keys"),
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
@@ -532,8 +530,8 @@ LOGIN_REDIRECT_URL = "/admin/"
 LOGIN_REDIRECT_URL_FAILURE = "/admin/error/403"
 OIDC_RP_REPLY_URL = env_var("OIDC_RP_REPLY_URL", "https://api.dev.gb.bink.com/admin/oidc/callback/")
 OIDC_AUTHENTICATE_CLASS = "sso.auth.CustomOIDCAuthenticationRequestView"
-OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "cf6d5fc9-f503-442e-9dec-2cdf714143db")
-OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "Y35e1b~qGQ4X02-sfs3638Wy1Zxb.-.tl2")
+OIDC_RP_CLIENT_ID = env_var("OIDC_CLIENT_ID", "1a5d83f3-da1f-401c-ac5f-d41c3fa0d9ef")
+OIDC_RP_CLIENT_SECRET = env_var("OIDC_CLIENT_SECRET", "-NGSjpWWx_1w-6~.NkIl3lf~DC3Rg-.CMz")
 OIDC_RP_SIGN_ALGO = "RS256"
 OIDC_OP_JWKS_ENDPOINT = "https://login.microsoftonline.com/a6e2367a-92ea-4e5a-b565-723830bcc095/discovery/v2.0/keys"
 OIDC_OP_AUTHORIZATION_ENDPOINT = (
