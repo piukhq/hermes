@@ -1031,10 +1031,15 @@ class SchemeAccount(models.Model):
 
         return update_fields
 
-    def get_cached_balance(self, user_consents=None):
+    def get_cached_balance(self, user_consents=None, force_refetch=False):
+        # Gets scheme account balance from cache, or else updates the cache.
+        # If force_refetch=true, current cache value is ignored and will fetch and update with fresh data from Midas.
         cache_key = 'scheme_{}'.format(self.pk)
         old_status = self.status
-        balance = cache.get(cache_key)
+        if force_refetch:
+            balance = None
+        else:
+            balance = cache.get(cache_key)
         vouchers = None  # should we cache these too?
 
         if not balance:
