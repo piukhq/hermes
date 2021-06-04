@@ -281,8 +281,9 @@ class SchemeAccountAdmin(HistoryAdmin):
     def refresh_scheme_account_information(self, request, queryset):
         # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
         # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
-        for query in queryset:
-            query.get_cached_balance(force_refetch=True)
+        for scheme_account in queryset:
+            scheme_account.delete_cached_balance()
+            scheme_account.get_cached_balance()
         messages.add_message(request, messages.INFO, 'Refreshed balance, vouchers and transactions information.')
 
     def get_readonly_fields(self, request, obj=None):
