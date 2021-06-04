@@ -1032,6 +1032,8 @@ class SchemeAccount(models.Model):
         return update_fields
 
     def get_cached_balance(self, user_consents=None):
+        # Gets scheme account balance from cache if existing, else updates the cache.
+
         cache_key = 'scheme_{}'.format(self.pk)
         old_status = self.status
         balance = cache.get(cache_key)
