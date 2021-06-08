@@ -1238,8 +1238,9 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
     @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
         _, mcard, error = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
-        return HttpResponseForbidden(
-            "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
+        if error:
+            return HttpResponseForbidden(
+                "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
 
         return Response({}, status.HTTP_200_OK)
 
