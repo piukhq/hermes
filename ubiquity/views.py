@@ -7,6 +7,7 @@ import sentry_sdk
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.http import HttpResponseForbidden
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -1227,29 +1228,44 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def destroy_payment(self, request, *args, **kwargs):
-        pcard, _ = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        pcard, _, error = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        if error:
+            return HttpResponseForbidden(
+                "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
+
         return Response({}, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
-        _, mcard = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        _, mcard, error = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        if error:
+            return HttpResponseForbidden(
+                "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
+
         return Response({}, status.HTTP_200_OK)
 
     def _destroy_link(
             self, user: CustomUser, pcard_id: int, mcard_id: int
     ) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+        error = False
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
         except PaymentCardSchemeEntry.DoesNotExist:
             raise NotFound("The link that you are trying to delete does not exist.")
+
+        # Check if link is in multiple wallets
+        if link.payment_card_account.user_set.count() > 1:
+            error = True
+            return pcard, mcard, error
+
         # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
         # in list with activated status - if so call deactivate and then delete link
         activations = VopActivation.find_activations_matching_links([link])
         link.delete()
         PaymentCardSchemeEntry.deactivate_activations(activations)
-        return pcard, mcard
+        return pcard, mcard, error
 
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)

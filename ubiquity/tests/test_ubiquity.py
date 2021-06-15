@@ -2425,3 +2425,18 @@ class TestLastManStanding(GlobalMockAPITestCase):
 
         self.client.delete(reverse('membership-card', args=[mcard.id]), **self.auth_headers_1)
         self.assertEqual(pcard_2.scheme_account_set.count(), 0)
+
+    def test_destroy_link_in_multiple_wallet(self):
+        pcard_1 = PaymentCardAccountFactory()
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_1, user=self.user_1)
+        PaymentCardAccountEntryFactory(payment_card_account=pcard_1, user=self.user_2)
+        mcard = SchemeAccountFactory(scheme=self.scheme)
+        SchemeAccountEntryFactory(scheme_account=mcard, user=self.user_1)
+        PaymentCardSchemeEntry.objects.create(payment_card_account=pcard_1, scheme_account=mcard)
+
+        response = self.client.delete(reverse('payment-link', args=[mcard.id, pcard_1.id]), **self.auth_headers_1)
+        self.assertEqual(response.status_code, 403)
+
+        # Checking membership-link endpoint because it does the same thing as above
+        response = self.client.delete(reverse('membership-link', args=[pcard_1.id, mcard.id]), **self.auth_headers_1)
+        self.assertEqual(response.status_code, 403)
