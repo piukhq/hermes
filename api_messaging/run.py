@@ -17,7 +17,11 @@ django.setup(set_prefix=False)
 def on_message_recieved(body, message):
     print(f"got message: {message}  body: {body} headers: {message.headers}")
     # call process and return success or not
-    success = True
+    try:
+        success = True
+    except(RuntimeError):
+        if not message.acknowledged:
+            message.reject()
     if not message.acknowledged:
         if success:
             message.ack()
