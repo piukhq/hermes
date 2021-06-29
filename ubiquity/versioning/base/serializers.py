@@ -16,14 +16,14 @@ from rest_framework.fields import empty
 from rest_framework.serializers import as_serializer_error
 from rest_framework.validators import UniqueValidator
 from shared_config_storage.ubiquity.bin_lookup import bin_to_provider
-from ubiquity.reason_codes import get_state_and_reason_code
+from ubiquity.reason_codes import get_state_reason_code_and_text
 
 from common.models import check_active_image
 from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
-                           VoucherScheme, SchemeBundleAssociation, SchemeAccount)
+                           VoucherScheme, SchemeBundleAssociation, SchemeAccount, SchemeOverrideError)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
@@ -692,10 +692,20 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             else:
                 status = instance.PENDING
 
-        state, reason_codes = get_state_and_reason_code(status)
+        state, reason_codes, error_text = get_state_reason_code_and_text(status)
+        if reason_codes:
+            scheme_error = SchemeOverrideError.objects.filter(
+                scheme=instance.scheme,
+                reason_code=reason_codes[0],
+            ).first()
+
+            if scheme_error:
+                error_text = scheme_error.message
+
         return {
             "state": state,
-            "reason_codes": reason_codes
+            "reason_codes": reason_codes,
+            "error_text": error_text
         }
 
     @staticmethod
@@ -724,7 +734,6 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
 
         scheme = current_scheme if current_scheme is not None else instance.scheme
         images = self._get_images(instance, scheme, str(reward_tier))
-
         status = self.get_translated_status(instance, instance.status)
         balances = self._strip_reward_tier(instance.balances)
         for voucher in instance.vouchers:

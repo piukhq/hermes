@@ -31,6 +31,7 @@ from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encryption import AESCipher
+from ubiquity.reason_codes import REASON_CODES
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.channel_vault import AESKeyNames
 
@@ -179,6 +180,20 @@ class SchemeFee(models.Model):
 
     def __str__(self):
         return self.fee_type
+
+
+class SchemeOverrideError(models.Model):
+    REASON_CODE_CHOICES = ((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+    reason_code = models.TextField(choices=REASON_CODE_CHOICES)
+    error_slug = models.TextField()
+    message = models.TextField()
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
+
+    class Meta:
+        unique_together = ('reason_code', 'scheme')
 
 
 class Scheme(models.Model):

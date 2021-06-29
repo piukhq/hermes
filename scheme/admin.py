@@ -14,7 +14,8 @@ from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee)
+                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee,
+                           SchemeOverrideError)
 from ubiquity.models import SchemeAccountEntry
 
 
@@ -154,12 +155,17 @@ class SchemeDetailsInline(admin.StackedInline):
     extra = 0
 
 
+class SchemeOverrideErrorsInline(admin.StackedInline):
+    model = SchemeOverrideError
+    extra = 0
+
+
 @admin.register(Scheme)
 class SchemeAdmin(CacheResetAdmin):
 
     inlines = (
         SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
-        CredentialQuestionInline,
+        CredentialQuestionInline, SchemeOverrideErrorsInline,
     )
     exclude = []
     list_display = ('name', 'id', 'plan_popularity', 'category', 'company',)
@@ -435,6 +441,11 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
         except Exception:
             return queryset, use_distinct
+
+
+@admin.register(SchemeOverrideError)
+class SchemeOverrideErrorAdmin(admin.ModelAdmin):
+    list_display = ('id', 'scheme', 'message', 'reason_code')
 
 
 @admin.register(UserConsent)
