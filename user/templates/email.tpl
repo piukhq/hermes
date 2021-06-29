@@ -987,7 +987,7 @@ href="mailto:support@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Reque
 target="_blank" style="mso-line-height-rule:
                                                           exactly;-ms-text-size-adjust:
 100%;-webkit-text-size-adjust: 100%;color: #8eb1b7;font-weight:
-                                                          normal;text-decoration:
+                                                          300;text-decoration:
                                                           underline;">support@bink.com</a>.</div>
                                                       </td>
                                                     </tr>
