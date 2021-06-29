@@ -866,7 +866,7 @@ none;-ms-interpolation-mode: bicubic;" align="none" height="150"
                                           100%;-webkit-text-size-adjust:
                                           100%;" border="0"
                                           cellpadding="0"
-                                          cellspacing="0">
+                                          cellspacing="0" href="{{ link }}">
                                           <tbody>
                                             <tr>
                                               <td
@@ -883,10 +883,9 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"
                                                 valign="middle"> <a
                                                   moz-do-not-send="true"
                                                   class="mcnButton "
-                                                  title="Get a new
-                                                  password"
-                                                  href="{{ link }}"
+                                                  title="Get a new password"
                                                   target="_blank"
+                                                  href="{{ link }}"
                                                   style="font-weight:
                                                   300;letter-spacing:
                                                   normal;line-height:
