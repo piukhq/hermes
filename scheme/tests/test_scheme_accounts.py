@@ -1120,7 +1120,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_link_limit_exceeded(self, mock_request):
@@ -1179,8 +1179,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, test_status)
-        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
@@ -1192,6 +1192,27 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
+
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_ignore_midas_500_error(self, mock_request):
+        test_status = SchemeAccount.TRIPPED_CAPTCHA
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        points = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_midas_500_error_preserve_scheme_account_error_status(self, mock_request):
+        test_status = SchemeAccount.RESOURCE_LIMIT_REACHED
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.TRIPPED_CAPTCHA)
+        points = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
+        self.assertEqual(scheme_account.status, SchemeAccount.RESOURCE_LIMIT_REACHED)
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
 

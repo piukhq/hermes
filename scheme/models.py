@@ -846,6 +846,7 @@ class SchemeAccount(models.Model):
 
     def _process_midas_response(self, response):
         points = None
+        current_status = self.status
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
@@ -867,7 +868,8 @@ class SchemeAccount(models.Model):
 
         # When receiving a 500 error from Midas, keep SchemeAccount active only
         # if it's already active.
-        elif self.status >= 500 and self.status == SchemeAccount.ACTIVE:
+        elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
+            self.status = SchemeAccount.ACTIVE
             logger.info(f"Ignoring Midas {self.status} response code")
 
         return points
