@@ -864,6 +864,12 @@ class SchemeAccount(models.Model):
                      "rep": repr(self)},
                     headers={'X-content-type': 'application/json'}
                 )
+
+        # Ignore Midas 500s responses to continue receive loyalty - LOY-1888
+        elif self.status >= 500:
+            logger.info("Ignoring Midas 500 response code")
+            self.status = SchemeAccount.ACTIVE
+
         return points
 
     def get_midas_balance(self, journey):
