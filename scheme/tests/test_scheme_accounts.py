@@ -1194,13 +1194,12 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertEqual(scheme_account.status, test_status)
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
-
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_ignore_midas_500_error(self, mock_request):
         test_status = SchemeAccount.TRIPPED_CAPTCHA
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
-        points = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
 
         self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
         self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
@@ -1210,7 +1209,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         test_status = SchemeAccount.RESOURCE_LIMIT_REACHED
         mock_request.return_value.status_code = test_status
         scheme_account = SchemeAccountFactory(status=SchemeAccount.TRIPPED_CAPTCHA)
-        points = scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
 
         self.assertEqual(scheme_account.status, SchemeAccount.RESOURCE_LIMIT_REACHED)
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
