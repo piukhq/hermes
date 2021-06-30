@@ -865,10 +865,10 @@ class SchemeAccount(models.Model):
                     headers={'X-content-type': 'application/json'}
                 )
 
-        # Ignore Midas 500s responses to continue receive loyalty - LOY-1888
-        elif self.status >= 500:
-            logger.info("Ignoring Midas 500 response code")
-            self.status = SchemeAccount.ACTIVE
+        # When receiving a 500 error from Midas, keep SchemeAccount active only
+        # if it's already active.
+        elif self.status >= 500 and self.status == SchemeAccount.ACTIVE:
+            logger.info(f"Ignoring Midas {self.status} response code")
 
         return points
 

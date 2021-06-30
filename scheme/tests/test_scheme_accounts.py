@@ -1120,7 +1120,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_link_limit_exceeded(self, mock_request):
@@ -1179,8 +1179,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
-        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
+        self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
