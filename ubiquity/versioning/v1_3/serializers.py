@@ -38,7 +38,7 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
         for error in scheme_errors:
             if error.error_code == status:
                 error_text = error.message
-                break      
+                break
 
         return {
             "state": state,
