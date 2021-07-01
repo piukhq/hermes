@@ -23,7 +23,7 @@ from payment_card.models import Issuer, PaymentCard, PaymentCardAccount
 from payment_card.serializers import CreatePaymentCardAccountSerializer
 from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
-                           VoucherScheme, SchemeBundleAssociation, SchemeAccount, SchemeOverrideError)
+                           VoucherScheme, SchemeBundleAssociation, SchemeAccount)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
 from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
 from ubiquity.channel_vault import retry_session
@@ -692,20 +692,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
             else:
                 status = instance.PENDING
 
-        state, reason_codes, error_text = get_state_reason_code_and_text(status)
-        if reason_codes:
-            scheme_error = SchemeOverrideError.objects.filter(
-                scheme=instance.scheme,
-                reason_code=reason_codes[0],
-            ).first()
-
-            if scheme_error:
-                error_text = scheme_error.message
-
+        state, reason_codes, text = get_state_reason_code_and_text(status)
         return {
             "state": state,
-            "reason_codes": reason_codes,
-            "error_text": error_text
+            "reason_codes": reason_codes
         }
 
     @staticmethod

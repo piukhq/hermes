@@ -155,7 +155,7 @@ class SchemeDetailsInline(admin.StackedInline):
     extra = 0
 
 
-class SchemeOverrideErrorsInline(admin.StackedInline):
+class SchemeOverrideErrorInline(admin.StackedInline):
     model = SchemeOverrideError
     extra = 0
 
@@ -165,7 +165,7 @@ class SchemeAdmin(CacheResetAdmin):
 
     inlines = (
         SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
-        CredentialQuestionInline, SchemeOverrideErrorsInline,
+        CredentialQuestionInline, SchemeOverrideErrorInline,
     )
     exclude = []
     list_display = ('name', 'id', 'plan_popularity', 'category', 'company',)
@@ -445,7 +445,7 @@ class ExchangeAdmin(admin.ModelAdmin):
 
 @admin.register(SchemeOverrideError)
 class SchemeOverrideErrorAdmin(admin.ModelAdmin):
-    list_display = ('id', 'scheme', 'message', 'reason_code')
+    list_display = ('id', 'error_code', 'scheme', 'message', 'reason_code')
 
 
 @admin.register(UserConsent)
