@@ -50,6 +50,7 @@ class TestTasks(GlobalMockAPITestCase):
     @patch('scheme.models.SchemeAccount.call_analytics')
     @patch('requests.get')
     def test_async_balance(self, mock_midas_balance, mock_analytics):
+        mock_midas_balance.return_value.status_code = SchemeAccount.TRIPPED_CAPTCHA
         scheme_account_id = self.entry.scheme_account.id
         scheme_slug = self.entry.scheme_account.scheme.slug
         async_balance(scheme_account_id)
