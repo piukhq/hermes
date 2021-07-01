@@ -173,7 +173,7 @@ class SchemeOverrideError(models.Model):
 
     def __str__(self):
         return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
-    
+
     class Meta:
         unique_together = ('error_code', 'scheme')
 
