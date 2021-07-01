@@ -175,7 +175,7 @@ class SchemeOverrideError(models.Model):
         return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
     
     class Meta:
-        unique_together = ('error_code', 'reason_code', 'scheme')
+        unique_together = ('error_code', 'scheme')
 
 
 class Category(models.Model):
