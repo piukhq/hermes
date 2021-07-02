@@ -542,7 +542,7 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
         self.scheme_account.save()
         error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
-        data = MembershipCardSerializer_V1_3(self.scheme_account).data 
+        data = MembershipCardSerializer_V1_3(self.scheme_account).data
         self.assertEqual(error_messages[445], data['status']['error_text'])
 
     def test_membership_card_V1_3_contains_custom_error_message(self, *_):
