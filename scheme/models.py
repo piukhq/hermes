@@ -31,9 +31,7 @@ from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encryption import AESCipher
-from ubiquity.reason_codes import (
-    REASON_CODES
-    )
+from ubiquity.reason_codes import REASON_CODES
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.channel_vault import AESKeyNames
 
@@ -122,60 +120,6 @@ class UbiquityBalanceHandler:
 
         if self.value_balance is not None and self.value_info:
             self.data.append(self._format_balance(self.value_balance, self.value_info, True))
-
-
-class SchemeOverrideError(models.Model):
-    ERROR_CODE_CHOICES = (
-        (0, 'PENDING'),
-        (1, 'ACTIVE'),
-        (403, 'INVALID_CREDENTIALS'),
-        (432, 'INVALID_MFA'),
-        (530, 'END_SITE_DOWN'),
-        (531, 'IP_BLOCKED'),
-        (532, 'TRIPPED_CAPTCHA'),
-        (5, 'INCOMPLETE'),
-        (434, 'LOCKED_BY_ENDSITE'),
-        (429, 'RETRY_LIMIT_REACHED'),
-        (503, 'RESOURCE_LIMIT_REACHED'),
-        (520, 'UNKNOWN_ERROR'),
-        (9, 'MIDAS_UNREACHABLE'),
-        (404, 'AGENT_NOT_FOUND'),
-        (10, 'WALLET_ONLY'),
-        (533, 'PASSWORD_EXPIRED'),
-        (900, 'JOIN'),
-        (444, 'NO_SUCH_RECORD'),
-        (536, 'CONFIGURATION_ERROR'),
-        (535, 'NOT_SENT'),
-        (445, 'ACCOUNT_ALREADY_EXISTS'),
-        (537, 'SERVICE_CONNECTION_ERROR'),
-        (401, 'VALIDATION_ERROR'),
-        (406, 'PRE_REGISTERED_CARD'),
-        (446, 'FAILED_UPDATE'),
-        (447, 'SCHEME_REQUESTED_DELETE'),
-        (204, 'PENDING_MANUAL_CHECK'),
-        (436, 'CARD_NUMBER_ERROR'),
-        (437, 'LINK_LIMIT_EXCEEDED'),
-        (438, 'CARD_NOT_REGISTERED'),
-        (439, 'GENERAL_ERROR'),
-        (441, 'JOIN_IN_PROGRESS'),
-        (538, 'JOIN_ERROR'),
-        (442, 'JOIN_ASYNC_IN_PROGRESS'),
-        (901, 'ENROL_FAILED'),
-        (902, 'REGISTRATION_FAILED')
-    )
-
-    REASON_CODE_CHOICES = ((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
-    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
-    error_code = models.IntegerField(choices=ERROR_CODE_CHOICES)
-    reason_code = models.CharField(max_length=50, choices=REASON_CODE_CHOICES)
-    error_slug = models.CharField(max_length=50)
-    message = models.TextField()
-
-    def __str__(self):
-        return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
-
-    class Meta:
-        unique_together = ('error_code', 'scheme')
 
 
 class Category(models.Model):
@@ -1325,6 +1269,23 @@ class SchemeAccount(models.Model):
 
     class Meta:
         ordering = ['order', '-created']
+
+
+class SchemeOverrideError(models.Model):
+    ERROR_CODE_CHOICES = tuple((status[0], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    ERROR_SLUG_CHOICES = tuple((status[2], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    REASON_CODE_CHOICES = tuple((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+    error_code = models.IntegerField(choices=ERROR_CODE_CHOICES)
+    reason_code = models.CharField(max_length=50, choices=REASON_CODE_CHOICES)
+    error_slug = models.CharField(max_length=50, choices=ERROR_SLUG_CHOICES)
+    message = models.TextField()
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
+
+    class Meta:
+        unique_together = ('error_code', 'scheme')
 
 
 class SchemeCredentialQuestion(models.Model):

@@ -19,7 +19,7 @@ from scheme.credentials import BARCODE, LAST_NAME, PASSWORD, CARD_NUMBER, USER_N
 from scheme.encryption import AESCipher
 from scheme.mixins import BaseLinkMixin
 from scheme.models import SchemeBundleAssociation, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, \
-    JourneyTypes, SchemeAccountCredentialAnswer
+    JourneyTypes, SchemeAccountCredentialAnswer, SchemeOverrideError
 from scheme.tests.factories import (SchemeAccountFactory, SchemeBalanceDetailsFactory, SchemeCredentialAnswerFactory,
                                     SchemeCredentialQuestionFactory, SchemeFactory, ConsentFactory,
                                     SchemeBundleAssociationFactory, fake)
@@ -33,6 +33,9 @@ from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import MembershipCardSerializer, MembershipPlanSerializer, \
     PaymentCardSerializer
+from ubiquity.versioning.v1_3.serializers import MembershipCardSerializer as MembershipCardSerializer_V1_3
+from ubiquity.versioning.base.serializers import MembershipCardSerializer as MembershipCardSerializer_base
+from ubiquity.reason_codes import CURRENT_STATUS_CODES
 from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
 from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
                                   UserFactory)
@@ -534,6 +537,34 @@ class TestResources(GlobalMockAPITestCase):
         data = MembershipCardSerializer(self.scheme_account).data
         self.assertEqual('authorised', data['status']['state'])
         self.assertEqual(['X300'], data['status']['reason_codes'])
+
+    def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
+        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account.save()
+        error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
+        data = MembershipCardSerializer_V1_3(self.scheme_account).data 
+        self.assertEqual(error_messages[445], data['status']['error_text'])
+
+    def test_membership_card_V1_3_contains_custom_error_message(self, *_):
+        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account.save()
+        error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
+                                    error_slug='ACCOUNT_ALREADY_EXISTS',
+                                    error_code=445,
+                                    reason_code='X202',
+                                    message='Custom error message')
+        error.save()
+        data = MembershipCardSerializer_V1_3(self.scheme_account).data
+        self.assertEqual('Custom error message', data['status']['error_text'])
+
+    def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
+        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account.save()
+        data = MembershipCardSerializer_base(self.scheme_account).data
+        status = {'state': 'failed', 'reason_codes': ['X202']}
+        self.assertEqual(status, data['status'])
+        data = MembershipCardSerializer(self.scheme_account).data
+        self.assertEqual(status, data['status'])
 
     @patch('analytics.api')
     @patch('ubiquity.influx_audit.InfluxDBClient')
