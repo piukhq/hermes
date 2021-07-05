@@ -504,7 +504,8 @@ class MembershipCardView(
 
     def get_queryset(self):
         return self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.select_related("scheme"), user_id=self.request.user.id, user_filter=True
+            SchemeAccount.objects.select_related("scheme").prefetch_related("scheme__schemeoverrideerror_set"),
+            user_id=self.request.user.id, user_filter=True
         )
 
     @censor_and_decorate

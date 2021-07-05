@@ -144,7 +144,8 @@ ubiquity_status_translation = {
 }
 
 
-def get_state_and_reason_code(status_code: int) -> Tuple[str, list]:
+def get_state_reason_code_and_text(status_code: int) -> Tuple[str, list]:
     state = ubiquity_status_translation[status_code]
     reason_codes = reason_code_translation[status_code]
-    return state, reason_codes
+    error_text = dict(CURRENT_STATUS_CODES)[status_code]
+    return state, reason_codes, error_text
