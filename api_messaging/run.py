@@ -1,8 +1,12 @@
+import logging
 import os
 import django
 
 from api_messaging.message_broker import ReceivingService
+from api_messaging.route import route_message
 
+
+logger = logging.getLogger(__name__)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 
 TIME_OUT = 4
@@ -15,11 +19,11 @@ django.setup(set_prefix=False)
 
 
 def on_message_recieved(body, message):
-    print(f"got message: {message}  body: {body} headers: {message.headers}")
-    # call process and return success or not
+    logger.info("API 2 message received")
+    # print(f"got message: {message}  body: {body} headers: {message.headers}")
     try:
-        success = True
-    except(RuntimeError):
+        success = route_message(message.headers, body)
+    except RuntimeError:
         if not message.acknowledged:
             message.reject()
     if not message.acknowledged:
