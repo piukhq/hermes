@@ -8,6 +8,7 @@ from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
 
 from history.models import HistoricalPaymentCardSchemeEntry, HistoricalSchemeAccount, HistoricalVopActivation
+from history.utils import mock_aes_keys
 from payment_card.tests.factories import PaymentCardFactory, IssuerFactory, PaymentCardAccountFactory
 from scheme.credentials import BARCODE, LAST_NAME
 from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, SchemeAccount
@@ -97,6 +98,7 @@ class TestTasks(APITestCase):
 
     @patch("analytics.api")
     @patch.object(SchemeAccount, "get_cached_balance", mock_get_cached_balance)
+    @patch("ubiquity.channel_vault._aes_keys", mock_aes_keys)
     @httpretty.activate
     def test_bulk_and_signal_history_resource(self, *_):
         httpretty.register_uri(
@@ -131,5 +133,5 @@ class TestTasks(APITestCase):
         historical_vop_activation_post = HistoricalVopActivation.objects.count()
 
         self.assertEqual(historical_payment_card_scheme_entry_post, historical_payment_card_scheme_entry_pre + 1)
-        self.assertEqual(historical_scheme_account_post, historical_scheme_account_pre + 4)
+        self.assertEqual(historical_scheme_account_post, historical_scheme_account_pre + 5)
         self.assertEqual(historical_vop_activation_post, historical_vop_activation_pre + 2)

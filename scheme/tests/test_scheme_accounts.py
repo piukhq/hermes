@@ -12,7 +12,7 @@ from rest_framework.utils.serializer_helpers import ReturnDict, ReturnList
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import (ADDRESS_1, ADDRESS_2, BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, EMAIL, FIRST_NAME,
                                 LAST_NAME, PASSWORD, PHONE, TITLE, TOWN_CITY, USER_NAME)
-from scheme.encyption import AESCipher
+from scheme.encryption import AESCipher
 from scheme.models import (ConsentStatus, JourneyTypes, Scheme, SchemeAccount, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, UserConsent, SchemeBundleAssociation, )
 from scheme.serializers import LinkSchemeSerializer, ListSchemeAccountSerializer
@@ -20,6 +20,7 @@ from scheme.tests.factories import (ConsentFactory, ExchangeFactory, SchemeAccou
                                     SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory,
                                     SchemeImageFactory, UserConsentFactory, SchemeBundleAssociationFactory,
                                     SchemeBalanceDetailsFactory)
+from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory, PaymentCardSchemeEntryFactory
 from user.models import Setting, ClientApplication, ClientApplicationBundle
@@ -586,7 +587,7 @@ class TestSchemeAccountViews(GlobalMockAPITestCase):
         self.assertEqual(self.scheme_account1.third_party_identifier, self.scheme_account_answer_barcode.answer)
 
     def test_scheme_account_encrypted_credentials(self):
-        decrypted_credentials = json.loads(AESCipher(settings.AES_KEY.encode()).decrypt(
+        decrypted_credentials = json.loads(AESCipher(AESKeyNames.AES_KEY).decrypt(
             self.scheme_account.credentials()))
 
         self.assertEqual(decrypted_credentials['card_number'], self.second_scheme_account_answer.answer)
@@ -1119,7 +1120,7 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, SchemeAccount.UNKNOWN_ERROR)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_balance_link_limit_exceeded(self, mock_request):
@@ -1178,8 +1179,8 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
 
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
-        self.assertEqual(scheme_account.status, test_status)
-        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
 
     @patch('requests.get', auto_spec=True, return_value=MagicMock())
     def test_get_midas_join_in_progress(self, mock_request):
@@ -1191,6 +1192,26 @@ class TestSchemeAccountModel(GlobalMockAPITestCase):
         self.assertIsNone(points)
         self.assertTrue(mock_request.called)
         self.assertEqual(scheme_account.status, test_status)
+        self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_ignore_midas_500_error(self, mock_request):
+        test_status = SchemeAccount.TRIPPED_CAPTCHA
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.ACTIVE)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
+        self.assertEqual(scheme_account.status, SchemeAccount.ACTIVE)
+        self.assertEqual(scheme_account.display_status, scheme_account.ACTIVE)
+
+    @patch('requests.get', auto_spec=True, return_value=MagicMock())
+    def test_midas_500_error_preserve_scheme_account_error_status(self, mock_request):
+        test_status = SchemeAccount.RESOURCE_LIMIT_REACHED
+        mock_request.return_value.status_code = test_status
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.TRIPPED_CAPTCHA)
+        scheme_account.get_midas_balance(JourneyTypes.UPDATE)
+
+        self.assertEqual(scheme_account.status, SchemeAccount.RESOURCE_LIMIT_REACHED)
         self.assertEqual(scheme_account.display_status, scheme_account.WALLET_ONLY)
 
 

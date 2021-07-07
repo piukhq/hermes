@@ -14,7 +14,8 @@ from scheme.forms import ConsentForm, SchemeForm
 from scheme.models import (Scheme, Exchange, SchemeAccount, SchemeImage, Category, SchemeAccountCredentialAnswer,
                            SchemeCredentialQuestion, SchemeAccountImage, Consent, UserConsent, SchemeBalanceDetails,
                            SchemeCredentialQuestionChoice, SchemeCredentialQuestionChoiceValue, Control, SchemeDetail,
-                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee)
+                           ThirdPartyConsentLink, SchemeBundleAssociation, VoucherScheme, SchemeContent, SchemeFee,
+                           SchemeOverrideError)
 from ubiquity.models import SchemeAccountEntry
 
 
@@ -154,15 +155,20 @@ class SchemeDetailsInline(admin.StackedInline):
     extra = 0
 
 
+class SchemeOverrideErrorInline(admin.StackedInline):
+    model = SchemeOverrideError
+    extra = 0
+
+
 @admin.register(Scheme)
 class SchemeAdmin(CacheResetAdmin):
 
     inlines = (
         SchemeContentInline, SchemeFeeInline, SchemeDetailsInline, SchemeBalanceDetailsInline, ControlInline,
-        CredentialQuestionInline,
+        CredentialQuestionInline, SchemeOverrideErrorInline,
     )
     exclude = []
-    list_display = ('name', 'id', 'category', 'company',)
+    list_display = ('name', 'id', 'plan_popularity', 'category', 'company',)
 
     form = SchemeForm
     search_fields = ['name']
@@ -205,7 +211,7 @@ class SchemeAccountCredentialAnswerInline(admin.TabularInline):
 
 class CardNumberFilter(InputFilter):
     parameter_name = 'card_number'
-    title = 'Card Number Containing:'
+    title = 'Card Number Containing'
 
     def queryset(self, request, queryset):
         term = self.value()
@@ -241,6 +247,18 @@ class CredentialEmailFilter(InputFilter):
         return queryset.filter(any_email)
 
 
+class BarcodeFilter(InputFilter):
+    parameter_name = 'barcode'
+    title = 'Barcode Containing'
+
+    def queryset(self, request, queryset):
+        term = self.value()
+        if term is None:
+            return
+        barcode = Q(barcode__icontains=term)
+        return queryset.filter(barcode)
+
+
 class SchemeAccountEntryInline(admin.TabularInline):
     model = SchemeAccountEntry
     extra = 0
@@ -259,9 +277,20 @@ class SchemeAccountEntryInline(admin.TabularInline):
 @admin.register(SchemeAccount)
 class SchemeAccountAdmin(HistoryAdmin):
     inlines = (SchemeAccountEntryInline, SchemeAccountCredentialAnswerInline,)
-    list_filter = (CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',)
-    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created')
+    list_filter = (
+        BarcodeFilter, CardNumberFilter, UserEmailFilter, CredentialEmailFilter, 'is_deleted', 'status', 'scheme',
+        )
+    list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created', 'updated')
     list_per_page = 25
+    actions = ['refresh_scheme_account_information']
+
+    def refresh_scheme_account_information(self, request, queryset):
+        # Forces a refresh of balance, voucher and transaction information. Requests an update of balance information
+        # directly from Midas, which will also push transactions from Midas (via Hades), to Hermes.
+        for scheme_account in queryset:
+            scheme_account.delete_cached_balance()
+            scheme_account.get_cached_balance()
+        messages.add_message(request, messages.INFO, 'Refreshed balance, vouchers and transactions information.')
 
     def get_readonly_fields(self, request, obj=None):
         if obj:
@@ -412,6 +441,11 @@ class ExchangeAdmin(admin.ModelAdmin):
             return queryset, use_distinct
         except Exception:
             return queryset, use_distinct
+
+
+@admin.register(SchemeOverrideError)
+class SchemeOverrideErrorAdmin(admin.ModelAdmin):
+    list_display = ('id', 'error_code', 'scheme', 'message', 'reason_code')
 
 
 @admin.register(UserConsent)

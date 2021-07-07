@@ -7,6 +7,7 @@ import sentry_sdk
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.http import HttpResponseForbidden
 from rest_framework import status
 from rest_framework.exceptions import NotFound, ParseError, ValidationError
 from rest_framework.generics import get_object_or_404
@@ -47,7 +48,7 @@ from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
-from ubiquity.channel_vault import KeyType, SecretKeyName, get_key, get_secret_key
+from ubiquity.channel_vault import KeyType, SecretKeyName, get_bundle_key, get_secret_key
 from ubiquity.influx_audit import audit
 from ubiquity.models import (
     PaymentCardAccountEntry,
@@ -283,7 +284,6 @@ class ServiceView(VersionedSerializerMixin, ModelViewSet):
         try:
             serializer.is_valid(raise_exception=True)
         except ValidationError:
-            logger.exception("Error serializing Service request data")
             # Generic response required for Barclays
             raise ParseError
 
@@ -504,7 +504,8 @@ class MembershipCardView(
 
     def get_queryset(self):
         return self.request.channels_permit.scheme_account_query(
-            SchemeAccount.objects.select_related("scheme"), user_id=self.request.user.id, user_filter=True
+            SchemeAccount.objects.select_related("scheme").prefetch_related("scheme__schemeoverrideerror_set"),
+            user_id=self.request.user.id, user_filter=True
         )
 
     @censor_and_decorate
@@ -775,7 +776,7 @@ class MembershipCardView(
             encrypted_fields = {}
 
             for item in fields:
-                field_type = label_to_type[item["column"]]
+                field_type = label_to_type[fields_type][item["column"]]
                 self._filter_sensitive_fields(field_content, encrypted_fields, field_type, item, api_version)
 
             if encrypted_fields:
@@ -791,7 +792,7 @@ class MembershipCardView(
     @staticmethod
     def _decrypt_sensitive_fields(bundle_id: str, fields: dict) -> dict:
         if needs_decryption(fields.values()):
-            rsa_key_pem = get_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
+            rsa_key_pem = get_bundle_key(bundle_id=bundle_id, key_type=KeyType.PRIVATE_KEY)
             try:
                 with sentry_sdk.start_span(op="decryption", description="membership card"):
                     decrypted_values = zip(fields.keys(), rsa_decrypt_base64(rsa_key_pem, list(fields.values())))
@@ -1228,29 +1229,44 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
     @censor_and_decorate
     def destroy_payment(self, request, *args, **kwargs):
-        pcard, _ = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        pcard, _, error = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        if error:
+            return HttpResponseForbidden(
+                "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
+
         return Response({}, status.HTTP_200_OK)
 
     @censor_and_decorate
     def destroy_membership(self, request, *args, **kwargs):
-        _, mcard = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        _, mcard, error = self._destroy_link(request.user, kwargs["pcard_id"], kwargs["mcard_id"])
+        if error:
+            return HttpResponseForbidden(
+                "Unable to remove link. Payment and Loyalty card combination exists in other wallets")
+
         return Response({}, status.HTTP_200_OK)
 
     def _destroy_link(
             self, user: CustomUser, pcard_id: int, mcard_id: int
     ) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+        error = False
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
 
         try:
             link = PaymentCardSchemeEntry.objects.get(scheme_account=mcard, payment_card_account=pcard)
         except PaymentCardSchemeEntry.DoesNotExist:
             raise NotFound("The link that you are trying to delete does not exist.")
+
+        # Check if link is in multiple wallets
+        if link.payment_card_account.user_set.count() > 1:
+            error = True
+            return pcard, mcard, error
+
         # Check that if the Payment card has visa slug (VOP) and that the card is not linked to same merchant
         # in list with activated status - if so call deactivate and then delete link
         activations = VopActivation.find_activations_matching_links([link])
         link.delete()
         PaymentCardSchemeEntry.deactivate_activations(activations)
-        return pcard, mcard
+        return pcard, mcard, error
 
     def _update_link(self, user: CustomUser, pcard_id: int, mcard_id: int) -> t.Tuple[PaymentCardSchemeEntry, int]:
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)

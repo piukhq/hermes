@@ -29,9 +29,11 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS
-from scheme.encyption import AESCipher
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
+from scheme.encryption import AESCipher
+from ubiquity.reason_codes import REASON_CODES
 from ubiquity.models import PaymentCardSchemeEntry
+from ubiquity.channel_vault import AESKeyNames
 
 if TYPE_CHECKING:
     from user.models import ClientApplicationBundle, ClientApplication
@@ -264,6 +266,7 @@ class Scheme(models.Model):
                                            'ie: ADD, REGISTRATION, ENROL')
 
     formatted_images = JSONField(default=dict, blank=True)
+    plan_popularity = models.PositiveSmallIntegerField(null=True, default=None, blank=True)
 
     @cached_property
     def manual_question(self):
@@ -296,13 +299,44 @@ class Scheme(models.Model):
 
     @staticmethod
     def get_question_type_dict(question_list: Iterable['SchemeCredentialQuestion']) -> dict:
-        return {
-            question.label: {
-                "type": question.type,
-                "answer_type": question.answer_type
-            }
-            for question in question_list
+        """
+        Returns a dict per field type to map scheme credential column names to the question slug and answer type
+        e.g:
+        {
+            "add_fields": {
+                "Email": {"type": "email", "answer_type": 0},
+                ...
+            },
+            "auth_fields": {
+                "Password": {"type": "password", "answer_type": 1},
+                ...
+            },
+            "enrol_fields": {
+                "Password": {"type": "password_2", "answer_type": 1},
+                ...
+            },
+            "registration_fields": {
+                ...
+            },
         }
+        """
+        fields_to_field = {
+            "add_fields": "add_field",
+            "authorise_fields": "auth_field",
+            "registration_fields": "register_field",
+            "enrol_fields": "enrol_field"
+        }
+
+        question_type_dict = {fields: {} for fields in fields_to_field}
+        for question in question_list:
+            for fields in fields_to_field:
+                if getattr(question, fields_to_field[fields]):
+                    question_type_dict[fields][question.label] = {
+                        "type": question.type,
+                        "answer_type": question.answer_type
+                    }
+
+        return question_type_dict
 
     @classmethod
     @lru_cache(maxsize=256)
@@ -688,7 +722,7 @@ class SchemeAccount(models.Model):
                 continue
 
             if question.type in ENCRYPTED_CREDENTIALS:
-                credentials[question.type] = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+                credentials[question.type] = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
             else:
                 credentials[question.type] = answer
         return credentials
@@ -736,7 +770,7 @@ class SchemeAccount(models.Model):
     def _get_decrypted_answer(answer_instance: 'SchemeAccountCredentialAnswer') -> str:
         answer = answer_instance.answer
         if answer_instance.question.type in ENCRYPTED_CREDENTIALS:
-            answer = AESCipher(settings.LOCAL_AES_KEY.encode()).decrypt(answer)
+            answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
         return answer
 
     def credentials(self):
@@ -755,11 +789,18 @@ class SchemeAccount(models.Model):
                 self.save()
                 return None
 
+        for credential in credentials.keys():
+            # Other services only expect a single password, "password", so "password_2" must be converted
+            # before sending if it exists. Ideally, the new credential would be handled in the consuming
+            # service and this should be removed.
+            if credential == PASSWORD_2:
+                credentials[PASSWORD] = credentials.pop(credential)
+
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
 
         serialized_credentials = json.dumps(credentials)
-        return AESCipher(settings.AES_KEY.encode()).encrypt(serialized_credentials).decode('utf-8')
+        return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode('utf-8')
 
     def update_or_create_primary_credentials(self, credentials):
         """
@@ -806,6 +847,7 @@ class SchemeAccount(models.Model):
 
     def _process_midas_response(self, response):
         points = None
+        current_status = self.status
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
@@ -824,6 +866,13 @@ class SchemeAccount(models.Model):
                      "rep": repr(self)},
                     headers={'X-content-type': 'application/json'}
                 )
+
+        # When receiving a 500 error from Midas, keep SchemeAccount active only
+        # if it's already active.
+        elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
+            self.status = SchemeAccount.ACTIVE
+            logger.info(f"Ignoring Midas {self.status} response code")
+
         return points
 
     def get_midas_balance(self, journey):
@@ -992,6 +1041,8 @@ class SchemeAccount(models.Model):
         return update_fields
 
     def get_cached_balance(self, user_consents=None):
+        # Gets scheme account balance from cache if existing, else updates the cache.
+
         cache_key = 'scheme_{}'.format(self.pk)
         old_status = self.status
         balance = cache.get(cache_key)
@@ -1215,11 +1266,34 @@ class SchemeAccount(models.Model):
                 pass
         return answer
 
+    def save(self, *args, **kwargs):
+        # Only when we update, we update the updated date time.
+        if kwargs.get("update_fields"):
+            kwargs['update_fields'].append('updated')
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return "{} - id: {}".format(self.scheme.name, self.id)
 
     class Meta:
         ordering = ['order', '-created']
+
+
+class SchemeOverrideError(models.Model):
+    ERROR_CODE_CHOICES = tuple((status[0], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    ERROR_SLUG_CHOICES = tuple((status[2], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    REASON_CODE_CHOICES = tuple((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+    error_code = models.IntegerField(choices=ERROR_CODE_CHOICES)
+    reason_code = models.CharField(max_length=50, choices=REASON_CODE_CHOICES)
+    error_slug = models.CharField(max_length=50, choices=ERROR_SLUG_CHOICES)
+    message = models.TextField()
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
+
+    class Meta:
+        unique_together = ('error_code', 'scheme')
 
 
 class SchemeCredentialQuestion(models.Model):
@@ -1365,10 +1439,10 @@ class SchemeAccountCredentialAnswer(models.Model):
 def encryption_handler(sender, instance, **kwargs):
     if instance.question.type in ENCRYPTED_CREDENTIALS:
         try:
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(instance.answer).decode("utf-8")
+            encrypted_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(instance.answer).decode("utf-8")
         except AttributeError:
             answer = str(instance.answer)
-            encrypted_answer = AESCipher(settings.LOCAL_AES_KEY.encode()).encrypt(answer).decode("utf-8")
+            encrypted_answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).encrypt(answer).decode("utf-8")
 
         instance.answer = encrypted_answer
 

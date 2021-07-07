@@ -1,12 +1,35 @@
-from datetime import datetime
-from time import time
+import datetime
 from unittest.mock import patch
 
 from django.core import mail
-from django.utils.timezone import make_aware
 from rest_framework.test import APITestCase
 
-from magic_link.tasks import send_magic_link
+from common.models import Image
+from magic_link.tasks import send_magic_link, populate_template
+from scheme.tests.factories import SchemeFactory, SchemeBundleAssociationFactory, SchemeImageFactory
+from user.tests.factories import ClientApplicationBundleFactory
+from user.utils import MagicLinkData
+
+
+TEST_TEMPLATE = """
+<h1>TEST EMAIL</h1>
+<br>
+<h2>
+    Magic-link-url is {{ magic_link_url }}
+    <br>
+    Plan_name is: {{ plan_name }}
+    <br>
+    Plan_summary is: {{ plan_summary }}
+    <br>
+    Plan description is: {{ plan_description }}
+    <br>
+    Hero image is: <img src="{{ hero_image }}" alt="hero_image">
+    <br>
+    Alt-hero image is: <img src="{{ alt_hero_image }}" alt="alt_hero_image">
+    <br>
+
+</h2>
+"""
 
 
 class TestTask(APITestCase):
@@ -15,17 +38,62 @@ class TestTask(APITestCase):
     def setUpTestData(cls):
         cls.test_email = 'test-bink@bink.com'
 
-    @patch('magic_link.tasks.get_email_template')
-    @patch('magic_link.tasks.send_magic_link')
-    def test_send_magic_link(self, mock_template, mock_email):
-        expiry_date = make_aware(datetime.fromtimestamp(int(time() + 60)))
-        send_magic_link(
-            self.test_email,
-            'some_token',
-            'test_bink.com',
-            'web',
-            expiry_date
+    @patch('magic_link.tasks.populate_template', return_value='')
+    def test_send_magic_link(self, mock_populate_template):
+        magic_link_data = MagicLinkData(
+            bundle_id="com.wasabi.bink.com",
+            slug="wasabi-club",
+            external_name="web",
+            email=self.test_email,
+            email_from="test_from_email@bink.com",
+            subject="Some subject",
+            template="Some template",
+            url="magic/link/url",
+            token="Some token",
+            expiry_date=datetime.datetime.now(),
+            locale="en_GB"
         )
+        send_magic_link(magic_link_data)
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, 'Magic Link Request')
+        self.assertEqual(mail.outbox[0].subject, 'Some subject')
+        self.assertEqual(mail.outbox[0].from_email, 'test_from_email@bink.com')
+        self.assertEqual(mail.outbox[0].reply_to, ['no-reply@bink.com'])
+
+    def test_populate_template(self):
+        bundle = ClientApplicationBundleFactory()
+        scheme = SchemeFactory(plan_name="Some plan", plan_summary="Some summary", plan_description="Some description")
+        image1 = SchemeImageFactory(scheme=scheme, image_type_code=Image.HERO)
+        image2 = SchemeImageFactory(scheme=scheme, image_type_code=Image.ALT_HERO)
+
+        SchemeBundleAssociationFactory(scheme=scheme, bundle=bundle)
+
+        magic_link_data = MagicLinkData(
+            bundle_id=bundle.bundle_id,
+            slug=scheme.slug,
+            external_name="web",
+            email=self.test_email,
+            email_from="test_from_email@bink.com",
+            subject="Some subject",
+            template=TEST_TEMPLATE,
+            url="magic/link/url/?magic-link=",
+            token="Some token",
+            expiry_date=datetime.datetime.now(),
+            locale="en_GB"
+        )
+
+        content = populate_template(magic_link_data)
+
+        # Very basic check that tags have been substituted
+        tag_to_value = {
+            "{{ magic_link_url }}": magic_link_data.url + magic_link_data.token,
+            "{{ plan_name }}": scheme.plan_name,
+            "{{ plan_summary }}": scheme.plan_summary,
+            "{{ plan_description }}": scheme.plan_description,
+            "{{ hero_image }}": image1.image.url,
+            "{{ alt_hero_image }}": image2.image.url,
+        }
+
+        for tag, value in tag_to_value.items():
+            self.assertNotIn(tag, content)
+            self.assertIn(str(value), content)
