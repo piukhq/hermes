@@ -63,6 +63,7 @@ LOCAL_APPS = (
     "magic_link",
     "scripts",
     "prometheus.apps.PrometheusPusherConfig",
+    "api_messaging"
 )
 
 INSTALLED_APPS = (
@@ -548,3 +549,10 @@ PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9
 PROMETHEUS_JOB = "hermes"
 
 ENCRYPTED_VALUES_LENGTH_CONTROL = int(env_var("ENCRYPTED_VALUES_LENGTH_CONTROL", "255"))
+
+# RABBIT
+TIME_OUT = env_var("TIMEOUT", 4)
+RABBIT_PASSWORD = env_var("RABBIT_PASSWORD", "guest")
+RABBIT_USER = env_var("RABBIT_USER", "guest")
+RABBIT_HOST = env_var("RABBIT_HOST", "127.0.0.1")
+RABBIT_PORT = env_var("RABBIT_PORT", 5672)
