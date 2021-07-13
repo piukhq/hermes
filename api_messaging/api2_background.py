@@ -24,7 +24,7 @@ def add_payment_card(message: dict):
     metis.enrol_new_payment_card(payment_card_account)
 
 
-def delete_payment_card(message: dict):
+def delete_payment_account(message: dict):
 
     query = {"user_id": message['user_id'],
              "payment_card_account_id": message['payment_card_account_id']}

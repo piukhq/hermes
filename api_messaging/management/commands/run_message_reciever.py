@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.conf import settings
+import os
+import django
 
 from api_messaging.message_broker import ReceivingService
 from api_messaging.run import on_message_recieved, on_time_out
@@ -9,6 +11,9 @@ class Command(BaseCommand):
     help = "Run receiver to process messages from Angelia."
 
     def handle(self, *args, **kwargs):
+
+        os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
+
         self.stdout.write('Running receiver service.')
         ReceivingService(
             user=settings.RABBIT_USER,
@@ -21,3 +26,5 @@ class Command(BaseCommand):
             callbacks=[on_message_recieved],
             on_time_out=on_time_out
         )
+
+        django.setup(set_prefix=False)
