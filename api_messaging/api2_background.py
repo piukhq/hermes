@@ -1,6 +1,10 @@
+from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
+from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
+from ubiquity.models import PaymentCardAccountEntry
+from ubiquity.tasks import deleted_payment_card_cleanup
 from user.models import CustomUser
 
 
@@ -18,3 +22,19 @@ def add_payment_card(message: dict):
         )
 
     metis.enrol_new_payment_card(payment_card_account)
+
+
+def delete_payment_card(message: dict):
+
+    query = {"user_id": message['user_id'],
+             "payment_card_account_id": message['payment_card_account_id']}
+
+    get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
+    deleted_payment_card_cleanup(message['payment_card_account_id'],
+                                 history_kwargs=user_info(user_id=message['user_id'],
+                                                          channel=message['channel']))
+
+
+
+
+
