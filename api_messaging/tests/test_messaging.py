@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from api_messaging import api2_background
+from api_messaging import api2_background, route
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from scheme.tests.factories import SchemeAccountFactory
@@ -29,6 +29,20 @@ class TestMessaging(GlobalMockAPITestCase):
             "channel_id": "com.bink.wallet",
             "auto_link": True,
         }
+        cls.headers = {"X-http-path": "add_payment_card"}
+        cls.fail_headers = {"X-http-path": "failing_test"}
+
+    @patch('api_messaging.api2_background.add_payment_card')
+    def test_routing(self, mock_add_payment_card):
+        result = route.route_message(self.headers, self.add_payment_card_message)
+
+        self.assertTrue(mock_add_payment_card.called)
+        self.assertTrue(result)
+
+    def test_failed_route(self):
+        result = route.route_message(self.fail_headers, self.add_payment_card_message)
+
+        self.assertFalse(result)
 
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_process_add_payment_card_message(self, mock_metis_enrol):
