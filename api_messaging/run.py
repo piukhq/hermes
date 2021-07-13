@@ -35,16 +35,3 @@ def on_message_recieved(body, message):
 
 def on_time_out():
     pass
-
-
-ReceivingService(
-    user=RABBIT_USER,
-    password=RABBIT_PASSWORD,
-    host=RABBIT_HOST,
-    port=RABBIT_PORT,
-    queue_name="from_api2",
-    heartbeat=TIME_OUT * 3,
-    timeout=TIME_OUT,
-    callbacks=[on_message_recieved],
-    on_time_out=on_time_out
-)
