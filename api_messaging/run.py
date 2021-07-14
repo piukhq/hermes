@@ -2,7 +2,6 @@ import logging
 import os
 import django
 
-from api_messaging.message_broker import ReceivingService
 from api_messaging.route import route_message
 
 
