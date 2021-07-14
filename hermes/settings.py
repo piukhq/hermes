@@ -185,8 +185,8 @@ DATABASES = {
         "ENGINE": "hermes.traced_db_wrapper",
         "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
         "USER": env_var("HERMES_DATABASE_USER", "postgres"),
-        "PASSWORD": env_var("HERMES_DATABASE_PASS", "Tunners07DB"),
-        "HOST": env_var("HERMES_DATABASE_HOST", "localhost"),
+        "PASSWORD": env_var("HERMES_DATABASE_PASS"),
+        "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
         "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
     }
 }
