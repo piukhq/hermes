@@ -191,8 +191,6 @@ DATABASES = {
     }
 }
 
-# TODO: replace host and password with defaults and get messaging service to read these from .env
-
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
 
