@@ -8,7 +8,7 @@ from ubiquity.tasks import deleted_payment_card_cleanup
 from user.models import CustomUser
 
 
-def add_payment_card(message: dict):
+def add_payment_account(message: dict):
     # Auto link if set to True
     # Calls Metis to enrol payment card
 
@@ -27,16 +27,14 @@ def add_payment_card(message: dict):
 def delete_payment_account(message: dict):
 
     query = {"user_id": message['user_id'],
-             "payment_card_account_id": message['payment_card_account_id']}
+             "payment_card_account_id": message['payment_account_id']}
 
     get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
     # 404s shouldn't be happening as would be caught by Angelia. This would likely be caused if a
     # payment card account and/or pca/user combo did not exist but for some reason the corresponding
     # PCAUserAssociation object did (as this is what Angelia checks, not the PCA itself).
 
-    # TODO: Does this 404 need try/catching?
-
-    deleted_payment_card_cleanup(payment_card_id=message['payment_card_account_id'],
+    deleted_payment_card_cleanup(payment_card_id=message['payment_account_id'],
                                  payment_card_hash=None,
                                  history_kwargs={"user_info": user_info(user_id=message['user_id'],
-                                                                        channel=message['channel'])})
+                                                                        channel=message['channel_id'])})

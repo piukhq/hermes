@@ -25,7 +25,7 @@ def route_message(headers: dict, message: dict):
     # Route message to core functionality. Route found in headers
 
     route = {
-        "add_payment_card": api2_background.add_payment_card,
+        "add_payment_account": api2_background.add_payment_account,
         "delete_payment_account": api2_background.delete_payment_account,
     }
 
