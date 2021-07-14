@@ -11,7 +11,7 @@ omit = *migrations*
        hermes/tasks.py
        hermes/fixtures/setupdb.py
        payment_card/tasks.py
-       payment_card/payment_card_scheme_account.py
+       payment_card/payment_card_scheme_accounts.py
        ubiquity/tasks.py
        user/exceptions.py
        hermes/wsgi.py
@@ -25,6 +25,7 @@ omit = *migrations*
        gunicorn.py
        scripts/*
        api_messaging/message_broker.py
+       api_messaging/run.py
 branch = True
 
 [report]

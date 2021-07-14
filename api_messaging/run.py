@@ -6,14 +6,9 @@ import django
 logger = logging.getLogger(__name__)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 
-TIME_OUT = 4
-RABBIT_PASSWORD = "guest"
-RABBIT_USER = "guest"
-RABBIT_HOST = "127.0.0.1"
-RABBIT_PORT = 5672
 
-
-def imports():
+def run_receiver():
+    # Django setting module needs to be initialised before these import can happen
     from django.conf import settings
     from route import on_message_received
     from api_messaging.message_broker import ReceivingService
@@ -35,5 +30,4 @@ def on_time_out():
 
 
 django.setup(set_prefix=False)
-
-imports()
+run_receiver()
