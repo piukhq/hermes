@@ -1,6 +1,5 @@
 from api_messaging import api2_background
 import logging
-import ast
 
 logger = logging.getLogger(__name__)
 

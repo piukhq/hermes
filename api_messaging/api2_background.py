@@ -1,7 +1,7 @@
 from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
-from rest_framework.generics import get_object_or_404, Http404
+from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
 from ubiquity.tasks import deleted_payment_card_cleanup
@@ -40,8 +40,3 @@ def delete_payment_account(message: dict):
                                  payment_card_hash=None,
                                  history_kwargs={"user_info": user_info(user_id=message['user_id'],
                                                                         channel=message['channel'])})
-
-
-
-
-
