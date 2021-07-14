@@ -24,6 +24,7 @@ omit = *migrations*
        daedalus_messaging*
        gunicorn.py
        scripts/*
+       api_messaging/message_broker.py
 branch = True
 
 [report]
