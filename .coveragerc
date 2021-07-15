@@ -21,7 +21,6 @@ omit = *migrations*
        ubiquity/influx_audit.py
        manage.py
        setup.py
-       daedalus_messaging*
        gunicorn.py
        scripts/*
        api_messaging/message_broker.py

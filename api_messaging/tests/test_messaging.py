@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from api_messaging import api2_background, route
+from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from scheme.tests.factories import SchemeAccountFactory
@@ -40,22 +41,19 @@ class TestMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.api2_background.add_payment_account')
     def test_add_routing(self, mock_add_payment_account):
-        result = route.route_message(self.add_payment_account_headers, self.add_payment_account_message)
+        route.route_message(self.add_payment_account_headers, self.add_payment_account_message)
 
         self.assertTrue(mock_add_payment_account.called)
-        self.assertTrue(result)
 
     @patch('api_messaging.api2_background.delete_payment_account')
     def test_delete_routing(self, mock_delete_payment_account):
-        result = route.route_message(self.delete_payment_account_headers, self.delete_payment_account_message)
+        route.route_message(self.delete_payment_account_headers, self.delete_payment_account_message)
 
         self.assertTrue(mock_delete_payment_account.called)
-        self.assertTrue(result)
 
     def test_failed_route(self):
-        result = route.route_message(self.fail_headers, self.add_payment_account_message)
-
-        self.assertFalse(result)
+        with self.assertRaises(InvalidMessagePath):
+            route.route_message(self.fail_headers, self.add_payment_account_message)
 
     @patch('payment_card.metis.enrol_new_payment_card')
     def test_process_add_payment_card_message(self, mock_metis_enrol):

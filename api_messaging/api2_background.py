@@ -1,7 +1,7 @@
 from history.utils import user_info
 from payment_card import metis
 from payment_card.models import PaymentCardAccount
-from rest_framework.generics import get_object_or_404
+from rest_framework.generics import get_object_or_404, Http404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
 from ubiquity.tasks import deleted_payment_card_cleanup
@@ -30,11 +30,9 @@ def delete_payment_account(message: dict):
              "payment_card_account_id": message['payment_account_id']}
 
     get_object_or_404(PaymentCardAccountEntry.objects, **query).delete()
-    # 404s shouldn't be happening as would be caught by Angelia. This would likely be caused if a
-    # payment card account and/or pca/user combo did not exist but for some reason the corresponding
-    # PCAUserAssociation object did (as this is what Angelia checks, not the PCA itself).
 
     deleted_payment_card_cleanup(payment_card_id=message['payment_account_id'],
                                  payment_card_hash=None,
                                  history_kwargs={"user_info": user_info(user_id=message['user_id'],
                                                                         channel=message['channel_id'])})
+
