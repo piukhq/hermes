@@ -12,7 +12,6 @@ logger = logging.getLogger("Messaging")
 
 def on_message_received(body, message):
     logger.info("API 2 message received")
-    # print(f"got message: {message}  body: {body} headers: {message.headers}")
     # body is read as str from message - ast.literal eval converts back into dict
 
     try:
@@ -20,7 +19,7 @@ def on_message_received(body, message):
         if not message.acknowledged:
             message.ack()
 
-    except (KeyError, TypeError, OSError, RequestError, ObjectDoesNotExist, Http404, MessageReject) as _e:
+    except (KeyError, TypeError, OSError, RequestError, ObjectDoesNotExist, Http404, MessageReject):
         if not message.acknowledged:
             logger.error("Error processing message - message rejected.", exc_info=True)
             message.reject()
@@ -32,8 +31,9 @@ def on_message_received(body, message):
             logger.error("Error processing message - message requeued.", exc_info=True)
             message.requeue()
     except Exception:
+        # Catch-all for other errors
         if not message.acknowledged:
-            logger.error("Error processing message - message rejected EXCEPTION.", exc_info=True)
+            logger.error("Error processing message - message rejected.", exc_info=True)
             message.reject()
 
 
