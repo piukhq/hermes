@@ -72,7 +72,8 @@ class TestMessaging(GlobalMockAPITestCase):
         self.assertIsNot(self.payment_card_account_entry.payment_card_account.pll_links, [])
         self.assertTrue(mock_metis_enrol.called)
 
-    def test_process_delete_payment_account_deleted(self):
+    @patch('payment_card.metis.delete_payment_card')
+    def test_process_delete_payment_account_deleted(self, metis_delete_payment_card):
         objects_pre = PaymentCardAccount.objects.filter(id=self.payment_card_account_entry.id).count()
 
         api2_background.delete_payment_account(self.delete_payment_account_message)
@@ -80,3 +81,4 @@ class TestMessaging(GlobalMockAPITestCase):
         objects_post = PaymentCardAccount.objects.filter(id=self.payment_card_account_entry.id).count()
 
         self.assertEqual(objects_pre, objects_post + 1)
+        self.assertTrue(metis_delete_payment_card.called)
