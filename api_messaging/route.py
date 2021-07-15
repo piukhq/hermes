@@ -20,18 +20,18 @@ def on_message_received(body, message):
         if not message.acknowledged:
             message.ack()
 
-    except (KeyError, TypeError, OSError, RequestError, ObjectDoesNotExist, Http404, MessageReject) as e:
+    except (KeyError, TypeError, OSError, RequestError, ObjectDoesNotExist, Http404, MessageReject) as _e:
         if not message.acknowledged:
             logger.error("Error processing message - message rejected.", exc_info=True)
             message.reject()
-    except MessageRequeue as e:
+    except MessageRequeue:
         if not message.acknowledged:
             # Todo: Look into custom requeuing to allow for automatic retries (as requeuing adds it back to the
             #  top of the queue - we want to put it to the back, with altered headers for retry information (count,
             #  delay, time etc.) which will exponentially get longer.
             logger.error("Error processing message - message requeued.", exc_info=True)
             message.requeue()
-    except Exception as e:
+    except Exception:
         if not message.acknowledged:
             logger.error("Error processing message - message rejected EXCEPTION.", exc_info=True)
             message.reject()
