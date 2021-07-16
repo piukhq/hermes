@@ -1,4 +1,4 @@
-from api_messaging import api2_background
+from api_messaging import angelia_background
 from django.http import Http404
 from django.core.exceptions import ObjectDoesNotExist
 from urllib3.exceptions import RequestError
@@ -11,7 +11,7 @@ logger = logging.getLogger("Messaging")
 
 
 def on_message_received(body, message):
-    logger.info("API 2 message received")
+    logger.info("Angelia message received")
     # body is read as str from message - ast.literal eval converts back into dict
 
     try:
@@ -41,8 +41,8 @@ def route_message(headers: dict, message: dict):
     # Route message to core functionality. Route found in headers
 
     route = {
-        "add_payment_account": api2_background.add_payment_account,
-        "delete_payment_account": api2_background.delete_payment_account,
+        "add_payment_account": angelia_background.add_payment_account,
+        "delete_payment_account": angelia_background.delete_payment_account,
     }
 
     try:

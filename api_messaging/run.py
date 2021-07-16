@@ -17,7 +17,7 @@ def run_receiver():
             password=settings.RABBIT_PASSWORD,
             host=settings.RABBIT_HOST,
             port=settings.RABBIT_PORT,
-            queue_name="from_api2",
+            queue_name="from_angelia",
             heartbeat=settings.TIME_OUT * 3,
             timeout=settings.TIME_OUT,
             callbacks=[on_message_received],
