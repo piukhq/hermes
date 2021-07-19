@@ -37,15 +37,15 @@ class TestMessaging(GlobalMockAPITestCase):
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_id": "com.bink.wallet",
         }
-        cls.add_payment_account_headers = {"X-http-path": "post_payment_account"}
+        cls.post_payment_account_headers = {"X-http-path": "post_payment_account"}
         cls.delete_payment_account_headers = {"X-http-path": "delete_payment_account"}
         cls.fail_headers = {"X-http-path": "failing_test"}
 
     @patch('api_messaging.angelia_background.post_payment_account')
-    def test_add_routing(self, mock_add_payment_account):
-        route.route_message(self.add_payment_account_headers, self.post_payment_account_message)
+    def test_post_routing(self, mock_post_payment_account):
+        route.route_message(self.post_payment_account_headers, self.post_payment_account_message)
 
-        self.assertTrue(mock_add_payment_account.called)
+        self.assertTrue(mock_post_payment_account.called)
 
     @patch('api_messaging.angelia_background.delete_payment_account')
     def test_delete_routing(self, mock_delete_payment_account):
