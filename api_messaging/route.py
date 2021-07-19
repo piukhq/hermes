@@ -5,7 +5,7 @@ from urllib3.exceptions import RequestError
 from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessagePath
 
 import logging
-import ast
+import json
 
 logger = logging.getLogger("Messaging")
 
@@ -16,7 +16,7 @@ def on_message_received(body, message):
     # Any bools in dict must be str not bool or this conversion will error.
 
     try:
-        route_message(message.headers, ast.literal_eval(body))
+        route_message(message.headers, json.loads(body))
         if not message.acknowledged:
             message.ack()
 
