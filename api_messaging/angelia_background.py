@@ -8,9 +8,10 @@ from ubiquity.tasks import deleted_payment_card_cleanup
 from user.models import CustomUser
 
 
-def add_payment_account(message: dict):
-    # Auto link if set to True
-    # Calls Metis to enrol payment card
+def post_payment_account(message: dict):
+    # Handler for onward POST/payment_account journeys from Angelia, including adds and links.
+    # Auto-links to scheme accounts if set to True.
+    # Calls Metis to enrol payment card if account was just created.
 
     bundle_id = message.get("channel_id")
     payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
@@ -21,10 +22,12 @@ def add_payment_account(message: dict):
             user, payment_card_account, bundle_id, just_created=True
         )
 
-    metis.enrol_new_payment_card(payment_card_account)
+    if message.get("created"):
+        metis.enrol_new_payment_card(payment_card_account)
 
 
 def delete_payment_account(message: dict):
+    # Handler for onward DELETE/payment_account{id} journeys from Angelia.
 
     query = {"user_id": message['user_id'],
              "payment_card_account_id": message['payment_account_id']}

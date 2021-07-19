@@ -12,7 +12,8 @@ logger = logging.getLogger("Messaging")
 
 def on_message_received(body, message):
     logger.info("Angelia message received")
-    # body is read as str from message - ast.literal eval converts back into dict
+    # body is read as str from message - ast.literal eval converts back into dict.
+    # Any bools in dict must be str not bool or this conversion will error.
 
     try:
         route_message(message.headers, ast.literal_eval(body))
@@ -41,7 +42,7 @@ def route_message(headers: dict, message: dict):
     # Route message to core functionality. Route found in headers
 
     route = {
-        "add_payment_account": angelia_background.add_payment_account,
+        "post_payment_account": angelia_background.post_payment_account,
         "delete_payment_account": angelia_background.delete_payment_account,
     }
 

@@ -18,16 +18,18 @@ class TestMessaging(GlobalMockAPITestCase):
         )
         cls.scheme_account = SchemeAccountFactory()
         cls.scheme_account.user_set.add(cls.payment_card_account_entry.user)
-        cls.add_payment_account_message = {
+        cls.post_payment_account_message = {
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_id": "com.bink.wallet",
+            "created": True,
             "auto_link": False,
         }
-        cls.add_payment_account_auto_link_message = {
+        cls.post_payment_account_auto_link_message = {
             "payment_account_id": cls.payment_card_account_entry.payment_card_account.id,
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_id": "com.bink.wallet",
+            "created": False,
             "auto_link": True,
         }
         cls.delete_payment_account_message = {
@@ -35,13 +37,13 @@ class TestMessaging(GlobalMockAPITestCase):
             "user_id": cls.payment_card_account_entry.user.id,
             "channel_id": "com.bink.wallet",
         }
-        cls.add_payment_account_headers = {"X-http-path": "add_payment_account"}
+        cls.add_payment_account_headers = {"X-http-path": "post_payment_account"}
         cls.delete_payment_account_headers = {"X-http-path": "delete_payment_account"}
         cls.fail_headers = {"X-http-path": "failing_test"}
 
-    @patch('api_messaging.angelia_background.add_payment_account')
+    @patch('api_messaging.angelia_background.post_payment_account')
     def test_add_routing(self, mock_add_payment_account):
-        route.route_message(self.add_payment_account_headers, self.add_payment_account_message)
+        route.route_message(self.add_payment_account_headers, self.post_payment_account_message)
 
         self.assertTrue(mock_add_payment_account.called)
 
@@ -53,22 +55,22 @@ class TestMessaging(GlobalMockAPITestCase):
 
     def test_failed_route(self):
         with self.assertRaises(InvalidMessagePath):
-            route.route_message(self.fail_headers, self.add_payment_account_message)
+            route.route_message(self.fail_headers, self.post_payment_account_message)
 
     @patch('payment_card.metis.enrol_new_payment_card')
-    def test_process_add_payment_card_message(self, mock_metis_enrol):
-        angelia_background.add_payment_account(self.add_payment_account_message)
+    def test_process_post_payment_card_message(self, mock_metis_enrol):
+        angelia_background.post_payment_account(self.post_payment_account_message)
 
         self.assertTrue(mock_metis_enrol.called)
 
-    @patch('payment_card.metis.enrol_new_payment_card')
-    def test_process_add_payment_card_message_auto_link(self, mock_metis_enrol):
-        angelia_background.add_payment_account(self.add_payment_account_auto_link_message)
+    @patch('ubiquity.views.AutoLinkOnCreationMixin.auto_link_to_membership_cards')
+    def test_process_post_payment_card_message_auto_link(self, mock_auto_link):
+        angelia_background.post_payment_account(self.post_payment_account_auto_link_message)
 
         self.payment_card_account_entry.refresh_from_db()
 
         self.assertIsNot(self.payment_card_account_entry.payment_card_account.pll_links, [])
-        self.assertTrue(mock_metis_enrol.called)
+        self.assertTrue(mock_auto_link.called)
 
     @patch('payment_card.metis.delete_payment_card')
     def test_process_delete_payment_account_deleted(self, metis_delete_payment_card):
