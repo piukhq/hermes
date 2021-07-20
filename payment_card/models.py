@@ -238,7 +238,8 @@ class PaymentCardAccount(models.Model):
     scheme_account_set = models.ManyToManyField('scheme.SchemeAccount', through='ubiquity.PaymentCardSchemeEntry',
                                                 related_name='payment_card_account_set')
     payment_card = models.ForeignKey(PaymentCard, models.PROTECT)
-    name_on_card = models.CharField(max_length=150)
+    name_on_card = models.CharField(max_length=150, blank=True)
+    card_nickname = models.CharField(max_length=255, blank=True)
     start_month = models.IntegerField(null=True, blank=True)
     start_year = models.IntegerField(null=True, blank=True)
     expiry_month = models.IntegerField()
@@ -254,6 +255,7 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer, null=True, blank=True, on_delete=models.PROTECT)
+    issuer_name = models.CharField(max_length=50, blank=True)    # API v2 does not user Issuer table
     fingerprint = models.CharField(max_length=100, db_index=True)
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
