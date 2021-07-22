@@ -23,7 +23,7 @@ def post_payment_account(message: dict):
         )
 
     if message.get("created"):
-        metis.enrol_new_payment_card(payment_card_account)
+        metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
 def delete_payment_account(message: dict):
