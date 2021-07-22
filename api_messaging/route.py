@@ -12,8 +12,6 @@ logger = logging.getLogger("Messaging")
 
 def on_message_received(body, message):
     logger.info("Angelia message received")
-    # body is read as str from message - ast.literal eval converts back into dict.
-    # Any bools in dict must be str not bool or this conversion will error.
 
     try:
         route_message(message.headers, json.loads(body))
