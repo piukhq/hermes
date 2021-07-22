@@ -2,6 +2,7 @@ import logging
 import os
 import django
 
+from hermes.settings import RABBIT_DSN
 
 logger = logging.getLogger(__name__)
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
@@ -13,10 +14,7 @@ def run_receiver():
     from route import on_message_received
     from api_messaging.message_broker import ReceivingService
     ReceivingService(
-            user=settings.RABBIT_USER,
-            password=settings.RABBIT_PASSWORD,
-            host=settings.RABBIT_HOST,
-            port=settings.RABBIT_PORT,
+            dsn=RABBIT_DSN,
             queue_name="from_angelia",
             heartbeat=settings.TIME_OUT * 3,
             timeout=settings.TIME_OUT,
