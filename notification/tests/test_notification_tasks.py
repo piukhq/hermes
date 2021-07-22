@@ -19,7 +19,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.test_org = "Barlcays"
+        cls.test_org = "Barclays"
         cls.external_id = "Test_User"
         cls.client_application = ClientApplicationFactory(organisation__name=cls.test_org)
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
