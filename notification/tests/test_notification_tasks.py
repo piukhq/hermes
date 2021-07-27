@@ -53,6 +53,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         self.assertEqual(data[0], expected_result)
 
     def test_get_historical_data(self):
+        settings.NOTIFICATION_RUN = True
         mocked_datetime = timezone.now() + timedelta(hours=2)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=mocked_datetime)):
             HistoricalSchemeAccount(
