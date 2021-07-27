@@ -3,7 +3,6 @@ import logging
 from datetime import timedelta
 from time import time, sleep
 
-import pysftp
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
@@ -24,9 +23,8 @@ class SftpManager:
     def __init__(self, rows=None):
         self.host = settings.SFTP_HOST
         self.sftp_username = settings.SFTP_USERNAME
-        self.sftp_password = settings.SFTP_PASSWORD
+        self.sftp_private_key = settings.SFTP_PRIVATE_KEY
         self.rows = rows
-        self.cnopts = pysftp.CnOpts()
 
     @staticmethod
     def format_data(data):
@@ -45,14 +43,12 @@ class SftpManager:
                 with Connection(
                         self.host,
                         username=self.sftp_username,
-                        password=self.sftp_password,
-                        cnopts=self.cnopts
+                        private_key=self.sftp_private_key
                 ) as sftp:
-                    logging.info('Successfully connected to SFTP.')
-                    with sftp.open(filename, 'w', bufsize=32768) as f:
+                    with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
-                        writer.writerow([00, date])
-                        writer.writerows(self.rows)
+                        writer.writerow(["00", date])
+                        writer.writerows(rows)
                         writer.writerow([99, len(rows)])
                     logging.info(f'File: {filename}, uploaded.')
                     return
@@ -86,52 +82,53 @@ class NotificationProcessor:
                 'scheme_account__created'
             )
         else:
-            # Zero out provided time
-            to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
+            if settings.NOTIFICATION_RUN:
+                # Zero out provided time
+                to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
 
-            # Get any status changes in the last 2 hours where status has changed
-            from_datetime = to_datetime - timedelta(hours=2)
-            list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
-            historical_rows = list(HistoricalSchemeAccount.objects.filter(
-                instance_id__in=list_of_ids,
-                change_details__contains=change_type,
-                created__range=[from_datetime, to_datetime]
-            ).values('instance_id', 'body', 'created'))
+                # Get any status changes in the last 2 hours where status has changed
+                from_datetime = to_datetime - timedelta(hours=2)
+                list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
+                historical_rows = list(HistoricalSchemeAccount.objects.filter(
+                    instance_id__in=list_of_ids,
+                    change_details__contains=change_type,
+                    created__range=[from_datetime, to_datetime]
+                ).values('instance_id', 'body', 'created'))
 
-            # Need the values from SchemeAccount and the created date from HistoricalSchemeAccount
-            if historical_rows:
-                ids_to_filter = [row["instance_id"] for row in historical_rows]
-                rows = scheme_accounts_entries.filter(scheme_account_id__in=ids_to_filter).values(
-                    'scheme_account_id',
-                    'user__external_id',
-                    'scheme_account__scheme__name',
-                    'scheme_account__status',
-                )
+                # Need the values from SchemeAccount and the created date from HistoricalSchemeAccount
+                if historical_rows:
+                    ids_to_filter = [row["instance_id"] for row in historical_rows]
+                    rows = scheme_accounts_entries.filter(scheme_account_id__in=ids_to_filter).values(
+                        'scheme_account_id',
+                        'user__external_id',
+                        'scheme_account__scheme__name',
+                        'scheme_account__status',
+                    )
 
-                for row in rows:
-                    for counter, value in enumerate(historical_rows):
-                        if int(value['instance_id']) == row['scheme_account_id']:
-                            rows_to_write.append([
-                                row['user__external_id'],
-                                row['scheme_account__scheme__name'],
-                                value['body']['status'],
-                                value['created']
-                            ])
+                    for row in rows:
+                        for counter, value in enumerate(historical_rows):
+                            if int(value['instance_id']) == row['scheme_account_id']:
+                                rows_to_write.append([
+                                    row['user__external_id'],
+                                    row['scheme_account__scheme__name'],
+                                    value['body']['status'],
+                                    value['created']
+                                ])
 
-                            # Remove from list so we don't have to loop through it again
-                            historical_rows.pop(counter)
+                                # Remove from list so we don't have to loop through it again
+                                historical_rows.pop(counter)
 
-                            break
+                                break
 
         return rows_to_write
 
 
 @shared_task()
-def notification_file(organisation="Barclays", to_time=None):
-    notification = NotificationProcessor(organisation=organisation, to_time=to_time)
+def notification_file(organisation="Barclays", to_date=None):
+    notification = NotificationProcessor(organisation=organisation, to_date=to_date)
     data_to_write = notification.get_data()
 
     if data_to_write:
         logger.info("Connecting to SFTP to write csv.")
-        sftp = SftpManager()
+        sftp = SftpManager(rows=data_to_write)
         sftp.transfer_file()
