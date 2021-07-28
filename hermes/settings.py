@@ -60,7 +60,7 @@ LOCAL_APPS = (
     "periodic_retry",
     "magic_link",
     "scripts",
-    "prometheus.apps.PrometheusPusherConfig",
+    # "prometheus.apps.PrometheusPusherConfig",
     "api_messaging"
 )
 
@@ -272,59 +272,59 @@ MASTER_LOG_LEVEL = env_var("MASTER_LOG_LEVEL", "DEBUG")
 UBIQUITY_LOG_LEVEL = env_var("UBIQUITY_LOG_LEVEL", "DEBUG")
 PROMETHEUS_LOG_LEVEL = env_var("PROMETHEUS_LOG_LEVEL", "INFO")
 QUERY_LOG_LEVEL = env_var("QUERY_LOG_LEVEL", "CRITICAL")
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
-    },
-    "handlers": {
-        "console": {
-            "level": MASTER_LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "filters": {
-        "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
-    },
-    "loggers": {
-        "": {
-            "level": ROOT_LOG_LEVEL,
-            "handlers": ["console"],
-        },
-        "django.db.backends": {
-            "filters": ["require_debug_true"],
-            "level": QUERY_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        **{
-            app: {
-                "level": MASTER_LOG_LEVEL,
-                "handlers": ["console"],
-                "propagate": False,
-            }
-            for app in LOCAL_APPS
-        },
-        # Place any custom loggers per app below this to override above
-        "ubiquity": {
-            "level": UBIQUITY_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "hermes": {
-            "level": MASTER_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "prometheus": {
-            "level": PROMETHEUS_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-    },
-}
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
+#     },
+#     "handlers": {
+#         "console": {
+#             "level": MASTER_LOG_LEVEL,
+#             "class": "logging.StreamHandler",
+#             "formatter": "verbose",
+#         },
+#     },
+#     "filters": {
+#         "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
+#     },
+#     "loggers": {
+#         "": {
+#             "level": ROOT_LOG_LEVEL,
+#             "handlers": ["console"],
+#         },
+#         "django.db.backends": {
+#             "filters": ["require_debug_true"],
+#             "level": QUERY_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         **{
+#             app: {
+#                 "level": MASTER_LOG_LEVEL,
+#                 "handlers": ["console"],
+#                 "propagate": False,
+#             }
+#             for app in LOCAL_APPS
+#         },
+#         # Place any custom loggers per app below this to override above
+#         "ubiquity": {
+#             "level": UBIQUITY_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         "hermes": {
+#             "level": MASTER_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         "prometheus": {
+#             "level": PROMETHEUS_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#     },
+# }
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
@@ -504,6 +504,7 @@ VAULT_CONFIG = dict(
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
     SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
     AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes-keys"),
+    BARCLAYS_SFTP_VAULT_PATH=env_var("BARCLAYS_SFTP_VAULT_PATH", "/barclays-hermes-sftp")
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
@@ -545,9 +546,6 @@ RABBIT_PORT = env_var("RABBIT_PORT", 5672)
 RABBIT_DSN = env_var("RABBIT_DSN", f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}@{RABBIT_HOST}:{RABBIT_PORT}/")
 
 # SFTP DETAILS
-SFTP_HOST = env_var("SFTP_HOST", "")
-SFTP_USERNAME = env_var("SFTP_USERNAME", "")
-SFTP_PRIVATE_KEY = env_var("SFTP_PRIVATE_KEY", "")
 SFTP_DIRECTORY = env_var("SFTP_DIRECTORY", "uploads")
 
 # 2 hours

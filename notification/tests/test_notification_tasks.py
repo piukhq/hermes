@@ -4,7 +4,7 @@ from unittest import mock
 import pysftp
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException
+from paramiko import SSHException, RSAKey
 
 from history.models import HistoricalSchemeAccount
 from history.utils import GlobalMockAPITestCase
@@ -77,7 +77,8 @@ class TestNotificationTask(GlobalMockAPITestCase):
             self.assertEqual(len(data), 1)
             self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
 
-    def test_data_format(self):
+    @mock.patch('paramiko.RSAKey.from_private_key')
+    def test_data_format(self, mock_rsa_key):
         datetime_now = timezone.now()
 
         data = [[self.external_id, self.scheme_account.scheme.name, SchemeAccount.ACTIVE, datetime_now]]
@@ -96,14 +97,17 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         self.assertEqual(result, expected_result)
 
-    def test_retry_raise_exception(self):
+    @mock.patch('paramiko.RSAKey.from_private_key')
+    def test_retry_raise_exception(self, mock_rsa_key):
+        mock_rsa_key.return_value = RSAKey.generate(1024)
         sftp = SftpManager(rows=[])
         with self.assertRaises(SSHException):
             sftp.transfer_file()
 
     @mock.patch('pysftp.Connection')
     @mock.patch('notification.tasks.SftpManager.transfer_file')
-    def test_transfer_file(self, mock_connection, mock_transfer):
+    @mock.patch('paramiko.RSAKey.from_private_key')
+    def test_transfer_file(self, mock_connection, mock_transfer, mock_rsa_key):
         # Disable host key checking for tests
         test_cnopts = pysftp.CnOpts()
         test_cnopts.hostkeys = None

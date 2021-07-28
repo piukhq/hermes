@@ -1,29 +1,36 @@
 import csv
 import logging
 from datetime import timedelta
+from io import StringIO
 from time import time, sleep
 
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException
+from paramiko import SSHException, RSAKey
 from pysftp import Connection, ConnectionException
 
 from history.models import HistoricalSchemeAccount
 from scheme.models import SchemeAccount
+from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
 
 
 logger = logging.getLogger(__name__)
 
+# load vault secrets
+load_secrets(settings.VAULT_CONFIG)
 STATUS_MAP = {x[0]: x[1] for x in SchemeAccount.EXTENDED_STATUSES}
 
 
 class SftpManager:
     def __init__(self, rows=None):
-        self.host = settings.SFTP_HOST
-        self.sftp_username = settings.SFTP_USERNAME
-        self.sftp_private_key = settings.SFTP_PRIVATE_KEY
+        self.host = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST)
+        self.sftp_username = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_USERNAME)
+        self.sftp_private_key_string = RSAKey.from_private_key(
+            StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
+        )
+
         self.rows = rows
 
     @staticmethod
@@ -43,7 +50,7 @@ class SftpManager:
                 with Connection(
                         self.host,
                         username=self.sftp_username,
-                        private_key=self.sftp_private_key
+                        private_key=self.sftp_private_key_string
                 ) as sftp:
                     with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
