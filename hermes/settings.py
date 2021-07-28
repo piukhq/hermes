@@ -60,7 +60,7 @@ LOCAL_APPS = (
     "periodic_retry",
     "magic_link",
     "scripts",
-    # "prometheus.apps.PrometheusPusherConfig",
+    "prometheus.apps.PrometheusPusherConfig",
     "api_messaging"
 )
 
@@ -272,59 +272,59 @@ MASTER_LOG_LEVEL = env_var("MASTER_LOG_LEVEL", "DEBUG")
 UBIQUITY_LOG_LEVEL = env_var("UBIQUITY_LOG_LEVEL", "DEBUG")
 PROMETHEUS_LOG_LEVEL = env_var("PROMETHEUS_LOG_LEVEL", "INFO")
 QUERY_LOG_LEVEL = env_var("QUERY_LOG_LEVEL", "CRITICAL")
-# LOGGING = {
-#     "version": 1,
-#     "disable_existing_loggers": False,
-#     "formatters": {
-#         "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
-#     },
-#     "handlers": {
-#         "console": {
-#             "level": MASTER_LOG_LEVEL,
-#             "class": "logging.StreamHandler",
-#             "formatter": "verbose",
-#         },
-#     },
-#     "filters": {
-#         "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
-#     },
-#     "loggers": {
-#         "": {
-#             "level": ROOT_LOG_LEVEL,
-#             "handlers": ["console"],
-#         },
-#         "django.db.backends": {
-#             "filters": ["require_debug_true"],
-#             "level": QUERY_LOG_LEVEL,
-#             "handlers": ["console"],
-#             "propagate": False,
-#         },
-#         **{
-#             app: {
-#                 "level": MASTER_LOG_LEVEL,
-#                 "handlers": ["console"],
-#                 "propagate": False,
-#             }
-#             for app in LOCAL_APPS
-#         },
-#         # Place any custom loggers per app below this to override above
-#         "ubiquity": {
-#             "level": UBIQUITY_LOG_LEVEL,
-#             "handlers": ["console"],
-#             "propagate": False,
-#         },
-#         "hermes": {
-#             "level": MASTER_LOG_LEVEL,
-#             "handlers": ["console"],
-#             "propagate": False,
-#         },
-#         "prometheus": {
-#             "level": PROMETHEUS_LOG_LEVEL,
-#             "handlers": ["console"],
-#             "propagate": False,
-#         },
-#     },
-# }
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
+    },
+    "handlers": {
+        "console": {
+            "level": MASTER_LOG_LEVEL,
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "filters": {
+        "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
+    },
+    "loggers": {
+        "": {
+            "level": ROOT_LOG_LEVEL,
+            "handlers": ["console"],
+        },
+        "django.db.backends": {
+            "filters": ["require_debug_true"],
+            "level": QUERY_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        **{
+            app: {
+                "level": MASTER_LOG_LEVEL,
+                "handlers": ["console"],
+                "propagate": False,
+            }
+            for app in LOCAL_APPS
+        },
+        # Place any custom loggers per app below this to override above
+        "ubiquity": {
+            "level": UBIQUITY_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "hermes": {
+            "level": MASTER_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "prometheus": {
+            "level": PROMETHEUS_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+}
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
