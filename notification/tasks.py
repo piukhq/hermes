@@ -18,13 +18,13 @@ from ubiquity.models import SchemeAccountEntry
 
 logger = logging.getLogger(__name__)
 
-# load vault secrets
-load_secrets(settings.VAULT_CONFIG)
 STATUS_MAP = {x[0]: x[1] for x in SchemeAccount.EXTENDED_STATUSES}
 
 
 class SftpManager:
     def __init__(self, rows=None):
+        # load vault secrets
+        load_secrets(settings.VAULT_CONFIG)
         self.host = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST)
         self.sftp_username = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_USERNAME)
         self.sftp_private_key_string = RSAKey.from_private_key(

@@ -37,6 +37,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         settings.NOTIFICATION_ERROR_THRESHOLD = 1
         settings.NOTIFICATION_RETRY_TIMER = 1
+        settings.VAULT_CONFIG['LOCAL_SECRETS'] = True
 
     def test_get_data_initiation(self):
         test_notification = NotificationProcessor(organisation=self.test_org)
