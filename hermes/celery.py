@@ -2,6 +2,7 @@ import os
 
 from celery import Celery
 from django.conf import settings
+from django.utils import timezone
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 
@@ -26,6 +27,11 @@ app.conf.beat_schedule = {
         "task": "periodic_retry.tasks.retry_metis_request_tasks",
         "schedule": int(settings.RETRY_PERIOD),
         "args": (),
+    },
+    "generate_notification_file": {
+        "tasks": "notification.tasks.notification_file",
+        "schedule": int(settings.NOTIFICATION_PERIOD),
+        "args": ("Barclays", timezone.now())
     },
 }
 
