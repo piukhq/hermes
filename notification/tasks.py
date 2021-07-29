@@ -128,7 +128,7 @@ class NotificationProcessor:
         return rows_to_write
 
 
-@shared_task()
+@shared_task
 def notification_file(organisation="Barclays", to_date=None):
     notification = NotificationProcessor(organisation=organisation, to_date=to_date)
     data_to_write = notification.get_data()
