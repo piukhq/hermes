@@ -100,15 +100,6 @@ class TestNotificationTask(GlobalMockAPITestCase):
         self.assertEqual(result, expected_result)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
-    def test_pad_row_count(self, mock_rsa_key):
-        sftp = SftpManager()
-        result = sftp.pad_row_count(999)
-
-        expected_result = "0000000999"
-
-        self.assertEqual(result, expected_result)
-
-    @mock.patch('paramiko.RSAKey.from_private_key')
     def test_retry_raise_exception(self, mock_rsa_key):
         mock_rsa_key.return_value = RSAKey.generate(1024)
         sftp = SftpManager(rows=[])

@@ -32,19 +32,6 @@ class SftpManager:
         self.rows = rows
 
     @staticmethod
-    def pad_row_count(number_of_rows):
-        # Barclays required the trailer count to be a fix 10 digit number
-        # We need to pad out the count if it's less than 10 digits
-        # example: 0000000001 (one row)
-        padded_number = str(number_of_rows)
-        rows_length = len(padded_number)
-        if rows_length < 10:
-            number_of_zeros_to_pad_out = 10 - rows_length
-            padded_number = "0" * number_of_zeros_to_pad_out + padded_number
-
-        return padded_number
-
-    @staticmethod
     def format_data(data):
         return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
 
@@ -67,7 +54,7 @@ class SftpManager:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
                         writer.writerows(rows)
-                        writer.writerow([99, self.pad_row_count(len(rows))])
+                        writer.writerow([99, f"{len(rows):010}"])
                     logging.info(f'File: {filename}, uploaded.')
                     return
             except (ConnectionException, SSHException) as e:
