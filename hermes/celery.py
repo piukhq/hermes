@@ -29,7 +29,7 @@ app.conf.beat_schedule = {
         "args": (),
     },
     "generate_notification_file": {
-        "tasks": "notification.tasks.notification_file",
+        "task": "notification.tasks.notification_file",
         "schedule": int(settings.NOTIFICATION_PERIOD),
         "args": ("Barclays", timezone.now())
     },
