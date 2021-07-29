@@ -11,14 +11,12 @@ from paramiko import SSHException, RSAKey
 from pysftp import Connection, ConnectionException
 
 from history.models import HistoricalSchemeAccount
-from scheme.models import SchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
+from ubiquity.reason_codes import ubiquity_status_translation
 
 
 logger = logging.getLogger(__name__)
-
-STATUS_MAP = {x[0]: x[1] for x in SchemeAccount.EXTENDED_STATUSES}
 
 
 class SftpManager:
@@ -34,8 +32,21 @@ class SftpManager:
         self.rows = rows
 
     @staticmethod
+    def pad_row_count(number_of_rows):
+        # Barclays required the trailer count to be a fix 10 digit number
+        # We need to pad out the count if it's less than 10 digits
+        # example: 0000000001 (one row)
+        padded_number = str(number_of_rows)
+        rows_length = len(padded_number)
+        if rows_length < 10:
+            number_of_zeros_to_pad_out = 10 - rows_length
+            padded_number = "0" * number_of_zeros_to_pad_out + padded_number
+
+        return padded_number
+
+    @staticmethod
     def format_data(data):
-        return [['01', x[0], x[1], STATUS_MAP[x[2]], x[3].timestamp()] for x in data]
+        return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
         date = timezone.now().strftime('%Y%m%d')
@@ -56,7 +67,7 @@ class SftpManager:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
                         writer.writerows(rows)
-                        writer.writerow([99, len(rows)])
+                        writer.writerow([99, self.pad_row_count(len(rows))])
                     logging.info(f'File: {filename}, uploaded.')
                     return
             except (ConnectionException, SSHException) as e:
@@ -84,7 +95,7 @@ class NotificationProcessor:
         if not self.to_date:
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
-                'scheme_account__scheme__name',
+                'scheme_account__scheme__slug',
                 'scheme_account__status',
                 'scheme_account__created'
             )

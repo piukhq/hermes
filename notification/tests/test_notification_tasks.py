@@ -8,9 +8,10 @@ from paramiko import SSHException, RSAKey
 
 from history.models import HistoricalSchemeAccount
 from history.utils import GlobalMockAPITestCase
-from notification.tasks import SftpManager, NotificationProcessor, STATUS_MAP
+from notification.tasks import SftpManager, NotificationProcessor
 from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
+from ubiquity.reason_codes import ubiquity_status_translation
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory, ClientApplicationFactory
 
@@ -44,7 +45,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         data = test_notification.get_data()
         expected_result = (
             self.scheme_account_entry.user.external_id,
-            self.scheme_account_entry.scheme_account.scheme.name,
+            self.scheme_account_entry.scheme_account.scheme.slug,
             self.scheme_account_entry.scheme_account.status,
             self.scheme_account_entry.scheme_account.created
         )
@@ -82,19 +83,28 @@ class TestNotificationTask(GlobalMockAPITestCase):
     def test_data_format(self, mock_rsa_key):
         datetime_now = timezone.now()
 
-        data = [[self.external_id, self.scheme_account.scheme.name, SchemeAccount.ACTIVE, datetime_now]]
+        data = [[self.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, datetime_now]]
         expected_result = [
             [
                 '01',
                 self.external_id,
-                self.scheme_account.scheme.name,
-                STATUS_MAP[SchemeAccount.ACTIVE],
-                datetime_now.timestamp()
+                self.scheme_account.scheme.slug,
+                ubiquity_status_translation[SchemeAccount.ACTIVE],
+                int(datetime_now.timestamp())
             ]
         ]
 
         sftp = SftpManager()
         result = sftp.format_data(data)
+
+        self.assertEqual(result, expected_result)
+
+    @mock.patch('paramiko.RSAKey.from_private_key')
+    def test_pad_row_count(self, mock_rsa_key):
+        sftp = SftpManager()
+        result = sftp.pad_row_count(999)
+
+        expected_result = "0000000999"
 
         self.assertEqual(result, expected_result)
 
@@ -114,7 +124,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         test_cnopts.hostkeys = None
 
         test_data = [
-            [self.external_id, self.scheme_account.scheme.name, SchemeAccount.ACTIVE, timezone.now()]
+            [self.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, timezone.now()]
         ]
         sftp = SftpManager(rows=test_data)
         sftp.cnopts = test_cnopts
