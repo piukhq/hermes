@@ -5,11 +5,13 @@ from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
+import paramiko
 import pysftp
+from base64 import decodebytes
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException, RSAKey
+from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
 
 from history.models import HistoricalSchemeAccount
@@ -30,6 +32,7 @@ class SftpManager:
         self.sftp_private_key_string = RSAKey.from_private_key(
             StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
         )
+        self.sftp_host_keys = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST_KEYS)
 
         self.rows = rows
 
@@ -45,7 +48,16 @@ class SftpManager:
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv'
         rows = self.format_data(self.rows)
-        cnopts = pysftp.CnOpts(knownhosts=known_hosts_keys)
+        cnopts = pysftp.CnOpts()
+
+        for host_key in self.sftp_host_keys:
+            if host_key['keytype'] == "ssh-rsa":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=paramiko.RSAKey(data=host_key['key'].encode()))
+            elif host_key['keytype'] == "ssh-ed25519":
+                pass
+
         errors = 0
 
         while True:
@@ -143,7 +155,6 @@ def notification_file(organisation="Barclays", to_date=None):
 #    todo: restore -- if data_to_write:
     logger.info("Connecting to SFTP to write csv.")
     # todo: restore -- sftp = SftpManager(rows=data_to_write)
-    logger.info(f"{data_to_write}")
     sftp = SftpManager(rows=data_to_write)
     logger.info("About to transfer file")
     sftp.transfer_file()
