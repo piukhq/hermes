@@ -17,7 +17,6 @@ from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, Barclays
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import ubiquity_status_translation
 
-
 logger = logging.getLogger(__name__)
 
 
