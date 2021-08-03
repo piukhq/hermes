@@ -1,13 +1,11 @@
 import csv
-from os.path import dirname, abspath, join
 import logging
 from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
-import paramiko
 import pysftp
-from base64 import decodebytes
+from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
@@ -43,8 +41,6 @@ class SftpManager:
     def transfer_file(self):
         logger.info("Transferring file")
         date = timezone.now().strftime('%Y%m%d')
-        keys_file = 'test_keys.txt'
-        known_hosts_keys = join(dirname(abspath(__file__)), keys_file)
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv'
         rows = self.format_data(self.rows)
@@ -54,8 +50,11 @@ class SftpManager:
             if host_key['keytype'] == "ssh-rsa":
                 cnopts.hostkeys.add(hostname=host_key['host'],
                                     keytype=host_key['keytype'],
-                                    key=paramiko.RSAKey(data=host_key['key'].encode()))
+                                    key=RSAKey(data=b64decode(host_key['key'])))
             elif host_key['keytype'] == "ssh-ed25519":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=Ed25519Key(data=b64decode(host_key['key'])))
                 pass
 
         errors = 0
@@ -152,9 +151,7 @@ def notification_file(organisation="Barclays", to_date=None):
     notification = NotificationProcessor(organisation=organisation, to_date=to_date)
     data_to_write = notification.get_data()
 
-#    todo: restore -- if data_to_write:
-    logger.info("Connecting to SFTP to write csv.")
-    # todo: restore -- sftp = SftpManager(rows=data_to_write)
-    sftp = SftpManager(rows=data_to_write)
-    logger.info("About to transfer file")
-    sftp.transfer_file()
+    if data_to_write:
+        logger.info("Connecting to SFTP to write csv.")
+        sftp = SftpManager(rows=data_to_write)
+        sftp.transfer_file()

@@ -32,8 +32,7 @@ app.conf.beat_schedule = {
     "generate_notification_file": {
         "task": "notification.tasks.notification_file",
         "schedule": int(settings.NOTIFICATION_PERIOD),
-        "args": ("Barclays", None)
-        # todo: restore -- "args": ("Barclays", timezone.now())
+        "args": ("Barclays", timezone.now())
     },
 }
 
