@@ -1,9 +1,11 @@
 import csv
+from os.path import dirname, abspath, join
 import logging
 from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
+import pysftp
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
@@ -36,11 +38,14 @@ class SftpManager:
         return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
+        logger.info("Transferring file")
         date = timezone.now().strftime('%Y%m%d')
+        keys_file = 'test_keys.txt'
+        known_hosts_keys = join(dirname(abspath(__file__)), keys_file)
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv'
         rows = self.format_data(self.rows)
-
+        cnopts = pysftp.CnOpts(knownhosts=known_hosts_keys)
         errors = 0
 
         while True:
@@ -48,8 +53,10 @@ class SftpManager:
                 with Connection(
                         self.host,
                         username=self.sftp_username,
-                        private_key=self.sftp_private_key_string
+                        private_key=self.sftp_private_key_string,
+                        cnopts=cnopts
                 ) as sftp:
+                    logger.info('Connected to sftp')
                     with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
@@ -133,7 +140,10 @@ def notification_file(organisation="Barclays", to_date=None):
     notification = NotificationProcessor(organisation=organisation, to_date=to_date)
     data_to_write = notification.get_data()
 
-    if data_to_write:
-        logger.info("Connecting to SFTP to write csv.")
-        sftp = SftpManager(rows=data_to_write)
-        sftp.transfer_file()
+#    todo: restore -- if data_to_write:
+    logger.info("Connecting to SFTP to write csv.")
+    # todo: restore -- sftp = SftpManager(rows=data_to_write)
+    logger.info(f"{data_to_write}")
+    sftp = SftpManager(rows=data_to_write)
+    logger.info("About to transfer file")
+    sftp.transfer_file()
