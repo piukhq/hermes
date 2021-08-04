@@ -4,17 +4,18 @@ from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
+import pysftp
+from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException, RSAKey
+from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
 
 from history.models import HistoricalSchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import ubiquity_status_translation
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class SftpManager:
         self.sftp_private_key_string = RSAKey.from_private_key(
             StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
         )
+        self.sftp_host_keys = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST_KEYS)
 
         self.rows = rows
 
@@ -36,10 +38,23 @@ class SftpManager:
         return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
+        logger.info("Transferring file")
         date = timezone.now().strftime('%Y%m%d')
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv'
         rows = self.format_data(self.rows)
+        cnopts = pysftp.CnOpts()
+
+        for host_key in self.sftp_host_keys:
+            if host_key['keytype'] == "ssh-rsa":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=RSAKey(data=b64decode(host_key['key'])))
+            elif host_key['keytype'] == "ssh-ed25519":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=Ed25519Key(data=b64decode(host_key['key'])))
+                pass
 
         errors = 0
 
@@ -48,8 +63,10 @@ class SftpManager:
                 with Connection(
                         self.host,
                         username=self.sftp_username,
-                        private_key=self.sftp_private_key_string
+                        private_key=self.sftp_private_key_string,
+                        cnopts=cnopts
                 ) as sftp:
+                    logger.info('Connected to sftp')
                     with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
