@@ -181,7 +181,7 @@
 			background-repeat:no-repeat;
 			background-position:center;
 			background-size:cover;
-			border-top:4px solid #f20060;
+			border-top:4px solid #8eb1b7;
 			border-bottom:0;
 			padding-top:0px;
 			padding-bottom:0px;
@@ -569,7 +569,7 @@ href="https://www.bink.com" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                     #656565;font-weight:
 normal;text-decoration: underline;"><img moz-do-not-send="true"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/0de1fdbd-2ebb-444f-a3fe-8e3ef99174a6.png"
+src="https://api.gb.bink.com/content/media/email/logo.png"
                                                       style="width:
                                                       100px;height:
                                                       51px;margin:
@@ -589,7 +589,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                     #656565;font-weight:
 normal;text-decoration: underline;"><img moz-do-not-send="true"
                                                       alt="LinkedIn"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/cdb9ab4e-2559-4e42-978f-3367d5e2105d.png"
+src="https://api.gb.bink.com/content/media/email/linkedin.png"
                                                       style="border:
                                                       0px;width:
                                                       30px;height:
@@ -605,7 +605,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                     #656565;font-weight:
 normal;text-decoration: underline;"><img moz-do-not-send="true"
                                                       alt="Facebook"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/7183c775-877c-46f9-9ed2-86d2b89c0e71.png"
+src="https://api.gb.bink.com/content/media/email/fb.png"
                                                       style="border:
                                                       0px;width:
                                                       30px;height:
@@ -613,23 +613,7 @@ src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/7183c775-877
                                                       0px;outline:
                                                       none;text-decoration:
 none;-ms-interpolation-mode: bicubic;" align="none" height="30"
-                                                      width="30"></a>  <a
-moz-do-not-send="true" href="http://www.twitter.com/hellobink"
-                                                    target="_blank"
-                                                    style="mso-line-height-rule:
-exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
-                                                    #656565;font-weight:
-normal;text-decoration: underline;"><img moz-do-not-send="true"
-                                                      alt="Twitter"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/804d0848-63b0-4f52-b990-e3a0bc379d45.png"
-                                                      style="border:
-                                                      0px;width:
-                                                      36px;height:
-                                                      30px;margin:
-                                                      0px;outline:
-                                                      none;text-decoration:
-none;-ms-interpolation-mode: bicubic;" align="none" height="30"
-                                                      width="36"></a>   <a
+                                                      width="30"></a>   <a
 moz-do-not-send="true" href="http://www.instagram.com/binkhq/"
                                                     target="_blank"
                                                     style="mso-line-height-rule:
@@ -637,7 +621,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
                                                     #656565;font-weight:
 normal;text-decoration: underline;"><img moz-do-not-send="true"
                                                       alt="Instagram"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/d30083ab-536e-478a-b140-54475810a8e6.png"
+src="https://api.gb.bink.com/content/media/email/insta.png"
                                                       style="border:
                                                       0px;width:
                                                       30px;height:
@@ -680,7 +664,7 @@ none;-ms-interpolation-mode: bicubic;" align="none" height="30"
                         none;background-repeat:
                         no-repeat;background-position:
                         center;background-size: cover;border-top: 4px
-                        solid #f20060;border-bottom: 0;padding-top:
+                        solid #8eb1b7;border-bottom: 0;padding-top:
                         0px;padding-bottom: 0px;" align="center"
                         valign="top">
                         <!--[if gte mso 9]>
@@ -819,7 +803,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                           style="text-align:
                                                           center;"><img
 moz-do-not-send="true"
-src="https://gallery.mailchimp.com/f521b63b94055dfac0d9cda24/images/31e0416b-cd91-4bc6-82ea-387b8a207b35.png"
+src="https://api.gb.bink.com/content/media/email/padlock.png"
                                                           style="width:
                                                           98px;height:
                                                           150px;margin:
@@ -876,19 +860,19 @@ none;-ms-interpolation-mode: bicubic;" align="none" height="150"
                                           3px;border-bottom-right-radius:
                                           3px;border-bottom-left-radius:
                                           3px;background-color:
-                                          #F20060;mso-table-lspace:
+                                          #8eb1b7;mso-table-lspace:
                                           0pt;mso-table-rspace:
                                           0pt;-ms-text-size-adjust:
                                           100%;-webkit-text-size-adjust:
                                           100%;" border="0"
                                           cellpadding="0"
-                                          cellspacing="0">
+                                          cellspacing="0" href="{{ link }}">
                                           <tbody>
                                             <tr>
                                               <td
                                                 class="mcnButtonContent"
                                                 style="font-family:
-                                                'Helvetica Neue',
+                                                'Montserrat',
                                                 Helvetica, Arial,
                                                 Verdana,
                                                 sans-serif;font-size:
@@ -899,12 +883,11 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"
                                                 valign="middle"> <a
                                                   moz-do-not-send="true"
                                                   class="mcnButton "
-                                                  title="Get a new
-                                                  password"
-                                                  href="{{ link }}"
+                                                  title="Get a new password"
                                                   target="_blank"
+                                                  href="{{ link }}"
                                                   style="font-weight:
-                                                  bold;letter-spacing:
+                                                  300;letter-spacing:
                                                   normal;line-height:
                                                   100%;text-align:
                                                   center;text-decoration:
@@ -976,14 +959,14 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;">
                                                       <td
                                                         class="mcnTextContent"
                                                         style="color:
-                                                        #666666;font-family:
+                                                        #194b53;font-family:
+                                                        'Montserrat',
                                                         Arial,
-                                                        'Helvetica
-                                                        Neue',
+                                                        'Helvetica Neue',
                                                         Helvetica,
                                                         sans-serif;font-size:
                                                         12px;font-style:
-normal;font-weight: normal;line-height: 150%;text-align:
+normal;font-weight: 300;line-height: 150%;text-align:
                                                         left;mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                         100%;word-break:
@@ -991,21 +974,19 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                         valign="top">
                                                         <div
                                                           style="text-align:
-                                                          justify;"><font
-face="arial, sans-serif">Effortlessly reset your Bink App password by selecting “Get a new password”</div>
+                                                          justify;">Effortlessly reset your Bink App password by selecting “Get a new password”</div>
                                                         <div
                                                           style="text-align:
                                                           justify;"> </div>
                                                         <div
                                                           style="text-align:
-                                                          justify;"><font
-face="arial, sans-serif"><br>If you didn’t request a password reset, please get in touch with us immediately at </font><a
+                                                          justify;"><br>If you didn’t request a password reset, please get in touch with us immediately at </font><a
 moz-do-not-send="true"
 href="mailto:support@bink.com?subject=Urgent%3A%20Password%20Reset%20Not%20Requested"
 target="_blank" style="mso-line-height-rule:
                                                           exactly;-ms-text-size-adjust:
-100%;-webkit-text-size-adjust: 100%;color: #00b9ff;font-weight:
-                                                          normal;text-decoration:
+100%;-webkit-text-size-adjust: 100%;color: #8eb1b7;font-weight:
+                                                          300;text-decoration:
                                                           underline;">support@bink.com</a>.</div>
                                                       </td>
                                                     </tr>
@@ -1366,7 +1347,7 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust:
                                                 valign="top">
                                                 <div style="text-align:
                                                   center;"><em>Copyright
-                                                    © 2020 Bink, All
+                                                    © 2021 Bink, All
                                                     rights reserved.</em><br>
                                                   <br>
                                                   <strong>Our mailing

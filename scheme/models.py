@@ -31,6 +31,7 @@ from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
 from scheme.encryption import AESCipher
+from ubiquity.reason_codes import REASON_CODES
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.channel_vault import AESKeyNames
 
@@ -846,6 +847,7 @@ class SchemeAccount(models.Model):
 
     def _process_midas_response(self, response):
         points = None
+        current_status = self.status
         self.status = response.status_code
         if self.status not in [status[0] for status in self.EXTENDED_STATUSES]:
             self.status = SchemeAccount.UNKNOWN_ERROR
@@ -864,6 +866,13 @@ class SchemeAccount(models.Model):
                      "rep": repr(self)},
                     headers={'X-content-type': 'application/json'}
                 )
+
+        # When receiving a 500 error from Midas, keep SchemeAccount active only
+        # if it's already active.
+        elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
+            self.status = SchemeAccount.ACTIVE
+            logger.info(f"Ignoring Midas {self.status} response code")
+
         return points
 
     def get_midas_balance(self, journey):
@@ -1268,6 +1277,23 @@ class SchemeAccount(models.Model):
 
     class Meta:
         ordering = ['order', '-created']
+
+
+class SchemeOverrideError(models.Model):
+    ERROR_CODE_CHOICES = tuple((status[0], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    ERROR_SLUG_CHOICES = tuple((status[2], status[2]) for status in SchemeAccount.EXTENDED_STATUSES)
+    REASON_CODE_CHOICES = tuple((reason_code[0], reason_code[0]) for reason_code in REASON_CODES)
+    scheme = models.ForeignKey('scheme.Scheme', on_delete=models.CASCADE)
+    error_code = models.IntegerField(choices=ERROR_CODE_CHOICES)
+    reason_code = models.CharField(max_length=50, choices=REASON_CODE_CHOICES)
+    error_slug = models.CharField(max_length=50, choices=ERROR_SLUG_CHOICES)
+    message = models.TextField()
+
+    def __str__(self):
+        return '({}) {}: {}'.format(self.reason_code, self.scheme.name, self.message)
+
+    class Meta:
+        unique_together = ('error_code', 'scheme')
 
 
 class SchemeCredentialQuestion(models.Model):
