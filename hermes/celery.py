@@ -2,13 +2,15 @@ import os
 
 from celery import Celery
 from django.conf import settings
+from django.utils import timezone
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 
 app = Celery("async_tasks")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(
-    ["ubiquity.tasks", "payment_card.tasks", "periodic_retry.tasks", "hermes.vop_tasks.tasks", "history.tasks"]
+    ["ubiquity.tasks", "payment_card.tasks", "periodic_retry.tasks", "hermes.vop_tasks.tasks", "history.tasks",
+     "notification.tasks"]
 )
 
 app.conf.beat_schedule = {
@@ -26,6 +28,11 @@ app.conf.beat_schedule = {
         "task": "periodic_retry.tasks.retry_metis_request_tasks",
         "schedule": int(settings.RETRY_PERIOD),
         "args": (),
+    },
+    "generate_notification_file": {
+        "task": "notification.tasks.notification_file",
+        "schedule": int(settings.NOTIFICATION_PERIOD),
+        "args": ("Barclays", timezone.now())
     },
 }
 

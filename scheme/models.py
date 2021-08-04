@@ -857,16 +857,6 @@ class SchemeAccount(models.Model):
             points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
             points['is_stale'] = False
 
-            if settings.ENABLE_DAEDALUS_MESSAGING:
-                settings.TO_DAEDALUS.send(
-                    {"type": 'membership_card_update',
-                     "model": 'schemeaccount',
-                     "id": str(self.id),
-                     "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                     "rep": repr(self)},
-                    headers={'X-content-type': 'application/json'}
-                )
-
         # When receiving a 500 error from Midas, keep SchemeAccount active only
         # if it's already active.
         elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
