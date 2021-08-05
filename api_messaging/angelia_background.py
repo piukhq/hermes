@@ -12,10 +12,10 @@ import logging
 
 logger = logging.getLogger("Messaging")
 
+
 def post_payment_account(message: dict):
-    # Handler for onward POST/payment_account journeys from Angelia, including adds and links.
-    # Auto-links to scheme accounts if set to True.
     # Calls Metis to enrol payment card if account was just created.
+    logger.info('Handling onward POST/payment_account journey from Angelia.')
 
     bundle_id = message.get("channel_id")
     payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
@@ -31,8 +31,7 @@ def post_payment_account(message: dict):
 
 
 def delete_payment_account(message: dict):
-    # Handler for onward DELETE/payment_account{id} journeys from Angelia.
-
+    logger.info('Handling DELETE/payment_account journey from Angelia.')
     query = {"user_id": message['user_id'],
              "payment_card_account_id": message['payment_account_id']}
 
@@ -45,7 +44,7 @@ def delete_payment_account(message: dict):
 
 
 def loyalty_card_add(message: dict):
-    # Handler for onward loyalty card ADD journeys from Angelia
+    logger.info('Handling loyalty_card ADD journey')
     if message['auto_link']:
         payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message['user_id']).values_list(
             "payment_card_account_id", flat=True
@@ -53,7 +52,7 @@ def loyalty_card_add(message: dict):
     else:
         payment_cards_to_link = []
 
-    if message['new_card']:
+    if message['created']:
         async_add_field_only_link(message['loyalty_card_id'], payment_cards_to_link)
     else:
         auto_link_membership_to_payments(payment_cards_to_link,
