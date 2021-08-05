@@ -54,6 +54,6 @@ def loyalty_card_add(message: dict):
 
     if message['created']:
         async_add_field_only_link(message['loyalty_card_id'], payment_cards_to_link)
-    else:
+    elif not message['created'] and payment_cards_to_link:
         auto_link_membership_to_payments(payment_cards_to_link,
                                          scheme=SchemeAccount.objects.get(id=message['loyalty_card_id']))
