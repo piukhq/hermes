@@ -45,15 +45,15 @@ def delete_payment_account(message: dict):
 
 def loyalty_card_add(message: dict):
     logger.info('Handling loyalty_card ADD journey')
-    if message['auto_link']:
-        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message['user_id']).values_list(
+    if message.get("auto_link"):
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
             "payment_card_account_id", flat=True
         )
     else:
         payment_cards_to_link = []
 
-    if message['created']:
-        async_add_field_only_link(message['loyalty_card_id'], payment_cards_to_link)
-    elif not message['created'] and payment_cards_to_link:
+    if message.get("created"):
+        async_add_field_only_link(message.get("loyalty_card_id"), payment_cards_to_link)
+    elif not message.get("created") and payment_cards_to_link:
         auto_link_membership_to_payments(payment_cards_to_link,
-                                         scheme=SchemeAccount.objects.get(id=message['loyalty_card_id']))
+                                         scheme=SchemeAccount.objects.get(id=message.get("loyalty_card_id")))
