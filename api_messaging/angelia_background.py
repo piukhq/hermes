@@ -4,9 +4,13 @@ from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
-from ubiquity.tasks import deleted_payment_card_cleanup
+from scheme.models import SchemeAccount
+from ubiquity.tasks import deleted_payment_card_cleanup, async_add_field_only_link, auto_link_membership_to_payments
 from user.models import CustomUser
 
+import logging
+
+logger = logging.getLogger("Messaging")
 
 def post_payment_account(message: dict):
     # Handler for onward POST/payment_account journeys from Angelia, including adds and links.
@@ -38,3 +42,19 @@ def delete_payment_account(message: dict):
                                  payment_card_hash=None,
                                  history_kwargs={"user_info": user_info(user_id=message['user_id'],
                                                                         channel=message['channel_id'])})
+
+
+def loyalty_card_add(message: dict):
+    # Handler for onward loyalty card ADD journeys from Angelia
+    if message['auto_link']:
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message['user_id']).values_list(
+            "payment_card_account_id", flat=True
+        )
+    else:
+        payment_cards_to_link = []
+
+    if message['new_card']:
+        async_add_field_only_link(message['loyalty_card_id'], payment_cards_to_link)
+    else:
+        auto_link_membership_to_payments(payment_cards_to_link,
+                                         scheme=SchemeAccount.objects.get(id=message['loyalty_card_id']))
