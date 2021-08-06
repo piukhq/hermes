@@ -77,8 +77,8 @@ class SftpManager:
             except (ConnectionException, SSHException) as e:
                 errors += 1
                 logging.info('Retrying notification file in 2 minutes.')
-                sleep(int(settings.NOTIFICATION_RETRY_TIMER))
-                if errors == int(settings.NOTIFICATION_ERROR_THRESHOLD):
+                sleep(settings.NOTIFICATION_RETRY_TIMER)
+                if errors == settings.NOTIFICATION_ERROR_THRESHOLD:
                     logging.warning(f'Failed to transfer file. Error - {e}')
                     raise e
 
@@ -109,7 +109,7 @@ class NotificationProcessor:
                 to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
 
                 # Get any status changes in the last 2 hours where status has changed
-                from_datetime = to_datetime - timedelta(seconds=int(settings.NOTIFICATION_PERIOD))
+                from_datetime = to_datetime - timedelta(seconds=settings.NOTIFICATION_PERIOD)
                 list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
                 historical_rows = list(HistoricalSchemeAccount.objects.filter(
                     instance_id__in=list_of_ids,
