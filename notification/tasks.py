@@ -137,9 +137,6 @@ class NotificationProcessor:
                                     value['created']
                                 ])
 
-                                # Remove from list so we don't have to loop through it again
-                                historical_rows.pop(counter)
-
                                 break
 
         return rows_to_write
