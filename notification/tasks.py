@@ -105,16 +105,13 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                # Zero out provided time
-                to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
-
                 # Get any status changes in the last 2 hours where status has changed
-                from_datetime = to_datetime - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+                from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
                 list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
                 historical_rows = list(HistoricalSchemeAccount.objects.filter(
                     instance_id__in=list_of_ids,
                     change_details__contains=change_type,
-                    created__range=[from_datetime, to_datetime]
+                    created__range=[from_datetime, self.to_date]
                 ).values('instance_id', 'body', 'created'))
 
                 # Need the values from SchemeAccount and the created date from HistoricalSchemeAccount
