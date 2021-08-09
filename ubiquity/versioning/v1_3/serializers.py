@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
-from ubiquity.reason_codes import get_state_reason_code_and_text
+from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
 
 if TYPE_CHECKING:
     from scheme.models import Scheme, SchemeAccount
@@ -16,7 +16,6 @@ ServiceSerializer = v1_2_serializers.ServiceSerializer
 PaymentCardSerializer = v1_2_serializers.PaymentCardSerializer
 TransactionSerializer = v1_2_serializers.TransactionSerializer
 PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerializer
-MembershipCardSerializer = v1_2_serializers.MembershipCardSerializer
 
 
 class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
@@ -26,12 +25,6 @@ class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
 class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
     @staticmethod
     def get_translated_status(instance: 'SchemeAccount', status: 'SchemeAccount.STATUSES') -> dict:
-        if status in instance.SYSTEM_ACTION_REQUIRED:
-            if instance.balances:
-                status = instance.ACTIVE
-            else:
-                status = instance.PENDING
-
         state, reason_codes, error_text = get_state_reason_code_and_text(status)
         scheme_errors = instance.scheme.schemeoverrideerror_set.all()
 
@@ -40,6 +33,12 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
                 error_text = error.message
                 reason_codes = [error.reason_code]
                 break
+
+        if status in instance.SYSTEM_ACTION_REQUIRED:
+            if instance.balances:
+                state = ubiquity_status_translation[instance.ACTIVE]
+            else:
+                state = ubiquity_status_translation[instance.PENDING]
 
         return {
             "state": state,
