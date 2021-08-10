@@ -539,11 +539,11 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(['X300'], data['status']['reason_codes'])
 
     def test_membership_card_V1_3_override_system_error(self, *_):
-        self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
+        self.scheme_account.status = SchemeAccount.MIDAS_UNREACHABLE
         self.scheme_account.save()
         error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
-                                    error_slug='UNKNOWN_ERROR',
-                                    error_code=520,
+                                    error_slug='MIDAS_UNREACHABLE',
+                                    error_code=9,
                                     reason_code='X202',
                                     message='Custom system error message')
         error.save()
