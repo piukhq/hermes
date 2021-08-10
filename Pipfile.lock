@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "2836e230f1446da82053c177aae275de050d4a937f0dbe60f5edb76ebbe73e9b"
+            "sha256": "ba013ef92f4c74fb79d060e257ded954ddc814c5d10fec7de5bf757842415379"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -220,7 +220,7 @@
                 "sha256:3339ff0e03dee13045aef6ae7b523edff75b6d726adf7a7a48f53d5a501f7db7",
                 "sha256:f2084ceecff86b1e631c2cd4107d435daf4e12f1efcdf11061a73bf0b5e95f92"
             ],
-            "index": "bypi",
+            "index": "gitlab-libraries",
             "version": "==2.2.24"
         },
         "django-admin-env-notice": {
@@ -308,12 +308,10 @@
         "djangorestframework": {
             "hashes": [
                 "sha256:0209bafcb7b5010fdfec784034f059d512256424de2a0f084cb82b096d6dd6a7",
-                "sha256:0898182b4737a7b584a2c73735d89816343369f259fea932d90dc78e35d8ac33",
-                "sha256:6dd02d5a4bd2516fb93f80360673bf540c3b6641fec8766b1da2870a5aa00b32",
-                "sha256:8b1ac62c581dbc5799b03e535854b92fc4053ecfe74bad3f9c05782063d4196b"
+                "sha256:0898182b4737a7b584a2c73735d89816343369f259fea932d90dc78e35d8ac33"
             ],
             "index": "gitlab-libraries",
-            "version": "==3.11.1"
+            "version": "==3.12.2"
         },
         "factory-boy": {
             "hashes": [
@@ -328,7 +326,7 @@
                 "sha256:3e737576ff50cd98dfed643d6b3fd63194eca9df00e7f595960fe7da5220723d",
                 "sha256:b9e81e9da3dda3ac54189e034cfb943de576a259caeb226ccab43fcbcf6a7891"
             ],
-            "markers": "python_version >= '3.6'",
+            "index": "gitlab-libraries",
             "version": "==8.11.0"
         },
         "gunicorn": {
@@ -722,8 +720,11 @@
         "rusty-jeff": {
             "hashes": [
                 "sha256:35514db4f08f8dd33a213bbfeb6d921054cbc1eaae9ef0a87458ff6b9296de98",
+                "sha256:6138dca56577b9d512c2c272818d166942400ceeef29fdca3b545627c2c29219",
                 "sha256:677c55c60fb34ddd2e55a9a449134a8b739de750a9d59b5eb0ff1c3d40821343",
                 "sha256:91222ca27d002c75240c48d6127460fae58a36364e49a26c0f01e79cc6867b4c",
+                "sha256:980a2b059f6ca112f1faf7d154f67ce13b2a0cc452b7746d369ee54b6412082b",
+                "sha256:99a9c81119fefb34a67a89f457b1a2c0199e36171c65c9cd930d4169f4db5c19",
                 "sha256:a24fadcd039427f27789c29d30213785ffd5f94fe3dc7e70f1095b65551caf71",
                 "sha256:a25da1751c656b0d52342feeaf6e0d71dfd63bd65a27a4535610ebcf1173d845",
                 "sha256:df0f3be0d913be04cd1416677dd225b0ea5108ef241dfa18692f4ffd70133677"
@@ -790,9 +791,11 @@
         "urllib3": {
             "hashes": [
                 "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80",
+                "sha256:39fb8672126159acb139a7718dd10806104dec1e2f0f6c88aab05d17df10c8d4",
                 "sha256:de3eedaad74a2683334e282005cd8d7f22f4d55fa690a2a1020a416cb0a47e73",
-                "sha256:39fb8672126159acb139a7718dd10806104dec1e2f0f6c88aab05d17df10c8d4"
+                "sha256:f57b4c16c62fa2760b7e3d97c35b255512fb6b59a259730f36ba32ce9f8e342f"
             ],
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4.0'",
             "version": "==1.26.6"
         },
         "vine": {
@@ -937,7 +940,7 @@
                 "sha256:3e737576ff50cd98dfed643d6b3fd63194eca9df00e7f595960fe7da5220723d",
                 "sha256:b9e81e9da3dda3ac54189e034cfb943de576a259caeb226ccab43fcbcf6a7891"
             ],
-            "markers": "python_version >= '3.6'",
+            "index": "gitlab-libraries",
             "version": "==8.11.0"
         },
         "fakeredis": {
@@ -1210,10 +1213,12 @@
         },
         "urllib3": {
             "hashes": [
+                "sha256:1b465e494e3e0d8939b50680403e3aedaa2bc434b7d5af64dfd3c958d7f5ae80",
                 "sha256:39fb8672126159acb139a7718dd10806104dec1e2f0f6c88aab05d17df10c8d4",
+                "sha256:de3eedaad74a2683334e282005cd8d7f22f4d55fa690a2a1020a416cb0a47e73",
                 "sha256:f57b4c16c62fa2760b7e3d97c35b255512fb6b59a259730f36ba32ce9f8e342f"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4' and python_version < '4.0'",
             "version": "==1.26.6"
         },
         "xenon": {
