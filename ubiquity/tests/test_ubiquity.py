@@ -542,10 +542,10 @@ class TestResources(GlobalMockAPITestCase):
         self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
         self.scheme_account.save()
         error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
-                            error_slug='UNKNOWN_ERROR',
-                            error_code=520,
-                            reason_code='X000',
-                            message='Custom system error message')
+                                error_slug='UNKNOWN_ERROR',
+                                error_code=520,
+                                reason_code='X000',
+                                message='Custom system error message')
         error.save()
         data = MembershipCardSerializer_V1_3(self.scheme_account).data
         self.assertEqual('Custom system error message', data['status']['error_text'])
