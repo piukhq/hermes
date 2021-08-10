@@ -4,17 +4,18 @@ from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
+import pysftp
+from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException, RSAKey
+from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
 
 from history.models import HistoricalSchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import ubiquity_status_translation
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,7 @@ class SftpManager:
         self.sftp_private_key_string = RSAKey.from_private_key(
             StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
         )
+        self.sftp_host_keys = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST_KEYS)
 
         self.rows = rows
 
@@ -36,10 +38,23 @@ class SftpManager:
         return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
+        logger.info("Transferring file")
         date = timezone.now().strftime('%Y%m%d')
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv'
         rows = self.format_data(self.rows)
+        cnopts = pysftp.CnOpts()
+
+        for host_key in self.sftp_host_keys:
+            if host_key['keytype'] == "ssh-rsa":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=RSAKey(data=b64decode(host_key['key'])))
+            elif host_key['keytype'] == "ssh-ed25519":
+                cnopts.hostkeys.add(hostname=host_key['host'],
+                                    keytype=host_key['keytype'],
+                                    key=Ed25519Key(data=b64decode(host_key['key'])))
+                pass
 
         errors = 0
 
@@ -48,8 +63,10 @@ class SftpManager:
                 with Connection(
                         self.host,
                         username=self.sftp_username,
-                        private_key=self.sftp_private_key_string
+                        private_key=self.sftp_private_key_string,
+                        cnopts=cnopts
                 ) as sftp:
+                    logger.info('Connected to sftp')
                     with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
@@ -60,8 +77,8 @@ class SftpManager:
             except (ConnectionException, SSHException) as e:
                 errors += 1
                 logging.info('Retrying notification file in 2 minutes.')
-                sleep(int(settings.NOTIFICATION_RETRY_TIMER))
-                if errors == int(settings.NOTIFICATION_ERROR_THRESHOLD):
+                sleep(settings.NOTIFICATION_RETRY_TIMER)
+                if errors == settings.NOTIFICATION_ERROR_THRESHOLD:
                     logging.warning(f'Failed to transfer file. Error - {e}')
                     raise e
 
@@ -88,16 +105,13 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                # Zero out provided time
-                to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
-
                 # Get any status changes in the last 2 hours where status has changed
-                from_datetime = to_datetime - timedelta(hours=2)
+                from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
                 list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
                 historical_rows = list(HistoricalSchemeAccount.objects.filter(
                     instance_id__in=list_of_ids,
                     change_details__contains=change_type,
-                    created__range=[from_datetime, to_datetime]
+                    created__range=[from_datetime, self.to_date]
                 ).values('instance_id', 'body', 'created'))
 
                 # Need the values from SchemeAccount and the created date from HistoricalSchemeAccount
@@ -119,9 +133,6 @@ class NotificationProcessor:
                                     value['body']['status'],
                                     value['created']
                                 ])
-
-                                # Remove from list so we don't have to loop through it again
-                                historical_rows.pop(counter)
 
                                 break
 

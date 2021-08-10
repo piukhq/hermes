@@ -1,3 +1,4 @@
+from base64 import b64encode
 from datetime import timedelta
 from unittest import mock
 
@@ -102,7 +103,19 @@ class TestNotificationTask(GlobalMockAPITestCase):
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_retry_raise_exception(self, mock_rsa_key):
         mock_rsa_key.return_value = RSAKey.generate(1024)
+        mock_host_keys = {
+            "host": "test.bink.com",
+            "key": b64encode("test_host_key".encode('ascii')),
+            "keytype": "ssh-ed25519"
+        },
+        {
+            "host": "test.bink.com",
+            "key": b64encode("test_host_key".encode('ascii')),
+            "keytype": "ssh-rsa"
+        }
+
         sftp = SftpManager(rows=[])
+        sftp.sftp_host_keys = mock_host_keys
         with self.assertRaises(SSHException):
             sftp.transfer_file()
 
