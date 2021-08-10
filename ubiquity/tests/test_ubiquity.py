@@ -538,13 +538,17 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual('authorised', data['status']['state'])
         self.assertEqual(['X300'], data['status']['reason_codes'])
 
-    # def test_membership_card_V1_3_override_on_system_error(self, *_):
-    #     self.scheme_account_status = SchemeAccount.UNKNOWN_ERROR
-    #     self.scheme_account.save()
-    #     error_messages = dict((code, message) for code, message in CURRENT_STATUS_CODES)
-    #     data = MembershipCardSerializer_V1_3(self.scheme_account).data
-    #     self.assertEqual(error_messages[520], data['status']['error_text'])
-    #     self.assertEqual('pending', data['status']['state'])
+    def test_membership_card_V1_3_system_error_override(self, *_):
+        self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
+        self.scheme_account.save()
+        error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
+                            error_slug='UNKNOWN_ERROR',
+                            error_code=520,
+                            reason_code='X000',
+                            message='Custom system error message')
+        error.save()
+        data = MembershipCardSerializer_V1_3(self.scheme_account).data
+        self.assertEqual('Custom system error message', data['status']['error_text'])
 
     def test_membership_card_V1_3_returns_default_error_message_if_no_override_exists(self, *_):
         self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
