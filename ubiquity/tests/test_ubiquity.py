@@ -560,12 +560,12 @@ class TestResources(GlobalMockAPITestCase):
     def test_membership_card_V1_3_override_system_error(self, *_):
         self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
         self.scheme_account.save()
-        # error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
-        #                             error_slug='ACCOUNT_ALREADY_EXISTS',
-        #                             error_code=445,
-        #                             reason_code='X202',
-        #                             message='Custom error message')
-        # error.save()
+        error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
+                                    error_slug='UNKNOWN_ERROR',
+                                    error_code=520,
+                                    reason_code='X202',
+                                    message='Custom error message')
+        error.save()
         # data = MembershipCardSerializer_V1_3(self.scheme_account).data
         # self.assertEqual('Custom error message', data['status']['error_text'])
 
