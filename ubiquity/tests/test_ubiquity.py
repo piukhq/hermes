@@ -566,7 +566,7 @@ class TestResources(GlobalMockAPITestCase):
                                     reason_code='X202',
                                     message='Custom error message')
         error.save()
-        # data = MembershipCardSerializer_V1_3(self.scheme_account).data
+        data = MembershipCardSerializer_V1_3(self.scheme_account).data
         # self.assertEqual('Custom error message', data['status']['error_text'])
 
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
