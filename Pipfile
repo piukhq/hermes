@@ -1,6 +1,6 @@
 [[source]]
-name = "bypi"
-url = "https://269fdc63-af3d-4eca-8101-8bddc22d6f14:b694b5b1-f97e-49e4-959e-f3c202e3ab91@pypi.tools.bink.sh/simple"
+name = "gitlab-libraries"
+url = "https://bink-libs:y6nzdKbo9J6MkEmwvB-i@git.bink.com/api/v4/groups/86/-/packages/pypi/simple"
 verify_ssl = true
 
 [[source]]
@@ -47,7 +47,6 @@ sentry-sdk = "*"
 tenacity = "*"
 shared-config-storage = "*"
 psycopg2-binary = "<2.9"
-rusty-jeff = "*"
 mozilla-django-oidc = "*"
 django-prometheus = "*"
 django-admin-rangefilter = "*"
@@ -56,3 +55,4 @@ cryptography = "*"
 gunicorn = "*"
 pysftp = "*"
 cached-property = "*"
+rusty-jeff = "*"
