@@ -559,7 +559,7 @@ class TestResources(GlobalMockAPITestCase):
 
     def test_membership_card_V1_3_override_system_error(self, *_):
         self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
-        # self.scheme_account.save()
+        self.scheme_account.save()
         # error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
         #                             error_slug='ACCOUNT_ALREADY_EXISTS',
         #                             error_code=445,
