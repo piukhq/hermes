@@ -558,7 +558,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual('Custom error message', data['status']['error_text'])
 
     def test_membership_card_V1_3_override_system_error(self, *_):
-        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
+        self.scheme_account.status = SchemeAccount.UNKNOWN_ERROR
         self.scheme_account.save()
         error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
                                     error_slug='ACCOUNT_ALREADY_EXISTS',
