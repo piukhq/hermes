@@ -558,17 +558,16 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual('Custom error message', data['status']['error_text'])
 
     def test_membership_card_V1_3_override_system_error(self, *_):
-        self.scheme_account.status = SchemeAccount.MIDAS_UNREACHABLE
+        self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
         self.scheme_account.save()
         error = SchemeOverrideError(scheme_id=self.scheme_account.scheme_id,
-                                    error_slug='MIDAS_UNREACHABLE',
-                                    error_code=9,
+                                    error_slug='ACCOUNT_ALREADY_EXISTS',
+                                    error_code=445,
                                     reason_code='X202',
-                                    message='Custom system error message')
+                                    message='Custom error message')
         error.save()
         data = MembershipCardSerializer_V1_3(self.scheme_account).data
-        self.assertTrue(True)
-        # self.assertEqual('Custom sydfdfsdfsdfsdfsdfsdfsstem error message', data['status']['error_text'])
+        self.assertEqual('Custom error message', data['status']['error_text'])
 
     def test_membership_card_serializer_base_V1_2_contains_no_error_message(self):
         self.scheme_account.status = SchemeAccount.ACCOUNT_ALREADY_EXISTS
