@@ -44,7 +44,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         settings.VAULT_CONFIG['LOCAL_SECRETS'] = True
 
     def test_get_data_initiation(self):
-        test_notification = NotificationProcessor(organisation=self.test_org)
+        test_notification = NotificationProcessor()
         data = test_notification.get_data()
         expected_result = (
             self.scheme_account_entry.user.external_id,
@@ -96,9 +96,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(
-                organisation=self.test_org, to_date=timezone.now()
-            )
+            test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_data()
 
             self.assertEqual(len(data), 3)

@@ -87,8 +87,8 @@ class SftpManager:
 
 
 class NotificationProcessor:
-    def __init__(self, organisation, to_date=None):
-        self.org = organisation
+    def __init__(self, to_date=None):
+        self.org = 'Barclays'
         self.to_date = to_date
 
     def get_data(self):
@@ -149,8 +149,8 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(organisation="Barclays", to_date=None):
-    notification = NotificationProcessor(organisation=organisation, to_date=to_date)
+def notification_file(to_date=None):
+    notification = NotificationProcessor(to_date=to_date)
     data_to_write = notification.get_data()
 
     if data_to_write:
