@@ -113,14 +113,14 @@ class NotificationProcessor:
                 from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
                 # Get all status changes for barclays wallets (created, updated and deleted)
-                historical_scheme_account_data = list(HistoricalSchemeAccount.objects.filter(
+                historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
                     Q(change_details__contains=change_type) |
                     Q(change_type=HistoricalBase.CREATE) |
                     Q(change_type=HistoricalBase.UPDATE) |
                     Q(change_type=HistoricalBase.DELETE),
                     channel=barclays_channel,
                     created__range=[from_datetime, self.to_date],
-                ).values('instance_id', 'change_type', 'body', 'created'))
+                ).values('instance_id', 'change_type', 'body', 'created')
 
                 if historical_scheme_account_data:
                     ids_to_filter = [row["instance_id"] for row in historical_scheme_account_data]
