@@ -70,11 +70,17 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ).save()
 
             HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.DELETE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='updated',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
+            ).save()
+
+            HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account_entry.scheme_account.id,
                 change_details='status',
                 body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
-                channel=self.barclays_channel
             ).save()
 
             HistoricalSchemeAccount(
@@ -86,7 +92,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ).save()
 
         historical_scheme_accounts = HistoricalSchemeAccount.objects.all()
-        self.assertEqual(len(historical_scheme_accounts), 4)
+        self.assertEqual(len(historical_scheme_accounts), 5)
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
