@@ -8,7 +8,6 @@ import pysftp
 from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
@@ -88,19 +87,20 @@ class SftpManager:
 
 
 class NotificationProcessor:
-    def __init__(self, organisation, to_date=None):
-        self.org = organisation
+    def __init__(self, to_date=None):
+        self.org = 'Barclays'
         self.to_date = to_date
 
     def get_data(self):
         rows_to_write = []
         change_type = 'status'
 
+        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
+            user__client__organisation__name=self.org
+        )
+
         # initiation file data
         if not self.to_date:
-            scheme_accounts_entries = SchemeAccountEntry.objects.filter(
-                user__client__organisation__name=self.org
-            )
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',
@@ -109,32 +109,27 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                barclays_channel = "com.barclays.bmb"
                 from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+
+                barclays_scheme_accounts = scheme_accounts_entries.values(
+                    'scheme_account_id',
+                    'user__external_id',
+                    'scheme_account__scheme__slug',
+                    'scheme_account__status',
+                )
+
+                ids_to_filter = [row["scheme_account_id"] for row in barclays_scheme_accounts]
 
                 # Get all status changes for barclays wallets (created, updated and deleted)
                 historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
-                    Q(change_details__contains=change_type) |
-                    Q(change_type=HistoricalBase.CREATE) |
-                    Q(change_type=HistoricalBase.UPDATE) |
-                    Q(change_type=HistoricalBase.DELETE),
-                    channel=barclays_channel,
+                    change_details__contains=change_type,
+                    instance_id__in=ids_to_filter,
                     created__range=[from_datetime, self.to_date],
                 ).values('instance_id', 'change_type', 'body', 'created')
 
                 if historical_scheme_account_data:
-                    ids_to_filter = [row["instance_id"] for row in historical_scheme_account_data]
-
-                    scheme_account_entries = SchemeAccountEntry.objects.filter(
-                        scheme_account_id__in=ids_to_filter).values(
-                            'scheme_account_id',
-                            'user__external_id',
-                            'scheme_account__scheme__slug',
-                            'scheme_account__status',
-                        )
-
                     for data in historical_scheme_account_data:
-                        for row in scheme_account_entries:
+                        for row in barclays_scheme_accounts:
                             if int(data['instance_id']) == row['scheme_account_id']:
                                 if data['change_type'] == HistoricalBase.DELETE:
                                     status = 'deleted'
@@ -154,8 +149,8 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(organisation="Barclays", to_date=None):
-    notification = NotificationProcessor(organisation=organisation, to_date=to_date)
+def notification_file(to_date=None):
+    notification = NotificationProcessor(to_date=to_date)
     data_to_write = notification.get_data()
 
     if data_to_write:
