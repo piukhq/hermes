@@ -457,11 +457,13 @@ INFLUX_DB_CONFIG = {
     "password": env_var("INFLUX_PASSWORD", ""),
 }
 
-CELERY_BROKER_URL = env_var("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
-CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async-midas")
-CELERY_TASK_SERIALIZER = "pickle"
-CELERY_ACCEPT_CONTENT = ["pickle", "json"]
-CELERY_RESULT_SERIALIZER = "pickle"
+# Celery
+broker_url = env_var("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
+task_default_queue = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async-midas")
+task_serializer = "pickle"
+accept_content = ["pickle", "json"]
+result_serializer = "pickle"
+worker_enable_remote_control = False
 
 SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
 
