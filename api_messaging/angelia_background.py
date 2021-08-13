@@ -14,7 +14,7 @@ logger = logging.getLogger("Messaging")
 
 def post_payment_account(message: dict):
     # Calls Metis to enrol payment card if account was just created.
-    logger.info('Handling onward POST/payment_account journey from Angelia.')
+    logger.info('Handling onward POST/payment_account journey from Angelia. ')
 
     bundle_id = message.get("channel_id")
     payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
