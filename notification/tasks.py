@@ -8,6 +8,7 @@ import pysftp
 from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
@@ -122,7 +123,8 @@ class NotificationProcessor:
 
                 # Get all status changes for barclays wallets (created, updated and deleted)
                 historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
-                    change_details__contains=change_type,
+                    Q(change_details__contains=change_type) |
+                    Q(change_details=''),
                     instance_id__in=ids_to_filter,
                     created__range=[from_datetime, self.to_date],
                 ).values('instance_id', 'change_type', 'body', 'created')
