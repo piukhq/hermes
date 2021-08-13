@@ -148,7 +148,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
     def test_loyalty_card_add_autolink(self, mock_auto_link_function):
-        """Tests routing for an existing ADD loyalty card without auto-linking"""
+        """Tests routing for an existing ADD loyalty card without auto-linking """
 
         angelia_background.loyalty_card_add(self.loyalty_card_add_no_autolink_linked_message)
 
