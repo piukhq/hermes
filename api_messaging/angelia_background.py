@@ -4,14 +4,17 @@ from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
-from ubiquity.tasks import deleted_payment_card_cleanup
+from ubiquity.tasks import deleted_payment_card_cleanup, async_add_field_only_link, auto_link_membership_to_payments
 from user.models import CustomUser
+
+import logging
+
+logger = logging.getLogger("Messaging")
 
 
 def post_payment_account(message: dict):
-    # Handler for onward POST/payment_account journeys from Angelia, including adds and links.
-    # Auto-links to scheme accounts if set to True.
     # Calls Metis to enrol payment card if account was just created.
+    logger.info('Handling onward POST/payment_account journey from Angelia. ')
 
     bundle_id = message.get("channel_id")
     payment_card_account = PaymentCardAccount.objects.get(pk=message.get("payment_account_id"))
@@ -27,8 +30,7 @@ def post_payment_account(message: dict):
 
 
 def delete_payment_account(message: dict):
-    # Handler for onward DELETE/payment_account{id} journeys from Angelia.
-
+    logger.info('Handling DELETE/payment_account journey from Angelia.')
     query = {"user_id": message['user_id'],
              "payment_card_account_id": message['payment_account_id']}
 
@@ -38,3 +40,19 @@ def delete_payment_account(message: dict):
                                  payment_card_hash=None,
                                  history_kwargs={"user_info": user_info(user_id=message['user_id'],
                                                                         channel=message['channel_id'])})
+
+
+def loyalty_card_add(message: dict):
+    logger.info('Handling loyalty_card ADD journey')
+    if message.get("auto_link"):
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
+            "payment_card_account_id", flat=True
+        )
+    else:
+        payment_cards_to_link = []
+
+    if message.get("created"):
+        async_add_field_only_link(message.get("loyalty_card_id"), payment_cards_to_link)
+    elif not message.get("created") and payment_cards_to_link:
+        auto_link_membership_to_payments(payment_cards_to_link,
+                                         membership_card=message.get('loyalty_card_id'))

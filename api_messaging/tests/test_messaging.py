@@ -4,11 +4,12 @@ from api_messaging import angelia_background, route
 from api_messaging.exceptions import InvalidMessagePath
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
+from payment_card.tests.factories import PaymentCardAccountFactory
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 
 
-class TestMessaging(GlobalMockAPITestCase):
+class TestPaymentAccountMessaging(GlobalMockAPITestCase):
 
     @classmethod
     def setUpTestData(cls):
@@ -83,3 +84,73 @@ class TestMessaging(GlobalMockAPITestCase):
         self.assertEqual(objects_pre, 1)
         self.assertLess(objects_post, objects_pre)
         self.assertTrue(metis_delete_payment_card.called)
+
+
+class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.scheme_account = SchemeAccountFactory()
+        cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
+        cls.payment_account = PaymentCardAccountFactory()
+        cls.payment_account_entry = PaymentCardAccountEntryFactory(
+            payment_card_account=cls.payment_account,
+            user=cls.scheme_account_entry.user,
+            payment_card_account__psp_token="test_token",
+            payment_card_account__status=PaymentCardAccount.ACTIVE
+            )
+        cls.loyalty_card_add_autolink_created_message = {
+            "loyalty_card_id": cls.scheme_account_entry.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "channel_id": "com.bink.wallet",
+            "auto_link": True,
+            "created": True,
+        }
+        cls.loyalty_card_add_autolink_linked_message = {
+            "loyalty_card_id": cls.scheme_account_entry.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "channel_id": "com.bink.wallet",
+            "auto_link": True,
+            "created": False,
+        }
+        cls.loyalty_card_add_no_autolink_linked_message = {
+            "loyalty_card_id": cls.scheme_account_entry.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "channel_id": "com.bink.wallet",
+            "auto_link": False,
+            "created": False,
+        }
+        cls.loyalty_card_add_headers = {"X-http-path": "loyalty_card_add"}
+        cls.fail_headers = {"X-http-path": "failing_test"}
+
+    @patch('api_messaging.angelia_background.loyalty_card_add')
+    def loyalty_card_add_routing(self, mock_loyalty_card_add):
+        route.route_message(self.loyalty_card_add_headers, self.loyalty_card_add_autolink_created_message)
+
+        self.assertTrue(mock_loyalty_card_add.called)
+
+    def test_failed_route(self):
+        with self.assertRaises(InvalidMessagePath):
+            route.route_message(self.fail_headers, self.loyalty_card_add_autolink_created_message)
+
+    @patch('api_messaging.angelia_background.async_add_field_only_link')
+    def test_loyalty_card_add_created(self, mock_async_add_field_only_link):
+        """Tests routing for newly created ADD loyalty card"""
+
+        angelia_background.loyalty_card_add(self.loyalty_card_add_autolink_created_message)
+
+        self.assertTrue(mock_async_add_field_only_link.called)
+
+    @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
+    def test_loyalty_card_add_linked(self, mock_auto_link_function):
+        """Tests routing for an existing ADD loyalty card with auto-linking"""
+        angelia_background.loyalty_card_add(self.loyalty_card_add_autolink_linked_message)
+
+        self.assertTrue(mock_auto_link_function.called)
+
+    @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
+    def test_loyalty_card_add_autolink(self, mock_auto_link_function):
+        """Tests routing for an existing ADD loyalty card without auto-linking """
+
+        angelia_background.loyalty_card_add(self.loyalty_card_add_no_autolink_linked_message)
+
+        self.assertFalse(mock_auto_link_function.called)

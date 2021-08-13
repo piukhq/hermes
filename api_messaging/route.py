@@ -42,6 +42,7 @@ def route_message(headers: dict, message: dict):
     route = {
         "post_payment_account": angelia_background.post_payment_account,
         "delete_payment_account": angelia_background.delete_payment_account,
+        "loyalty_card_add": angelia_background.loyalty_card_add,
     }
 
     try:
