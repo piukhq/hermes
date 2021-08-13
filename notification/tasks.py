@@ -155,7 +155,7 @@ class NotificationProcessor:
                 if historical_scheme_account_entry_data:
                     for historical_data in historical_scheme_account_entry_data:
                         user = CustomUser.objects.get(id=historical_data['user_id'])
-                        scheme_account = SchemeAccount.objects.get(id=historical_data['scheme_account_id'])
+                        scheme_account = SchemeAccount.all_objects.get(id=historical_data['scheme_account_id'])
 
                         rows_to_write.append([
                             user.external_id,
