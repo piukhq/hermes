@@ -12,7 +12,7 @@ from django.utils import timezone
 from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
 
-from history.models import HistoricalSchemeAccount
+from history.models import HistoricalBase, HistoricalSchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import ubiquity_status_translation
@@ -35,7 +35,10 @@ class SftpManager:
 
     @staticmethod
     def format_data(data):
-        return [['01', x[0], x[1], ubiquity_status_translation[x[2]], int(x[3].timestamp())] for x in data]
+        # Format data to return status that match api response and covert date to timestamp
+        return [
+            ['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data
+        ]
 
     def transfer_file(self):
         logger.info("Transferring file")
@@ -77,20 +80,21 @@ class SftpManager:
             except (ConnectionException, SSHException) as e:
                 errors += 1
                 logging.info('Retrying notification file in 2 minutes.')
-                sleep(int(settings.NOTIFICATION_RETRY_TIMER))
-                if errors == int(settings.NOTIFICATION_ERROR_THRESHOLD):
+                sleep(settings.NOTIFICATION_RETRY_TIMER)
+                if errors == settings.NOTIFICATION_ERROR_THRESHOLD:
                     logging.warning(f'Failed to transfer file. Error - {e}')
                     raise e
 
 
 class NotificationProcessor:
-    def __init__(self, organisation, to_date=None):
-        self.org = organisation
+    def __init__(self, to_date=None):
+        self.org = 'Barclays'
         self.to_date = to_date
 
     def get_data(self):
         rows_to_write = []
         change_type = 'status'
+
         scheme_accounts_entries = SchemeAccountEntry.objects.filter(
             user__client__organisation__name=self.org
         )
@@ -105,40 +109,39 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                # Zero out provided time
-                to_datetime = self.to_date.replace(microsecond=0, second=0, minute=0)
+                from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
-                # Get any status changes in the last 2 hours where status has changed
-                from_datetime = to_datetime - timedelta(hours=2)
-                list_of_ids = list(scheme_accounts_entries.values_list('scheme_account_id', flat=True))
-                historical_rows = list(HistoricalSchemeAccount.objects.filter(
-                    instance_id__in=list_of_ids,
+                barclays_scheme_accounts = scheme_accounts_entries.values(
+                    'scheme_account_id',
+                    'user__external_id',
+                    'scheme_account__scheme__slug',
+                    'scheme_account__status',
+                )
+
+                ids_to_filter = [row["scheme_account_id"] for row in barclays_scheme_accounts]
+
+                # Get all status changes for barclays wallets (created, updated and deleted)
+                historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
                     change_details__contains=change_type,
-                    created__range=[from_datetime, to_datetime]
-                ).values('instance_id', 'body', 'created'))
+                    instance_id__in=ids_to_filter,
+                    created__range=[from_datetime, self.to_date],
+                ).values('instance_id', 'change_type', 'body', 'created')
 
-                # Need the values from SchemeAccount and the created date from HistoricalSchemeAccount
-                if historical_rows:
-                    ids_to_filter = [row["instance_id"] for row in historical_rows]
-                    rows = scheme_accounts_entries.filter(scheme_account_id__in=ids_to_filter).values(
-                        'scheme_account_id',
-                        'user__external_id',
-                        'scheme_account__scheme__name',
-                        'scheme_account__status',
-                    )
+                if historical_scheme_account_data:
+                    for data in historical_scheme_account_data:
+                        for row in barclays_scheme_accounts:
+                            if int(data['instance_id']) == row['scheme_account_id']:
+                                if data['change_type'] == HistoricalBase.DELETE:
+                                    status = 'deleted'
+                                else:
+                                    status = data['body']['status']
 
-                    for row in rows:
-                        for counter, value in enumerate(historical_rows):
-                            if int(value['instance_id']) == row['scheme_account_id']:
                                 rows_to_write.append([
                                     row['user__external_id'],
-                                    row['scheme_account__scheme__name'],
-                                    value['body']['status'],
-                                    value['created']
+                                    row['scheme_account__scheme__slug'],
+                                    status,
+                                    data['created']
                                 ])
-
-                                # Remove from list so we don't have to loop through it again
-                                historical_rows.pop(counter)
 
                                 break
 
@@ -146,8 +149,8 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(organisation="Barclays", to_date=None):
-    notification = NotificationProcessor(organisation=organisation, to_date=to_date)
+def notification_file(to_date=None):
+    notification = NotificationProcessor(to_date=to_date)
     data_to_write = notification.get_data()
 
     if data_to_write:

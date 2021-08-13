@@ -22,6 +22,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.test_org = "Barclays"
+        cls.barclays_channel = "com.barclays.bmb"
         cls.external_id = "Test_User"
         cls.client_application = ClientApplicationFactory(organisation__name=cls.test_org)
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
@@ -34,7 +35,8 @@ class TestNotificationTask(GlobalMockAPITestCase):
             change_type=HistoricalSchemeAccount.CREATE,
             instance_id=cls.scheme_account.id,
             change_details='status',
-            body={"id": cls.scheme_account.id}
+            body={"id": cls.scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=cls.barclays_channel
         ).save()
 
         settings.NOTIFICATION_ERROR_THRESHOLD = 1
@@ -42,7 +44,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         settings.VAULT_CONFIG['LOCAL_SECRETS'] = True
 
     def test_get_data_initiation(self):
-        test_notification = NotificationProcessor(organisation=self.test_org)
+        test_notification = NotificationProcessor()
         data = test_notification.get_data()
         expected_result = (
             self.scheme_account_entry.user.external_id,
@@ -63,22 +65,44 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account_entry.scheme_account.id,
                 change_details='status',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE}
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
+                channel=self.barclays_channel
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.DELETE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='updated',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.DELETE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
+                channel=self.barclays_channel
             ).save()
 
         historical_scheme_accounts = HistoricalSchemeAccount.objects.all()
-        self.assertEqual(len(historical_scheme_accounts), 2)
-        self.assertEqual(historical_scheme_accounts[1].created, mocked_datetime)
+        self.assertEqual(len(historical_scheme_accounts), 5)
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(
-                organisation=self.test_org, to_date=timezone.now()
-            )
+            test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_data()
 
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
+            self.assertEqual(len(data), 3)
+            self.assertEqual(data[0][2], SchemeAccount.INVALID_CREDENTIALS)
+            self.assertEqual(data[1][2], SchemeAccount.ACTIVE)
+            self.assertEqual(data[2][2], 'deleted')
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
