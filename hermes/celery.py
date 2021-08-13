@@ -32,7 +32,7 @@ app.conf.beat_schedule = {
     "generate_notification_file": {
         "task": "notification.tasks.notification_file",
         "schedule": int(settings.NOTIFICATION_PERIOD),
-        "args": (timezone.now())
+        "args": (timezone.now(),)
     },
 }
 
