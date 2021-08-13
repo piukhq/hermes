@@ -7,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from paramiko import SSHException, RSAKey
 
-from history.models import HistoricalSchemeAccount
+from history.models import HistoricalSchemeAccount, HistoricalSchemeAccountEntry
 from history.utils import GlobalMockAPITestCase
 from notification.tasks import SftpManager, NotificationProcessor
 from scheme.models import SchemeAccount
@@ -99,6 +99,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 channel=self.barclays_channel
             ).save()
 
+            HistoricalSchemeAccountEntry(
+                instance_id=self.scheme_account_entry.id,
+                change_type=HistoricalSchemeAccount.DELETE,
+                scheme_account_id=self.scheme_account_entry.scheme_account.id,
+                user_id=self.user.id,
+                channel=self.barclays_channel
+            ).save()
+
         historical_scheme_accounts = HistoricalSchemeAccount.objects.all()
         self.assertEqual(len(historical_scheme_accounts), 6)
 
@@ -107,11 +115,12 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_data()
 
-            self.assertEqual(len(data), 4)
+            self.assertEqual(len(data), 5)
             self.assertEqual(data[0][2], SchemeAccount.PENDING)
             self.assertEqual(data[1][2], SchemeAccount.INVALID_CREDENTIALS)
             self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][2], 'deleted')
+            self.assertEqual(data[3][2], SchemeAccount.INVALID_CREDENTIALS)
+            self.assertEqual(data[4][2], 'deleted')
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):

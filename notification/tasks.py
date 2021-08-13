@@ -13,7 +13,9 @@ from django.utils import timezone
 from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
 
-from history.models import HistoricalBase, HistoricalSchemeAccount
+from user.models import CustomUser
+from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSchemeAccountEntry
+from scheme.models import SchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.reason_codes import ubiquity_status_translation
@@ -90,6 +92,7 @@ class SftpManager:
 class NotificationProcessor:
     def __init__(self, to_date=None):
         self.org = 'Barclays'
+        self.channel = 'com.barclays.bmb'
         self.to_date = to_date
 
     def get_data(self):
@@ -121,31 +124,45 @@ class NotificationProcessor:
 
                 ids_to_filter = [row["scheme_account_id"] for row in barclays_scheme_accounts]
 
-                # Get all status changes for barclays wallets (created, updated and deleted)
+                # Get all status changes for barclays wallets (created and updated)
                 historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
                     Q(change_details__contains=change_type) |
                     Q(change_details=''),
                     instance_id__in=ids_to_filter,
                     created__range=[from_datetime, self.to_date],
-                ).values('instance_id', 'change_type', 'body', 'created')
+                ).values('instance_id', 'body', 'created')
+
+                # Get deleted
+                historical_scheme_account_entry_data = HistoricalSchemeAccountEntry.objects.filter(
+                    change_type=HistoricalBase.DELETE,
+                    channel=self.channel,
+                    created__range=[from_datetime, self.to_date],
+                ).values('user_id', 'scheme_account_id', 'created')
 
                 if historical_scheme_account_data:
                     for data in historical_scheme_account_data:
                         for row in barclays_scheme_accounts:
                             if int(data['instance_id']) == row['scheme_account_id']:
-                                if data['change_type'] == HistoricalBase.DELETE:
-                                    status = 'deleted'
-                                else:
-                                    status = data['body']['status']
-
                                 rows_to_write.append([
                                     row['user__external_id'],
                                     row['scheme_account__scheme__slug'],
-                                    status,
+                                    data['body']['status'],
                                     data['created']
                                 ])
 
                                 break
+
+                if historical_scheme_account_entry_data:
+                    for historical_data in historical_scheme_account_entry_data:
+                        user = CustomUser.objects.get(id=historical_data['user_id'])
+                        scheme_account = SchemeAccount.objects.get(id=historical_data['scheme_account_id'])
+
+                        rows_to_write.append([
+                            user.external_id,
+                            scheme_account.scheme.slug,
+                            'deleted',
+                            historical_data['created']
+                        ])
 
         return rows_to_write
 
