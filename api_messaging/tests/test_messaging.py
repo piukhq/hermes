@@ -92,11 +92,12 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.scheme_account = SchemeAccountFactory()
         cls.scheme_account_entry = SchemeAccountEntryFactory(scheme_account=cls.scheme_account)
         cls.payment_account = PaymentCardAccountFactory()
-        cls.payment_account_entry = PaymentCardAccountEntryFactory(payment_card_account=cls.payment_account,
-                                                                   user=cls.scheme_account_entry.user,
-                                                                   payment_card_account__psp_token="test_token",
-                                                                   payment_card_account__status=PaymentCardAccount.ACTIVE
-                                                                   )
+        cls.payment_account_entry = PaymentCardAccountEntryFactory(
+            payment_card_account=cls.payment_account,
+            user=cls.scheme_account_entry.user,
+            payment_card_account__psp_token="test_token",
+            payment_card_account__status=PaymentCardAccount.ACTIVE
+            )
         cls.loyalty_card_add_autolink_created_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
