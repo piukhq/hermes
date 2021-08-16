@@ -118,34 +118,32 @@ class NotificationProcessor:
                     created__range=[from_datetime, self.to_date],
                 ).distinct('scheme_account_id')
 
-                if historical_scheme_account_entries:
-                    for historical_data in historical_scheme_account_entries:
-                        scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
-                        user = CustomUser.all_objects.get(id=historical_data.user_id)
+                for historical_data in historical_scheme_account_entries:
+                    scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
+                    user = CustomUser.all_objects.get(id=historical_data.user_id)
 
-                        scheme_account_history = HistoricalSchemeAccount.objects.filter(
-                            instance_id=historical_data.scheme_account_id,
-                            created__range=[from_datetime, self.to_date]
-                        )
+                    scheme_account_history = HistoricalSchemeAccount.objects.filter(
+                        instance_id=historical_data.scheme_account_id,
+                        created__range=[from_datetime, self.to_date]
+                    )
 
-                        if scheme_account_history:
-                            for history in scheme_account_history:
-                                status = None
-                                if history.change_type == HistoricalBase.DELETE:
-                                    status = 'deleted'
-                                elif history.change_type == HistoricalBase.CREATE:
-                                    status = 'pending'
-                                else:
-                                    if change_type in history.change_details:
-                                        status = history.body['status']
+                    for history in scheme_account_history:
+                        status = None
+                        if history.change_type == HistoricalBase.DELETE:
+                            status = 'deleted'
+                        elif history.change_type == HistoricalBase.CREATE:
+                            status = 'pending'
+                        else:
+                            if change_type in history.change_details:
+                                status = history.body['status']
 
-                                if status:
-                                    rows_to_write.append([
-                                        user.external_id,
-                                        scheme_account.scheme.slug,
-                                        status,
-                                        history.created
-                                    ])
+                        if status:
+                            rows_to_write.append([
+                                user.external_id,
+                                scheme_account.scheme.slug,
+                                status,
+                                history.created
+                            ])
 
         return rows_to_write
 
