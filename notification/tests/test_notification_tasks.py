@@ -115,12 +115,51 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_data()
 
-            self.assertEqual(len(data), 5)
-            self.assertEqual(data[0][2], SchemeAccount.PENDING)
+            self.assertEqual(len(data), 4)
+            self.assertEqual(data[0][2], 'pending')
             self.assertEqual(data[1][2], SchemeAccount.INVALID_CREDENTIALS)
             self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][2], SchemeAccount.INVALID_CREDENTIALS)
-            self.assertEqual(data[4][2], 'deleted')
+            self.assertEqual(data[3][2], 'deleted')
+
+    def test_get_data_with_delete_scheme_account(self):
+        settings.NOTIFICATION_RUN = True
+        mocked_datetime = timezone.now() + timedelta(hours=2)
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=mocked_datetime)):
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.CREATE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+                channel=self.barclays_channel
+            ).save()
+
+            self.scheme_account.is_deleted = True
+            self.scheme_account.save()
+
+            HistoricalSchemeAccountEntry(
+                instance_id=self.scheme_account_entry.id,
+                change_type=HistoricalSchemeAccount.DELETE,
+                scheme_account_id=self.scheme_account_entry.scheme_account.id,
+                user_id=self.user.id,
+                channel=self.barclays_channel
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.DELETE,
+                instance_id=self.scheme_account_entry.scheme_account.id,
+                change_details='',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                channel=self.barclays_channel
+            ).save()
+
+        three_hours_plus = timezone.now() + timedelta(hours=3)
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
+            test_notification = NotificationProcessor(to_date=timezone.now())
+            data = test_notification.get_data()
+
+            self.assertEqual(len(data), 2)
+            self.assertEqual(data[0][2], 'pending')
+            self.assertEqual(data[1][2], 'deleted')
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
