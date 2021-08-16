@@ -8,7 +8,6 @@ import pysftp
 from base64 import b64decode
 from celery import shared_task
 from django.conf import settings
-from django.db.models import Q
 from django.utils import timezone
 from paramiko import SSHException, RSAKey, Ed25519Key
 from pysftp import Connection, ConnectionException
@@ -114,55 +113,39 @@ class NotificationProcessor:
         else:
             if settings.NOTIFICATION_RUN:
                 from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
-
-                barclays_scheme_accounts = scheme_accounts_entries.values(
-                    'scheme_account_id',
-                    'user__external_id',
-                    'scheme_account__scheme__slug',
-                    'scheme_account__status',
-                )
-
-                ids_to_filter = [row["scheme_account_id"] for row in barclays_scheme_accounts]
-
-                # Get all status changes for barclays wallets (created and updated)
-                historical_scheme_account_data = HistoricalSchemeAccount.objects.filter(
-                    Q(change_details__contains=change_type) |
-                    Q(change_details=''),
-                    instance_id__in=ids_to_filter,
-                    created__range=[from_datetime, self.to_date],
-                ).values('instance_id', 'body', 'created')
-
-                # Get deleted
-                historical_scheme_account_entry_data = HistoricalSchemeAccountEntry.objects.filter(
-                    change_type=HistoricalBase.DELETE,
+                historical_scheme_account_entries = HistoricalSchemeAccountEntry.objects.filter(
                     channel=self.channel,
                     created__range=[from_datetime, self.to_date],
-                ).values('user_id', 'scheme_account_id', 'created')
+                ).distinct('scheme_account_id')
 
-                if historical_scheme_account_data:
-                    for data in historical_scheme_account_data:
-                        for row in barclays_scheme_accounts:
-                            if int(data['instance_id']) == row['scheme_account_id']:
-                                rows_to_write.append([
-                                    row['user__external_id'],
-                                    row['scheme_account__scheme__slug'],
-                                    data['body']['status'],
-                                    data['created']
-                                ])
+                if historical_scheme_account_entries:
+                    for historical_data in historical_scheme_account_entries:
+                        scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
+                        user = CustomUser.all_objects.get(id=historical_data.user_id)
 
-                                break
+                        scheme_account_history = HistoricalSchemeAccount.objects.filter(
+                            instance_id=historical_data.scheme_account_id,
+                            created__range=[from_datetime, self.to_date]
+                        )
 
-                if historical_scheme_account_entry_data:
-                    for historical_data in historical_scheme_account_entry_data:
-                        user = CustomUser.objects.get(id=historical_data['user_id'])
-                        scheme_account = SchemeAccount.all_objects.get(id=historical_data['scheme_account_id'])
+                        if scheme_account_history:
+                            for history in scheme_account_history:
+                                status = None
+                                if history.change_type == HistoricalBase.DELETE:
+                                    status = 'deleted'
+                                elif history.change_type == HistoricalBase.CREATE:
+                                    status = 'pending'
+                                else:
+                                    if change_type in history.change_details:
+                                        status = history.body['status']
 
-                        rows_to_write.append([
-                            user.external_id,
-                            scheme_account.scheme.slug,
-                            'deleted',
-                            historical_data['created']
-                        ])
+                                if status:
+                                    rows_to_write.append([
+                                        user.external_id,
+                                        scheme_account.scheme.slug,
+                                        status,
+                                        history.created
+                                    ])
 
         return rows_to_write
 

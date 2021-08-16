@@ -115,12 +115,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_data()
 
-            self.assertEqual(len(data), 5)
-            self.assertEqual(data[0][2], SchemeAccount.PENDING)
+            self.assertEqual(len(data), 4)
+            self.assertEqual(data[0][2], 'pending')
             self.assertEqual(data[1][2], SchemeAccount.INVALID_CREDENTIALS)
             self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][2], SchemeAccount.INVALID_CREDENTIALS)
-            self.assertEqual(data[4][2], 'deleted')
+            self.assertEqual(data[3][2], 'deleted')
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
