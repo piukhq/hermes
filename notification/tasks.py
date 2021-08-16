@@ -116,7 +116,7 @@ class NotificationProcessor:
                 historical_scheme_account_entries = HistoricalSchemeAccountEntry.objects.filter(
                     channel=self.channel,
                     created__range=[from_datetime, self.to_date],
-                ).distinct('scheme_account_id')
+                ).distinct('scheme_account_id', 'user_id')
 
                 for historical_data in historical_scheme_account_entries:
                     scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
