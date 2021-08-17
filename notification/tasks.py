@@ -119,10 +119,10 @@ class NotificationProcessor:
                 )
 
                 for historical_data in historical_scheme_account_entries:
-                    if historical_data.change_type == HistoricalBase.CREATE:
-                        scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
-                        user = CustomUser.all_objects.get(id=historical_data.user_id)
+                    scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
+                    user = CustomUser.all_objects.get(id=historical_data.user_id)
 
+                    if historical_data.change_type == HistoricalBase.CREATE:
                         scheme_account_history = HistoricalSchemeAccount.objects.filter(
                             instance_id=historical_data.scheme_account_id,
                             created__range=[from_datetime, self.to_date]
