@@ -98,14 +98,16 @@ class NotificationProcessor:
     def get_scheme_account_history(self, scheme_account_entries):
         data = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+        ids_to_filter = [x.scheme_account_id for x in scheme_account_entries]
 
-        for scheme_account in scheme_account_entries:
-            history_data = HistoricalSchemeAccount.objects.filter(
-                instance_id=scheme_account.scheme_account_id,
-                created__range=[from_datetime, self.to_date]
-            )
+        history_data = HistoricalSchemeAccount.objects.filter(
+            instance_id__in=ids_to_filter,
+            created__range=[from_datetime, self.to_date]
+        )
 
-            for history in history_data:
+        for history in history_data:
+            scheme_entry = scheme_account_entries.filter(scheme_account_id=history.instance_id)
+            for scheme in scheme_entry:
                 status = None
                 if history.change_type == HistoricalBase.CREATE:
                     status = 'pending'
@@ -117,8 +119,8 @@ class NotificationProcessor:
 
                 if status:
                     data.append([
-                        scheme_account.user.external_id,
-                        scheme_account.scheme_account.scheme.slug,
+                        scheme.user.external_id,
+                        scheme.scheme_account.scheme.slug,
                         status,
                         history.created
                     ])
