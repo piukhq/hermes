@@ -113,10 +113,8 @@ class NotificationProcessor:
         else:
             if settings.NOTIFICATION_RUN:
                 from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
-                historical_scheme_account_entries = HistoricalSchemeAccountEntry.objects.filter(
-                    channel=self.channel,
-                    created__range=[from_datetime, self.to_date],
-                )
+                # Get all barclays entries regardless of time
+                historical_scheme_account_entries = HistoricalSchemeAccountEntry.objects.filter(channel=self.channel)
 
                 for historical_data in historical_scheme_account_entries:
                     scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
