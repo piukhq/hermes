@@ -93,14 +93,68 @@ class NotificationProcessor:
         self.org = 'Barclays'
         self.channel = 'com.barclays.bmb'
         self.to_date = to_date
+        self.change_type = 'status'
+
+    def get_scheme_account_history(self, scheme_account_entries):
+        data = []
+        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+
+        for scheme_account in scheme_account_entries:
+            history_data = HistoricalSchemeAccount.objects.filter(
+                instance_id=scheme_account.scheme_account_id,
+                created__range=[from_datetime, self.to_date]
+            )
+
+            for history in history_data:
+                status = None
+                if history.change_type == HistoricalBase.CREATE:
+                    status = 'pending'
+                elif history.change_type == HistoricalBase.DELETE:
+                    status = 'deleted'
+                else:
+                    if self.change_type in history.change_details:
+                        status = history.body['status']
+
+                if status:
+                    data.append([
+                        scheme_account.user.external_id,
+                        scheme_account.scheme_account.scheme.slug,
+                        status,
+                        history.created
+                    ])
+
+        return data
+
+    def get_deleted_scheme_account_entry_history(self):
+        # Get removed users from scheme accounts
+        data = []
+        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+
+        historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
+            channel=self.channel,
+            change_type=HistoricalBase.DELETE,
+            created__range=[from_datetime, self.to_date]
+        )
+
+        for association in historical_scheme_account_association:
+            scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
+            user = CustomUser.all_objects.filter(id=association.user_id)
+
+            # skip over hard deleted scheme account or user
+            if scheme_account and user:
+                data.append([
+                    user[0].external_id,
+                    scheme_account[0].scheme.slug,
+                    'deleted',
+                    association.created
+                ])
+
+        return data
 
     def get_data(self):
         rows_to_write = []
-        change_type = 'status'
 
-        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
-            user__client__organisation__name=self.org
-        )
+        scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__organisation__name=self.org)
 
         # initiation file data
         if not self.to_date:
@@ -112,47 +166,10 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
-                # Get all barclays entries regardless of time
-                historical_scheme_account_entries = HistoricalSchemeAccountEntry.objects.filter(channel=self.channel)
+                historical_scheme_accounts = self.get_scheme_account_history(scheme_accounts_entries)
+                historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
 
-                for historical_data in historical_scheme_account_entries:
-                    scheme_account = SchemeAccount.all_objects.get(id=historical_data.scheme_account_id)
-                    user = CustomUser.all_objects.get(id=historical_data.user_id)
-
-                    if historical_data.change_type == HistoricalBase.CREATE:
-                        scheme_account_history = HistoricalSchemeAccount.objects.filter(
-                            instance_id=historical_data.scheme_account_id,
-                            created__range=[from_datetime, self.to_date]
-                        )
-
-                        for history in scheme_account_history:
-                            status = None
-                            # If scheme account is deleted
-                            if history.change_type == HistoricalBase.DELETE:
-                                status = 'deleted'
-                            elif history.change_type == HistoricalBase.CREATE:
-                                status = 'pending'
-                            else:
-                                if change_type in history.change_details:
-                                    status = history.body['status']
-
-                            if status:
-                                rows_to_write.append([
-                                    user.external_id,
-                                    scheme_account.scheme.slug,
-                                    status,
-                                    history.created
-                                ])
-
-                    # check if user is removed from scheme account entry
-                    else:
-                        rows_to_write.append([
-                            user.external_id,
-                            scheme_account.scheme.slug,
-                            'deleted',
-                            historical_data.created
-                        ])
+                rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
         return rows_to_write
 
