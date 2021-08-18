@@ -164,6 +164,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_multi_wallet_get_data(self):
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
+            SchemeAccountEntryFactory(user=self.user_two, scheme_account=self.scheme_account)
             HistoricalSchemeAccountEntry(
                 instance_id=self.scheme_account_entry.id,
                 change_type=HistoricalSchemeAccount.CREATE,
@@ -216,6 +217,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     def test_multi_wallet_removed_user_get_data(self):
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
+            SchemeAccountEntryFactory(user=self.user_two, scheme_account=self.scheme_account)
             HistoricalSchemeAccountEntry(
                 instance_id=self.scheme_account_entry.id,
                 change_type=HistoricalSchemeAccount.CREATE,
