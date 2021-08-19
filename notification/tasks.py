@@ -95,13 +95,18 @@ class NotificationProcessor:
         self.to_date = to_date
         self.change_type = 'status'
 
-    def get_scheme_account_history(self, scheme_account_entries):
+    def get_scheme_account_history(self):
         data = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
-        for scheme_account in scheme_account_entries:
+        barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
+            user__client__organisation__name=self.org,
+            scheme_account__updated__range=[from_datetime, self.to_date]
+        )
+
+        for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccount.objects.filter(
-                instance_id=scheme_account.scheme_account_id,
+                instance_id=scheme_association.scheme_account_id,
                 created__range=[from_datetime, self.to_date]
             )
 
@@ -117,8 +122,8 @@ class NotificationProcessor:
 
                 if status:
                     data.append([
-                        scheme_account.user.external_id,
-                        scheme_account.scheme_account.scheme.slug,
+                        scheme_association.user.external_id,
+                        scheme_association.scheme_account.scheme.slug,
                         status,
                         history.created
                     ])
@@ -154,6 +159,7 @@ class NotificationProcessor:
     def get_data(self):
         rows_to_write = []
 
+        # Get all barclays scheme account associations
         scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__organisation__name=self.org)
 
         # initiation file data
@@ -166,7 +172,7 @@ class NotificationProcessor:
             )
         else:
             if settings.NOTIFICATION_RUN:
-                historical_scheme_accounts = self.get_scheme_account_history(scheme_accounts_entries)
+                historical_scheme_accounts = self.get_scheme_account_history()
                 historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
 
                 rows_to_write = historical_scheme_accounts + historical_scheme_account_association
