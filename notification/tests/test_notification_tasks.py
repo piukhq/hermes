@@ -32,14 +32,9 @@ class TestNotificationTask(GlobalMockAPITestCase):
         cls.scheme_account_entry = SchemeAccountEntryFactory(
             user=cls.user, scheme_account=cls.scheme_account
         )
-
-        cls.history_scheme_account = HistoricalSchemeAccount(
-            change_type=HistoricalSchemeAccount.CREATE,
-            instance_id=cls.scheme_account.id,
-            change_details='status',
-            body={"id": cls.scheme_account.id, "status": SchemeAccount.PENDING},
-            channel=cls.barclays_channel
-        ).save()
+        cls.scheme_account_entry_two = SchemeAccountEntryFactory(
+            user=cls.user_two, scheme_account=cls.scheme_account
+        )
 
         cls.mocked_datetime = timezone.now() + timedelta(hours=2)
 
@@ -51,104 +46,102 @@ class TestNotificationTask(GlobalMockAPITestCase):
     def test_get_data_initiation(self):
         test_notification = NotificationProcessor()
         data = test_notification.get_data()
-        expected_result = (
-            self.scheme_account_entry.user.external_id,
-            self.scheme_account_entry.scheme_account.scheme.slug,
-            self.scheme_account_entry.scheme_account.status,
-            self.scheme_account_entry.scheme_account.created
-        )
+        expected_result = [
+            (
+                self.scheme_account_entry.user.external_id,
+                self.scheme_account_entry.scheme_account.scheme.slug,
+                self.scheme_account_entry.scheme_account.status,
+                self.scheme_account_entry.scheme_account.created
+            ),
+            (
+                self.scheme_account_entry_two.user.external_id,
+                self.scheme_account_entry_two.scheme_account.scheme.slug,
+                self.scheme_account_entry_two.scheme_account.status,
+                self.scheme_account_entry_two.scheme_account.created
+            )
+        ]
 
-        self.assertEqual(len(data), 1)
+        self.assertEqual(len(data), 2)
         self.assertEqual(data[0][0], self.scheme_account_entry.user.external_id)
-        self.assertEqual(data[0], expected_result)
+        self.assertEqual(data[1][0], self.scheme_account_entry_two.user.external_id)
+        self.assertEqual(data[0], expected_result[0])
+        self.assertEqual(data[1], expected_result[1])
 
-    def test_get_historical_data(self):
+    def test_get_scheme_account_history(self):
+        scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
+        scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
+
+        HistoricalSchemeAccountEntry(
+            instance_id=scheme_account_entry.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=scheme_account.id,
+            user_id=scheme_account_entry.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccount(
+            change_type=HistoricalSchemeAccount.CREATE,
+            instance_id=scheme_account.id,
+            change_details='',
+            body={"id": scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=self.barclays_channel
+        ).save()
+
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user.id,
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.CREATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
-                channel=self.barclays_channel
-            ).save()
+            scheme_account.status = SchemeAccount.ACTIVE
+            scheme_account.save(update_fields=['status'])
 
             HistoricalSchemeAccount(
                 change_type=HistoricalSchemeAccount.UPDATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
+                instance_id=scheme_account.id,
                 change_details='status',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
+                body={"id": scheme_account.id, "status": SchemeAccount.ACTIVE},
                 channel=self.barclays_channel
             ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.UPDATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='updated',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.UPDATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='status',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.DELETE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_CREDENTIALS},
-                channel=self.barclays_channel
-            ).save()
-
-        historical_scheme_accounts = HistoricalSchemeAccount.objects.all()
-        self.assertEqual(len(historical_scheme_accounts), 6)
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
             test_notification = NotificationProcessor(to_date=timezone.now())
-            data = test_notification.get_data()
+            data = test_notification.get_scheme_account_history()
 
-            self.assertEqual(len(data), 4)
-            self.assertEqual(data[0][2], 'pending')
-            self.assertEqual(data[1][2], SchemeAccount.INVALID_CREDENTIALS)
-            self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][2], 'deleted')
+            self.assertEqual(len(data), 1)
 
-    def test_get_data_with_delete_scheme_account(self):
+            self.assertEqual(data[0][0], self.user_two.external_id)
+            self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
+
+    def test_multi_wallet_get_scheme_account_history(self):
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry_two.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry_two.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccount(
+            change_type=HistoricalSchemeAccount.CREATE,
+            instance_id=self.scheme_account.id,
+            change_details='',
+            body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=self.barclays_channel
+        ).save()
+
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user.id,
-                channel=self.barclays_channel
-            ).save()
+            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.save(update_fields=['status'])
 
             HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.CREATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
-                channel=self.barclays_channel
-            ).save()
-
-            self.scheme_account.is_deleted = True
-            self.scheme_account.save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.DELETE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
                 body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
                 channel=self.barclays_channel
             ).save()
@@ -156,126 +149,104 @@ class TestNotificationTask(GlobalMockAPITestCase):
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
             test_notification = NotificationProcessor(to_date=timezone.now())
-            data = test_notification.get_data()
+            data = test_notification.get_scheme_account_history()
 
             self.assertEqual(len(data), 2)
-            self.assertEqual(data[0][2], 'pending')
+            self.assertEqual(data[0][0], self.user.external_id)
+            self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
+            self.assertEqual(data[1][0], self.user_two.external_id)
+            self.assertEqual(data[1][2], SchemeAccount.ACTIVE)
+
+    def test_deleted_scheme_account_get_scheme_account_history(self):
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry_two.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry_two.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccount(
+            change_type=HistoricalSchemeAccount.CREATE,
+            instance_id=self.scheme_account.id,
+            change_details='',
+            body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=self.barclays_channel
+        ).save()
+
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
+            self.scheme_account.is_deleted = True
+            self.scheme_account.save(update_fields=['is_deleted'])
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.DELETE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                channel=self.barclays_channel
+            ).save()
+
+        three_hours_plus = timezone.now() + timedelta(hours=3)
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
+            test_notification = NotificationProcessor(to_date=timezone.now())
+            data = test_notification.get_scheme_account_history()
+
+            self.assertEqual(len(data), 2)
+            self.assertEqual(data[0][0], self.user.external_id)
+            self.assertEqual(data[0][2], 'deleted')
+            self.assertEqual(data[1][0], self.user_two.external_id)
             self.assertEqual(data[1][2], 'deleted')
 
-    def test_multi_wallet_get_data(self):
+    def test_removed_user_from_scheme_get_deleted_scheme_account_entry_history(self):
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry_two.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry_two.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccount(
+            change_type=HistoricalSchemeAccount.CREATE,
+            instance_id=self.scheme_account.id,
+            change_details='',
+            body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=self.barclays_channel
+        ).save()
+
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
-            SchemeAccountEntryFactory(user=self.user_two, scheme_account=self.scheme_account)
             HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user.id,
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user_two.id,
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.CREATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.UPDATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='status',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
-                channel=self.barclays_channel
-            ).save()
-
-            self.scheme_account.is_deleted = True
-            self.scheme_account.save()
-
-        three_hours_plus = timezone.now() + timedelta(hours=3)
-        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
-            data = test_notification.get_data()
-
-            self.assertEqual(len(data), 4)
-            self.assertEqual(data[0][2], 'pending')
-            self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[1][2], 'pending')
-            self.assertEqual(data[1][0], self.user_two.external_id)
-
-            self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[2][0], self.user.external_id)
-            self.assertEqual(data[3][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][0], self.user_two.external_id)
-
-    def test_multi_wallet_removed_user_get_data(self):
-        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
-            SchemeAccountEntryFactory(user=self.user_two, scheme_account=self.scheme_account)
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user.id,
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
-                change_type=HistoricalSchemeAccount.CREATE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user_two.id,
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.CREATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccount(
-                change_type=HistoricalSchemeAccount.UPDATE,
-                instance_id=self.scheme_account_entry.scheme_account.id,
-                change_details='status',
-                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
-                channel=self.barclays_channel
-            ).save()
-
-            HistoricalSchemeAccountEntry(
-                instance_id=self.scheme_account_entry.id,
+                instance_id=self.scheme_account_entry_two.id,
                 change_type=HistoricalSchemeAccount.DELETE,
-                scheme_account_id=self.scheme_account_entry.scheme_account.id,
-                user_id=self.user_two.id,
+                scheme_account_id=self.scheme_account.id,
+                user_id=self.scheme_account_entry_two.user.id,
                 channel=self.barclays_channel
             ).save()
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
             test_notification = NotificationProcessor(to_date=timezone.now())
-            data = test_notification.get_data()
+            data = test_notification.get_deleted_scheme_account_entry_history()
 
-            self.assertEqual(len(data), 5)
-            self.assertEqual(data[0][2], 'pending')
-            self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[1][2], 'pending')
-            self.assertEqual(data[1][0], self.user_two.external_id)
-
-            self.assertEqual(data[2][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[2][0], self.user.external_id)
-            self.assertEqual(data[3][2], SchemeAccount.ACTIVE)
-            self.assertEqual(data[3][0], self.user_two.external_id)
-            self.assertEqual(data[4][2], 'deleted')
-            self.assertEqual(data[4][0], self.user_two.external_id)
+            self.assertEqual(len(data), 1)
+            self.assertEqual(data[0][0], self.user_two.external_id)
+            self.assertEqual(data[0][2], 'deleted')
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
