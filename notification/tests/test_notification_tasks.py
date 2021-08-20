@@ -12,7 +12,7 @@ from history.utils import GlobalMockAPITestCase
 from notification.tasks import SftpManager, NotificationProcessor
 from scheme.models import SchemeAccount
 from scheme.tests.factories import SchemeAccountFactory
-from ubiquity.reason_codes import ubiquity_status_translation
+from ubiquity.reason_codes import ubiquity_status_translation, PENDING, AUTHORISED, DELETED, FAILED, UNAUTHORISED
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from user.tests.factories import UserFactory, ClientApplicationFactory
 
@@ -67,6 +67,60 @@ class TestNotificationTask(GlobalMockAPITestCase):
         self.assertEqual(data[0], expected_result[0])
         self.assertEqual(data[1], expected_result[1])
 
+    def test_get_status_translation(self):
+        balance = [{"value": 1480.0}]
+
+        sys_action_required_scheme_account = SchemeAccountFactory(
+            status=SchemeAccount.END_SITE_DOWN,
+            balances=balance
+        )
+
+        notification_processor = NotificationProcessor()
+        state = notification_processor.get_status_translation(
+            sys_action_required_scheme_account,
+            sys_action_required_scheme_account.status
+        )
+
+        self.assertEqual(state, AUTHORISED)
+
+        sys_action_required_scheme_account.balances = {}
+        sys_action_required_scheme_account.save(update_fields=['balances'])
+
+        state = notification_processor.get_status_translation(
+            sys_action_required_scheme_account,
+            sys_action_required_scheme_account.status
+        )
+
+        self.assertEqual(state, PENDING)
+
+        # Test deleted status
+        state = notification_processor.get_status_translation(
+            sys_action_required_scheme_account,
+            DELETED
+        )
+
+        self.assertEqual(state, DELETED)
+
+        sys_action_required_scheme_account.status = SchemeAccount.VALIDATION_ERROR
+        sys_action_required_scheme_account.save(update_fields=['status'])
+
+        state = notification_processor.get_status_translation(
+            sys_action_required_scheme_account,
+            sys_action_required_scheme_account.status
+        )
+
+        self.assertEqual(state, FAILED)
+
+        sys_action_required_scheme_account.status = SchemeAccount.INVALID_MFA
+        sys_action_required_scheme_account.save(update_fields=['status'])
+
+        state = notification_processor.get_status_translation(
+            sys_action_required_scheme_account,
+            sys_action_required_scheme_account.status
+        )
+
+        self.assertEqual(state, UNAUTHORISED)
+
     def test_get_scheme_account_history(self):
         scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
         scheme_account_entry = SchemeAccountEntryFactory(user=self.user_two, scheme_account=scheme_account)
@@ -107,7 +161,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
             self.assertEqual(len(data), 1)
 
             self.assertEqual(data[0][0], self.user_two.external_id)
-            self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
+            self.assertEqual(data[0][2], AUTHORISED)
 
     def test_multi_wallet_get_scheme_account_history(self):
         HistoricalSchemeAccountEntry(
@@ -153,9 +207,9 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
             self.assertEqual(len(data), 2)
             self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[0][2], SchemeAccount.ACTIVE)
+            self.assertEqual(data[0][2], AUTHORISED)
             self.assertEqual(data[1][0], self.user_two.external_id)
-            self.assertEqual(data[1][2], SchemeAccount.ACTIVE)
+            self.assertEqual(data[1][2], AUTHORISED)
 
     def test_deleted_scheme_account_get_scheme_account_history(self):
         HistoricalSchemeAccountEntry(
@@ -201,9 +255,9 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
             self.assertEqual(len(data), 2)
             self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[0][2], 'deleted')
+            self.assertEqual(data[0][2], DELETED)
             self.assertEqual(data[1][0], self.user_two.external_id)
-            self.assertEqual(data[1][2], 'deleted')
+            self.assertEqual(data[1][2], DELETED)
 
     def test_removed_user_from_scheme_get_deleted_scheme_account_entry_history(self):
         HistoricalSchemeAccountEntry(
@@ -246,7 +300,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
             self.assertEqual(len(data), 1)
             self.assertEqual(data[0][0], self.user_two.external_id)
-            self.assertEqual(data[0][2], 'deleted')
+            self.assertEqual(data[0][2], DELETED)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):

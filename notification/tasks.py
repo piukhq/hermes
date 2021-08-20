@@ -17,7 +17,7 @@ from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSc
 from scheme.models import SchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
-from ubiquity.reason_codes import ubiquity_status_translation
+from ubiquity.reason_codes import ubiquity_status_translation, DELETED
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,21 @@ class NotificationProcessor:
         self.to_date = to_date
         self.change_type = 'status'
 
+    @staticmethod
+    def get_status_translation(scheme_account, status):
+        if status == DELETED:
+            state = DELETED
+        else:
+            if status in SchemeAccount.SYSTEM_ACTION_REQUIRED:
+                if scheme_account.balances:
+                    state = ubiquity_status_translation[scheme_account.ACTIVE]
+                else:
+                    state = ubiquity_status_translation[scheme_account.PENDING]
+            else:
+                state = ubiquity_status_translation.get(status, status)
+
+        return state
+
     def get_scheme_account_history(self):
         data = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
@@ -113,18 +128,20 @@ class NotificationProcessor:
             for history in history_data:
                 status = None
                 if history.change_type == HistoricalBase.CREATE:
-                    status = 'pending'
+                    status = ubiquity_status_translation[SchemeAccount.PENDING]
                 elif history.change_type == HistoricalBase.DELETE:
-                    status = 'deleted'
+                    status = DELETED
                 else:
                     if self.change_type in history.change_details:
                         status = history.body['status']
+
+                state = self.get_status_translation(scheme_association.scheme_account, status)
 
                 if status:
                     data.append([
                         scheme_association.user.external_id,
                         scheme_association.scheme_account.scheme.slug,
-                        status,
+                        state,
                         history.created
                     ])
 
@@ -150,7 +167,7 @@ class NotificationProcessor:
                 data.append([
                     user[0].external_id,
                     scheme_account[0].scheme.slug,
-                    'deleted',
+                    DELETED,
                     association.created
                 ])
 

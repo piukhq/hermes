@@ -4,6 +4,7 @@ PENDING = "pending"
 AUTHORISED = "authorised"
 UNAUTHORISED = "unauthorised"
 FAILED = "failed"
+DELETED = "deleted"
 
 REASON_CODES = (
     ("X000", "New data submitted/modified"),
