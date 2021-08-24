@@ -137,6 +137,9 @@ class NotificationProcessor:
                 else:
                     if self.change_type in history.change_details:
                         status = history.body['status']
+                    else:
+                        # Only deal with records where the status has changed
+                        continue
 
                 if previous_history:
                     previous_state = self.get_status_translation(
