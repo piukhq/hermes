@@ -21,11 +21,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.test_org = "Barclays"
+        cls.client_application_name = "Barclays Mobile Banking"
         cls.barclays_channel = "com.barclays.bmb"
         cls.external_id = "Test_User"
         cls.external_id_two = "Test_User_Two"
-        cls.client_application = ClientApplicationFactory(organisation__name=cls.test_org)
+        cls.client_application = ClientApplicationFactory(name=cls.client_application_name)
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
         cls.user_two = UserFactory(client=cls.client_application, external_id=cls.external_id_two)
         cls.scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)

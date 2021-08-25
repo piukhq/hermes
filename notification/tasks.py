@@ -88,7 +88,7 @@ class SftpManager:
 
 class NotificationProcessor:
     def __init__(self, to_date=None):
-        self.org = 'Barclays'
+        self.client_application_name = 'Barclays Mobile Banking'
         self.channel = 'com.barclays.bmb'
         self.to_date = to_date
         self.change_type = 'status'
@@ -113,7 +113,7 @@ class NotificationProcessor:
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
-            user__client__organisation__name=self.org,
+            user__client__name=self.client_application_name,
             scheme_account__updated__range=[from_datetime, self.to_date]
         )
 
@@ -192,7 +192,8 @@ class NotificationProcessor:
         rows_to_write = []
 
         # Get all barclays scheme account associations
-        scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__organisation__name=self.org)
+        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
+            user__client__name=self.client_application_name)
 
         # initiation file data
         if not self.to_date:
