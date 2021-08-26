@@ -395,6 +395,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
         datetime_now = timezone.now()
+        sftp = SftpManager()
 
         data = [
             [
@@ -414,9 +415,29 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ]
         ]
 
-        sftp = SftpManager()
         result = sftp.format_data(data)
+        self.assertEqual(result, expected_result)
 
+        data = [
+            [
+                self.external_id,
+                self.scheme_account.scheme.slug,
+                SchemeAccount.PENDING,
+                datetime_now
+            ]
+        ]
+
+        expected_result = [
+            [
+                '01',
+                self.external_id,
+                self.scheme_account.scheme.slug,
+                ubiquity_status_translation[SchemeAccount.PENDING],
+                int(datetime_now.timestamp())
+            ]
+        ]
+
+        result = sftp.format_data(data)
         self.assertEqual(result, expected_result)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
