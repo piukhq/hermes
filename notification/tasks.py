@@ -38,7 +38,7 @@ class SftpManager:
     @staticmethod
     def format_data(data):
         # Format data to return status that match api response and covert date to timestamp
-        return [['01', x[0], x[1], x[2], int(x[3].timestamp())] for x in data]
+        return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
         logger.info("Transferring file")
@@ -88,7 +88,7 @@ class SftpManager:
 
 class NotificationProcessor:
     def __init__(self, to_date=None):
-        self.org = 'Barclays'
+        self.client_application_name = 'Barclays Mobile Banking'
         self.channel = 'com.barclays.bmb'
         self.to_date = to_date
         self.change_type = 'status'
@@ -113,7 +113,7 @@ class NotificationProcessor:
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
-            user__client__organisation__name=self.org,
+            user__client__name=self.client_application_name,
             scheme_account__updated__range=[from_datetime, self.to_date]
         )
 
@@ -192,7 +192,8 @@ class NotificationProcessor:
         rows_to_write = []
 
         # Get all barclays scheme account associations
-        scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__organisation__name=self.org)
+        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
+            user__client__name=self.client_application_name)
 
         # initiation file data
         if not self.to_date:
@@ -202,6 +203,7 @@ class NotificationProcessor:
                 'scheme_account__status',
                 'scheme_account__created'
             )
+
         else:
             if settings.NOTIFICATION_RUN:
                 historical_scheme_accounts = self.get_scheme_account_history()

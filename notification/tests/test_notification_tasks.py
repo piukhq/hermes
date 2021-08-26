@@ -21,11 +21,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
     @classmethod
     def setUpTestData(cls):
-        cls.test_org = "Barclays"
+        cls.client_application_name = "Barclays Mobile Banking"
         cls.barclays_channel = "com.barclays.bmb"
         cls.external_id = "Test_User"
         cls.external_id_two = "Test_User_Two"
-        cls.client_application = ClientApplicationFactory(organisation__name=cls.test_org)
+        cls.client_application = ClientApplicationFactory(name=cls.client_application_name)
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
         cls.user_two = UserFactory(client=cls.client_application, external_id=cls.external_id_two)
         cls.scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
@@ -395,6 +395,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
         datetime_now = timezone.now()
+        sftp = SftpManager()
 
         data = [
             [
@@ -414,9 +415,29 @@ class TestNotificationTask(GlobalMockAPITestCase):
             ]
         ]
 
-        sftp = SftpManager()
         result = sftp.format_data(data)
+        self.assertEqual(result, expected_result)
 
+        data = [
+            [
+                self.external_id,
+                self.scheme_account.scheme.slug,
+                SchemeAccount.PENDING,
+                datetime_now
+            ]
+        ]
+
+        expected_result = [
+            [
+                '01',
+                self.external_id,
+                self.scheme_account.scheme.slug,
+                ubiquity_status_translation[SchemeAccount.PENDING],
+                int(datetime_now.timestamp())
+            ]
+        ]
+
+        result = sftp.format_data(data)
         self.assertEqual(result, expected_result)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
