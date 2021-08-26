@@ -7,14 +7,16 @@ import requests
 import sentry_sdk
 from celery import shared_task
 from django.conf import settings
+from django.db.models import Q
 from rest_framework import serializers
+from rest_framework.exceptions import ParseError
 
 import analytics
 from hermes.vop_tasks import activate, deactivate
 from history.utils import set_history_kwargs, clean_history_kwargs, history_bulk_update, history_bulk_create
 from payment_card import metis
 from payment_card.models import PaymentCardAccount, PaymentCard
-from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin
+from scheme.mixins import BaseLinkMixin, SchemeAccountJoinMixin, UpdateCredentialsMixin
 from scheme.models import SchemeAccount
 from scheme.serializers import LinkSchemeSerializer
 from ubiquity.models import SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
@@ -83,6 +85,46 @@ def async_balance(instance_id: int, delete_balance=False) -> None:
         scheme_account.delete_saved_balance()
 
     scheme_account.get_cached_balance()
+
+
+@shared_task
+def async_balance_with_updated_credentials(
+    instance_id: int, user_id: int, update_fields: dict, scheme_questions
+) -> None:
+    scheme_account = SchemeAccount.objects.get(id=instance_id)
+
+    try:
+        # If updated credentials match existing credentials then there's nothing left to do
+        existing_answers = scheme_account.get_auth_credentials()
+        scheme_account.validate_auth_fields(update_fields, existing_answers)
+        return
+    except ParseError:
+        pass
+
+    cache_key = 'scheme_{}'.format(scheme_account.pk)
+    balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
+
+    if balance:
+        # update credentials and set all other linked users to unauthorised if they're different to the stored ones
+        UpdateCredentialsMixin().update_credentials(scheme_account, update_fields, scheme_questions)
+
+        SchemeAccountEntry.objects.filter(
+            ~Q(user_id=user_id), scheme_account=scheme_account
+        ).update(auth_provided=False)
+
+        PaymentCardSchemeEntry.objects.filter(
+            ~Q(payment_card_account__user_set=user_id), scheme_account=scheme_account
+        ).delete()
+    else:
+        # set this user as unauthorised/wallet-only
+        SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account=scheme_account)\
+            .update(auth_provided=False)
+
+        PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account, payment_card_account__user_set=user_id)\
+            .delete()
+
+        # temporary hack to update the scheme account status to the true status again
+        async_balance.delay(scheme_account.id, delete_balance=True)
 
 
 @shared_task
@@ -238,8 +280,8 @@ def deleted_membership_card_cleanup(scheme_account_id: int, delete_date: str, us
                 old_status=dict(scheme_account.STATUSES).get(scheme_account.status_key))
 
     else:
-        user_mcard_auth_statuses = entries_query.values_list("auth_status", flat=True)
-        if all((status == SchemeAccountEntry.UNAUTHORISED for status in user_mcard_auth_statuses)):
+        user_mcard_auth_provided = entries_query.values_list("auth_provided", flat=True)
+        if all((status is False for status in user_mcard_auth_provided)):
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save(update_fields=["status"])
             PaymentCardSchemeEntry.update_active_link_status({'scheme_account': scheme_account})

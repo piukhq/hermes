@@ -20,18 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 class SchemeAccountEntry(models.Model):
-    AUTH_PROVIDED = 0
-    UNAUTHORISED = 1
-
-    AUTH_STATUSES = (
-        (AUTH_PROVIDED, 'auth_provided'),
-        (UNAUTHORISED, 'unauthorised'),
-    )
-
     scheme_account = models.ForeignKey('scheme.SchemeAccount', on_delete=models.CASCADE,
                                        verbose_name="Associated Scheme Account")
     user = models.ForeignKey('user.CustomUser', on_delete=models.CASCADE, verbose_name="Associated User")
-    auth_status = models.IntegerField(choices=AUTH_STATUSES, default=UNAUTHORISED)
+    auth_provided = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ("scheme_account", "user")
@@ -40,12 +32,12 @@ class SchemeAccountEntry(models.Model):
     def create_link(
         user: "CustomUser",
         scheme_account: "SchemeAccount",
-        auth_status: AUTH_STATUSES = UNAUTHORISED
+        auth_provided: bool
     ) -> "SchemeAccountEntry":
         entry = SchemeAccountEntry(
             user=user,
             scheme_account=scheme_account,
-            auth_status=auth_status
+            auth_provided=auth_provided
         )
         try:
             # required to rollback transactions when running into an expected IntegrityError
@@ -58,7 +50,8 @@ class SchemeAccountEntry(models.Model):
             # we may need to use .get() here to retrieve the conflicting record.
             # An update is done here instead of initially using an update_or_create to avoid the db call
             # to check if a record exists, since this is an edge case.
-            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account).update(auth_status=auth_status)
+            SchemeAccountEntry.objects.filter(user=user, scheme_account=scheme_account)\
+                .update(auth_provided=auth_provided)
 
         return entry
 

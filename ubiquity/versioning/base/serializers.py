@@ -719,10 +719,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         vouchers = {}
         pll_links = []
 
-        mcard_user_auth_status_map = self.context.get("mcard_user_auth_status_map", {})
+        mcard_user_auth_provided_map = self.context.get("mcard_user_auth_provided_map", {})
         try:
-            auth_status = mcard_user_auth_status_map[instance.id]
-            if auth_status == SchemeAccountEntry.AUTH_PROVIDED:
+            auth_provided = mcard_user_auth_provided_map[instance.id]
+            if auth_provided:
                 status = instance.status
                 balances = instance.balances
                 transactions = instance.transactions
@@ -733,51 +733,51 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
                 " - Defaulting user to Unauthorised status - This will hide the following fields: "
                 "status, balances, transactions, vouchers, pll_links\n"
-                "Has a mcard_user_auth_status_map been provided to the serializer context?"
+                "Has a mcard_user_auth_provided_map been provided to the serializer context?"
             )
 
         return status, balances, transactions, vouchers, pll_links
 
     @staticmethod
-    def get_mcard_user_auth_status_map(
+    def get_mcard_user_auth_provided_map(
         request: 'Request', accounts: t.Union[SchemeAccount, t.List[SchemeAccount]]
     ) -> dict:
         """
         Used by .retrieve() and .list() endpoints to generate a mapping of scheme account ids to
-        scheme account entry auth statuses. This function chooses the least expensive query
+        scheme account entry auth_provided flags. This function chooses the least expensive query
         based on if a singular scheme account or a list of all the user's scheme accounts is provided.
 
-        For internal service users, the auth_status values are all returned as Authorised.
+        For internal service users, the auth_provided values are all returned as True.
         """
         def get_singular_card_mapping(account):
             if request.channels_permit.service_allow_all:
-                mapping = {account.id: SchemeAccountEntry.AUTH_PROVIDED}
+                mapping = {account.id: True}
             else:
                 try:
                     entry = account.schemeaccountentry_set.get(user=request.user)
-                    mapping = {entry.scheme_account_id: entry.auth_status}
+                    mapping = {entry.scheme_account_id: entry.auth_provided}
                 except SchemeAccountEntry.DoesNotExist:
                     mapping = {}
             return mapping
 
         if isinstance(accounts, SchemeAccount):
-            mcard_user_auth_status_map = get_singular_card_mapping(accounts)
+            mcard_user_auth_provided_map = get_singular_card_mapping(accounts)
         elif len(accounts) == 1:
-            mcard_user_auth_status_map = get_singular_card_mapping(accounts[0])
+            mcard_user_auth_provided_map = get_singular_card_mapping(accounts[0])
         else:
             entries = request.user.schemeaccountentry_set.filter()
             if request.channels_permit.service_allow_all:
-                mcard_user_auth_status_map = {
-                    entry.scheme_account_id: SchemeAccountEntry.AUTH_PROVIDED
+                mcard_user_auth_provided_map = {
+                    entry.scheme_account_id: True
                     for entry in entries
                 }
             else:
-                mcard_user_auth_status_map = {
-                    entry.scheme_account_id: entry.auth_status
+                mcard_user_auth_provided_map = {
+                    entry.scheme_account_id: entry.auth_provided
                     for entry in entries
                 }
 
-        return mcard_user_auth_status_map
+        return mcard_user_auth_provided_map
 
     def to_representation(self, instance: 'SchemeAccount') -> dict:
         if instance.status not in instance.EXCLUDE_BALANCE_STATUSES:

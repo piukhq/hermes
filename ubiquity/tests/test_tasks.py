@@ -183,10 +183,10 @@ class TestTasks(GlobalMockAPITestCase):
         SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2)
 
         SchemeAccountEntryFactory(
-            scheme_account=scheme_account, user=user2, auth_status=SchemeAccountEntry.UNAUTHORISED
+            scheme_account=scheme_account, user=user2, auth_provided=False
         )
         SchemeAccountEntryFactory(
-            scheme_account=scheme_account, user=user3, auth_status=SchemeAccountEntry.UNAUTHORISED
+            scheme_account=scheme_account, user=user3, auth_provided=False
         )
 
         answers = scheme_account.schemeaccountcredentialanswer_set
