@@ -38,7 +38,7 @@ class SftpManager:
     @staticmethod
     def format_data(data):
         # Format data to return status that match api response and covert date to timestamp
-        return [['01', x[0], x[1], x[2], int(x[3].timestamp())] for x in data]
+        return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
     def transfer_file(self):
         logger.info("Transferring file")
@@ -203,6 +203,7 @@ class NotificationProcessor:
                 'scheme_account__status',
                 'scheme_account__created'
             )
+
         else:
             if settings.NOTIFICATION_RUN:
                 historical_scheme_accounts = self.get_scheme_account_history()
