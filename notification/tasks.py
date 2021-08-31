@@ -93,6 +93,44 @@ class NotificationProcessor:
         self.to_date = to_date
         self.change_type = 'status'
 
+    def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
+        if deleted:
+            query = {
+                "instance_id": scheme_account.id,
+                "created__lt": from_date,
+                "change_details__in": self.change_type,
+                "change_type": HistoricalBase.UPDATE
+            }
+        else:
+            query = {
+                "instance_id": scheme_account.id,
+                "created__lt": from_date,
+            }
+
+        status = None
+        state = None
+        if history_obj.change_type == HistoricalBase.CREATE:
+            status = SchemeAccount.PENDING
+        elif history_obj.change_type == HistoricalBase.DELETE:
+            status = DELETED
+        else:
+            if self.change_type in history_obj.change_details:
+                status = history_obj.body['status']
+
+        if status is not None:
+            state = self.get_status_translation(scheme_account, status)
+        else:
+            state = None
+
+        history = HistoricalSchemeAccount.objects.filter(**query).last()
+
+        if history:
+            previous_state = self.get_status_translation(scheme_account, history.body["status"])
+            if state == previous_state:
+                state = None
+
+        return state
+
     @staticmethod
     def get_status_translation(scheme_account, status):
         if status == DELETED:
@@ -123,42 +161,20 @@ class NotificationProcessor:
                 created__range=[from_datetime, self.to_date]
             )
 
-            # Get the previous status that's outside the specific time range
-            previous_history = HistoricalSchemeAccount.objects.filter(
-                instance_id=scheme_association.scheme_account_id,
-                created__lt=from_datetime
-            ).last()
-
             for history in history_data:
-                if history.change_type == HistoricalBase.CREATE:
-                    status = SchemeAccount.PENDING
-                elif history.change_type == HistoricalBase.DELETE:
-                    status = DELETED
-                else:
-                    if self.change_type in history.change_details:
-                        status = history.body['status']
-                    else:
-                        # Only deal with records where the status has changed
-                        continue
+                state = self.check_previous_status(
+                    scheme_association.scheme_account,
+                    from_datetime,
+                    history,
+                )
 
-                if previous_history:
-                    previous_state = self.get_status_translation(
-                        scheme_association.scheme_account,
-                        previous_history.body['status']
-                    )
-
-                state = self.get_status_translation(scheme_association.scheme_account, status)
-
-                # Don't write to csv if the status hasn't changed from previous
-                if state == previous_state:
-                    continue
-
-                data.append([
-                    scheme_association.user.external_id,
-                    scheme_association.scheme_account.scheme.slug,
-                    state,
-                    history.created
-                ])
+                if state:
+                    data.append([
+                        scheme_association.user.external_id,
+                        scheme_association.scheme_account.scheme.slug,
+                        state,
+                        history.created
+                    ])
 
         return data
 
@@ -177,8 +193,29 @@ class NotificationProcessor:
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
-            # skip over hard deleted scheme account or user
             if scheme_account and user:
+                history_data = HistoricalSchemeAccount.objects.filter(
+                    instance_id=scheme_account[0].id,
+                    created__range=[from_datetime, self.to_date]
+                )
+
+                for history in history_data:
+                    state = self.check_previous_status(
+                        scheme_account[0],
+                        from_datetime,
+                        history,
+                    )
+
+                    # History prior deletion
+                    if state:
+                        data.append([
+                            user[0].external_id,
+                            scheme_account[0].scheme.slug,
+                            state,
+                            history.created
+                        ])
+
+                # Delete row
                 data.append([
                     user[0].external_id,
                     scheme_account[0].scheme.slug,
