@@ -107,7 +107,7 @@ class NotificationProcessor:
                 "created__lt": from_date,
             }
 
-        status = -1
+        status = None
         state = None
         if history_obj.change_type == HistoricalBase.CREATE:
             status = SchemeAccount.PENDING
@@ -117,7 +117,7 @@ class NotificationProcessor:
             if self.change_type in history_obj.change_details:
                 status = history_obj.body['status']
 
-        if status != -1:
+        if status is not None:
             state = self.get_status_translation(scheme_account, status)
         else:
             state = None
