@@ -62,10 +62,8 @@ class TestNotificationTask(GlobalMockAPITestCase):
         ]
 
         self.assertEqual(len(data), 2)
-        self.assertEqual(data[0][0], self.scheme_account_entry.user.external_id)
-        self.assertEqual(data[1][0], self.scheme_account_entry_two.user.external_id)
-        self.assertEqual(data[0], expected_result[0])
-        self.assertEqual(data[1], expected_result[1])
+        self.assertIn(expected_result[0], data)
+        self.assertIn(expected_result[1], data)
 
     def test_get_status_translation(self):
         balance = [{"value": 1480.0}]
@@ -295,11 +293,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_scheme_account_history()
 
+            expected_data = [
+                [self.user.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
+                [self.user_two.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime]
+            ]
+
             self.assertEqual(len(data), 2)
-            self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[0][2], AUTHORISED)
-            self.assertEqual(data[1][0], self.user_two.external_id)
-            self.assertEqual(data[1][2], AUTHORISED)
+            self.assertIn(expected_data[0], data)
+            self.assertIn(expected_data[1], data)
 
     def test_deleted_scheme_account_get_scheme_account_history(self):
         HistoricalSchemeAccountEntry(
@@ -343,11 +344,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_scheme_account_history()
 
+            expected_data = [
+                [self.user.external_id, self.scheme_account.scheme.slug, DELETED, self.mocked_datetime],
+                [self.user_two.external_id, self.scheme_account.scheme.slug, DELETED, self.mocked_datetime]
+            ]
+
             self.assertEqual(len(data), 2)
-            self.assertEqual(data[0][0], self.user.external_id)
-            self.assertEqual(data[0][2], DELETED)
-            self.assertEqual(data[1][0], self.user_two.external_id)
-            self.assertEqual(data[1][2], DELETED)
+            self.assertIn(expected_data[0], data)
+            self.assertIn(expected_data[1], data)
 
     def test_removed_user_from_scheme_get_deleted_scheme_account_entry_history(self):
         HistoricalSchemeAccountEntry(
@@ -375,6 +379,17 @@ class TestNotificationTask(GlobalMockAPITestCase):
         ).save()
 
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
+            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.save(update_fields=['status'])
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                channel=self.barclays_channel
+            ).save()
+
             HistoricalSchemeAccountEntry(
                 instance_id=self.scheme_account_entry_two.id,
                 change_type=HistoricalSchemeAccount.DELETE,
@@ -388,9 +403,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
             test_notification = NotificationProcessor(to_date=timezone.now())
             data = test_notification.get_deleted_scheme_account_entry_history()
 
-            self.assertEqual(len(data), 1)
-            self.assertEqual(data[0][0], self.user_two.external_id)
-            self.assertEqual(data[0][2], DELETED)
+            expected_data = [
+                [self.user_two.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
+                [self.user_two.external_id, self.scheme_account.scheme.slug, DELETED, self.mocked_datetime]
+            ]
+
+            self.assertEqual(len(data), 2)
+            self.assertIn(expected_data[0], data)
+            self.assertIn(expected_data[1], data)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
