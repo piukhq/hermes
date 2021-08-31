@@ -27,7 +27,8 @@ from ubiquity.censor_empty_fields import remove_empty
 from ubiquity.channel_vault import AESKeyNames
 from ubiquity.models import PaymentCardSchemeEntry, PaymentCardAccountEntry, SchemeAccountEntry
 from ubiquity.tasks import deleted_membership_card_cleanup
-from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory
+from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory, ServiceConsentFactory, \
+    PaymentCardSchemeEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.test_serializers import mock_secrets
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
@@ -788,10 +789,12 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp_json['status'], {'state': 'pending', 'reason_codes': ['X100'], 'error_text': 'Pending'})
 
-        user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account).values_list('user_id',
-                                                                                                           flat=True)
-        self.assertIn(self.user.id, user_links)
-        self.assertIn(new_user.id, user_links)
+        user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
+
+        linked_users = [link.user_id for link in user_links]
+        self.assertIn(self.user.id, linked_users)
+        self.assertIn(new_user.id, linked_users)
+        self.assertTrue(all([link.auth_provided for link in user_links]))
 
         # check card is in get membership_cards response
         resp = self.client.get(reverse('membership-cards'), content_type='application/json', **headers)
@@ -838,14 +841,14 @@ class TestResources(GlobalMockAPITestCase):
                 payment_card_account=self.payment_card_account
             )
 
-    def test_manual_linking_for_wallet_only_mcard_creates_soft_link(self):
+    def test_manual_linking_for_wallet_only_mcard_does_not_create_soft_link(self):
         existing_answer_value = "36543456787656"
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme,
             barcode=existing_answer_value,
             status=SchemeAccount.WALLET_ONLY
         )
-        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
+        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
         SchemeAccountCredentialAnswer(
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
@@ -861,14 +864,13 @@ class TestResources(GlobalMockAPITestCase):
             **self.auth_headers
         )
 
-        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(resp.status_code, 404)
 
-        payment_scheme_entry = PaymentCardSchemeEntry.objects.get(
-            scheme_account=existing_scheme_account.id,
-            payment_card_account=self.payment_card_account.id
-        ).get_instance_with_active_status()
-
-        self.assertFalse(payment_scheme_entry.active_link)
+        with self.assertRaises(PaymentCardSchemeEntry.DoesNotExist):
+            PaymentCardSchemeEntry.objects.get(
+                scheme_account=existing_scheme_account.id,
+                payment_card_account=self.payment_card_account.id
+            ).get_instance_with_active_status()
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
@@ -918,23 +920,79 @@ class TestResources(GlobalMockAPITestCase):
             resp.data["detail"]
         )
 
-    def test_wallet_only_card_patch_fails_multi_user(self):
-        existing_answer_value = "36543456787656"
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch.object(SchemeAccount, 'update_cached_balance', autospec=True, return_value=(None, ""))
+    def test_wallet_only_card_patch_fails_multi_user(self, mock_update_balance):
+        """Test auth_provided user doing a PATCH with incorrect credentials will set card to WALLET_ONLY,
+        delete auth credentials, and delete payment scheme entries if all remaining linked users are wallet only users
+        """
+        external_id = "anothertest@user.com"
+        user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+
         existing_scheme_account = SchemeAccountFactory(
             scheme=self.scheme,
-            barcode=existing_answer_value,
-            status=SchemeAccount.WALLET_ONLY
+            status=SchemeAccount.ACTIVE
         )
-        entry = SchemeAccountEntryFactory(
+        manual_q = SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.scheme.manual_question, answer="36543456787656"
+        )
+        auth_q = SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account, question=self.secondary_question, answer="Test"
+        )
+
+        entry1 = SchemeAccountEntryFactory(
             scheme_account=existing_scheme_account,
             user=self.user,
+            auth_provided=True
+        )
+        entry2 = SchemeAccountEntryFactory(
+            scheme_account=existing_scheme_account,
+            user=user2,
             auth_provided=False
         )
-        SchemeAccountCredentialAnswer(
-            scheme_account=existing_scheme_account,
-            question=self.scheme.manual_question,
-            answer=existing_answer_value
+
+        pcard_scheme_entry1 = PaymentCardSchemeEntryFactory(
+            scheme_account=existing_scheme_account, payment_card_account=self.payment_card_account
         )
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": self.secondary_question.label,
+                        "value": "Fail Patch"
+                    }
+                ]
+            }
+        }
+
+        resp = self.client.patch(
+            reverse("membership-card", kwargs={"pk": existing_scheme_account.id}),
+            data=json.dumps(payload),
+            content_type='application/json',
+            **self.auth_headers
+        )
+
+        self.assertTrue(mock_update_balance.called)
+        self.assertEqual(200, resp.status_code)
+        existing_scheme_account.refresh_from_db()
+        entry1.refresh_from_db()
+        entry2.refresh_from_db()
+        self.assertEqual(SchemeAccount.WALLET_ONLY, existing_scheme_account.status)
+        self.assertFalse(entry1.auth_provided)
+        self.assertFalse(entry1.auth_provided)
+
+        # check only auth questions are deleted
+        manual_q.refresh_from_db()
+        with self.assertRaises(SchemeAccountCredentialAnswer.DoesNotExist):
+            auth_q.refresh_from_db()
+
+        # check payment scheme entries are deleted
+        with self.assertRaises(PaymentCardSchemeEntry.DoesNotExist):
+            pcard_scheme_entry1.refresh_from_db()
 
     @patch('scheme.mixins.analytics', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)

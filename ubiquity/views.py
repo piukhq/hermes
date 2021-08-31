@@ -35,7 +35,7 @@ from prometheus.metrics import (
     payment_card_add_counter,
     service_creation_counter,
 )
-from scheme.credentials import CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS, PAYMENT_CARD_HASH, POSTCODE
+from scheme.credentials import PAYMENT_CARD_HASH
 from scheme.mixins import (
     BaseLinkMixin,
     IdentifyCardMixin,
@@ -553,12 +553,10 @@ class MembershipCardView(
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
-            updated_account = self._handle_update_fields(account, scheme, update_fields, scheme_questions, request.user)
+            updated_account = self._handle_update_fields(
+                account, scheme, update_fields, scheme_questions, request.user.id
+            )
             metrics_route = MembershipCardAddRoute.UPDATE
-
-            # if sch_acc_entry.auth_provided != SchemeAccountEntry.AUTH_PROVIDED:
-            #     sch_acc_entry.auth_provided = SchemeAccountEntry.AUTH_PROVIDED
-            #     sch_acc_entry.save(update_fields=["auth_provided"])
 
         if metrics_route:
             membership_card_update_counter.labels(
@@ -956,7 +954,7 @@ class MembershipCardView(
         elif not auth_fields:
             metrics_route = MembershipCardAddRoute.WALLET_ONLY
             sch_acc_entry = self._handle_add_fields_only_link(
-                user, scheme_account, payment_cards_to_link, account_created
+                user, scheme_account, account_created
             )
         else:
             metrics_route = MembershipCardAddRoute.MULTI_WALLET
@@ -1158,7 +1156,6 @@ class MembershipCardView(
     def _handle_add_fields_only_link(
         user: 'CustomUser',
         scheme_account: 'SchemeAccount',
-        payment_cards_to_link: list,
         account_created: bool,
     ) -> SchemeAccountEntry:
         """Handles scheme accounts for when only add fields are provided."""
@@ -1171,9 +1168,6 @@ class MembershipCardView(
         entry = SchemeAccountEntry.create_link(
             user=user, scheme_account=scheme_account, auth_provided=False
         )
-
-        # if payment_cards_to_link:
-        #     auto_link_membership_to_payments(payment_cards_to_link, scheme_account)
 
         return entry
 
@@ -1307,7 +1301,7 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
 
     def _destroy_link(
             self, user: CustomUser, pcard_id: int, mcard_id: int
-    ) -> t.Tuple[PaymentCardAccount, SchemeAccount]:
+    ) -> t.Tuple[PaymentCardAccount, SchemeAccount, bool]:
         error = False
         pcard, mcard = self._collect_cards(pcard_id, mcard_id, user)
 
@@ -1370,13 +1364,17 @@ class CardLinkView(VersionedSerializerMixin, ModelViewSet):
             payment_card = user.payment_card_account_set.get(pk=payment_card_id, **filters)
             membership_card = user.scheme_account_set.get(
                 pk=membership_card_id,
+                schemeaccountentry__auth_provided=True,
                 **filters
             )
 
         except PaymentCardAccount.DoesNotExist:
             raise NotFound(f"The payment card of id {payment_card_id} was not found.")
         except SchemeAccount.DoesNotExist:
-            raise NotFound(f"The membership card of id {membership_card_id} was not found.")
+            raise NotFound(
+                f"The membership card of id {membership_card_id} was not found or it is a Store type card that "
+                f"cannot be linked."
+            )
         except KeyError:
             raise ParseError
 

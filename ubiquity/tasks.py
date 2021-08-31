@@ -116,15 +116,28 @@ def async_balance_with_updated_credentials(
             ~Q(payment_card_account__user_set=user_id), scheme_account=scheme_account
         ).delete()
     else:
-        # set this user as unauthorised/wallet-only
-        SchemeAccountEntry.objects.filter(user_id=user_id, scheme_account=scheme_account)\
-            .update(auth_provided=False)
+        mcard_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
+        for entry in mcard_entries:
+            if entry.user_id == user_id:
+                entry.auth_provided = False
+                entry.save()
+                break
 
         PaymentCardSchemeEntry.objects.filter(scheme_account=scheme_account, payment_card_account__user_set=user_id)\
             .delete()
 
-        # temporary hack to update the scheme account status to the true status again
-        async_balance.delay(scheme_account.id, delete_balance=True)
+        if all(entry.auth_provided is False for entry in mcard_entries):
+            if scheme_account.status != SchemeAccount.WALLET_ONLY:
+                scheme_account.status = SchemeAccount.WALLET_ONLY
+                scheme_account.save(update_fields=["status"])
+
+            scheme_account.schemeaccountcredentialanswer_set.filter(
+                question__auth_field=True,
+                question__manual_question=False,
+            ).delete()
+        else:
+            # Call balance to correctly reset the scheme account balance using the stored credentials
+            async_balance.delay(scheme_account.id, delete_balance=True)
 
 
 @shared_task
