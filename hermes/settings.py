@@ -25,6 +25,7 @@ from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
 
 read_env()
 
@@ -335,7 +336,8 @@ if HERMES_SENTRY_DSN:
         environment=HERMES_SENTRY_ENV,
         release=__version__,
         integrations=[DjangoIntegration(transaction_style="url", middleware_spans=False),
-                      RedisIntegration()],
+                      RedisIntegration(),
+                      CeleryIntegration()],
         traces_sample_rate=SENTRY_SAMPLE_RATE,
         send_default_pii=False,
         before_send=strip_sensitive_data,
@@ -555,4 +557,8 @@ NOTIFICATION_PERIOD = int(env_var("NOTIFICATION_PERIOD", 7200))
 NOTIFICATION_ERROR_THRESHOLD = int(env_var("NOTIFICATION_ERROR_THRESHOLD", 5))
 # 2 minutes
 NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 60))
-NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
+NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", True)
+# Barclays notification file suffix
+BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "")
+
+
