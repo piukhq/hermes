@@ -2537,6 +2537,7 @@ class TestMembershipCardCredentials(GlobalMockAPITestCase):
         token = GenerateJWToken(client.organisation.name, client.secret, cls.bundle.bundle_id, external_id).get_token()
         cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
 
+    @patch('ubiquity.views.async_balance_with_updated_credentials.delay', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
