@@ -9,7 +9,6 @@ from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
 from scheme.models import SchemeCredentialQuestion, SchemeAccount, SchemeBundleAssociation
 from scheme.serializers import JoinSerializer
 from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
-from ubiquity.models import SchemeAccountEntry
 from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration, \
     deleted_membership_card_cleanup
 from ubiquity.tests.factories import SchemeAccountEntryFactory

@@ -994,66 +994,6 @@ class TestResources(GlobalMockAPITestCase):
         with self.assertRaises(PaymentCardSchemeEntry.DoesNotExist):
             pcard_scheme_entry1.refresh_from_db()
 
-    @patch('scheme.mixins.analytics', autospec=True)
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
-    @patch('ubiquity.views.async_balance', autospec=True)
-    @patch('ubiquity.views.async_registration', autospec=True)
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    def test_wallet_only_patch_fails_if_missing_auth_fields(self, *_):
-        second_auth_question = SchemeCredentialQuestionFactory(
-            scheme=self.scheme,
-            type=POSTCODE,
-            label=POSTCODE,
-            options=SchemeCredentialQuestion.LINK_AND_JOIN,
-            auth_field=True
-        )
-        existing_answer_value = "36543456787656"
-        existing_scheme_account = SchemeAccountFactory(
-            scheme=self.scheme,
-            barcode=existing_answer_value,
-            status=SchemeAccount.WALLET_ONLY
-        )
-        entry = SchemeAccountEntryFactory(
-            scheme_account=existing_scheme_account,
-            user=self.user,
-            auth_provided=False
-        )
-        SchemeAccountCredentialAnswer(
-            scheme_account=existing_scheme_account,
-            question=self.scheme.manual_question,
-            answer=existing_answer_value
-        )
-
-        payload = {
-            "membership_plan": self.scheme.id,
-            "account": {
-                "authorise_fields": [
-                    {
-                        "column": self.secondary_question.label,
-                        "value": "Test"
-                    }
-                ]
-            }
-        }
-
-        resp = self.client.patch(
-            reverse("membership-card", kwargs={"pk": existing_scheme_account.id}),
-            data=json.dumps(payload),
-            content_type='application/json',
-            **self.auth_headers
-        )
-
-        self.assertEqual(400, resp.status_code)
-        self.assertEqual(
-            "Cannot update authorise fields for Store type card. Card must be authorised "
-            "via POST /membership_cards endpoint first.",
-            resp.data.get("detail")
-        )
-        entry.refresh_from_db()
-        self.assertFalse(entry.auth_provided)
-
-        second_auth_question.delete()
-
     @patch('ubiquity.views.async_link', autospec=True)
     def test_membership_card_link_with_consents(self, *_):
         consent_label = "Test Consent"
