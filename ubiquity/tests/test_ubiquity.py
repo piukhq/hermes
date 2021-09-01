@@ -1168,6 +1168,7 @@ class TestResources(GlobalMockAPITestCase):
         error_message = resp.json()["detail"]
         self.assertEqual(error_message, "Provided payment card could not be found or is not related to this user")
 
+    @patch('ubiquity.views.async_balance_with_updated_credentials.delay', autospec=True)
     @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
     @patch('ubiquity.views.async_balance', autospec=True)
     @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
