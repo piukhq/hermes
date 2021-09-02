@@ -44,7 +44,7 @@ class SftpManager:
         logger.info("Transferring file")
         date = timezone.now().strftime('%Y%m%d')
         timestamp = int(time())
-        filename = f'Bink_lc_status_{timestamp}_{date}.csv'
+        filename = f'Bink_lc_status_{timestamp}_{date}.csv_{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
         rows = self.format_data(self.rows)
         cnopts = pysftp.CnOpts()
 
@@ -256,7 +256,6 @@ def notification_file(to_date=None):
     notification = NotificationProcessor(to_date=to_date)
     data_to_write = notification.get_data()
 
-    if data_to_write:
-        logger.info("Connecting to SFTP to write csv.")
-        sftp = SftpManager(rows=data_to_write)
-        sftp.transfer_file()
+    logger.info("Connecting to SFTP to write csv.")
+    sftp = SftpManager(rows=data_to_write)
+    sftp.transfer_file()
