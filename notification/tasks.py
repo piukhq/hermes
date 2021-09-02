@@ -82,8 +82,7 @@ class SftpManager:
                 logging.info('Retrying notification file in 2 minutes.')
                 sleep(settings.NOTIFICATION_RETRY_TIMER)
                 if errors == settings.NOTIFICATION_ERROR_THRESHOLD:
-                    logging.warning(f'Failed to transfer file. Error - {e}')
-                    raise e
+                    logging.exception(f'Failed to transfer file. Error - {e}')
 
 
 class NotificationProcessor:
