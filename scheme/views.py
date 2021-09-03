@@ -411,7 +411,16 @@ class UpdateSchemeAccountStatus(GenericAPIView):
             elif new_status_code not in pending_statuses:
                 Payment.process_payment_void(scheme_account)
 
-            scheme_account.status = new_status_code
+            mcard_entries = scheme_account.schemeaccountentry_set.all()
+            if all(entry.auth_provided is False for entry in mcard_entries):
+                # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
+                # for a user before this status update. This will set the card to Wallet only status instead of an
+                # error state when there are no authorised users linked to a card.
+                if scheme_account.status != SchemeAccount.WALLET_ONLY:
+                    scheme_account.status = SchemeAccount.WALLET_ONLY
+            else:
+                scheme_account.status = new_status_code
+
             update_fields.append("status")
 
             if update_fields:
