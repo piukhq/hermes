@@ -925,8 +925,8 @@ class TestResources(GlobalMockAPITestCase):
                        BROKER_BACKEND='memory')
     @patch.object(SchemeAccount, 'update_cached_balance', autospec=True, return_value=(None, ""))
     def test_wallet_only_card_patch_fails_multi_user(self, mock_update_balance):
-        """Test auth_provided user doing a PATCH with incorrect credentials will set card to WALLET_ONLY,
-        delete auth credentials, and delete payment scheme entries if all remaining linked users are wallet only users
+        """Test auth_provided user doing a PATCH with incorrect credentials willdelete auth credentials
+         and delete payment scheme entries if all remaining linked users are wallet only users
         """
         external_id = "anothertest@user.com"
         user2 = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
@@ -981,7 +981,6 @@ class TestResources(GlobalMockAPITestCase):
         existing_scheme_account.refresh_from_db()
         entry1.refresh_from_db()
         entry2.refresh_from_db()
-        self.assertEqual(SchemeAccount.WALLET_ONLY, existing_scheme_account.status)
         self.assertFalse(entry1.auth_provided)
         self.assertFalse(entry1.auth_provided)
 
