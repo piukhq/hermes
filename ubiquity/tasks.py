@@ -93,6 +93,9 @@ def async_balance_with_updated_credentials(
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
 
+    scheme_account.delete_cached_balance()
+    scheme_account.delete_saved_balance()
+
     try:
         # If updated credentials match existing credentials then there's nothing left to do
         existing_answers = scheme_account.get_auth_credentials()
@@ -133,7 +136,7 @@ def async_balance_with_updated_credentials(
             ).delete()
         else:
             # Call balance to correctly reset the scheme account balance using the stored credentials
-            async_balance(scheme_account.id, delete_balance=True)
+            async_balance(scheme_account.id)
 
 
 @shared_task
