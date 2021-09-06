@@ -1,5 +1,6 @@
 import csv
 import logging
+import os
 from datetime import timedelta
 from io import StringIO
 from time import time, sleep
@@ -74,7 +75,7 @@ class SftpManager:
                     cnopts=cnopts
                 ) as sftp:
                     logger.info('Connected to sftp')
-                    with sftp.open(f"{settings.SFTP_DIRECTORY}{filename}", 'w', bufsize=32768) as f:
+                    with sftp.open(os.path.join(settings.SFTP_DIRECTORY, filename), 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
                         writer.writerows(rows)
