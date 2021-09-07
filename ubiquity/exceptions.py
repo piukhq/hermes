@@ -25,3 +25,9 @@ class CardAuthError(APIException):
     status_code = status.HTTP_400_BAD_REQUEST
     default_detail = "Cannot Authorise card"
     default_code = "card_auth_error"
+
+
+class AlreadyExistsError(APIException):
+    status_code = status.HTTP_400_BAD_REQUEST
+    default_detail = "Card already exists in your wallet"
+    default_code = "already_exists_error"

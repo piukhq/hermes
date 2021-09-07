@@ -49,7 +49,7 @@ from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAut
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
 from ubiquity.censor_empty_fields import censor_and_decorate
 from ubiquity.channel_vault import KeyType, SecretKeyName, get_bundle_key, get_secret_key
-from ubiquity.exceptions import CardAuthError
+from ubiquity.exceptions import CardAuthError, AlreadyExistsError
 from ubiquity.influx_audit import audit
 from ubiquity.models import (
     PaymentCardAccountEntry,
@@ -1163,12 +1163,19 @@ class MembershipCardView(
             scheme_account.status = SchemeAccount.WALLET_ONLY
             scheme_account.save(update_fields=["status"])
             logger.info(f"Set SchemeAccount (id={scheme_account.id}) to Wallet Only status")
+        else:
+            authed_link_exists = scheme_account.schemeaccountentry_set.filter(
+                user=user, scheme_account=scheme_account, auth_provided=True
+            ).exists()
 
-        scheme_account.update_barcode_and_card_number()
+            if authed_link_exists:
+                raise AlreadyExistsError
+
         entry = SchemeAccountEntry.create_link(
             user=user, scheme_account=scheme_account, auth_provided=False
         )
 
+        scheme_account.update_barcode_and_card_number()
         return entry
 
     @staticmethod

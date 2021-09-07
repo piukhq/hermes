@@ -707,7 +707,7 @@ class TestResources(GlobalMockAPITestCase):
         for scheme, question in test_schemes:
             existing_answer_value = "1234554321"
             existing_scheme_account = SchemeAccountFactory(scheme=scheme, **{question.type: existing_answer_value})
-            SchemeAccountCredentialAnswer(scheme_account=existing_scheme_account, question=question,
+            SchemeCredentialAnswerFactory(scheme_account=existing_scheme_account, question=question,
                                           answer=existing_answer_value)
             SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
 
@@ -756,7 +756,7 @@ class TestResources(GlobalMockAPITestCase):
             status=SchemeAccount.WALLET_ONLY
         )
         SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user)
-        SchemeAccountCredentialAnswer(
+        SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value
@@ -801,6 +801,45 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         card_ids = [card["id"] for card in resp.json()]
         self.assertIn(card_id, card_ids)
+
+    def test_wallet_only_authorised_card_already_exists(self, *_):
+        existing_answer_value = "34567876345678765"
+        existing_scheme_account = SchemeAccountFactory(
+            scheme=self.scheme,
+            barcode=existing_answer_value,
+            status=SchemeAccount.WALLET_ONLY
+        )
+        SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=True)
+        SchemeCredentialAnswerFactory(
+            scheme_account=existing_scheme_account,
+            question=self.scheme.manual_question,
+            answer=existing_answer_value
+        )
+
+        payload = {
+            "membership_plan": self.scheme.id,
+            "account": {
+                "add_fields": [
+                    {
+                        "column": self.scheme.manual_question.label,
+                        "value": existing_answer_value
+                    }
+                ]
+            }
+        }
+        resp = self.client.post(
+            reverse('membership-cards'), data=json.dumps(payload), content_type='application/json', **self.auth_headers
+        )
+        resp_json = resp.json()
+
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual("Card already exists in your wallet", resp_json['detail'])
+
+        user_links = SchemeAccountEntry.objects.filter(scheme_account=existing_scheme_account)
+
+        linked_users = [link.user_id for link in user_links]
+        self.assertIn(self.user.id, linked_users)
+        self.assertTrue(all([link.auth_provided for link in user_links]))
 
     @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
                        CELERY_TASK_ALWAYS_EAGER=True,
@@ -849,7 +888,7 @@ class TestResources(GlobalMockAPITestCase):
             status=SchemeAccount.WALLET_ONLY
         )
         SchemeAccountEntryFactory(scheme_account=existing_scheme_account, user=self.user, auth_provided=False)
-        SchemeAccountCredentialAnswer(
+        SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value
@@ -887,7 +926,7 @@ class TestResources(GlobalMockAPITestCase):
             user=self.user,
             auth_provided=False
         )
-        SchemeAccountCredentialAnswer(
+        SchemeCredentialAnswerFactory(
             scheme_account=existing_scheme_account,
             question=self.scheme.manual_question,
             answer=existing_answer_value
