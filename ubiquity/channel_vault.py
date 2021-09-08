@@ -35,6 +35,8 @@ class BarclaysSftpKeyNames(str, Enum):
     SFTP_USERNAME = "SFTP_USERNAME"
     SFTP_PRIVATE_KEY = "SFTP_PRIVATE_KEY"
     SFTP_HOST_KEYS = "SFTP_HOST_KEYS"
+    SFTP_PORT = "SFTP_PORT"
+    SFTP_PASSWORD = "SFTP_PASSWORD"
 
 
 class AESKeyNames(str, Enum):

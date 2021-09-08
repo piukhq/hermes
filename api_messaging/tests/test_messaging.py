@@ -132,14 +132,6 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         with self.assertRaises(InvalidMessagePath):
             route.route_message(self.fail_headers, self.loyalty_card_add_autolink_created_message)
 
-    @patch('api_messaging.angelia_background.async_add_field_only_link')
-    def test_loyalty_card_add_created(self, mock_async_add_field_only_link):
-        """Tests routing for newly created ADD loyalty card"""
-
-        angelia_background.loyalty_card_add(self.loyalty_card_add_autolink_created_message)
-
-        self.assertTrue(mock_async_add_field_only_link.called)
-
     @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
     def test_loyalty_card_add_linked(self, mock_auto_link_function):
         """Tests routing for an existing ADD loyalty card with auto-linking"""

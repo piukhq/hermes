@@ -1,5 +1,6 @@
 import csv
 import logging
+import os
 from datetime import timedelta
 from io import StringIO
 from time import time, sleep
@@ -27,7 +28,9 @@ class SftpManager:
         # load vault secrets
         load_secrets(settings.VAULT_CONFIG)
         self.host = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST)
+        self.port = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PORT)
         self.sftp_username = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_USERNAME)
+        self.sftp_password = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PASSWORD)
         self.sftp_private_key_string = RSAKey.from_private_key(
             StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
         )
@@ -64,13 +67,15 @@ class SftpManager:
         while True:
             try:
                 with Connection(
-                        self.host,
-                        username=self.sftp_username,
-                        private_key=self.sftp_private_key_string,
-                        cnopts=cnopts
+                    self.host,
+                    port=self.port,
+                    username=self.sftp_username,
+                    password=self.sftp_password,
+                    private_key=self.sftp_private_key_string,
+                    cnopts=cnopts
                 ) as sftp:
                     logger.info('Connected to sftp')
-                    with sftp.open(f"{settings.SFTP_DIRECTORY}/{filename}", 'w', bufsize=32768) as f:
+                    with sftp.open(os.path.join(settings.SFTP_DIRECTORY, filename), 'w', bufsize=32768) as f:
                         writer = csv.writer(f)
                         writer.writerow(["00", date])
                         writer.writerows(rows)
