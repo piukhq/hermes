@@ -62,7 +62,7 @@ class SftpManager:
     def transfer_file(self):
         date = timezone.now().strftime('%Y%m%d')
         timestamp = int(time())
-        filename = f'Bink_lc_status_{timestamp}_{date}.csv_{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
+        filename = f'Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
         rows = self.format_data(self.rows)
 
         logger.info('Establishing connection with SFTP.')
