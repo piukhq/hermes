@@ -5,16 +5,14 @@ from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
-import pysftp
-from base64 import b64decode
+import paramiko
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
-from paramiko import SSHException, RSAKey, Ed25519Key
-from pysftp import Connection, ConnectionException
 
 from user.models import CustomUser
 from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSchemeAccountEntry
+from notification import stfp_connect
 from scheme.models import SchemeAccount
 from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
 from ubiquity.models import SchemeAccountEntry
@@ -31,7 +29,7 @@ class SftpManager:
         self.port = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PORT)
         self.sftp_username = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_USERNAME)
         self.sftp_password = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PASSWORD)
-        self.sftp_private_key_string = RSAKey.from_private_key(
+        self.sftp_private_key_string = paramiko.RSAKey.from_private_key(
             StringIO(get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_PRIVATE_KEY))
         )
         self.sftp_host_keys = get_barclays_sftp_key(BarclaysSftpKeyNames.SFTP_HOST_KEYS)
@@ -43,52 +41,46 @@ class SftpManager:
         # Format data to return status that match api response and covert date to timestamp
         return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
-    def transfer_file(self):
-        logger.info("Transferring file")
-        date = timezone.now().strftime('%Y%m%d')
-        timestamp = int(time())
-        filename = f'Bink_lc_status_{timestamp}_{date}.csv_{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
-        rows = self.format_data(self.rows)
-        cnopts = pysftp.CnOpts()
-
-        for host_key in self.sftp_host_keys:
-            if host_key['keytype'] == "ssh-rsa":
-                cnopts.hostkeys.add(hostname=host_key['host'],
-                                    keytype=host_key['keytype'],
-                                    key=RSAKey(data=b64decode(host_key['key'])))
-            elif host_key['keytype'] == "ssh-ed25519":
-                cnopts.hostkeys.add(hostname=host_key['host'],
-                                    keytype=host_key['keytype'],
-                                    key=Ed25519Key(data=b64decode(host_key['key'])))
-                pass
-
-        errors = 0
+    def connect(self):
+        error_count = 0
+        # custom_paramiko.HostKey, takes host, keytype, key hence **item works
+        host_keys = [stfp_connect.HostKey(**item) for item in self.sftp_host_keys]
 
         while True:
             try:
-                with Connection(
-                    self.host,
-                    port=self.port,
-                    username=self.sftp_username,
-                    password=self.sftp_password,
-                    private_key=self.sftp_private_key_string,
-                    cnopts=cnopts
-                ) as sftp:
-                    logger.info('Connected to sftp')
-                    with sftp.open(os.path.join(settings.SFTP_DIRECTORY, filename), 'w', bufsize=32768) as f:
-                        writer = csv.writer(f)
-                        writer.writerow(["00", date])
-                        writer.writerows(rows)
-                        writer.writerow([99, f"{len(rows):010}"])
-                    logging.info(f'File: {filename}, uploaded.')
-                    return
-            except (ConnectionException, SSHException) as e:
-                errors += 1
-                logging.info('Retrying notification file in 2 minutes.')
+                return stfp_connect.get_sftp_client(
+                    host=self.host, port=self.port, username=self.sftp_username, password=self.sftp_password,
+                    pkey=self.sftp_private_key_string, host_keys=host_keys)
+            except paramiko.SSHException as e:
+                error_count += 1
+                logging.warning('Retrying connection to SFTP.')
                 sleep(settings.NOTIFICATION_RETRY_TIMER)
-                if errors == settings.NOTIFICATION_ERROR_THRESHOLD:
-                    logging.exception(f'Failed to transfer file. Error - {e}')
+                if error_count == settings.NOTIFICATION_ERROR_THRESHOLD:
+                    logging.exception(f'Failed to connect. Error - {e}')
                     raise e
+
+    def transfer_file(self):
+        date = timezone.now().strftime('%Y%m%d')
+        timestamp = int(time())
+        filename = f'Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
+        rows = self.format_data(self.rows)
+
+        logger.info('Establishing connection with SFTP.')
+        sftp_client = self.connect()
+        logger.info('Connection established.')
+
+        try:
+            with sftp_client.open(os.path.join(settings.SFTP_DIRECTORY, filename), 'w', bufsize=32768) as f:
+                logger.info('Writing file.')
+                writer = csv.writer(f)
+                writer.writerow(["00", date])
+                writer.writerows(rows)
+                writer.writerow([99, f"{len(rows):010}"])
+                logging.info(f'File: {filename}, uploaded.')
+                return
+        except FileNotFoundError as e:
+            logger.exception("File not found.")
+            raise e
 
 
 class NotificationProcessor:
@@ -261,6 +253,5 @@ def notification_file(to_date=None):
     notification = NotificationProcessor(to_date=to_date)
     data_to_write = notification.get_data()
 
-    logger.info("Connecting to SFTP to write csv.")
     sftp = SftpManager(rows=data_to_write)
     sftp.transfer_file()
