@@ -53,6 +53,6 @@ django-admin-rangefilter = "*"
 django-storages = {extras = ["azure"], version = "*"}
 cryptography = "*"
 gunicorn = "*"
-pysftp = "*"
 cached-property = "*"
 rusty-jeff = "*"
+paramiko = "*"

@@ -2,7 +2,6 @@ from base64 import b64encode
 from datetime import timedelta
 from unittest import mock
 
-import pysftp
 from django.conf import settings
 from django.utils import timezone
 from paramiko import SSHException, RSAKey
@@ -479,19 +478,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
         with self.assertRaises(SSHException):
             sftp.transfer_file()
 
-    @mock.patch('pysftp.Connection')
+    @mock.patch('notification.tasks.SftpManager.connect')
     @mock.patch('notification.tasks.SftpManager.transfer_file')
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_transfer_file(self, mock_connection, mock_transfer, mock_rsa_key):
-        # Disable host key checking for tests
-        test_cnopts = pysftp.CnOpts()
-        test_cnopts.hostkeys = None
-
         test_data = [
             [self.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, timezone.now()]
         ]
         sftp = SftpManager(rows=test_data)
-        sftp.cnopts = test_cnopts
         result = sftp.transfer_file()
 
         self.assertTrue(result)
