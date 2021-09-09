@@ -239,19 +239,19 @@ class NotificationProcessor:
             )
 
         else:
-            if settings.NOTIFICATION_RUN:
-                historical_scheme_accounts = self.get_scheme_account_history()
-                historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
+            historical_scheme_accounts = self.get_scheme_account_history()
+            historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
 
-                rows_to_write = historical_scheme_accounts + historical_scheme_account_association
+            rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
         return rows_to_write
 
 
 @shared_task
 def notification_file(to_date=None):
-    notification = NotificationProcessor(to_date=to_date)
-    data_to_write = notification.get_data()
+    if settings.NOTIFICATION_RUN:
+        notification = NotificationProcessor(to_date=to_date)
+        data_to_write = notification.get_data()
 
-    sftp = SftpManager(rows=data_to_write)
-    sftp.transfer_file()
+        sftp = SftpManager(rows=data_to_write)
+        sftp.transfer_file()
