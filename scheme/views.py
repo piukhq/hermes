@@ -391,33 +391,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         return Response({"id": scheme_account.id, "status": new_status_code})
 
     @staticmethod
-    def process_new_status(new_status_code, previous_status, scheme_account):
-        update_fields = []
-
-        pending_statuses = (
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
-            SchemeAccount.JOIN_IN_PROGRESS,
-            SchemeAccount.PENDING,
-            SchemeAccount.PENDING_MANUAL_CHECK,
-        )
-
-        capture_membership_card_status_change_metric(
-            scheme_slug=Scheme.get_scheme_slug_by_scheme_id(scheme_account.scheme_id),
-            old_status=previous_status,
-            new_status=new_status_code,
-        )
-        PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
-
-        # delete main answer credential if an async join failed
-        if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS and new_status_code != SchemeAccount.ACTIVE:
-            scheme_account.main_answer = ""
-            update_fields.append("main_answer")
-
-        if new_status_code == SchemeAccount.ACTIVE:
-            Payment.process_payment_success(scheme_account)
-        elif new_status_code not in pending_statuses:
-            Payment.process_payment_void(scheme_account)
-
+    def set_user_authorisations_and_status(new_status_code: int, scheme_account: SchemeAccount) -> None:
         mcard_entries = scheme_account.schemeaccountentry_set.all()
 
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
@@ -452,6 +426,35 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         else:
             scheme_account.status = new_status_code
 
+    @staticmethod
+    def process_new_status(new_status_code, previous_status, scheme_account):
+        update_fields = []
+
+        pending_statuses = (
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.JOIN_IN_PROGRESS,
+            SchemeAccount.PENDING,
+            SchemeAccount.PENDING_MANUAL_CHECK,
+        )
+
+        capture_membership_card_status_change_metric(
+            scheme_slug=Scheme.get_scheme_slug_by_scheme_id(scheme_account.scheme_id),
+            old_status=previous_status,
+            new_status=new_status_code,
+        )
+        PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
+
+        # delete main answer credential if an async join failed
+        if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS and new_status_code != SchemeAccount.ACTIVE:
+            scheme_account.main_answer = ""
+            update_fields.append("main_answer")
+
+        if new_status_code == SchemeAccount.ACTIVE:
+            Payment.process_payment_success(scheme_account)
+        elif new_status_code not in pending_statuses:
+            Payment.process_payment_void(scheme_account)
+
+        UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account)
         update_fields.append("status")
 
         if update_fields:
