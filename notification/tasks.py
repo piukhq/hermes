@@ -42,22 +42,11 @@ class SftpManager:
         return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
     def connect(self):
-        error_count = 0
         # custom_paramiko.HostKey, takes host, keytype, key hence **item works
         host_keys = [stfp_connect.HostKey(**item) for item in self.sftp_host_keys]
-
-        while True:
-            try:
-                return stfp_connect.get_sftp_client(
-                    host=self.host, port=self.port, username=self.sftp_username, password=self.sftp_password,
-                    pkey=self.sftp_private_key_string, host_keys=host_keys)
-            except paramiko.SSHException as e:
-                error_count += 1
-                logging.warning('Retrying connection to SFTP.')
-                sleep(settings.NOTIFICATION_RETRY_TIMER)
-                if error_count == settings.NOTIFICATION_ERROR_THRESHOLD:
-                    logging.exception(f'Failed to connect. Error - {e}')
-                    raise e
+        return stfp_connect.get_sftp_client(
+            host=self.host, port=self.port, username=self.sftp_username, password=self.sftp_password,
+            pkey=self.sftp_private_key_string, host_keys=host_keys)
 
     def transfer_file(self):
         date = timezone.now().strftime('%Y%m%d')
@@ -249,9 +238,20 @@ class NotificationProcessor:
 
 @shared_task
 def notification_file(to_date=None):
+    retry_count = 0
     if settings.NOTIFICATION_RUN:
         notification = NotificationProcessor(to_date=to_date)
         data_to_write = notification.get_data()
 
         sftp = SftpManager(rows=data_to_write)
-        sftp.transfer_file()
+
+        while True:
+            try:
+                sftp.transfer_file()
+            except Exception as e:
+                retry_count += 1
+                logging.warning('Retrying connection to SFTP.')
+                sleep(settings.NOTIFICATION_RETRY_TIMER)
+                if retry_count == settings.NOTIFICATION_ERROR_THRESHOLD:
+                    logging.exception(f'Failed to connect. Error - {e}')
+                    raise e
