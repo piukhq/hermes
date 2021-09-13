@@ -537,12 +537,6 @@ class MembershipCardView(
         sch_acc_entry = account.schemeaccountentry_set.get(user=request.user)
         update_fields, registration_fields = self._collect_updated_answers(scheme, scheme_questions)
 
-        if not sch_acc_entry.auth_provided:
-            raise CardAuthError(
-                "Cannot update authorise fields for Store type card. Card must be authorised "
-                "via POST /membership_cards endpoint first."
-            )
-
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(
@@ -550,6 +544,12 @@ class MembershipCardView(
             )
             metrics_route = MembershipCardAddRoute.REGISTER
         else:
+            if not sch_acc_entry.auth_provided:
+                raise CardAuthError(
+                    "Cannot update authorise fields for Store type card. Card must be authorised "
+                    "via POST /membership_cards endpoint first."
+                )
+
             if update_fields:
                 update_fields = detect_and_handle_escaped_unicode(update_fields)
 
