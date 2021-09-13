@@ -92,17 +92,18 @@ def async_balance_with_updated_credentials(
     instance_id: int, user_id: int, update_fields: dict, scheme_questions
 ) -> None:
     scheme_account = SchemeAccount.objects.get(id=instance_id)
+    scheme_account.delete_cached_balance()
+    scheme_account.delete_saved_balance()
 
     try:
-        # If updated credentials match existing credentials then there's nothing left to do
-        existing_answers = scheme_account.get_auth_credentials()
+        # If updated credentials match existing credentials then update balance to change the status from pending
+        existing_answers = scheme_account.get_auth_credentials(force_all=True)
         scheme_account.validate_auth_fields(update_fields, existing_answers)
+        scheme_account.update_cached_balance()
         return
     except ParseError:
         pass
 
-    scheme_account.delete_cached_balance()
-    scheme_account.delete_saved_balance()
     cache_key = 'scheme_{}'.format(scheme_account.pk)
     balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 

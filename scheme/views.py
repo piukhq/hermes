@@ -391,6 +391,42 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         return Response({"id": scheme_account.id, "status": new_status_code})
 
     @staticmethod
+    def set_user_authorisations_and_status(new_status_code: int, scheme_account: SchemeAccount) -> None:
+        mcard_entries = scheme_account.schemeaccountentry_set.all()
+
+        # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
+        #  Might need Midas to differentiate join and register journeys?
+        if new_status_code in [
+            SchemeAccount.ACCOUNT_ALREADY_EXISTS,
+            SchemeAccount.PRE_REGISTERED_CARD,
+            SchemeAccount.REGISTRATION_FAILED
+        ]:
+            logger.debug(
+                f"Failed Join - setting auth_provided to False for all users linked to "
+                f"Scheme Account (id={scheme_account.id})"
+            )
+            mcard_entries.update(auth_provided=False)
+
+        if (
+            all(entry.auth_provided is False for entry in mcard_entries)
+            and new_status_code not in [SchemeAccount.JOIN, SchemeAccount.ENROL_FAILED]
+        ):
+            # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
+            # for a user before this status update. This will set the card to Wallet only status instead of an
+            # error state when there are no authorised users linked to a card unless the card is in a join error state.
+            if scheme_account.status != SchemeAccount.WALLET_ONLY:
+                status_dict = dict(SchemeAccount.STATUSES)
+                logger.debug(
+                    f"Status for Scheme Account (id={scheme_account.id}) set to "
+                    f"{status_dict.get(SchemeAccount.WALLET_ONLY)} due "
+                    f"to zero users having an authorised link - "
+                    f"Status being overwritten: {status_dict.get(new_status_code)}"
+                )
+                scheme_account.status = SchemeAccount.WALLET_ONLY
+        else:
+            scheme_account.status = new_status_code
+
+    @staticmethod
     def process_new_status(new_status_code, previous_status, scheme_account):
         update_fields = []
 
@@ -418,16 +454,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         elif new_status_code not in pending_statuses:
             Payment.process_payment_void(scheme_account)
 
-        mcard_entries = scheme_account.schemeaccountentry_set.all()
-        if all(entry.auth_provided is False for entry in mcard_entries):
-            # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
-            # for a user before this status update. This will set the card to Wallet only status instead of an
-            # error state when there are no authorised users linked to a card.
-            if scheme_account.status != SchemeAccount.WALLET_ONLY:
-                scheme_account.status = SchemeAccount.WALLET_ONLY
-        else:
-            scheme_account.status = new_status_code
-
+        UpdateSchemeAccountStatus.set_user_authorisations_and_status(new_status_code, scheme_account)
         update_fields.append("status")
 
         if update_fields:

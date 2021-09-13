@@ -755,12 +755,18 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def get_auth_credentials(self) -> Dict[str, str]:
-        return {
-            answer.question.type: self._get_decrypted_answer(answer)
-            for answer in self.credential_answers
-            if answer.question.auth_field and answer.question.manual_question is False
-        }
+    def get_auth_credentials(self, force_all=False) -> Dict[str, str]:
+        auth_credentials = {}
+        if force_all:
+            for answer in self.credential_answers:
+                if answer.question.auth_field:
+                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
+        else:
+            for answer in self.credential_answers:
+                if answer.question.auth_field and answer.question.manual_question is False:
+                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
+
+        return auth_credentials
 
     @staticmethod
     def validate_auth_fields(auth_fields, existing_answers):

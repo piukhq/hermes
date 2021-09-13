@@ -465,7 +465,7 @@ CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
-worker_enable_remote_control = False
+CELERY_ENABLE_REMOTE_CONTROL = False
 
 SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
 
