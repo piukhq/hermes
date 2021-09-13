@@ -540,7 +540,13 @@ class MembershipCardView(
         if registration_fields:
             registration_fields = detect_and_handle_escaped_unicode(registration_fields)
             updated_account = self._handle_registration_route(
-                request.user, request.channels_permit, account, scheme, registration_fields, scheme_questions
+                request.user,
+                sch_acc_entry,
+                request.channels_permit,
+                account,
+                scheme,
+                registration_fields,
+                scheme_questions
             )
             metrics_route = MembershipCardAddRoute.REGISTER
         else:
@@ -605,12 +611,13 @@ class MembershipCardView(
 
     @staticmethod
     def _handle_registration_route(
-            user: CustomUser,
-            permit: Permit,
-            account: SchemeAccount,
-            scheme: Scheme,
-            registration_fields: dict,
-            scheme_questions: list,
+        user: CustomUser,
+        scheme_acc_entry: SchemeAccountEntry,
+        permit: Permit,
+        account: SchemeAccount,
+        scheme: Scheme,
+        registration_fields: dict,
+        scheme_questions: list,
     ) -> SchemeAccount:
         journey = SchemeAccountJourney.REGISTER.value
         HISTORY_CONTEXT.journey = journey
@@ -626,6 +633,11 @@ class MembershipCardView(
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
             data=registration_data, scheme_account=account, user=user, permit=permit, join_scheme=scheme
         )
+
+        # Todo: LOY-1953 - may need rework when implementing multi-wallet add_and_register.
+        scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.save(update_fields=["auth_provided"])
+
         account.set_async_join_status()
         async_registration.delay(
             user.id,
