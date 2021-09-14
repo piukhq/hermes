@@ -248,6 +248,7 @@ def notification_file(to_date=None):
         while True:
             try:
                 sftp.transfer_file()
+                return
             except Exception as e:
                 retry_count += 1
                 logging.warning('Retrying connection to SFTP.')
