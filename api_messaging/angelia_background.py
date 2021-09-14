@@ -54,3 +54,20 @@ def loyalty_card_add(message: dict):
     if not message.get("created") and payment_cards_to_link:
         auto_link_membership_to_payments(payment_cards_to_link,
                                          membership_card=message.get('loyalty_card_id'))
+
+
+def loyalty_card_register(message: dict):
+    logger.info('Handling loyalty_card REGISTER journey')
+
+    all_credentials_and_consents = {}
+
+    for cred in message["register_fields"]:
+        all_credentials_and_consents.update({cred["credential_slug"]: cred["value"]})
+
+    all_credentials_and_consents.update({"consents": message["consents"]})
+
+    pass
+
+    # Todo: refactor credentials and consents
+    # Todo: create Permit
+    # Todo: Hook into SchemeAccountJoinMixin.handle_join_request
