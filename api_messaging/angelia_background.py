@@ -5,7 +5,10 @@ from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
 from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments
+from scheme.models import SchemeAccount
 from user.models import CustomUser
+from hermes.channels import Permit
+from ubiquity.views import MembershipCardView
 
 import logging
 
@@ -27,7 +30,6 @@ def post_payment_account(message: dict):
 
     if message.get("created"):
         metis.enrol_new_payment_card(payment_card_account, run_async=False)
-
 
 def delete_payment_account(message: dict):
     logger.info('Handling DELETE/payment_account journey from Angelia.')
@@ -65,9 +67,24 @@ def loyalty_card_register(message: dict):
         all_credentials_and_consents.update({cred["credential_slug"]: cred["value"]})
 
     all_credentials_and_consents.update({"consents": message["consents"]})
+    user = CustomUser.objects.get(pk=message.get("user_id"))
 
-    pass
+    permit = Permit(bundle_id=message["channel"], user=user)
 
-    # Todo: refactor credentials and consents
-    # Todo: create Permit
-    # Todo: Hook into SchemeAccountJoinMixin.handle_join_request
+    account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+
+    sch_acc_entry = account.schemeaccountentry_set.get(user=user)
+
+    scheme = account.scheme
+
+    questions = scheme.questions.all()
+
+    MembershipCardView._handle_registration_route(
+        user=user,
+        permit=permit,
+        scheme_acc_entry=sch_acc_entry,
+        scheme_questions=questions,
+        registration_fields=all_credentials_and_consents,
+        scheme=scheme,
+        account=account
+    )
