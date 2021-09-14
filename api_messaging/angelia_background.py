@@ -42,20 +42,6 @@ def delete_payment_account(message: dict):
                                                                         channel=message['channel_id'])})
 
 
-def loyalty_card_add(message: dict):
-    logger.info('Handling loyalty_card ADD journey')
-    if message.get("auto_link"):
-        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
-            "payment_card_account_id", flat=True
-        )
-    else:
-        payment_cards_to_link = []
-
-    if not message.get("created") and payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link,
-                                         membership_card=message.get('loyalty_card_id'))
-
-
 def loyalty_card_register(message: dict):
     logger.info('Handling loyalty_card REGISTER journey')
 
@@ -71,3 +57,25 @@ def loyalty_card_register(message: dict):
     # Todo: refactor credentials and consents
     # Todo: create Permit
     # Todo: Hook into SchemeAccountJoinMixin.handle_join_request
+
+
+def loyalty_card_add_and_auth(message: dict):
+    logger.info('Handling loyalty_card ADD and Authorise journey')
+    if message.get("auto_link"):
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
+            "payment_card_account_id", flat=True
+        )
+    else:
+        payment_cards_to_link = []
+
+    if message.get("created"):
+        async_link(message.get("auth_fields"), message.get("loyalty_card_id"), message.get("user_id"),
+                   payment_cards_to_link)
+    elif payment_cards_to_link:
+        auto_link_membership_to_payments(
+            payment_cards_to_link,
+            scheme_account,
+            history_kwargs={
+                "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+            }
+        )
