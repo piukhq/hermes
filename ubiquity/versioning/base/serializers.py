@@ -728,6 +728,10 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 transactions = instance.transactions
                 vouchers = instance.vouchers
                 pll_links = instance.pll_links
+
+            elif not auth_provided and instance.status in SchemeAccount.JOIN_ACTION_REQUIRED:
+                status = instance.status
+
         except KeyError:
             logger.error(
                 f"Unable to determine auth status between user and SchemeAccount (id={instance.id})"
