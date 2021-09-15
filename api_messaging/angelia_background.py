@@ -4,6 +4,7 @@ from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
+from scheme.models import SchemeAccount
 from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link
 from user.models import CustomUser
 
@@ -72,10 +73,11 @@ def loyalty_card_add_and_auth(message: dict):
         async_link(message.get("auth_fields"), message.get("loyalty_card_id"), message.get("user_id"),
                    payment_cards_to_link)
     elif payment_cards_to_link:
+        scheme_account = SchemeAccount.objects.get(id=message.get("loyalty_card_id"))
         auto_link_membership_to_payments(
             payment_cards_to_link,
             scheme_account,
             history_kwargs={
-                "user_info": user_info(user_id=user.id, channel=self.request.channels_permit.bundle_id)
+                "user_info": user_info(user_id=message.get("user_id"), channel=message.get("channel"))
             }
         )
