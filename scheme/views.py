@@ -396,11 +396,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         # Todo: LOY-1953 - will need rework when implementing multi-wallet add_and_register to update single user.
         #  Might need Midas to differentiate join and register journeys?
-        if new_status_code in [
-            SchemeAccount.ACCOUNT_ALREADY_EXISTS,
-            SchemeAccount.PRE_REGISTERED_CARD,
-            SchemeAccount.REGISTRATION_FAILED
-        ]:
+        if new_status_code in SchemeAccount.JOIN_ACTION_REQUIRED:
             logger.debug(
                 f"Failed Join - setting auth_provided to False for all users linked to "
                 f"Scheme Account (id={scheme_account.id})"
@@ -409,7 +405,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         if (
             all(entry.auth_provided is False for entry in mcard_entries)
-            and new_status_code not in [SchemeAccount.JOIN, SchemeAccount.ENROL_FAILED]
+            and new_status_code not in SchemeAccount.JOIN_ACTION_REQUIRED
         ):
             # There is a chance that a PATCH attempt to update creds will fail and set auth_provided to False
             # for a user before this status update. This will set the card to Wallet only status instead of an
