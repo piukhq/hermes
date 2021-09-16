@@ -16,17 +16,17 @@ import sys
 from collections import namedtuple
 from enum import Enum
 
+from redis import ConnectionPool as Redis_ConnectionPool
 import sentry_sdk
 from sentry_sdk.integrations import celery, django
+from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
 
 from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
-from redis import ConnectionPool as Redis_ConnectionPool
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
+
 
 read_env()
 
