@@ -99,15 +99,26 @@ def async_balance_with_updated_credentials(
         # If updated credentials match existing credentials then update balance to change the status from pending
         existing_answers = scheme_account.get_auth_credentials(force_all=True)
         scheme_account.validate_auth_fields(update_fields, existing_answers)
+        logger.debug(
+            "Updated credentials match existing stored credentials. "
+            f"Updating balance for SchemeAccount (id={scheme_account.id})"
+        )
         scheme_account.update_cached_balance()
         return
     except ParseError:
         pass
 
+    logger.debug(
+        f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})"
+    )
     cache_key = 'scheme_{}'.format(scheme_account.pk)
     balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
     if balance:
+        logger.debug(
+            "Balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) - "
+            "Updating credentials."
+        )
         # update credentials and set all other linked users to unauthorised if they're different to the stored ones
         UpdateCredentialsMixin().update_credentials(scheme_account, update_fields, scheme_questions)
 
@@ -119,6 +130,10 @@ def async_balance_with_updated_credentials(
             ~Q(payment_card_account__user_set=user_id), scheme_account=scheme_account
         ).delete()
     else:
+        logger.debug(
+            f"No balance returned from balance call with updated credentials - SchemeAccount (id={scheme_account.id}) -"
+            " Unauthorising user."
+        )
         mcard_entries = SchemeAccountEntry.objects.filter(scheme_account=scheme_account).all()
         for entry in mcard_entries:
             if entry.user_id == user_id:

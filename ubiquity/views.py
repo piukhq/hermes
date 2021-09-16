@@ -679,12 +679,16 @@ class MembershipCardView(
         account.delete_saved_balance()
         account.delete_cached_balance()
 
+        sch_acc_entry = account.schemeaccountentry_set.get(user=request.user)
+
         if enrol_fields:
-            self._replace_with_enrol_fields(request, account, enrol_fields, scheme, payment_cards_to_link)
+            self._replace_with_enrol_fields(
+                request, sch_acc_entry, account, enrol_fields, scheme, payment_cards_to_link
+            )
             metrics_route = MembershipCardAddRoute.ENROL
         else:
             metrics_route = self._replace_add_and_auth_fields(
-                account, add_fields, auth_fields, scheme, payment_cards_to_link, user_id,
+                account, sch_acc_entry, add_fields, auth_fields, scheme, payment_cards_to_link, user_id,
                 request.channels_permit.bundle_id
             )
 
@@ -705,7 +709,12 @@ class MembershipCardView(
 
     @staticmethod
     def _replace_with_enrol_fields(
-            req: "Request", account: SchemeAccount, enrol_fields: dict, scheme: Scheme, payment_cards_to_link: list
+        req: "Request",
+        scheme_acc_entry: SchemeAccountEntry,
+        account: SchemeAccount,
+        enrol_fields: dict,
+        scheme: Scheme,
+        payment_cards_to_link: list
     ) -> None:
         enrol_fields = detect_and_handle_escaped_unicode(enrol_fields)
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
@@ -725,6 +734,9 @@ class MembershipCardView(
             if len(answer_types) > 1:
                 raise ParseError("Only one type of main answer should be provided")
             account.main_answer = validated_data[answer_types.pop()]
+
+        scheme_acc_entry.auth_provided = True
+        scheme_acc_entry.save(update_fields=["auth_provided"])
 
         account.schemeaccountcredentialanswer_set.all().delete()
         account.set_async_join_status(commit_change=False)
@@ -746,6 +758,7 @@ class MembershipCardView(
     def _replace_add_and_auth_fields(
         self,
         account: SchemeAccount,
+        scheme_acc_entry: SchemeAccountEntry,
         add_fields: dict,
         auth_fields: dict,
         scheme: Scheme,
@@ -764,6 +777,9 @@ class MembershipCardView(
             account.save()
         else:
             metrics_route = MembershipCardAddRoute.UPDATE
+
+            scheme_acc_entry.auth_provided = True
+            scheme_acc_entry.save(update_fields=["auth_provided"])
             self.replace_credentials_and_scheme(account, new_answers, scheme)
             account.update_barcode_and_card_number()
             account.set_pending()
