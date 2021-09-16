@@ -4,12 +4,22 @@ from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry
-from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments
+from scheme.models import SchemeAccount
+from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link
 from user.models import CustomUser
+from hermes.channels import Permit
+from ubiquity.views import MembershipCardView
 
 import logging
 
 logger = logging.getLogger("Messaging")
+
+
+def credentials_to_key_pairs(cred_list: list) -> dict:
+    ret = {}
+    for item in cred_list:
+        ret[item['credential_slug']] = item['value']
+    return ret
 
 
 def post_payment_account(message: dict):
@@ -42,8 +52,40 @@ def delete_payment_account(message: dict):
                                                                         channel=message['channel_id'])})
 
 
-def loyalty_card_add(message: dict):
-    logger.info('Handling loyalty_card ADD journey')
+def loyalty_card_register(message: dict):
+    logger.info('Handling loyalty_card REGISTER journey')
+
+    all_credentials_and_consents = {}
+
+    for cred in message["register_fields"]:
+        all_credentials_and_consents.update({cred["credential_slug"]: cred["value"]})
+
+    all_credentials_and_consents.update({"consents": message["consents"]})
+    user = CustomUser.objects.get(pk=message.get("user_id"))
+
+    permit = Permit(bundle_id=message["channel"], user=user)
+
+    account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+
+    sch_acc_entry = account.schemeaccountentry_set.get(user=user)
+
+    scheme = account.scheme
+
+    questions = scheme.questions.all()
+
+    MembershipCardView._handle_registration_route(
+        user=user,
+        permit=permit,
+        scheme_acc_entry=sch_acc_entry,
+        scheme_questions=questions,
+        registration_fields=all_credentials_and_consents,
+        scheme=scheme,
+        account=account
+    )
+
+
+def loyalty_card_add_and_auth(message: dict):
+    logger.info('Handling loyalty_card ADD and Authorise journey')
     if message.get("auto_link"):
         payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
             "payment_card_account_id", flat=True
@@ -51,6 +93,17 @@ def loyalty_card_add(message: dict):
     else:
         payment_cards_to_link = []
 
-    if not message.get("created") and payment_cards_to_link:
-        auto_link_membership_to_payments(payment_cards_to_link,
-                                         membership_card=message.get('loyalty_card_id'))
+    if message.get("created"):
+        auth_fields = credentials_to_key_pairs(message.get("auth_fields"))
+        async_link(
+            auth_fields, message.get("loyalty_card_id"), message.get("user_id"), payment_cards_to_link
+        )
+    elif payment_cards_to_link:
+        scheme_account = SchemeAccount.objects.get(id=message.get("loyalty_card_id"))
+        auto_link_membership_to_payments(
+            payment_cards_to_link,
+            scheme_account,
+            history_kwargs={
+                "user_info": user_info(user_id=message.get("user_id"), channel=message.get("channel"))
+            }
+        )
