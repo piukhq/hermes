@@ -13,6 +13,13 @@ import logging
 logger = logging.getLogger("Messaging")
 
 
+def credentials_to_key_pairs(cred_list: list) -> dict:
+    ret = {}
+    for item in cred_list:
+        ret[item['credential_slug']] = item['value']
+    return ret
+
+
 def post_payment_account(message: dict):
     # Calls Metis to enrol payment card if account was just created.
     logger.info('Handling onward POST/payment_account journey from Angelia. ')
@@ -70,8 +77,10 @@ def loyalty_card_add_and_auth(message: dict):
         payment_cards_to_link = []
 
     if message.get("created"):
-        async_link(message.get("auth_fields"), message.get("loyalty_card_id"), message.get("user_id"),
-                   payment_cards_to_link)
+        auth_fields = credentials_to_key_pairs(message.get("auth_fields"))
+        async_link(
+            auth_fields, message.get("loyalty_card_id"), message.get("user_id"), payment_cards_to_link
+        )
     elif payment_cards_to_link:
         scheme_account = SchemeAccount.objects.get(id=message.get("loyalty_card_id"))
         auto_link_membership_to_payments(
