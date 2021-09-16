@@ -24,12 +24,14 @@ from django.template.defaultfilters import truncatewords
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
+from rest_framework.exceptions import ParseError
 
 from analytics.api import update_scheme_account_attribute, update_scheme_account_attribute_new_status
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
-from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD
+from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD, \
+    POSTCODE, CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS
 from scheme.encryption import AESCipher
 from ubiquity.reason_codes import REASON_CODES
 from ubiquity.models import PaymentCardSchemeEntry
@@ -753,12 +755,47 @@ class SchemeAccount(models.Model):
 
         return required_credentials.difference(set(credential_types))
 
-    def get_auth_credentials(self) -> Dict[str, str]:
-        return {
-            answer.question.type: self._get_decrypted_answer(answer)
-            for answer in self.credential_answers
-            if answer.question.auth_field and answer.question.manual_question is False
-        }
+    def get_auth_credentials(self, force_all=False) -> Dict[str, str]:
+        auth_credentials = {}
+        if force_all:
+            for answer in self.credential_answers:
+                if answer.question.auth_field:
+                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
+        else:
+            for answer in self.credential_answers:
+                if answer.question.auth_field and answer.question.manual_question is False:
+                    auth_credentials[answer.question.type] = self._get_decrypted_answer(answer)
+
+        return auth_credentials
+
+    @staticmethod
+    def validate_auth_fields(auth_fields, existing_answers):
+        for question_type, existing_value in existing_answers.items():
+            provided_value = auth_fields.get(question_type)
+
+            if provided_value and question_type in DATE_TYPE_CREDENTIALS:
+                try:
+                    provided_value = arrow.get(provided_value, "DD/MM/YYYY").date()
+                except ParseError:
+                    provided_value = arrow.get(provided_value).date()
+
+                existing_value = arrow.get(existing_value).date()
+
+            elif (
+                question_type not in CASE_SENSITIVE_CREDENTIALS
+                and isinstance(provided_value, str)
+                and isinstance(existing_value, str)
+            ):
+
+                if question_type == POSTCODE:
+                    provided_value = "".join(provided_value.upper().split())
+                    existing_value = "".join(existing_value.upper().split())
+                else:
+                    provided_value = provided_value.lower()
+                    existing_value = existing_value.lower()
+
+            if provided_value != existing_value:
+                raise ParseError("This card already exists, but the provided credentials do not match.")
 
     @cached_property
     def credential_answers(self):
@@ -773,7 +810,7 @@ class SchemeAccount(models.Model):
             answer = AESCipher(AESKeyNames.LOCAL_AES_KEY).decrypt(answer)
         return answer
 
-    def credentials(self):
+    def credentials(self, credentials_override: dict = None):
         credentials = self._collect_credentials()
         if self.missing_credentials(credentials.keys()) and self.status != SchemeAccount.PENDING:
             # temporary fix for iceland
@@ -798,6 +835,9 @@ class SchemeAccount(models.Model):
 
         saved_consents = self.collect_pending_consents()
         credentials.update(consents=saved_consents)
+
+        if credentials_override:
+            credentials.update(credentials_override)
 
         serialized_credentials = json.dumps(credentials)
         return AESCipher(AESKeyNames.AES_KEY).encrypt(serialized_credentials).decode('utf-8')
@@ -857,16 +897,6 @@ class SchemeAccount(models.Model):
             points['balance'] = points.get('balance')  # serializers.DecimalField does not allow blank fields
             points['is_stale'] = False
 
-            if settings.ENABLE_DAEDALUS_MESSAGING:
-                settings.TO_DAEDALUS.send(
-                    {"type": 'membership_card_update',
-                     "model": 'schemeaccount',
-                     "id": str(self.id),
-                     "user_set": ','.join([str(u.id) for u in self.user_set.all()]),
-                     "rep": repr(self)},
-                    headers={'X-content-type': 'application/json'}
-                )
-
         # When receiving a 500 error from Midas, keep SchemeAccount active only
         # if it's already active.
         elif response.status_code >= 500 and current_status == SchemeAccount.ACTIVE:
@@ -875,7 +905,7 @@ class SchemeAccount(models.Model):
 
         return points
 
-    def get_midas_balance(self, journey):
+    def get_midas_balance(self, journey, credentials_override: dict = None):
         points = None
         old_status = self.status
 
@@ -883,7 +913,7 @@ class SchemeAccount(models.Model):
             return points
 
         try:
-            credentials = self.credentials()
+            credentials = self.credentials(credentials_override)
             if not credentials:
                 return points
             response = self._get_balance(credentials, journey)
@@ -934,9 +964,9 @@ class SchemeAccount(models.Model):
         else:
             return JourneyTypes.LINK
 
-    def _update_cached_balance(self, cache_key):
+    def update_cached_balance(self, cache_key, credentials_override: dict = None):
         journey = self.get_journey_type()
-        balance = self.get_midas_balance(journey=journey)
+        balance = self.get_midas_balance(journey=journey, credentials_override=credentials_override)
         vouchers = None
 
         if balance:
@@ -1040,7 +1070,7 @@ class SchemeAccount(models.Model):
 
         return update_fields
 
-    def get_cached_balance(self, user_consents=None):
+    def get_cached_balance(self, credentials_override: dict = None):
         # Gets scheme account balance from cache if existing, else updates the cache.
 
         cache_key = 'scheme_{}'.format(self.pk)
@@ -1049,7 +1079,7 @@ class SchemeAccount(models.Model):
         vouchers = None  # should we cache these too?
 
         if not balance:
-            balance, vouchers = self._update_cached_balance(cache_key)
+            balance, vouchers = self.update_cached_balance(cache_key, credentials_override)
 
         update_fields = self.check_balance_and_vouchers(balance=balance, vouchers=vouchers)
         status_update = old_status != self.status

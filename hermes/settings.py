@@ -20,12 +20,13 @@ import sentry_sdk
 from sentry_sdk.integrations import celery, django
 from sentry_sdk.integrations.redis import RedisIntegration
 
-from daedalus_messaging.broker import MessagingService
 from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
 from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.redis import RedisIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
 
 read_env()
 
@@ -58,11 +59,11 @@ LOCAL_APPS = (
     "order",
     "ubiquity",
     "history",
-    "daedalus_messaging",
     "periodic_retry",
     "magic_link",
     "scripts",
     "prometheus.apps.PrometheusPusherConfig",
+    "api_messaging"
 )
 
 INSTALLED_APPS = (
@@ -336,7 +337,8 @@ if HERMES_SENTRY_DSN:
         environment=HERMES_SENTRY_ENV,
         release=__version__,
         integrations=[DjangoIntegration(transaction_style="url", middleware_spans=False),
-                      RedisIntegration()],
+                      RedisIntegration(),
+                      CeleryIntegration()],
         traces_sample_rate=SENTRY_SAMPLE_RATE,
         send_default_pii=False,
         before_send=strip_sensitive_data,
@@ -458,11 +460,13 @@ INFLUX_DB_CONFIG = {
     "password": env_var("INFLUX_PASSWORD", ""),
 }
 
+# Celery
 CELERY_BROKER_URL = env_var("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
 CELERY_TASK_DEFAULT_QUEUE = env_var("CELERY_TASK_DEFAULT_QUEUE", "ubiquity-async-midas")
 CELERY_TASK_SERIALIZER = "pickle"
 CELERY_ACCEPT_CONTENT = ["pickle", "json"]
 CELERY_RESULT_SERIALIZER = "pickle"
+CELERY_ENABLE_REMOTE_CONTROL = False
 
 SPREEDLY_BASE_URL = env_var("SPREEDLY_BASE_URL", "")
 
@@ -490,18 +494,6 @@ BIN_TO_PROVIDER = {
 INTERNAL_SERVICE_BUNDLE = env_var("INTERNAL_SERVICE_BUNDLE", "com.bink.daedalus")
 JWT_EXPIRY_TIME = env_var("JWT_EXPIRY_TIME", 600)
 
-ENABLE_DAEDALUS_MESSAGING = env_var("ENABLE_DAEDALUS_MESSAGING", False)
-
-if ENABLE_DAEDALUS_MESSAGING:
-    TO_DAEDALUS = MessagingService(
-        user=env_var("RABBIT_USER", "guest"),  # eg 'guest'
-        password=env_var("RABBIT_PASSWORD", "guest"),  # eg 'guest'
-        queue_name=env_var("TO_QUEUE", "to_daedalus"),  # eg 'to_daedalus'
-        host=env_var("RABBIT_HOST", "127.0.0.1"),  # eg '127.0.0.1'
-        port=env_var("RABBIT_PORT", "5672"),  # eg '5672'
-    )
-else:
-    TO_DAEDALUS = None
 
 VAULT_CONFIG = dict(
     # Hashicorp vault settings for secrets retrieval
@@ -517,6 +509,7 @@ VAULT_CONFIG = dict(
     CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
     SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
     AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes-keys"),
+    BARCLAYS_SFTP_VAULT_PATH=env_var("BARCLAYS_SFTP_VAULT_PATH", "/barclays-hermes-sftp")
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")
@@ -548,3 +541,23 @@ PROMETHEUS_PUSH_GATEWAY = env_var('PROMETHEUS_PUSH_GATEWAY', 'http://localhost:9
 PROMETHEUS_JOB = "hermes"
 
 ENCRYPTED_VALUES_LENGTH_CONTROL = int(env_var("ENCRYPTED_VALUES_LENGTH_CONTROL", "255"))
+
+# RABBIT
+TIME_OUT = env_var("TIMEOUT", 4)
+RABBIT_PASSWORD = env_var("RABBIT_PASSWORD", "guest")
+RABBIT_USER = env_var("RABBIT_USER", "guest")
+RABBIT_HOST = env_var("RABBIT_HOST", "127.0.0.1")
+RABBIT_PORT = env_var("RABBIT_PORT", 5672)
+RABBIT_DSN = env_var("RABBIT_DSN", f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}@{RABBIT_HOST}:{RABBIT_PORT}/")
+
+# SFTP DETAILS
+SFTP_DIRECTORY = env_var("SFTP_DIRECTORY", "uploads")
+
+# 2 hours
+NOTIFICATION_PERIOD = int(env_var("NOTIFICATION_PERIOD", 7200))
+NOTIFICATION_ERROR_THRESHOLD = int(env_var("NOTIFICATION_ERROR_THRESHOLD", 5))
+# 2 minutes
+NOTIFICATION_RETRY_TIMER = int(env_var("NOTIFICATION_RETRY_TIMER", 120))
+NOTIFICATION_RUN = env_var("NOTIFICATION_RUN", False)
+# Barclays notification file suffix
+BARCLAYS_SFTP_FILE_SUFFIX = env_var("BARCLAYS_SFTP_FILE_SUFFIX", "_DTUIL05787")
