@@ -152,7 +152,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_scheme_account_history()
 
             self.assertEqual(len(data), 1)
@@ -194,7 +194,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_scheme_account_history()
 
             self.assertFalse(data)
@@ -245,7 +245,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_scheme_account_history()
 
             self.assertFalse(data)
@@ -289,7 +289,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_scheme_account_history()
 
             expected_data = [
@@ -340,7 +340,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_scheme_account_history()
 
             expected_data = [
@@ -399,7 +399,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
 
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
-            test_notification = NotificationProcessor(to_date=timezone.now())
+            test_notification = NotificationProcessor(False)
             data = test_notification.get_deleted_scheme_account_entry_history()
 
             expected_data = [
