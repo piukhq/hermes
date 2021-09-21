@@ -99,7 +99,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             payment_card_account__status=PaymentCardAccount.ACTIVE
             )
         cls.auth_fields = [{"credential_slug": "last_name", "value": "Jones"},
-                            {"credential_slug": "postcode", "value": "RGB 114"}]
+                           {"credential_slug": "postcode", "value": "RGB 114"}]
         cls.consents = [{"id": 15, "value": "true"}]
         cls.loyalty_card_auth_autolink_created_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
@@ -150,7 +150,8 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.angelia_background.loyalty_card_authorise')
     def loyalty_card_add_and_authorise_routing(self, mock_loyalty_card_authorise):
-        route.route_message(self.loyalty_card_add_and_authorise_headers, self.loyalty_card_auth_autolink_created_message)
+        route.route_message(self.loyalty_card_add_and_authorise_headers,
+                            self.loyalty_card_auth_autolink_created_message)
 
         self.assertTrue(mock_loyalty_card_authorise.called)
 
