@@ -159,7 +159,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.angelia_background.MembershipCardView._handle_registration_route')
     def test_loyalty_card_register_journey(self, mock_handle_registration):
-        """Tests routing for an existing ADD loyalty card without auto-linking """
+        """Tests routing for an existing ADD loyalty card without auto-linking. """
 
         angelia_background.loyalty_card_register(self.loyalty_card_register_message)
 
