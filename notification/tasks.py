@@ -73,10 +73,11 @@ class SftpManager:
 
 
 class NotificationProcessor:
-    def __init__(self, to_date=None):
+    def __init__(self, initiation=True):
         self.client_application_name = 'Barclays Mobile Banking'
         self.channel = 'com.barclays.bmb'
-        self.to_date = to_date
+        self.initiation = initiation
+        self.to_date = timezone.now()
         self.change_type = 'status'
 
     def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
@@ -138,7 +139,8 @@ class NotificationProcessor:
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
-            scheme_account__updated__range=[from_datetime, self.to_date]
+            scheme_account__updated__gte=from_datetime,
+            scheme_account__updated__lte=self.to_date
         )
 
         for scheme_association in barclays_scheme_account_entries:
@@ -219,7 +221,7 @@ class NotificationProcessor:
             user__client__name=self.client_application_name)
 
         # initiation file data
-        if not self.to_date:
+        if self.initiation:
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',
@@ -237,10 +239,10 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(to_date=None):
+def notification_file(initiation=True):
     retry_count = 0
     if settings.NOTIFICATION_RUN:
-        notification = NotificationProcessor(to_date=to_date)
+        notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
 
         sftp = SftpManager(rows=data_to_write)
