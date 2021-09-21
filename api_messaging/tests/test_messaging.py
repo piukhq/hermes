@@ -98,27 +98,34 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             payment_card_account__psp_token="test_token",
             payment_card_account__status=PaymentCardAccount.ACTIVE
             )
-        cls.loyalty_card_add_autolink_created_message = {
+        cls.auth_fields = [{"credential_slug": "last_name", "value": "Jones"},
+                            {"credential_slug": "postcode", "value": "RGB 114"}]
+        cls.consents = [{"id": 15, "value": "true"}]
+        cls.loyalty_card_auth_autolink_created_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": True,
             "created": True,
+            "authorise_fields": cls.auth_fields
         }
-        cls.loyalty_card_add_autolink_linked_message = {
+        cls.loyalty_card_auth_autolink_existing_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": True,
             "created": False,
+            "authorise_fields": cls.auth_fields
         }
-        cls.loyalty_card_add_no_autolink_linked_message = {
+        cls.loyalty_card_auth_no_autolink_existing_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": False,
             "created": False,
+            "authorise_fields": cls.auth_fields
         }
+
         cls.loyalty_card_register_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
@@ -127,33 +134,55 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "created": False,
             "loyalty_plan_id": cls.scheme_account.id,
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
-            "consents": [{"id": 15, "value": "True"}]
+            "consents": cls.consents
         }
-        cls.loyalty_card_add_headers = {"X-http-path": "loyalty_card_add"}
+
+        cls.loyalty_card_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
+        cls.loyalty_card_add_and_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
+        cls.loyalty_card_register_headers = {"X-http-path": "loyalty_card_register"}
         cls.fail_headers = {"X-http-path": "failing_test"}
 
-    @patch('api_messaging.angelia_background.loyalty_card_add')
-    def loyalty_card_add_routing(self, mock_loyalty_card_add):
-        route.route_message(self.loyalty_card_add_headers, self.loyalty_card_add_autolink_created_message)
+    @patch('api_messaging.angelia_background.loyalty_card_authorise')
+    def loyalty_card_auth_routing(self, mock_loyalty_card_authorise):
+        route.route_message(self.loyalty_card_authorise_headers, self.loyalty_card_auth_autolink_created_message)
 
-        self.assertTrue(mock_loyalty_card_add.called)
+        self.assertTrue(mock_loyalty_card_authorise.called)
+
+    @patch('api_messaging.angelia_background.loyalty_card_authorise')
+    def loyalty_card_add_and_authorise_routing(self, mock_loyalty_card_authorise):
+        route.route_message(self.loyalty_card_add_and_authorise_headers, self.loyalty_card_auth_autolink_created_message)
+
+        self.assertTrue(mock_loyalty_card_authorise.called)
+
+    @patch('api_messaging.angelia_background.loyalty_card_register')
+    def loyalty_card_register_routing(self, mock_loyalty_card_register):
+        route.route_message(self.loyalty_card_register_headers, self.loyalty_card_register_message)
+
+        self.assertTrue(mock_loyalty_card_register.called)
 
     def test_failed_route(self):
         with self.assertRaises(InvalidMessagePath):
-            route.route_message(self.fail_headers, self.loyalty_card_add_autolink_created_message)
+            route.route_message(self.fail_headers, self.loyalty_card_auth_autolink_created_message)
+
+    @patch('api_messaging.angelia_background.async_link')
+    def test_loyalty_card_authorise_created(self, mock_async_link):
+        """Tests AUTH routing for an existing loyalty card with auto-linking"""
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_created_message)
+
+        self.assertTrue(mock_async_link.called)
 
     @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
-    def test_loyalty_card_authorise_linked(self, mock_auto_link_function):
-        """Tests routing for an existing ADD loyalty card with auto-linking"""
-        angelia_background.loyalty_card_authorise(self.loyalty_card_add_autolink_linked_message)
+    def test_loyalty_card_authorise_existing(self, mock_auto_link_function):
+        """Tests AUTH routing for an existing loyalty card with auto-linking"""
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_existing_message)
 
         self.assertTrue(mock_auto_link_function.called)
 
     @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
-    def test_loyalty_card_authorise_autolink(self, mock_auto_link_function):
-        """Tests routing for an existing ADD loyalty card without auto-linking """
+    def test_loyalty_card_authorise_no_autolink(self, mock_auto_link_function):
+        """Tests AUTH routing for an existing loyalty card without auto-linking """
 
-        angelia_background.loyalty_card_authorise(self.loyalty_card_add_no_autolink_linked_message)
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_no_autolink_existing_message)
 
         self.assertFalse(mock_auto_link_function.called)
 
