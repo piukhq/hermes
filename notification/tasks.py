@@ -66,11 +66,13 @@ class SftpManager:
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
                 logging.info(f'File: {filename}, uploaded.')
-                return
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
 
+        logger.info('Connection closed')
+        sftp_client.close()
+        return
 
 class NotificationProcessor:
     def __init__(self, initiation=True):
