@@ -70,9 +70,10 @@ class SftpManager:
             logger.exception("File not found.")
             raise e
 
-        logger.info('Connection closed')
         sftp_client.close()
+        logger.info('Connection closed')
         return
+
 
 class NotificationProcessor:
     def __init__(self, initiation=True):
