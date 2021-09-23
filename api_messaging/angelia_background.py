@@ -3,7 +3,7 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
-from ubiquity.models import PaymentCardAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from scheme.models import SchemeAccount
 from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link
 from user.models import CustomUser
@@ -22,7 +22,13 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
     return ret
 
 
-def post_payment_account(message: dict):
+def set_auth_provided(scheme_account: SchemeAccount, user: CustomUser, new_value: bool) -> None:
+    link = SchemeAccountEntry.objects.get(scheme_account_id=scheme_account.id, user_id=user.id)
+    link.auth_provided = new_value
+    link.save(update_fields=['auth_provided'])
+
+
+def post_payment_account(message: dict) -> None:
     # Calls Metis to enrol payment card if account was just created.
     logger.info('Handling onward POST/payment_account journey from Angelia. ')
 
@@ -39,7 +45,7 @@ def post_payment_account(message: dict):
         metis.enrol_new_payment_card(payment_card_account, run_async=False)
 
 
-def delete_payment_account(message: dict):
+def delete_payment_account(message: dict) -> None:
     logger.info('Handling DELETE/payment_account journey from Angelia.')
     query = {"user_id": message['user_id'],
              "payment_card_account_id": message['payment_account_id']}
@@ -52,25 +58,20 @@ def delete_payment_account(message: dict):
                                                                         channel=message['channel_id'])})
 
 
-def loyalty_card_register(message: dict):
+def loyalty_card_register(message: dict) -> None:
     logger.info('Handling loyalty_card REGISTER journey')
 
     all_credentials_and_consents = {}
+    all_credentials_and_consents.update(credentials_to_key_pairs(message.get("register_fields")))
 
-    for cred in message["register_fields"]:
-        all_credentials_and_consents.update({cred["credential_slug"]: cred["value"]})
+    if message.get("consents"):
+        all_credentials_and_consents.update({"consents": message["consents"]})
 
-    all_credentials_and_consents.update({"consents": message["consents"]})
     user = CustomUser.objects.get(pk=message.get("user_id"))
-
     permit = Permit(bundle_id=message["channel"], user=user)
-
     account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
-
     sch_acc_entry = account.schemeaccountentry_set.get(user=user)
-
     scheme = account.scheme
-
     questions = scheme.questions.all()
 
     MembershipCardView._handle_registration_route(
@@ -84,8 +85,9 @@ def loyalty_card_register(message: dict):
     )
 
 
-def loyalty_card_add_and_auth(message: dict):
-    logger.info('Handling loyalty_card ADD and Authorise journey')
+def loyalty_card_authorise(message: dict) -> None:
+
+    logger.info('Handling loyalty_card authorisation')
     if message.get("auto_link"):
         payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
             "payment_card_account_id", flat=True
@@ -93,17 +95,33 @@ def loyalty_card_add_and_auth(message: dict):
     else:
         payment_cards_to_link = []
 
+    all_credentials_and_consents = {}
+    all_credentials_and_consents.update(credentials_to_key_pairs(message.get("authorise_fields")))
+
+    if message.get("consents"):
+        all_credentials_and_consents.update({"consents": message["consents"]})
+
+    user = CustomUser.objects.get(pk=message.get("user_id"))
+    account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+
+    set_auth_provided(account, user, True)
+
     if message.get("created"):
-        auth_fields = credentials_to_key_pairs(message.get("auth_fields"))
-        async_link(
-            auth_fields, message.get("loyalty_card_id"), message.get("user_id"), payment_cards_to_link
-        )
+        # For an Add_and_auth journey, 'created' indicates a newly created account
+        # For an Authorise journey, 'created' equates to primary_auth (i.e. that this user is free to set and 'control'
+        # primary auth credentials)
+        account.set_pending()
+        async_link(auth_fields=all_credentials_and_consents,
+                   scheme_account_id=account.id,
+                   user_id=user.id,
+                   payment_cards_to_link=payment_cards_to_link,
+                   )
+
     elif payment_cards_to_link:
-        scheme_account = SchemeAccount.objects.get(id=message.get("loyalty_card_id"))
-        auto_link_membership_to_payments(
-            payment_cards_to_link,
-            scheme_account,
-            history_kwargs={
-                "user_info": user_info(user_id=message.get("user_id"), channel=message.get("channel"))
-            }
-        )
+        auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link,
+                                         membership_card=account,
+                                         history_kwargs={
+                                             "user_info": user_info(
+                                                 user_id=user.id, channel=message.get("channel")
+                                             ),
+                                         })
