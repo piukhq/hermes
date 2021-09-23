@@ -7,7 +7,7 @@ from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessa
 import logging
 import json
 
-logger = logging.getLogger("Messaging")
+logger = logging.getLogger("messaging")
 
 
 def on_message_received(body, message):

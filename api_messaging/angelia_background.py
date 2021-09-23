@@ -12,7 +12,7 @@ from ubiquity.views import MembershipCardView
 
 import logging
 
-logger = logging.getLogger("Messaging")
+logger = logging.getLogger("messaging")
 
 
 def credentials_to_key_pairs(cred_list: list) -> dict:
