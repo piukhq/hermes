@@ -1,5 +1,6 @@
 from api_messaging import angelia_background
 from django.http import Http404
+from django.db import close_old_connections
 from django.core.exceptions import ObjectDoesNotExist
 from urllib3.exceptions import RequestError
 from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessagePath
@@ -12,6 +13,11 @@ logger = logging.getLogger("messaging")
 
 def on_message_received(body, message):
     logger.info("Angelia message received")
+
+    try:
+        close_old_connections()
+    except Exception as err:
+        logger.exception("Failed to prune old connections", exc_info=err)
 
     try:
         route_message(message.headers, json.loads(body))
