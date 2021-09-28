@@ -206,7 +206,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.angelia_background.deleted_membership_card_cleanup')
     def test_delete_loyalty_card_journey(self, mock_deleted_card_cleanup):
-        """Tests routing for an existing ADD loyalty card without auto-linking. """
+        """Tests successful routing for a DELETE loyalty card journey. """
 
         angelia_background.delete_loyalty_card(self.delete_loyalty_card_message)
 
