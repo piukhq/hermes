@@ -51,6 +51,7 @@ def route_message(headers: dict, message: dict):
         "loyalty_card_register": angelia_background.loyalty_card_register,
         "loyalty_card_add_and_auth": angelia_background.loyalty_card_authorise,
         "loyalty_card_authorise": angelia_background.loyalty_card_authorise,
+        "delete_loyalty_card": angelia_background.delete_loyalty_card
     }
 
     try:
