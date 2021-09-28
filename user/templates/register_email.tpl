@@ -946,7 +946,7 @@ none;-ms-interpolation-mode: bicubic;" class="mcnImage" align="middle" width="16
                                                 0;padding-bottom:
                                                 0;text-align:
                                                 center;mso-line-height-rule:
-exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="https://www.facebook.com/hellobink" title="" class="" target="_blank" style="mso-line-height-rule:
+exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;" valign="top"> <a moz-do-not-send="true" href="https://www.facebook.com/BinkLoyalty" title="" class="" target="_blank" style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;"> <img moz-do-not-send="true" alt="" src="https://gallery.mailchimp.com/ec044a65c525952557abbcb26/images/3e294902-30d4-4993-b1d7-6a32e45065ea.jpg" style="max-width:
                                                     2000px;padding-bottom:
                                                     0;display: inline
@@ -1238,3 +1238,4 @@ exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
   </body>
 
 {% endblock %}
+
