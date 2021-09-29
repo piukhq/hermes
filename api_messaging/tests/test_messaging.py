@@ -137,6 +137,15 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "consents": cls.consents
         }
 
+        cls.delete_loyalty_card_message = {
+            "loyalty_card_id": cls.scheme_account_entry.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "channel": "com.bink.wallet",
+            "auto_link": False,
+            "created": True,
+            "loyalty_plan_id": cls.scheme_account.id,
+        }
+
         cls.loyalty_card_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
         cls.loyalty_card_add_and_authorise_headers = {"X-http-path": "loyalty_card_authorise"}
         cls.loyalty_card_register_headers = {"X-http-path": "loyalty_card_register"}
@@ -194,3 +203,11 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         angelia_background.loyalty_card_register(self.loyalty_card_register_message)
 
         self.assertTrue(mock_handle_registration.called)
+
+    @patch('api_messaging.angelia_background.deleted_membership_card_cleanup')
+    def test_delete_loyalty_card_journey(self, mock_deleted_card_cleanup):
+        """Tests successful routing for a DELETE loyalty card journey. """
+
+        angelia_background.delete_loyalty_card(self.delete_loyalty_card_message)
+
+        self.assertTrue(mock_deleted_card_cleanup.called)

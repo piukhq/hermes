@@ -5,14 +5,16 @@ from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from scheme.models import SchemeAccount
-from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link
+from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link, \
+    deleted_membership_card_cleanup
 from user.models import CustomUser
 from hermes.channels import Permit
 from ubiquity.views import MembershipCardView
 
 import logging
+import arrow
 
-logger = logging.getLogger("Messaging")
+logger = logging.getLogger("messaging")
 
 
 def credentials_to_key_pairs(cred_list: list) -> dict:
@@ -125,3 +127,21 @@ def loyalty_card_authorise(message: dict) -> None:
                                                  user_id=user.id, channel=message.get("channel")
                                              ),
                                          })
+
+
+def delete_loyalty_card(message: dict) -> None:
+
+    user = CustomUser.objects.get(pk=message.get("user_id"))
+    account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+
+    SchemeAccountEntry.objects.filter(scheme_account=account, user=user).delete()
+    deleted_membership_card_cleanup(
+        account.id,
+        arrow.utcnow().format(),
+        user.id,
+        history_kwargs={
+            "user_info": user_info(
+                user_id=user.id, channel=message.get("channel")
+            )
+        },
+    )

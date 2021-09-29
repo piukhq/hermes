@@ -50,7 +50,7 @@ class SendingService(BaseMessaging):
         self.connect()
         self.consumer = None
         if log_to is None:
-            self.logger = logging.getLogger("Send_Messaging")
+            self.logger = logging.getLogger("messaging")
         else:
             self.logger = log_to
 
@@ -111,7 +111,7 @@ class ReceivingService(BaseMessaging):
         self.callbacks = callbacks
         self.on_time_out = on_time_out
         if log_to is None:
-            self.logger = logging.getLogger("Receive_Messaging")
+            self.logger = logging.getLogger("messaging")
         else:
             self.logger = log_to
         logging.getLogger('amqp').setLevel(logging.WARNING)
