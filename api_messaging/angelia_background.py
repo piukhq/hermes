@@ -76,6 +76,18 @@ def loyalty_card_register(message: dict) -> None:
     scheme = account.scheme
     questions = scheme.questions.all()
 
+    if message.get("auto_link"):
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=user.id).values_list(
+            "payment_card_account_id", flat=True
+        )
+        if payment_cards_to_link:
+            auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link,
+                                             membership_card=account,
+                                             history_kwargs={
+                                                 "user_info": user_info(
+                                                     user_id=user.id, channel=message.get("channel")
+                                                 )})
+
     MembershipCardView._handle_registration_route(
         user=user,
         permit=permit,

@@ -130,7 +130,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
-            "auto_link": False,
+            "auto_link": True,
             "created": False,
             "loyalty_plan_id": cls.scheme_account.id,
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
@@ -196,13 +196,15 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
         self.assertFalse(mock_auto_link_function.called)
 
+    @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
     @patch('api_messaging.angelia_background.MembershipCardView._handle_registration_route')
-    def test_loyalty_card_register_journey(self, mock_handle_registration):
-        """Tests routing for an existing ADD loyalty card without auto-linking. """
+    def test_loyalty_card_register_journey(self, mock_auto_link_cards, mock_handle_registration):
+        """Tests routing for Registering a loyalty card """
 
         angelia_background.loyalty_card_register(self.loyalty_card_register_message)
 
         self.assertTrue(mock_handle_registration.called)
+        self.assertTrue(mock_auto_link_cards.called)
 
     @patch('api_messaging.angelia_background.deleted_membership_card_cleanup')
     def test_delete_loyalty_card_journey(self, mock_deleted_card_cleanup):
