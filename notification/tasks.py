@@ -211,7 +211,7 @@ class NotificationProcessor:
                         user[0].external_id,
                         scheme_account[0].scheme.slug,
                         scheme_account[0].status,
-                        history.created
+                        association.created
                     ])
 
                 # Delete row
