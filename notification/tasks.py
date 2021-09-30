@@ -242,9 +242,7 @@ class NotificationProcessor:
 
         else:
             historical_scheme_accounts = self.get_scheme_account_history()
-            print(historical_scheme_accounts)
             historical_scheme_account_association = self.get_scheme_account_entry_history()
-            print(historical_scheme_account_association)
 
             rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
@@ -257,10 +255,6 @@ def notification_file(initiation=True):
     if settings.NOTIFICATION_RUN:
         notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
-
-        # print(data_to_write)
-
-        return
 
         sftp = SftpManager(rows=data_to_write)
 
