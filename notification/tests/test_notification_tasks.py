@@ -328,6 +328,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
                 change_type=HistoricalSchemeAccount.UPDATE,
                 instance_id=self.scheme_account.id,
                 change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_MFA},
+                channel=self.barclays_channel
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
                 body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
                 channel=self.barclays_channel
             ).save()
@@ -345,18 +353,14 @@ class TestNotificationTask(GlobalMockAPITestCase):
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
             test_notification = NotificationProcessor(False)
-            data = test_notification.get_scheme_account_history()
+            data = test_notification.get_scheme_account_entry_history()
 
             expected_data = [
-                [self.user.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
-                [self.user_two.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
-                [self.user_three.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime]
+                self.user_three.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, self.mocked_datetime
             ]
 
-            self.assertEqual(len(data), 3)
-            self.assertIn(expected_data[0], data)
-            self.assertIn(expected_data[1], data)
-            self.assertIn(expected_data[2], data)
+            self.assertEqual(len(data), 1)
+            self.assertIn(expected_data, data)
 
     def test_deleted_scheme_account_get_scheme_account_history(self):
         HistoricalSchemeAccountEntry(
