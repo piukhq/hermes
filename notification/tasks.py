@@ -178,7 +178,6 @@ class NotificationProcessor:
             channel=self.channel,
             created__range=[from_datetime, self.to_date]
         )
-
         for association in historical_scheme_account_association:
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
@@ -205,6 +204,15 @@ class NotificationProcessor:
                                 state,
                                 history.created
                             ])
+
+                    # Delete row
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        DELETED,
+                        association.created
+                    ])
+
                 else:
                     # Gets the current status when the loyalty card is added to another wallet
                     data.append([
@@ -213,14 +221,6 @@ class NotificationProcessor:
                         scheme_account[0].status,
                         association.created
                     ])
-
-                # Delete row
-                data.append([
-                    user[0].external_id,
-                    scheme_account[0].scheme.slug,
-                    DELETED,
-                    association.created
-                ])
 
         return data
 
@@ -242,7 +242,9 @@ class NotificationProcessor:
 
         else:
             historical_scheme_accounts = self.get_scheme_account_history()
+            print(historical_scheme_accounts)
             historical_scheme_account_association = self.get_scheme_account_entry_history()
+            print(historical_scheme_account_association)
 
             rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
@@ -255,6 +257,10 @@ def notification_file(initiation=True):
     if settings.NOTIFICATION_RUN:
         notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
+
+        # print(data_to_write)
+
+        return
 
         sftp = SftpManager(rows=data_to_write)
 
