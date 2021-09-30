@@ -169,50 +169,58 @@ class NotificationProcessor:
 
         return data
 
-    def get_deleted_scheme_account_entry_history(self):
+    def get_scheme_account_entry_history(self):
         # Get removed users from scheme accounts
         data = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
-            change_type=HistoricalBase.DELETE,
             created__range=[from_datetime, self.to_date]
         )
-
         for association in historical_scheme_account_association:
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
             if scheme_account and user:
-                history_data = HistoricalSchemeAccount.objects.filter(
-                    instance_id=scheme_account[0].id,
-                    created__range=[from_datetime, self.to_date]
-                )
-
-                for history in history_data:
-                    state = self.check_previous_status(
-                        scheme_account[0],
-                        from_datetime,
-                        history,
+                if association.change_type == HistoricalBase.DELETE:
+                    history_data = HistoricalSchemeAccount.objects.filter(
+                        instance_id=scheme_account[0].id,
+                        created__range=[from_datetime, self.to_date]
                     )
 
-                    # History prior deletion
-                    if state:
-                        data.append([
-                            user[0].external_id,
-                            scheme_account[0].scheme.slug,
-                            state,
-                            history.created
-                        ])
+                    for history in history_data:
+                        state = self.check_previous_status(
+                            scheme_account[0],
+                            from_datetime,
+                            history,
+                        )
 
-                # Delete row
-                data.append([
-                    user[0].external_id,
-                    scheme_account[0].scheme.slug,
-                    DELETED,
-                    association.created
-                ])
+                        # History prior deletion
+                        if state:
+                            data.append([
+                                user[0].external_id,
+                                scheme_account[0].scheme.slug,
+                                state,
+                                history.created
+                            ])
+
+                    # Delete row
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        DELETED,
+                        association.created
+                    ])
+
+                else:
+                    # Gets the current status when the loyalty card is added to another wallet
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        scheme_account[0].status,
+                        association.created
+                    ])
 
         return data
 
@@ -234,7 +242,7 @@ class NotificationProcessor:
 
         else:
             historical_scheme_accounts = self.get_scheme_account_history()
-            historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
+            historical_scheme_account_association = self.get_scheme_account_entry_history()
 
             rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 

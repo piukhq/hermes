@@ -24,9 +24,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
         cls.barclays_channel = "com.barclays.bmb"
         cls.external_id = "Test_User"
         cls.external_id_two = "Test_User_Two"
+        cls.external_id_three = "Test_User_Three"
         cls.client_application = ClientApplicationFactory(name=cls.client_application_name)
         cls.user = UserFactory(client=cls.client_application, external_id=cls.external_id)
         cls.user_two = UserFactory(client=cls.client_application, external_id=cls.external_id_two)
+        cls.user_three = UserFactory(client=cls.client_application, external_id=cls.external_id_three)
         cls.scheme_account = SchemeAccountFactory(status=SchemeAccount.PENDING)
         cls.scheme_account_entry = SchemeAccountEntryFactory(
             user=cls.user, scheme_account=cls.scheme_account
@@ -49,13 +51,13 @@ class TestNotificationTask(GlobalMockAPITestCase):
             (
                 self.scheme_account_entry.user.external_id,
                 self.scheme_account_entry.scheme_account.scheme.slug,
-                self.scheme_account_entry.scheme_account.status,
+                SchemeAccount.PENDING,
                 self.scheme_account_entry.scheme_account.created
             ),
             (
                 self.scheme_account_entry_two.user.external_id,
                 self.scheme_account_entry_two.scheme_account.scheme.slug,
-                self.scheme_account_entry_two.scheme_account.status,
+                SchemeAccount.PENDING,
                 self.scheme_account_entry_two.scheme_account.created
             )
         ]
@@ -301,6 +303,65 @@ class TestNotificationTask(GlobalMockAPITestCase):
             self.assertIn(expected_data[0], data)
             self.assertIn(expected_data[1], data)
 
+    def test_add_existing_card_to_another_wallet(self):
+        HistoricalSchemeAccountEntry(
+            instance_id=self.scheme_account_entry.id,
+            change_type=HistoricalSchemeAccount.CREATE,
+            scheme_account_id=self.scheme_account.id,
+            user_id=self.scheme_account_entry.user.id,
+            channel=self.barclays_channel
+        ).save()
+
+        HistoricalSchemeAccount(
+            change_type=HistoricalSchemeAccount.CREATE,
+            instance_id=self.scheme_account.id,
+            change_details='',
+            body={"id": self.scheme_account.id, "status": SchemeAccount.PENDING},
+            channel=self.barclays_channel
+        ).save()
+
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=self.mocked_datetime)):
+            self.scheme_account.status = SchemeAccount.ACTIVE
+            self.scheme_account.save(update_fields=['status'])
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.INVALID_MFA},
+                channel=self.barclays_channel
+            ).save()
+
+            HistoricalSchemeAccount(
+                change_type=HistoricalSchemeAccount.UPDATE,
+                instance_id=self.scheme_account.id,
+                change_details='status',
+                body={"id": self.scheme_account.id, "status": SchemeAccount.ACTIVE},
+                channel=self.barclays_channel
+            ).save()
+
+            scheme_account_entry_three = SchemeAccountEntryFactory(
+                user=self.user_three, scheme_account=self.scheme_account)
+            HistoricalSchemeAccountEntry(
+                instance_id=self.scheme_account_entry_two.id,
+                change_type=HistoricalSchemeAccount.CREATE,
+                scheme_account_id=self.scheme_account.id,
+                user_id=scheme_account_entry_three.user.id,
+                channel=self.barclays_channel
+            ).save()
+
+        three_hours_plus = timezone.now() + timedelta(hours=3)
+        with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
+            test_notification = NotificationProcessor(False)
+            data = test_notification.get_scheme_account_entry_history()
+
+            expected_data = [
+                self.user_three.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, self.mocked_datetime
+            ]
+
+            self.assertEqual(len(data), 1)
+            self.assertIn(expected_data, data)
+
     def test_deleted_scheme_account_get_scheme_account_history(self):
         HistoricalSchemeAccountEntry(
             instance_id=self.scheme_account_entry.id,
@@ -352,7 +413,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
             self.assertIn(expected_data[0], data)
             self.assertIn(expected_data[1], data)
 
-    def test_removed_user_from_scheme_get_deleted_scheme_account_entry_history(self):
+    def test_removed_user_from_scheme_get_scheme_account_entry_history(self):
         HistoricalSchemeAccountEntry(
             instance_id=self.scheme_account_entry.id,
             change_type=HistoricalSchemeAccount.CREATE,
@@ -400,7 +461,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
         three_hours_plus = timezone.now() + timedelta(hours=3)
         with mock.patch('django.utils.timezone.now', mock.Mock(return_value=three_hours_plus)):
             test_notification = NotificationProcessor(False)
-            data = test_notification.get_deleted_scheme_account_entry_history()
+            data = test_notification.get_scheme_account_entry_history()
 
             expected_data = [
                 [self.user_two.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
