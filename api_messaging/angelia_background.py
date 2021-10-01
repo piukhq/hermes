@@ -120,10 +120,9 @@ def loyalty_card_authorise(message: dict) -> None:
 
     set_auth_provided(account, user, True)
 
-    if message.get("created"):
-        # For an Add_and_auth journey, 'created' indicates a newly created account
-        # For an Authorise journey, 'created' equates to primary_auth (i.e. that this user is free to set and 'control'
-        # primary auth credentials)
+    if message.get("primary_auth"):
+        # primary_auth is used to indicate that this user has demonstrated the authority to authorise and set the status
+        # of this card (i.e. they are not secondary to an authorised user of this card.)
         account.set_pending()
         async_link(auth_fields=all_credentials_and_consents,
                    scheme_account_id=account.id,
@@ -132,6 +131,8 @@ def loyalty_card_authorise(message: dict) -> None:
                    )
 
     elif payment_cards_to_link:
+        # if the request does not come from a primary_auth, then we will just auto-link this user's cards without
+        # affecting the state of the loyalty card.
         auto_link_membership_to_payments(payment_cards_to_link=payment_cards_to_link,
                                          membership_card=account,
                                          history_kwargs={
