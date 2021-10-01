@@ -1032,9 +1032,8 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry = SchemeAccountEntry.objects.get_or_create(
-                    scheme_account=scheme_account,
-                    user=user,
+                sch_acc_entry = SchemeAccountEntry.create_link(
+                    user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
