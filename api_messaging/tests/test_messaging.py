@@ -101,28 +101,28 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.auth_fields = [{"credential_slug": "last_name", "value": "Jones"},
                            {"credential_slug": "postcode", "value": "RGB 114"}]
         cls.consents = [{"id": 15, "value": "true"}]
-        cls.loyalty_card_auth_autolink_created_message = {
+        cls.loyalty_card_auth_autolink_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": True,
-            "created": True,
+            "primary_auth": True,
             "authorise_fields": cls.auth_fields
         }
-        cls.loyalty_card_auth_autolink_existing_message = {
+        cls.loyalty_card_auth_autolink_non_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": True,
-            "created": False,
+            "primary_auth": False,
             "authorise_fields": cls.auth_fields
         }
-        cls.loyalty_card_auth_no_autolink_existing_message = {
+        cls.loyalty_card_auth_no_autolink_non_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": False,
-            "created": False,
+            "primary_auth": False,
             "authorise_fields": cls.auth_fields
         }
 
@@ -153,14 +153,14 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     @patch('api_messaging.angelia_background.loyalty_card_authorise')
     def loyalty_card_auth_routing(self, mock_loyalty_card_authorise):
-        route.route_message(self.loyalty_card_authorise_headers, self.loyalty_card_auth_autolink_created_message)
+        route.route_message(self.loyalty_card_authorise_headers, self.loyalty_card_auth_autolink_primary_auth_message)
 
         self.assertTrue(mock_loyalty_card_authorise.called)
 
     @patch('api_messaging.angelia_background.loyalty_card_authorise')
     def loyalty_card_add_and_authorise_routing(self, mock_loyalty_card_authorise):
         route.route_message(self.loyalty_card_add_and_authorise_headers,
-                            self.loyalty_card_auth_autolink_created_message)
+                            self.loyalty_card_auth_autolink_primary_auth_message)
 
         self.assertTrue(mock_loyalty_card_authorise.called)
 
@@ -172,19 +172,19 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
 
     def test_failed_route(self):
         with self.assertRaises(InvalidMessagePath):
-            route.route_message(self.fail_headers, self.loyalty_card_auth_autolink_created_message)
+            route.route_message(self.fail_headers, self.loyalty_card_auth_autolink_primary_auth_message)
 
     @patch('api_messaging.angelia_background.async_link')
-    def test_loyalty_card_authorise_created(self, mock_async_link):
+    def test_loyalty_card_authorise_primary_auth(self, mock_async_link):
         """Tests AUTH routing for an existing loyalty card with auto-linking"""
-        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_created_message)
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_primary_auth_message)
 
         self.assertTrue(mock_async_link.called)
 
     @patch('api_messaging.angelia_background.auto_link_membership_to_payments')
-    def test_loyalty_card_authorise_existing(self, mock_auto_link_function):
+    def test_loyalty_card_authorise_non_primary_auth(self, mock_auto_link_function):
         """Tests AUTH routing for an existing loyalty card with auto-linking"""
-        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_existing_message)
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_autolink_non_primary_auth_message)
 
         self.assertTrue(mock_auto_link_function.called)
 
@@ -192,7 +192,7 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
     def test_loyalty_card_authorise_no_autolink(self, mock_auto_link_function):
         """Tests AUTH routing for an existing loyalty card without auto-linking """
 
-        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_no_autolink_existing_message)
+        angelia_background.loyalty_card_authorise(self.loyalty_card_auth_no_autolink_non_primary_auth_message)
 
         self.assertFalse(mock_auto_link_function.called)
 
