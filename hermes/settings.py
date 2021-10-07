@@ -16,17 +16,17 @@ import sys
 from collections import namedtuple
 from enum import Enum
 
-from redis import ConnectionPool as Redis_ConnectionPool
+import dj_database_url
 import sentry_sdk
+from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations import celery, django
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
 
 from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
-
 
 read_env()
 
@@ -178,18 +178,26 @@ APPEND_SLASH = False
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-
-DATABASES = {
-    "default": {
-        # "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "ENGINE": "hermes.traced_db_wrapper",
-        "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
-        "USER": env_var("HERMES_DATABASE_USER", "postgres"),
-        "PASSWORD": env_var("HERMES_DATABASE_PASS"),
-        "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
-        "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+if env_var("HERMES_DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.config(
+            env="HERMES_DATABASE_URL",
+            conn_max_age=600,
+            engine="hermes.traced_db_wrapper",
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            # "ENGINE": "django.db.backends.postgresql_psycopg2",
+            "ENGINE": "hermes.traced_db_wrapper",
+            "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
+            "USER": env_var("HERMES_DATABASE_USER", "postgres"),
+            "PASSWORD": env_var("HERMES_DATABASE_PASS"),
+            "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
+            "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+        }
+    }
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
