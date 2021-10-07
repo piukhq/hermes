@@ -598,7 +598,7 @@ src="https://api.gb.bink.com/content/media/email/linkedin.png"
                                                       none;text-decoration:
 none;-ms-interpolation-mode: bicubic;" align="none" height="30"
                                                       width="30"></a>  <a
-moz-do-not-send="true" href="https://www.facebook.com/hellobink"
+moz-do-not-send="true" href="https://www.facebook.com/BinkLoyalty"
                                                     target="_blank"
                                                     style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
@@ -614,7 +614,7 @@ src="https://api.gb.bink.com/content/media/email/fb.png"
                                                       none;text-decoration:
 none;-ms-interpolation-mode: bicubic;" align="none" height="30"
                                                       width="30"></a>   <a
-moz-do-not-send="true" href="http://www.instagram.com/binkhq/"
+moz-do-not-send="true" href="https://www.instagram.com/bink_loyalty/"
                                                     target="_blank"
                                                     style="mso-line-height-rule:
 exactly;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;color:
@@ -1388,3 +1388,4 @@ Square, Lyndhurst Road, Ascot, Berkshire, SL5 9FE</div>
     </div>
   </body>
 {% endblock %}
+

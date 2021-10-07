@@ -333,6 +333,11 @@ LOGGING = {
             "handlers": ["console"],
             "propagate": False,
         },
+        "messaging": {
+            "level": MASTER_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
     },
 }
 

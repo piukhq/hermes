@@ -1,5 +1,6 @@
 from api_messaging import angelia_background
 from django.http import Http404
+from django.db import close_old_connections
 from django.core.exceptions import ObjectDoesNotExist
 from urllib3.exceptions import RequestError
 from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessagePath
@@ -7,11 +8,16 @@ from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessa
 import logging
 import json
 
-logger = logging.getLogger("Messaging")
+logger = logging.getLogger("messaging")
 
 
 def on_message_received(body, message):
     logger.info("Angelia message received")
+
+    try:
+        close_old_connections()
+    except Exception as err:
+        logger.exception("Failed to prune old connections", exc_info=err)
 
     try:
         route_message(message.headers, json.loads(body))
@@ -42,8 +48,10 @@ def route_message(headers: dict, message: dict):
     route = {
         "post_payment_account": angelia_background.post_payment_account,
         "delete_payment_account": angelia_background.delete_payment_account,
-        "loyalty_card_add": angelia_background.loyalty_card_add,
         "loyalty_card_register": angelia_background.loyalty_card_register,
+        "loyalty_card_add_and_auth": angelia_background.loyalty_card_authorise,
+        "loyalty_card_authorise": angelia_background.loyalty_card_authorise,
+        "delete_loyalty_card": angelia_background.delete_loyalty_card
     }
 
     try:

@@ -66,17 +66,21 @@ class SftpManager:
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
                 logging.info(f'File: {filename}, uploaded.')
-                return
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
 
+        sftp_client.close()
+        logger.info('Connection closed')
+        return
+
 
 class NotificationProcessor:
-    def __init__(self, to_date=None):
+    def __init__(self, initiation=True):
         self.client_application_name = 'Barclays Mobile Banking'
         self.channel = 'com.barclays.bmb'
-        self.to_date = to_date
+        self.initiation = initiation
+        self.to_date = timezone.now()
         self.change_type = 'status'
 
     def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
@@ -138,7 +142,8 @@ class NotificationProcessor:
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
-            scheme_account__updated__range=[from_datetime, self.to_date]
+            scheme_account__updated__gte=from_datetime,
+            scheme_account__updated__lte=self.to_date
         )
 
         for scheme_association in barclays_scheme_account_entries:
@@ -164,50 +169,58 @@ class NotificationProcessor:
 
         return data
 
-    def get_deleted_scheme_account_entry_history(self):
+    def get_scheme_account_entry_history(self):
         # Get removed users from scheme accounts
         data = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
-            change_type=HistoricalBase.DELETE,
             created__range=[from_datetime, self.to_date]
         )
-
         for association in historical_scheme_account_association:
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
             if scheme_account and user:
-                history_data = HistoricalSchemeAccount.objects.filter(
-                    instance_id=scheme_account[0].id,
-                    created__range=[from_datetime, self.to_date]
-                )
-
-                for history in history_data:
-                    state = self.check_previous_status(
-                        scheme_account[0],
-                        from_datetime,
-                        history,
+                if association.change_type == HistoricalBase.DELETE:
+                    history_data = HistoricalSchemeAccount.objects.filter(
+                        instance_id=scheme_account[0].id,
+                        created__range=[from_datetime, self.to_date]
                     )
 
-                    # History prior deletion
-                    if state:
-                        data.append([
-                            user[0].external_id,
-                            scheme_account[0].scheme.slug,
-                            state,
-                            history.created
-                        ])
+                    for history in history_data:
+                        state = self.check_previous_status(
+                            scheme_account[0],
+                            from_datetime,
+                            history,
+                        )
 
-                # Delete row
-                data.append([
-                    user[0].external_id,
-                    scheme_account[0].scheme.slug,
-                    DELETED,
-                    association.created
-                ])
+                        # History prior deletion
+                        if state:
+                            data.append([
+                                user[0].external_id,
+                                scheme_account[0].scheme.slug,
+                                state,
+                                history.created
+                            ])
+
+                    # Delete row
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        DELETED,
+                        association.created
+                    ])
+
+                else:
+                    # Gets the current status when the loyalty card is added to another wallet
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        scheme_account[0].status,
+                        association.created
+                    ])
 
         return data
 
@@ -219,7 +232,7 @@ class NotificationProcessor:
             user__client__name=self.client_application_name)
 
         # initiation file data
-        if not self.to_date:
+        if self.initiation:
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',
@@ -229,7 +242,7 @@ class NotificationProcessor:
 
         else:
             historical_scheme_accounts = self.get_scheme_account_history()
-            historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
+            historical_scheme_account_association = self.get_scheme_account_entry_history()
 
             rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
@@ -237,10 +250,10 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(to_date=None):
+def notification_file(initiation=True):
     retry_count = 0
     if settings.NOTIFICATION_RUN:
-        notification = NotificationProcessor(to_date=to_date)
+        notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
 
         sftp = SftpManager(rows=data_to_write)

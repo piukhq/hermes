@@ -139,7 +139,8 @@ class ClientApplicationBundle(models.Model):
     scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
                                     related_name='related_bundle')
     magic_link_url = models.CharField(max_length=200, default='', blank=True)
-    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60)
+    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60,
+                                                 verbose_name='magic link life(mins)')
     email_from = models.EmailField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, default="Magic Link Request")
     template = MagicLinkTemplateFileField(
@@ -149,6 +150,10 @@ class ClientApplicationBundle(models.Model):
         blank=True,
         null=True
     )
+    access_token_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(1)], blank=True, null=True,
+                                                        default=10, verbose_name='access token life (mins)')
+    refresh_token_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(2)], blank=True, null=True,
+                                                         default=15, verbose_name='refresh token life (mins)')
 
     class Meta:
         unique_together = ('client', 'bundle_id',)
