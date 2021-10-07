@@ -22,7 +22,7 @@ test:complexity:
 test:pytest:
   <<: *test
   script:
-    - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432${POSTGRES_NAME}"
+    - export HERMES_DATABASE_URL="postgres://postgres@${POSTGRES_PORT_5432_TCP_ADDR}:5432/postgres"
     - coverage run --source='.' manage.py test -v 2
     - coverage report
     - coverage xml
