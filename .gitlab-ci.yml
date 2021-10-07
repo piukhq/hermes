@@ -4,7 +4,7 @@ stages:
   - deploy
 
 default:
-  image: ghcr.io/binkhq/python:3.7
+  image: ghcr.io/binkhq/python:3.9
 
 test:style: &test
   stage: test
@@ -27,7 +27,7 @@ test:pytest:
     - coverage report
     - coverage xml
   services:
-    - postgres:13
+    - postgres:latest
   variables:
     POSTGRES_HOST_AUTH_METHOD: trust
   artifacts:
