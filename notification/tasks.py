@@ -149,62 +149,49 @@ class NotificationProcessor:
         for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccount.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
-                created__range=[from_datetime, self.to_date]
+                created__range=[from_datetime, self.to_date],
+                change_details__contains='status'
+            ).last()
+
+        # for history in history_data:
+            state = self.check_previous_status(
+                scheme_association.scheme_account,
+                from_datetime,
+                history_data,
             )
 
-            for history in history_data:
-                state = self.check_previous_status(
-                    scheme_association.scheme_account,
-                    from_datetime,
-                    history,
-                )
-
-                if state:
-                    data.append([
-                        scheme_association.user.external_id,
-                        scheme_association.scheme_account.scheme.slug,
-                        state,
-                        history.created
-                    ])
+            if state:
+                data.append([
+                    scheme_association.user.external_id,
+                    scheme_association.scheme_account.scheme.slug,
+                    state,
+                    history_data.created
+                ])
 
         return data
 
     def get_scheme_account_entry_history(self):
         # Get removed users from scheme accounts
         data = []
+        deleted_user_id_assocations = []
         from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
+        # Sort queryset by user_id and created time to see if delete is the latest status
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
             created__range=[from_datetime, self.to_date]
-        )
+        ).order_by('user_id', '-created').distinct('user_id')
+
         for association in historical_scheme_account_association:
+            # If the user association has already been removed then skip to next item
+            if association.user_id in deleted_user_id_assocations:
+                continue
+
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
             if scheme_account and user:
                 if association.change_type == HistoricalBase.DELETE:
-                    history_data = HistoricalSchemeAccount.objects.filter(
-                        instance_id=scheme_account[0].id,
-                        created__range=[from_datetime, self.to_date]
-                    )
-
-                    for history in history_data:
-                        state = self.check_previous_status(
-                            scheme_account[0],
-                            from_datetime,
-                            history,
-                        )
-
-                        # History prior deletion
-                        if state:
-                            data.append([
-                                user[0].external_id,
-                                scheme_account[0].scheme.slug,
-                                state,
-                                history.created
-                            ])
-
                     # Delete row
                     data.append([
                         user[0].external_id,
@@ -212,6 +199,8 @@ class NotificationProcessor:
                         DELETED,
                         association.created
                     ])
+
+                    deleted_user_id_assocations.append(association.user_id)
 
                 else:
                     # Gets the current status when the loyalty card is added to another wallet

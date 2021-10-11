@@ -464,13 +464,11 @@ class TestNotificationTask(GlobalMockAPITestCase):
             data = test_notification.get_scheme_account_entry_history()
 
             expected_data = [
-                [self.user_two.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime],
                 [self.user_two.external_id, self.scheme_account.scheme.slug, DELETED, self.mocked_datetime]
             ]
 
-            self.assertEqual(len(data), 2)
+            self.assertEqual(len(data), 1)
             self.assertIn(expected_data[0], data)
-            self.assertIn(expected_data[1], data)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
     def test_data_format(self, mock_rsa_key):
