@@ -232,6 +232,36 @@ class TestResources(GlobalMockAPITestCase):
             }
         ]
 
+    def _setup_user_and_email_scheme(self):
+        # Setup new scheme with all question types as auth fields and create existing scheme account
+        new_external_id = 'Test User store email lowercase'
+        new_user = UserFactory(external_id=new_external_id, client=self.client_app, email=new_external_id)
+        auth_header = self._get_auth_header(new_user)
+        scheme = SchemeFactory()
+        SchemeBundleAssociationFactory(
+            scheme=scheme,
+            bundle=self.bundle,
+            status=SchemeBundleAssociation.ACTIVE
+        )
+        card_num_question = SchemeCredentialQuestionFactory(
+            scheme=scheme,
+            type=CARD_NUMBER,
+            label=CARD_NUMBER,
+            manual_question=True,
+            add_field=True,
+        )
+        email_question = SchemeCredentialQuestionFactory(
+            scheme=scheme,
+            type=EMAIL,
+            label=EMAIL,
+            auth_field=True,
+            enrol_field=True,
+            register_field=True,
+            options=SchemeCredentialQuestion.LINK_AND_JOIN,
+        )
+
+        return new_user, scheme, card_num_question, email_question, auth_header
+
     def test_get_single_payment_card(self, *_):
         payment_card_account = self.payment_card_account_entry.payment_card_account
         expected_result = remove_empty(PaymentCardSerializer(payment_card_account).data)
@@ -2124,6 +2154,160 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp.status_code, 200)
         linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account=scheme_account).exists()
         self.assertTrue(linked)
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
+    def test_credential_emails_are_stored_as_lowercase_auth_route(self, *_):
+        new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
+
+        # Test for auth route
+        email = "MiXedCaSe@EmAiL.COm"
+
+        payload = {
+            "membership_plan": scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": CARD_NUMBER,
+                            "value": "123456789"
+                        }
+                    ],
+                    "authorise_fields": [
+                        {
+                            "column": EMAIL,
+                            "value": email
+                        }
+                    ]
+                }
+        }
+
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+
+        self.assertEqual(resp.status_code, 201)
+
+        scheme_acc_id = resp.json()["id"]
+        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
+        self.assertTrue(linked)
+
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(answers[0].answer, "mixedcase@email.com")
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
+    @patch('scheme.mixins.requests.post')
+    def test_credential_emails_are_stored_as_lowercase_enrol_route(self, mock_join_resp, *_):
+        mock_join_resp.return_value.json.return_value = {"message": "success"}
+
+        new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
+
+        email = "MiXedCaSe@EmAiL.COm"
+        payload = {
+            "membership_plan": scheme.id,
+            "account":
+                {
+                    "enrol_fields": [
+                        {
+                            "column": EMAIL,
+                            "value": email
+                        }
+                    ]
+                }
+        }
+
+        resp = self.client.post(
+            reverse('membership-cards'),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+
+        self.assertEqual(resp.status_code, 201)
+
+        scheme_acc_id = resp.json()["id"]
+        linked = SchemeAccountEntry.objects.filter(user=new_user, scheme_account_id=scheme_acc_id).exists()
+        self.assertTrue(linked)
+
+        answers = SchemeAccountCredentialAnswer.objects.filter(scheme_account_id=scheme_acc_id, question=email_question)
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(answers[0].answer, "mixedcase@email.com")
+
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('ubiquity.influx_audit.InfluxDBClient')
+    @patch.object(SchemeAccount, 'get_midas_balance')
+    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    @patch('analytics.api')
+    @patch('scheme.mixins.requests.post')
+    def test_credential_emails_are_stored_as_lowercase_register_route(self, mock_join_resp, *_):
+        mock_join_resp.return_value.json.return_value = {"message": "success"}
+
+        new_user, scheme, card_num_question, email_question, auth_header = self._setup_user_and_email_scheme()
+        card_number = "123456789"
+        scheme_account = SchemeAccountFactory(scheme=scheme)
+        scheme_account.card_number = card_number
+        scheme_account.save(update_fields=["card_number"])
+        SchemeAccountEntryFactory(user=new_user, scheme_account=scheme_account)
+
+        SchemeCredentialAnswerFactory(
+            question=scheme.manual_question,
+            scheme_account=scheme_account,
+            answer=card_number
+        )
+
+        email = "MiXedCaSe@EmAiL.COm"
+        payload = {
+            "membership_plan": scheme.id,
+            "account":
+                {
+                    "add_fields": [
+                        {
+                            "column": CARD_NUMBER,
+                            "value": card_number
+                        }
+                    ],
+                    "registration_fields": [
+                        {
+                            "column": EMAIL,
+                            "value": email
+                        }
+                    ]
+                }
+        }
+
+        resp = self.client.patch(
+            reverse('membership-card', args=[scheme_account.id]),
+            data=json.dumps(payload),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=auth_header
+        )
+
+        self.assertEqual(resp.status_code, 200)
+
+        answers = SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_id=scheme_account.id, question=email_question
+        )
+        self.assertEqual(len(answers), 1)
+        self.assertEqual(answers[0].answer, "mixedcase@email.com")
 
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('ubiquity.views.async_link', autospec=True)
