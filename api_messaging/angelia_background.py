@@ -4,12 +4,15 @@ from payment_card.models import PaymentCardAccount
 from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
-from scheme.models import SchemeAccount
+from scheme.models import SchemeAccount, Scheme
+from scheme.serializers import UbiquityJoinSerializer
 from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link, \
-    deleted_membership_card_cleanup
+    deleted_membership_card_cleanup, async_join
 from user.models import CustomUser
 from hermes.channels import Permit
 from ubiquity.views import MembershipCardView
+from scheme.mixins import SchemeAccountJoinMixin
+from history.enums import SchemeAccountJourney
 
 import logging
 import arrow
@@ -23,6 +26,9 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
         ret[item['credential_slug']] = item['value']
     return ret
 
+def format_credentials_for_join(cred_list: list) -> dict:
+    data = {'credentials': credentials_to_key_pairs(cred_list)}
+    return data
 
 def set_auth_provided(scheme_account: SchemeAccount, user: CustomUser, new_value: bool) -> None:
     link = SchemeAccountEntry.objects.get(scheme_account_id=scheme_account.id, user_id=user.id)
@@ -140,6 +146,50 @@ def loyalty_card_authorise(message: dict) -> None:
                                                  user_id=user.id, channel=message.get("channel")
                                              ),
                                          })
+
+
+def loyalty_card_join(message: dict) -> None:
+
+    logger.info('Handling loyalty_card join')
+    if message.get("auto_link"):
+        payment_cards_to_link = PaymentCardAccountEntry.objects.filter(user_id=message.get("user_id")).values_list(
+            "payment_card_account_id", flat=True
+        )
+    else:
+        payment_cards_to_link = []
+
+    all_credentials_and_consents = credentials_to_key_pairs(message.get("join_fields"))
+
+    if message.get("consents"):
+        all_credentials_and_consents.update({"consents": message["consents"]})
+
+    user = CustomUser.objects.get(pk=message.get("user_id"))
+    account = SchemeAccount.objects.get(pk=message.get("loyalty_card_id"))
+    scheme = Scheme.objects.get(pk=message.get("loyalty_plan_id"))
+    permit = Permit(bundle_id=message["channel"], user=user)
+    channel = message.get("channel")
+
+    validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
+        data=all_credentials_and_consents,
+        scheme_account=account,
+        user=user,
+        permit=permit,
+        join_scheme=scheme,
+    )
+
+    async_join(
+        scheme_account_id=account.id,
+        user_id=user.id,
+        serializer=serializer,
+        scheme_id=scheme.id,
+        validated_data=validated_data,
+        channel=channel,
+        payment_cards_to_link=payment_cards_to_link,
+        history_kwargs={
+            "user_info": user_info(user_id=user.id, channel=channel),
+            "journey": SchemeAccountJourney.ENROL.value,
+        },
+    )
 
 
 def delete_loyalty_card(message: dict) -> None:
