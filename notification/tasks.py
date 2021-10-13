@@ -161,7 +161,6 @@ class NotificationProcessor:
                 change_details__contains='status'
             ).last()
 
-        # for history in history_data:
             if history_data:
                 state = self.check_previous_status(
                     scheme_association.scheme_account,
