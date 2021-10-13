@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from payment_card.admin import titled_filter
+from scheme.admin import CacheResetAdmin
 from ubiquity.models import PaymentCardSchemeEntry, MembershipPlanDocument, VopActivation
 
 
@@ -51,8 +52,8 @@ class PaymentCardSchemeEntryAdmin(admin.ModelAdmin):
 
 
 @admin.register(MembershipPlanDocument)
-class MembershipPlanDocumentAdmin(admin.ModelAdmin):
-    list_display = ('name', 'scheme', 'url', 'display', 'checkbox')
+class MembershipPlanDocumentAdmin(CacheResetAdmin):
+    list_display = ('name', 'scheme', 'url', 'order', 'display', 'checkbox')
     search_fields = ('name', 'scheme__name', 'url', 'display')
     list_filter = ('scheme',)
     raw_id_fields = ('scheme',)
