@@ -273,64 +273,64 @@ MASTER_LOG_LEVEL = env_var("MASTER_LOG_LEVEL", "DEBUG")
 UBIQUITY_LOG_LEVEL = env_var("UBIQUITY_LOG_LEVEL", "DEBUG")
 PROMETHEUS_LOG_LEVEL = env_var("PROMETHEUS_LOG_LEVEL", "INFO")
 QUERY_LOG_LEVEL = env_var("QUERY_LOG_LEVEL", "CRITICAL")
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
-    },
-    "handlers": {
-        "console": {
-            "level": MASTER_LOG_LEVEL,
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
-    "filters": {
-        "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
-    },
-    "loggers": {
-        "": {
-            "level": ROOT_LOG_LEVEL,
-            "handlers": ["console"],
-        },
-        "django.db.backends": {
-            "filters": ["require_debug_true"],
-            "level": QUERY_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        **{
-            app: {
-                "level": MASTER_LOG_LEVEL,
-                "handlers": ["console"],
-                "propagate": False,
-            }
-            for app in LOCAL_APPS
-        },
-        # Place any custom loggers per app below this to override above
-        "ubiquity": {
-            "level": UBIQUITY_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "hermes": {
-            "level": MASTER_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "prometheus": {
-            "level": PROMETHEUS_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-        "messaging": {
-            "level": MASTER_LOG_LEVEL,
-            "handlers": ["console"],
-            "propagate": False,
-        },
-    },
-}
+# LOGGING = {
+#     "version": 1,
+#     "disable_existing_loggers": False,
+#     "formatters": {
+#         "verbose": {"format": "%(asctime)s :: %(name)s :: %(levelname)s :: %(message)s"},
+#     },
+#     "handlers": {
+#         "console": {
+#             "level": MASTER_LOG_LEVEL,
+#             "class": "logging.StreamHandler",
+#             "formatter": "verbose",
+#         },
+#     },
+#     "filters": {
+#         "require_debug_true": {"()": "django.utils.log.RequireDebugTrue"},
+#     },
+#     "loggers": {
+#         "": {
+#             "level": ROOT_LOG_LEVEL,
+#             "handlers": ["console"],
+#         },
+#         "django.db.backends": {
+#             "filters": ["require_debug_true"],
+#             "level": QUERY_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         **{
+#             app: {
+#                 "level": MASTER_LOG_LEVEL,
+#                 "handlers": ["console"],
+#                 "propagate": False,
+#             }
+#             for app in LOCAL_APPS
+#         },
+#         # Place any custom loggers per app below this to override above
+#         "ubiquity": {
+#             "level": UBIQUITY_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         "hermes": {
+#             "level": MASTER_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         "prometheus": {
+#             "level": PROMETHEUS_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#         "messaging": {
+#             "level": MASTER_LOG_LEVEL,
+#             "handlers": ["console"],
+#             "propagate": False,
+#         },
+#     },
+# }
 
 HERMES_SENTRY_DSN = env_var("HERMES_SENTRY_DSN", None)
 HERMES_SENTRY_ENV = env_var("HERMES_SENTRY_ENV", None)
@@ -558,6 +558,7 @@ RABBIT_DSN = env_var("RABBIT_DSN", f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}@{RAB
 SFTP_DIRECTORY = env_var("SFTP_DIRECTORY", "uploads")
 
 # 2 hours
+NOTIFICATION_RUN_TIME = env_var("NOTIFICATION_RUN_TIME", "10, 12, 14, 16, 18")
 NOTIFICATION_PERIOD = int(env_var("NOTIFICATION_PERIOD", 7200))
 NOTIFICATION_ERROR_THRESHOLD = int(env_var("NOTIFICATION_ERROR_THRESHOLD", 5))
 # 2 minutes

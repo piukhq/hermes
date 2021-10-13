@@ -1,7 +1,7 @@
 import csv
+import datetime
 import logging
 import os
-from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
@@ -83,6 +83,15 @@ class NotificationProcessor:
         self.to_date = timezone.now()
         self.change_type = 'status'
 
+        run_times = settings.NOTIFICATION_RUN_TIME.split(",")
+
+        # if first run of the day we want all the changes that happened outside of the specified hours
+        if self.to_date.time() < datetime.time(int(run_times[1])):
+            previous_day = self.to_date - datetime.timedelta(days=1)
+            self.from_datetime = previous_day.replace(hour=int(run_times[-1]))
+        else:
+            self.from_datetime = self.to_date - datetime.timedelta(seconds=settings.NOTIFICATION_PERIOD)
+
     def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
         if deleted:
             query = {
@@ -138,35 +147,35 @@ class NotificationProcessor:
 
     def get_scheme_account_history(self):
         data = []
-        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
-            scheme_account__updated__gte=from_datetime,
+            scheme_account__updated__gte=self.from_datetime,
             scheme_account__updated__lte=self.to_date
         )
 
         for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccount.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
-                created__range=[from_datetime, self.to_date],
+                created__range=[self.from_datetime, self.to_date],
                 change_details__contains='status'
             ).last()
 
         # for history in history_data:
-            state = self.check_previous_status(
-                scheme_association.scheme_account,
-                from_datetime,
-                history_data,
-            )
+            if history_data:
+                state = self.check_previous_status(
+                    scheme_association.scheme_account,
+                    self.from_datetime,
+                    history_data,
+                )
 
-            if state:
-                data.append([
-                    scheme_association.user.external_id,
-                    scheme_association.scheme_account.scheme.slug,
-                    state,
-                    history_data.created
-                ])
+                if state:
+                    data.append([
+                        scheme_association.user.external_id,
+                        scheme_association.scheme_account.scheme.slug,
+                        state,
+                        history_data.created
+                    ])
 
         return data
 
@@ -174,12 +183,11 @@ class NotificationProcessor:
         # Get removed users from scheme accounts
         data = []
         deleted_user_id_assocations = []
-        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         # Sort queryset by user_id and created time to see if delete is the latest status
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
-            created__range=[from_datetime, self.to_date]
+            created__range=[self.from_datetime, self.to_date]
         ).order_by('user_id', '-created').distinct('user_id')
 
         for association in historical_scheme_account_association:
