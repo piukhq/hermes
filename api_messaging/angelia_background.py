@@ -26,9 +26,6 @@ def credentials_to_key_pairs(cred_list: list) -> dict:
         ret[item['credential_slug']] = item['value']
     return ret
 
-def format_credentials_for_join(cred_list: list) -> dict:
-    data = {'credentials': credentials_to_key_pairs(cred_list)}
-    return data
 
 def set_auth_provided(scheme_account: SchemeAccount, user: CustomUser, new_value: bool) -> None:
     link = SchemeAccountEntry.objects.get(scheme_account_id=scheme_account.id, user_id=user.id)
