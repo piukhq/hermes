@@ -5,7 +5,6 @@ from rest_framework.generics import get_object_or_404
 from ubiquity.views import AutoLinkOnCreationMixin
 from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
 from scheme.models import SchemeAccount, Scheme
-from scheme.serializers import UbiquityJoinSerializer
 from ubiquity.tasks import deleted_payment_card_cleanup, auto_link_membership_to_payments, async_link, \
     deleted_membership_card_cleanup, async_join
 from user.models import CustomUser
