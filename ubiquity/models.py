@@ -285,3 +285,4 @@ class MembershipPlanDocument(models.Model):
     url = models.URLField(verbose_name='document')
     display = ArrayField(models.CharField(max_length=150))
     checkbox = models.BooleanField(verbose_name='needs checkbox')
+    order = models.IntegerField(default=0)
