@@ -101,6 +101,10 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         cls.auth_fields = [{"credential_slug": "last_name", "value": "Jones"},
                            {"credential_slug": "postcode", "value": "RGB 114"}]
         cls.consents = [{"id": 15, "value": "true"}]
+        cls.creds_for_refactor = [{"credential_slug": "postcode", "value": "GU552RH"},
+                                  {"credential_slug": "last_name", "value": "Bond"},
+                                  {"credential_slug": "email", "value": "007@mi5.com"}
+                                  ]
         cls.loyalty_card_auth_autolink_primary_auth_message = {
             "loyalty_card_id": cls.scheme_account_entry.id,
             "user_id": cls.scheme_account_entry.user.id,
@@ -131,9 +135,18 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
             "user_id": cls.scheme_account_entry.user.id,
             "channel": "com.bink.wallet",
             "auto_link": True,
-            "created": False,
             "loyalty_plan_id": cls.scheme_account.id,
             "register_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
+            "consents": cls.consents
+        }
+
+        cls.loyalty_card_join_message = {
+            "loyalty_card_id": cls.scheme_account_entry.id,
+            "user_id": cls.scheme_account_entry.user.id,
+            "channel": "com.bink.wallet",
+            "auto_link": True,
+            "loyalty_plan_id": cls.scheme_account.id,
+            "join_fields": [{"credential_slug": "postcode", "value": "GU552RH"}],
             "consents": cls.consents
         }
 
@@ -206,6 +219,14 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         self.assertTrue(mock_handle_registration.called)
         self.assertTrue(mock_auto_link_cards.called)
 
+    @patch('api_messaging.angelia_background.async_join')
+    def test_loyalty_card_join_journey(self, mock_async_join):
+        """Tests Join routing for a loyalty card """
+
+        angelia_background.loyalty_card_join(self.loyalty_card_join_message)
+
+        self.assertTrue(mock_async_join.called)
+
     @patch('api_messaging.angelia_background.deleted_membership_card_cleanup')
     def test_delete_loyalty_card_journey(self, mock_deleted_card_cleanup):
         """Tests successful routing for a DELETE loyalty card journey. """
@@ -213,3 +234,14 @@ class TestLoyaltyCardMessaging(GlobalMockAPITestCase):
         angelia_background.delete_loyalty_card(self.delete_loyalty_card_message)
 
         self.assertTrue(mock_deleted_card_cleanup.called)
+
+    def test_credentials_to_key_pairs(self):
+        """Tests refactoring of credentials from Angelia to Ubiquity format. """
+
+        creds = angelia_background.credentials_to_key_pairs(self.creds_for_refactor)
+
+        assert creds == {
+            "postcode": "GU552RH",
+            "last_name": "Bond",
+            "email": "007@mi5.com"
+        }

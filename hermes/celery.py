@@ -1,6 +1,7 @@
 import os
 
 from celery import Celery
+from celery.schedules import crontab
 from django.conf import settings
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
@@ -30,7 +31,7 @@ app.conf.beat_schedule = {
     },
     "generate_notification_file": {
         "task": "notification.tasks.notification_file",
-        "schedule": int(settings.NOTIFICATION_PERIOD),
+        "schedule": crontab(minute=0, hour=settings.NOTIFICATION_RUN_TIME),
         "args": (False,)
     },
 }
