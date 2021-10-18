@@ -1,11 +1,11 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "073f80aa59e3039dcc57b2a615196fa97f1075705b3d9c8e7eaa9e4b9cc6726d"
+            "sha256": "53d7578a16bd605ff22b20808c96b6fcb33702030e16728149b84b3d9f3e3685"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.7"
+            "python_version": "3.9"
         },
         "sources": [
             {
@@ -374,11 +374,11 @@
         },
         "josepy": {
             "hashes": [
-                "sha256:6d632fcdaf0bed09e33f81f13b10575d4f0b7c37319350b725454e04a41e6a49",
-                "sha256:a5a182eb499665d99e7ec54bb3fe389f9cbc483d429c9651f20384ba29564269"
+                "sha256:49798be66a467e7c81f071fe5ff03ac5e37c6d7081933612259028496bb05a68",
+                "sha256:51cce8d97ced0556aae0ce3161b26d5f0f54bc42c749d3c606edc6d97d9802dc"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.8.0"
+            "version": "==1.9.0"
         },
         "kombu": {
             "hashes": [
@@ -732,8 +732,11 @@
                 "sha256:99a9c81119fefb34a67a89f457b1a2c0199e36171c65c9cd930d4169f4db5c19",
                 "sha256:a24fadcd039427f27789c29d30213785ffd5f94fe3dc7e70f1095b65551caf71",
                 "sha256:a25da1751c656b0d52342feeaf6e0d71dfd63bd65a27a4535610ebcf1173d845",
+                "sha256:c7d826bed170277b4ae5fe888b2c861e583c0c05ffda22d97856438a835401f3",
+                "sha256:cf34d346eec04de764fbacda885dcc823161dcea8526a05ecd952c52fef27019",
                 "sha256:df0f3be0d913be04cd1416677dd225b0ea5108ef241dfa18692f4ffd70133677",
-                "sha256:e319b645950a56d1193406a687cd7a467cf7073e537906252e3c94b5f8ab06de"
+                "sha256:e319b645950a56d1193406a687cd7a467cf7073e537906252e3c94b5f8ab06de",
+                "sha256:ecd11195c7060bbf94c7c4d8ddc8e8c00a78cf73c09bb15f3de75142cdc27ffc"
             ],
             "index": "gitlab-libraries",
             "version": "==0.1.2"
@@ -764,11 +767,11 @@
         },
         "sqlparse": {
             "hashes": [
-                "sha256:017cde379adbd6a1f15a61873f43e8274179378e95ef3fede90b5aa64d304ed0",
-                "sha256:0f91fd2e829c44362cbcfab3e9ae12e22badaa8a29ad5ff599f9ec109f0454e8"
+                "sha256:0c00730c74263a94e5a9919ade150dfc3b19c574389985446148402998287dae",
+                "sha256:48719e356bb8b42991bdbb1e8b83223757b93789c00910a616a071910ca4a64d"
             ],
             "markers": "python_version >= '3.5'",
-            "version": "==0.4.1"
+            "version": "==0.4.2"
         },
         "tenacity": {
             "hashes": [
@@ -932,11 +935,11 @@
         },
         "fakeredis": {
             "hashes": [
-                "sha256:11ccfc9769d718d37e45b382e64a6ba02586b622afa0371a6bd85766d72255f3",
-                "sha256:3449b306f3a85102b28f8180c24722ef966fcb1e3c744758b6f635ec80321a5c"
+                "sha256:0d06a9384fb79da9f2164ce96e34eb9d4e2ea46215070805ea6fd3c174590b47",
+                "sha256:5eb1516f1fe1813e9da8f6c482178fc067af09f53de587ae03887ef5d9d13024"
             ],
             "index": "gitlab-libraries",
-            "version": "==1.6.0"
+            "version": "==1.6.1"
         },
         "flake8": {
             "hashes": [
@@ -982,6 +985,14 @@
             ],
             "version": "==0.6.1"
         },
+        "packaging": {
+            "hashes": [
+                "sha256:7dc96269f53a4ccec5c0670940a4281106dd0bb343f47b7471f779df49c2fbe7",
+                "sha256:c86254f9220d55e31cc94d69bade760f0847da8000def4dfe1c6b872fd14ff14"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==21.0"
+        },
         "pathspec": {
             "hashes": [
                 "sha256:7d15c4ddb0b5c802d161efc417ec1a2558ea2653c2e8ad9c19098201dc1c993a",
@@ -1004,6 +1015,14 @@
             ],
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'",
             "version": "==2.3.1"
+        },
+        "pyparsing": {
+            "hashes": [
+                "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1",
+                "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"
+            ],
+            "markers": "python_version >= '2.6' and python_version not in '3.0, 3.1, 3.2, 3.3'",
+            "version": "==2.4.7"
         },
         "python-dateutil": {
             "hashes": [
