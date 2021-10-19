@@ -23,7 +23,7 @@ class PaymentCardAccountFilter(InputFilter):
         if term is None:
             return
 
-        if queryset.model.__name__ == HistoryModel.PAYMENT_CARD_ACCOUNT.model_name:
+        if queryset.model.__name__ == HistoryModel.PAYMENT_CARD_ACCOUNT.historic_model_name:
             query = {"instance_id": term}
         else:
             query = {"payment_card_account_id": term}
@@ -40,7 +40,7 @@ class SchemeAccountFilter(InputFilter):
         if term is None:
             return
 
-        if queryset.model.__name__ == HistoryModel.SCHEME_ACCOUNT.model_name:
+        if queryset.model.__name__ == HistoryModel.SCHEME_ACCOUNT.historic_model_name:
             query = {"instance_id": term}
         else:
             query = {"scheme_account_id": term}
@@ -69,7 +69,7 @@ class UserFilter(InputFilter):
         if term is None:
             return
 
-        if queryset.model.__name__ == HistoryModel.CUSTOM_USER.model_name:
+        if queryset.model.__name__ == HistoryModel.CUSTOM_USER.historic_model_name:
             query = {"instance_id": term}
         else:
             query = {"user_id": term}

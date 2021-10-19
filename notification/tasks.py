@@ -1,7 +1,7 @@
 import csv
+import datetime
 import logging
 import os
-from datetime import timedelta
 from io import StringIO
 from time import time, sleep
 
@@ -66,18 +66,31 @@ class SftpManager:
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
                 logging.info(f'File: {filename}, uploaded.')
-                return
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
 
+        sftp_client.close()
+        logger.info('Connection closed')
+        return
+
 
 class NotificationProcessor:
-    def __init__(self, to_date=None):
+    def __init__(self, initiation=True):
         self.client_application_name = 'Barclays Mobile Banking'
         self.channel = 'com.barclays.bmb'
-        self.to_date = to_date
+        self.initiation = initiation
+        self.to_date = timezone.now()
         self.change_type = 'status'
+
+        run_times = settings.NOTIFICATION_RUN_TIME.split(",")
+
+        # if first run of the day we want all the changes that happened outside of the specified hours
+        if self.to_date.time() < datetime.time(int(run_times[1])):
+            previous_day = self.to_date - datetime.timedelta(days=1)
+            self.from_datetime = previous_day.replace(hour=int(run_times[-1]))
+        else:
+            self.from_datetime = self.to_date - datetime.timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
     def check_previous_status(self, scheme_account, from_date, history_obj, deleted=False):
         if deleted:
@@ -134,24 +147,25 @@ class NotificationProcessor:
 
     def get_scheme_account_history(self):
         data = []
-        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
 
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
-            scheme_account__updated__range=[from_datetime, self.to_date]
+            scheme_account__updated__gte=self.from_datetime,
+            scheme_account__updated__lte=self.to_date
         )
 
         for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccount.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
-                created__range=[from_datetime, self.to_date]
-            )
+                created__range=[self.from_datetime, self.to_date],
+                change_details__contains='status'
+            ).last()
 
-            for history in history_data:
+            if history_data:
                 state = self.check_previous_status(
                     scheme_association.scheme_account,
-                    from_datetime,
-                    history,
+                    self.from_datetime,
+                    history_data,
                 )
 
                 if state:
@@ -159,55 +173,50 @@ class NotificationProcessor:
                         scheme_association.user.external_id,
                         scheme_association.scheme_account.scheme.slug,
                         state,
-                        history.created
+                        history_data.created
                     ])
 
         return data
 
-    def get_deleted_scheme_account_entry_history(self):
+    def get_scheme_account_entry_history(self):
         # Get removed users from scheme accounts
         data = []
-        from_datetime = self.to_date - timedelta(seconds=settings.NOTIFICATION_PERIOD)
+        deleted_user_id_assocations = []
 
+        # Sort queryset by user_id and created time to see if delete is the latest status
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
-            change_type=HistoricalBase.DELETE,
-            created__range=[from_datetime, self.to_date]
-        )
+            created__range=[self.from_datetime, self.to_date]
+        ).order_by('user_id', '-created').distinct('user_id')
 
         for association in historical_scheme_account_association:
+            # If the user association has already been removed then skip to next item
+            if association.user_id in deleted_user_id_assocations:
+                continue
+
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
             user = CustomUser.all_objects.filter(id=association.user_id)
 
             if scheme_account and user:
-                history_data = HistoricalSchemeAccount.objects.filter(
-                    instance_id=scheme_account[0].id,
-                    created__range=[from_datetime, self.to_date]
-                )
+                if association.change_type == HistoricalBase.DELETE:
+                    # Delete row
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        DELETED,
+                        association.created
+                    ])
 
-                for history in history_data:
-                    state = self.check_previous_status(
-                        scheme_account[0],
-                        from_datetime,
-                        history,
-                    )
+                    deleted_user_id_assocations.append(association.user_id)
 
-                    # History prior deletion
-                    if state:
-                        data.append([
-                            user[0].external_id,
-                            scheme_account[0].scheme.slug,
-                            state,
-                            history.created
-                        ])
-
-                # Delete row
-                data.append([
-                    user[0].external_id,
-                    scheme_account[0].scheme.slug,
-                    DELETED,
-                    association.created
-                ])
+                else:
+                    # Gets the current status when the loyalty card is added to another wallet
+                    data.append([
+                        user[0].external_id,
+                        scheme_account[0].scheme.slug,
+                        scheme_account[0].status,
+                        association.created
+                    ])
 
         return data
 
@@ -219,7 +228,7 @@ class NotificationProcessor:
             user__client__name=self.client_application_name)
 
         # initiation file data
-        if not self.to_date:
+        if self.initiation:
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',
@@ -229,7 +238,7 @@ class NotificationProcessor:
 
         else:
             historical_scheme_accounts = self.get_scheme_account_history()
-            historical_scheme_account_association = self.get_deleted_scheme_account_entry_history()
+            historical_scheme_account_association = self.get_scheme_account_entry_history()
 
             rows_to_write = historical_scheme_accounts + historical_scheme_account_association
 
@@ -237,10 +246,10 @@ class NotificationProcessor:
 
 
 @shared_task
-def notification_file(to_date=None):
+def notification_file(initiation=True):
     retry_count = 0
     if settings.NOTIFICATION_RUN:
-        notification = NotificationProcessor(to_date=to_date)
+        notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
 
         sftp = SftpManager(rows=data_to_write)

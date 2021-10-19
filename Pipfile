@@ -9,7 +9,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [requires]
-python_version = "3.7"
+python_version = "3.9"
 
 [dev-packages]
 faker = "*"
@@ -18,7 +18,11 @@ fakeredis = "*"
 flake8 = "*"
 coverage = "*"
 xenon = "*"
-black = "==19.10b0"
+black = "==21.9b0"
+isort = "*"
+mypy = "*"
+pytest = "*"
+ptpython = "*"
 
 [packages]
 arrow = "==0.17.0"
@@ -56,3 +60,4 @@ gunicorn = "*"
 cached-property = "*"
 rusty-jeff = "*"
 paramiko = "*"
+dj-database-url = "*"

@@ -35,7 +35,7 @@ from prometheus.metrics import (
     payment_card_add_counter,
     service_creation_counter,
 )
-from scheme.credentials import PAYMENT_CARD_HASH
+from scheme.credentials import PAYMENT_CARD_HASH, EMAIL
 from scheme.mixins import (
     BaseLinkMixin,
     IdentifyCardMixin,
@@ -838,6 +838,10 @@ class MembershipCardView(
                 field_content.update(
                     self._decrypt_sensitive_fields(self.request.channels_permit.bundle_id, encrypted_fields)
                 )
+
+            if EMAIL in field_content:
+                field_content[EMAIL] = field_content[EMAIL].lower()
+
         except (TypeError, KeyError, ValueError) as e:
             logger.debug(f"Error collecting field content - {type(e)} {e.args[0]}")
             raise ParseError
@@ -1032,9 +1036,8 @@ class MembershipCardView(
             )
             if other_accounts.exists():
                 scheme_account = other_accounts.first()
-                sch_acc_entry = SchemeAccountEntry.objects.get_or_create(
-                    scheme_account=scheme_account,
-                    user=user,
+                sch_acc_entry = SchemeAccountEntry.create_link(
+                    user=user, scheme_account=scheme_account, auth_provided=True
                 )
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 

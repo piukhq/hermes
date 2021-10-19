@@ -94,24 +94,26 @@ def async_balance_with_updated_credentials(
     scheme_account = SchemeAccount.objects.get(id=instance_id)
     scheme_account.delete_cached_balance()
     scheme_account.delete_saved_balance()
+    cache_key = 'scheme_{}'.format(scheme_account.pk)
 
-    try:
-        # If updated credentials match existing credentials then update balance to change the status from pending
-        existing_answers = scheme_account.get_auth_credentials(force_all=True)
-        scheme_account.validate_auth_fields(update_fields, existing_answers)
-        logger.debug(
-            "Updated credentials match existing stored credentials. "
-            f"Updating balance for SchemeAccount (id={scheme_account.id})"
-        )
-        scheme_account.update_cached_balance()
-        return
-    except ParseError:
-        pass
+    # If updated credentials match existing credentials then update balance to change the status from pending
+    # If a card was added with invalid credentials, the auth credentials are deleted and so may not exist.
+    existing_answers = scheme_account.get_auth_credentials(force_all=True)
+    if existing_answers:
+        try:
+            scheme_account.validate_auth_fields(update_fields, existing_answers)
+            logger.debug(
+                "Updated credentials match existing stored credentials. "
+                f"Updating balance for SchemeAccount (id={scheme_account.id})"
+            )
+            scheme_account.update_cached_balance(cache_key=cache_key)
+            return
+        except ParseError:
+            pass
 
     logger.debug(
         f"Attempting to get balance with updated credentials for SchemeAccount (id={scheme_account.id})"
     )
-    cache_key = 'scheme_{}'.format(scheme_account.pk)
     balance, _ = scheme_account.update_cached_balance(cache_key=cache_key, credentials_override=update_fields)
 
     if balance:

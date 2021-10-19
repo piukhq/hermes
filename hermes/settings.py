@@ -16,12 +16,21 @@ import sys
 from collections import namedtuple
 from enum import Enum
 
-from redis import ConnectionPool as Redis_ConnectionPool
+import dj_database_url
 import sentry_sdk
+from redis import ConnectionPool as Redis_ConnectionPool
 from sentry_sdk.integrations import celery, django
+from sentry_sdk.integrations.celery import CeleryIntegration
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
+
+from environment import env_var, read_env
+from hermes.sentry import (
+    _make_celery_event_processor,
+    _make_django_event_processor,
+    strip_sensitive_data,
+)
+from hermes.version import __version__
 
 from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
@@ -178,18 +187,26 @@ APPEND_SLASH = False
 # Database
 # https://docs.djangoproject.com/en/1.8/ref/settings/#databases
 
-
-DATABASES = {
-    "default": {
-        # "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "ENGINE": "hermes.traced_db_wrapper",
-        "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
-        "USER": env_var("HERMES_DATABASE_USER", "postgres"),
-        "PASSWORD": env_var("HERMES_DATABASE_PASS"),
-        "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
-        "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+if env_var("HERMES_DATABASE_URL"):
+    DATABASES = {
+        "default": dj_database_url.config(
+            env="HERMES_DATABASE_URL",
+            conn_max_age=600,
+            engine="hermes.traced_db_wrapper",
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            # "ENGINE": "django.db.backends.postgresql_psycopg2",
+            "ENGINE": "hermes.traced_db_wrapper",
+            "NAME": env_var("HERMES_DATABASE_NAME", "hermes"),
+            "USER": env_var("HERMES_DATABASE_USER", "postgres"),
+            "PASSWORD": env_var("HERMES_DATABASE_PASS"),
+            "HOST": env_var("HERMES_DATABASE_HOST", "postgres"),
+            "PORT": env_var("HERMES_DATABASE_PORT", "5432"),
+        }
+    }
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.8/topics/i18n/
@@ -322,6 +339,11 @@ LOGGING = {
         },
         "prometheus": {
             "level": PROMETHEUS_LOG_LEVEL,
+            "handlers": ["console"],
+            "propagate": False,
+        },
+        "messaging": {
+            "level": MASTER_LOG_LEVEL,
             "handlers": ["console"],
             "propagate": False,
         },
@@ -554,6 +576,7 @@ RABBIT_DSN = env_var("RABBIT_DSN", f"amqp://{RABBIT_USER}:{RABBIT_PASSWORD}@{RAB
 SFTP_DIRECTORY = env_var("SFTP_DIRECTORY", "uploads")
 
 # 2 hours
+NOTIFICATION_RUN_TIME = env_var("NOTIFICATION_RUN_TIME", "10, 12, 14, 16, 18")
 NOTIFICATION_PERIOD = int(env_var("NOTIFICATION_PERIOD", 7200))
 NOTIFICATION_ERROR_THRESHOLD = int(env_var("NOTIFICATION_ERROR_THRESHOLD", 5))
 # 2 minutes
