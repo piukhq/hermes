@@ -87,9 +87,9 @@ reason_code_translation = {
     439: ["X104"],
     441: ["X201"],
     442: ["X200"],
-    # 443 (Async Registration in Progress) returns X200 (Enrolment in progress), to avoid potential Barclays issues(?).
-    # Can create a new X code if appropriate but need to check.
     443: ["X200"],
+    # 443 (Async Registration in Progress) returns X200 (Enrolment in progress). Even though this isn't strictly
+    # accurate, this is to avoid potential Barclays issues involving new reason codes.
     444: ["X101"],
     445: ["X202"],
     446: ["X104"],
