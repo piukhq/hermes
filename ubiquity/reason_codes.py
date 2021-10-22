@@ -45,6 +45,7 @@ CURRENT_STATUS_CODES = (
     (439, "General Error such as incorrect user details"),
     (441, "Join in progress"),  # Error raised by Iceland when attempting second join during a join in progress
     (442, "Asynchronous join in progress"),
+    (443, "Asynchronous registration in progress"),
     (444, "No user currently found"),
     (445, "Account already exists"),
     (446, "Update failed. Delete and re-add card."),
@@ -86,6 +87,9 @@ reason_code_translation = {
     439: ["X104"],
     441: ["X201"],
     442: ["X200"],
+    # 443 (Async Registration in Progress) returns X200 (Enrolment in progress), to avoid potential Barclays issues(?).
+    # Can create a new X code if appropriate but need to check.
+    443: ["X200"],
     444: ["X101"],
     445: ["X202"],
     446: ["X104"],
@@ -125,6 +129,7 @@ ubiquity_status_translation = {
     439: FAILED,
     441: FAILED,
     442: PENDING,
+    443: PENDING,
     444: FAILED,
     445: FAILED,
     446: FAILED,
