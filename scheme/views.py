@@ -428,6 +428,7 @@ class UpdateSchemeAccountStatus(GenericAPIView):
 
         pending_statuses = (
             SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
             SchemeAccount.JOIN_IN_PROGRESS,
             SchemeAccount.PENDING,
             SchemeAccount.PENDING_MANUAL_CHECK,
@@ -441,7 +442,8 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
 
         # delete main answer credential if an async join failed
-        if previous_status == SchemeAccount.JOIN_ASYNC_IN_PROGRESS and new_status_code != SchemeAccount.ACTIVE:
+        if previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS] \
+                and new_status_code != SchemeAccount.ACTIVE:
             scheme_account.main_answer = ""
             update_fields.append("main_answer")
 
