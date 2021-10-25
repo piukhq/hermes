@@ -49,7 +49,10 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
 
 class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
     class ImageSerializer(UbiquityImageSerializer):
-        dark_mode_url = serializers.ImageField(source='dark_mode_image', required=False)
+        dark_mode_url = serializers.SerializerMethodField()
+
+        def get_dark_mode_url(self, obj):
+            return self.image_url(obj.dark_mode_image)
 
     def to_representation(self, instance: 'Scheme') -> dict:
         plan = super().to_representation(instance)

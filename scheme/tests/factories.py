@@ -248,8 +248,8 @@ class SchemeImageFactory(factory.django.DjangoModelFactory):
     scheme = factory.SubFactory(SchemeFactory)
     image_type_code = 1
     size_code = fake.word()
-    image = fake.url()
-    dark_mode_image = fake.url()
+    image = factory.django.ImageField()
+    dark_mode_image = factory.django.ImageField()
     strap_line = fake.sentence(nb_words=3)[:Meta.model._meta.get_field('strap_line').max_length - 1]
     description = fake.sentence(nb_words=3)
     url = fake.url()
