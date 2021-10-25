@@ -302,7 +302,8 @@ class TestBaseSerializers(GlobalMockAPITestCase):
 
         self.assertEqual(image1.id, image["id"])
 
-        url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.image.name)
+        with self.settings(NO_AZURE_STORAGE=False):
+            url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.image.name)
         self.assertEqual(url, image["url"])
         self.assertEqual(image1.image_type_code, image["type"])
         self.assertEqual(image1.description, image["description"])
