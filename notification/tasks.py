@@ -208,11 +208,11 @@ class NotificationProcessor:
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
             created__range=[self.from_datetime, self.to_date]
-        ).order_by('user_id', '-created').distinct('user_id')
+        ).order_by('user_id', '-created')
 
         for association in historical_scheme_account_association:
             # If the user association has already been removed then skip to next item
-            if association.user_id in deleted_user_id_assocations:
+            if [association.user_id, association.scheme_account_id] in deleted_user_id_assocations:
                 continue
 
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
@@ -228,7 +228,7 @@ class NotificationProcessor:
                         association.created
                     ])
 
-                    deleted_user_id_assocations.append(association.user_id)
+                    deleted_user_id_assocations.append([association.user_id, association.scheme_account_id])
 
                 else:
                     # Gets the current status when the loyalty card is added to another wallet
@@ -244,12 +244,12 @@ class NotificationProcessor:
     def get_data(self):
         rows_to_write = []
 
-        # Get all barclays scheme account associations
-        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
-            user__client__name=self.client_application_name)
-
         # initiation file data
         if self.initiation:
+            # Get all barclays scheme account associations
+            scheme_accounts_entries = SchemeAccountEntry.objects.filter(
+                user__client__name=self.client_application_name)
+
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',
