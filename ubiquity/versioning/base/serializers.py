@@ -243,8 +243,13 @@ class UbiquityImageSerializer(serializers.Serializer):
 
     @staticmethod
     def image_url(image: 'ImageFieldFile') -> t.Optional[str]:
+        if settings.NO_AZURE_STORAGE:
+            base_url = settings.MEDIA_URL
+        else:
+            base_url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
+
         try:
-            return os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image.file.name)
+            return os.path.join(base_url, image.name)
         except (AttributeError, TypeError, ValueError):
             return None
 
