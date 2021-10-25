@@ -1,4 +1,5 @@
 import logging
+import os
 import typing as t
 from decimal import Decimal, ROUND_HALF_UP
 from os.path import join
@@ -10,6 +11,7 @@ from arrow.parser import ParserError
 from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
+from django.db.models.fields.files import ImageFieldFile
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
@@ -225,7 +227,7 @@ class PaymentCardConsentSerializer(serializers.Serializer):
 class UbiquityImageSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     type = serializers.IntegerField(source='image_type_code')
-    url = serializers.ImageField(source='image')
+    url = serializers.SerializerMethodField()
     description = serializers.CharField()
     encoding = serializers.SerializerMethodField()
 
@@ -238,6 +240,16 @@ class UbiquityImageSerializer(serializers.Serializer):
             return obj.image.name.split('.')[-1].replace('/', '')
         except (IndexError, AttributeError):
             return None
+
+    @staticmethod
+    def image_url(image: 'ImageFieldFile') -> t.Optional[str]:
+        try:
+            return os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image.file.name)
+        except (AttributeError, TypeError, ValueError):
+            return None
+
+    def get_url(self, obj):
+        return self.image_url(obj.image)
 
 
 class PaymentCardSerializer:

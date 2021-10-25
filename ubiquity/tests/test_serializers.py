@@ -1,16 +1,20 @@
+import os
 import typing as t
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
+import factory.django
+from django.conf import settings
 from rest_framework import serializers
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
+from scheme.tests.factories import SchemeImageFactory
 from ubiquity.channel_vault import SecretKeyName
 from ubiquity.models import ServiceConsent
 from ubiquity.tests.factories import ServiceConsentFactory
-from ubiquity.versioning.base.serializers import ServiceSerializer
+from ubiquity.versioning.base.serializers import ServiceSerializer, UbiquityImageSerializer
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
@@ -287,6 +291,22 @@ class TestBaseSerializers(GlobalMockAPITestCase):
 
         self.assertTrue(service_consent_created)
         self.assertEqual(request.prop_id, service_consent.user.external_id)
+
+    def test_ubiquity_image_deserializer(self):
+        serializer_class = UbiquityImageSerializer
+
+        image1 = SchemeImageFactory(image=factory.django.ImageField(filename="some/image1.png"))
+        expected_encoding = "png"
+
+        image = serializer_class(image1).data
+
+        self.assertEqual(image1.id, image["id"])
+
+        url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.image.name)
+        self.assertEqual(url, image["url"])
+        self.assertEqual(image1.image_type_code, image["type"])
+        self.assertEqual(image1.description, image["description"])
+        self.assertEqual(expected_encoding, image["encoding"])
 
 
 class TestSerializersV1_2(GlobalMockAPITestCase):
