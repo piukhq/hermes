@@ -468,7 +468,9 @@ class TestSerializersV1_3(GlobalMockAPITestCase):
         url = os.path.join("https://api.dev.gb.bink.com/content/media/hermes", self.image1.image.name)
         self.assertEqual(url, image["url"])
 
-        dark_mode_url = os.path.join("https://api.dev.gb.bink.com/content/media/hermes", self.image1.dark_mode_image.name)
+        dark_mode_url = os.path.join(
+            "https://api.dev.gb.bink.com/content/media/hermes", self.image1.dark_mode_image.name
+        )
         self.assertEqual(dark_mode_url, image["dark_mode_url"])
 
         self.assertEqual(self.image1.image_type_code, image["type"])
