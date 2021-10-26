@@ -249,7 +249,8 @@ class UbiquityImageSerializer(serializers.Serializer):
             base_url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER)
 
         try:
-            return os.path.join(base_url, image.file.name)
+            if image.name:
+                return os.path.join(base_url, image.name)
         except (AttributeError, TypeError, ValueError):
             return None
 
