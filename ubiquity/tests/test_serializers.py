@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 
 import factory.django
 from django.conf import settings
+from django.test import override_settings
 from rest_framework import serializers
 from shared_config_storage.credentials.encryption import RSACipher, BLAKE2sHash
 
@@ -18,6 +19,7 @@ from ubiquity.versioning.base.serializers import ServiceSerializer, UbiquityImag
 from ubiquity.versioning.v1_2.serializers import (
     PaymentCardTranslationSerializer as PaymentCardTranslationSerializerV1_2
 )
+from ubiquity.versioning.v1_3.serializers import MembershipPlanSerializer as MembershipPlanSerializerV1_3
 from user.tests.factories import ClientApplicationBundleFactory, UserFactory
 
 private_key = (
@@ -292,6 +294,7 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         self.assertTrue(service_consent_created)
         self.assertEqual(request.prop_id, service_consent.user.external_id)
 
+    @override_settings(NO_AZURE_STORAGE=True)
     def test_ubiquity_image_deserializer(self):
         serializer_class = UbiquityImageSerializer
 
@@ -303,6 +306,23 @@ class TestBaseSerializers(GlobalMockAPITestCase):
         self.assertEqual(image1.id, image["id"])
 
         url = os.path.join(settings.MEDIA_URL, image1.image.name)
+        self.assertEqual(url, image["url"])
+        self.assertEqual(image1.image_type_code, image["type"])
+        self.assertEqual(image1.description, image["description"])
+        self.assertEqual(expected_encoding, image["encoding"])
+
+    @override_settings(NO_AZURE_STORAGE=False)
+    def test_ubiquity_image_deserializer_azure(self):
+        serializer_class = UbiquityImageSerializer
+
+        image1 = SchemeImageFactory(image=factory.django.ImageField(filename="some/image1.png"))
+        expected_encoding = "png"
+
+        image = serializer_class(image1).data
+
+        self.assertEqual(image1.id, image["id"])
+
+        url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.image.name)
         self.assertEqual(url, image["url"])
         self.assertEqual(image1.image_type_code, image["type"])
         self.assertEqual(image1.description, image["description"])
@@ -409,3 +429,48 @@ class TestSerializersV1_2(GlobalMockAPITestCase):
             serializer(data, context={'bundle_id': self.bundle_id}).data
 
         self.assertEqual(e.exception.args[0], 'Failed to decrypt sensitive fields')
+
+
+class TestSerializersV1_3(GlobalMockAPITestCase):
+
+    @override_settings(NO_AZURE_STORAGE=True)
+    def test_dark_mode_url(self):
+        serializer_class = MembershipPlanSerializerV1_3.image_serializer_class
+
+        image1 = SchemeImageFactory(image=factory.django.ImageField(filename="some/image1.png"))
+        expected_encoding = "png"
+
+        image = serializer_class(image1).data
+
+        self.assertEqual(image1.id, image["id"])
+
+        url = os.path.join(settings.MEDIA_URL, image1.image.name)
+        self.assertEqual(url, image["url"])
+
+        dark_mode_url = os.path.join(settings.MEDIA_URL, image1.dark_mode_image.name)
+        self.assertEqual(dark_mode_url, image["dark_mode_url"])
+
+        self.assertEqual(image1.image_type_code, image["type"])
+        self.assertEqual(image1.description, image["description"])
+        self.assertEqual(expected_encoding, image["encoding"])
+
+    @override_settings(NO_AZURE_STORAGE=False)
+    def test_dark_mode_url_azure(self):
+        serializer_class = MembershipPlanSerializerV1_3.image_serializer_class
+
+        image1 = SchemeImageFactory(image=factory.django.ImageField(filename="some/image1.png"))
+        expected_encoding = "png"
+
+        image = serializer_class(image1).data
+
+        self.assertEqual(image1.id, image["id"])
+
+        url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.image.name)
+        self.assertEqual(url, image["url"])
+
+        dark_mode_url = os.path.join(settings.CONTENT_URL, settings.AZURE_CONTAINER, image1.dark_mode_image.name)
+        self.assertEqual(dark_mode_url, image["dark_mode_url"])
+
+        self.assertEqual(image1.image_type_code, image["type"])
+        self.assertEqual(image1.description, image["description"])
+        self.assertEqual(expected_encoding, image["encoding"])

@@ -54,11 +54,10 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
         def get_dark_mode_url(self, obj):
             return self.image_url(obj.dark_mode_image)
 
+    image_serializer_class = ImageSerializer
+
     def to_representation(self, instance: 'Scheme') -> dict:
         plan = super().to_representation(instance)
-        images = instance.images.all()
-
-        plan["images"] = self.ImageSerializer(images, many=True).data
         plan["card"]["secondary_colour"] = instance.secondary_colour
 
         return plan
