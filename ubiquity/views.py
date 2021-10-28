@@ -638,7 +638,7 @@ class MembershipCardView(
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
-        account.set_async_join_status()
+        account.set_async_registration_status()
         async_registration.delay(
             user.id,
             serializer,
@@ -663,7 +663,9 @@ class MembershipCardView(
         else:
             payment_cards_to_link = []
 
-        if account.status in [SchemeAccount.PENDING, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+        if account.status in [SchemeAccount.PENDING,
+                              SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+                              SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]:
             raise ParseError("requested card is still in a pending state, please wait for current journey to finish")
 
         scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
@@ -801,6 +803,11 @@ class MembershipCardView(
         scheme_account = self.get_object()
         if scheme_account.status in SchemeAccount.JOIN_PENDING:
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
+            return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+        elif scheme_account.status in SchemeAccount.REGISTER_PENDING:
+            error = {"register_pending": "Membership card cannot be deleted until the Registration process has "
+                                         "completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()

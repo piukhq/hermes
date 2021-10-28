@@ -1854,7 +1854,7 @@ class TestResources(GlobalMockAPITestCase):
                                           content_type='application/json', **auth_headers)
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
-        self.assertIn(sa.status, SchemeAccount.JOIN_PENDING)
+        self.assertIn(sa.status, SchemeAccount.REGISTER_PENDING)
 
     @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):

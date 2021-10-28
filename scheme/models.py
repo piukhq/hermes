@@ -623,6 +623,7 @@ class SchemeAccount(models.Model):
     JOIN_IN_PROGRESS = 441
     JOIN_ERROR = 538
     JOIN_ASYNC_IN_PROGRESS = 442
+    REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
 
@@ -661,6 +662,7 @@ class SchemeAccount(models.Model):
         (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR'),
         (SCHEME_REQUESTED_DELETE, 'The scheme has requested this account should be deleted', 'SCHEME_REQUESTED_DELETE'),
         (JOIN_ASYNC_IN_PROGRESS, 'Asynchronous join in progress', 'JOIN_ASYNC_IN_PROGRESS'),
+        (REGISTRATION_ASYNC_IN_PROGRESS, 'Asynchronous registration in progress', 'REGISTRATION_ASYNC_IN_PROGRESS'),
         (ENROL_FAILED, 'Enrol Failed', 'ENROL_FAILED'),
         (REGISTRATION_FAILED, 'Ghost Card Registration Failed', 'REGISTRATION_FAILED'),
     )
@@ -675,9 +677,11 @@ class SchemeAccount(models.Model):
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK,
                                                                               WALLET_ONLY]
-    JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
+    JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, REGISTRATION_ASYNC_IN_PROGRESS,
+                                     ENROL_FAILED]
     # below is for all the join in progress statuses, its planned to split these for enrol and registration
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
+    REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -1193,6 +1197,11 @@ class SchemeAccount(models.Model):
 
     def set_async_join_status(self, *, commit_change=True) -> None:
         self.status = SchemeAccount.JOIN_ASYNC_IN_PROGRESS
+        if commit_change:
+            self.save(update_fields=['status'])
+
+    def set_async_registration_status(self, *, commit_change=True) -> None:
+        self.status = SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
         if commit_change:
             self.save(update_fields=['status'])
 
