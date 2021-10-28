@@ -41,6 +41,27 @@ class SftpManager:
         # Format data to return status that match api response and covert date to timestamp
         return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
+    @staticmethod
+    def remove_duplicates(data):
+        # Removed matching duplicates using set and then sort the list by latest
+        removed_duplicates = sorted(set(map(tuple, data)), reverse=True)
+        cleansed_data = []
+
+        # Remove duplicates that resulted from looking at the HistoricalSchemeAccount and
+        # HistoricalSchemeAccountEntry. Won't be removed from the above because they might have
+        # a different timestamp. This only happens when a user is added to a loyalty card and then the
+        # status change and we only want the latest entry.
+        for x in removed_duplicates:
+            if not cleansed_data:
+                cleansed_data.append(list(x))
+            else:
+                if x[1] == cleansed_data[-1][1] and x[2] == cleansed_data[-1][2]:
+                    continue
+                else:
+                    cleansed_data.append(list(x))
+
+        return cleansed_data
+
     def connect(self):
         # custom_paramiko.HostKey, takes host, keytype, key hence **item works
         host_keys = [stfp_connect.HostKey(**item) for item in self.sftp_host_keys]
@@ -52,7 +73,7 @@ class SftpManager:
         date = timezone.now().strftime('%Y%m%d')
         timestamp = int(time())
         filename = f'Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
-        rows = self.format_data(self.rows)
+        rows = self.remove_duplicates(self.format_data(self.rows))
 
         logger.info('Establishing connection with SFTP.')
         sftp_client = self.connect()
@@ -187,11 +208,11 @@ class NotificationProcessor:
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
             channel=self.channel,
             created__range=[self.from_datetime, self.to_date]
-        ).order_by('user_id', '-created').distinct('user_id')
+        ).order_by('user_id', '-created')
 
         for association in historical_scheme_account_association:
             # If the user association has already been removed then skip to next item
-            if association.user_id in deleted_user_id_assocations:
+            if [association.user_id, association.scheme_account_id] in deleted_user_id_assocations:
                 continue
 
             scheme_account = SchemeAccount.all_objects.filter(id=association.scheme_account_id)
@@ -207,7 +228,7 @@ class NotificationProcessor:
                         association.created
                     ])
 
-                    deleted_user_id_assocations.append(association.user_id)
+                    deleted_user_id_assocations.append([association.user_id, association.scheme_account_id])
 
                 else:
                     # Gets the current status when the loyalty card is added to another wallet
@@ -223,12 +244,12 @@ class NotificationProcessor:
     def get_data(self):
         rows_to_write = []
 
-        # Get all barclays scheme account associations
-        scheme_accounts_entries = SchemeAccountEntry.objects.filter(
-            user__client__name=self.client_application_name)
-
         # initiation file data
         if self.initiation:
+            # Get all barclays scheme account associations
+            scheme_accounts_entries = SchemeAccountEntry.objects.filter(
+                user__client__name=self.client_application_name)
+
             rows_to_write = scheme_accounts_entries.values_list(
                 'user__external_id',
                 'scheme_account__scheme__slug',

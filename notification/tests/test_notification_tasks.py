@@ -568,6 +568,28 @@ class TestNotificationTask(GlobalMockAPITestCase):
         self.assertEqual(result, expected_result)
 
     @mock.patch('paramiko.RSAKey.from_private_key')
+    def test_remove_duplicates(self, mock_rsa_key):
+        sftp = SftpManager()
+
+        data = [
+            ['01', 'test1@example.com', 'iceland-bonus-card-mock', 'failed', 1634565710],
+            ['01', 'test1@example.com', 'iceland-bonus-card-mock', 'failed', 1634566334],
+            ['01', 'test1@example.com', 'iceland-bonus-card-mock', 'failed', 1634566335],
+            ['01', 'test@bink.com', 'iceland-bonus-card-mock', 'authorised', 1634567486],
+            ['01', 'test@bink.com', 'iceland-bonus-card-mock', 'authorised', 1634567486],
+            ['01', 'test3@bink.com', 'iceland-bonus-card-mock', 'deleted', 1634567423]
+        ]
+
+        expected_result = [
+            ['01', 'test@bink.com', 'iceland-bonus-card-mock', 'authorised', 1634567486],
+            ['01', 'test3@bink.com', 'iceland-bonus-card-mock', 'deleted', 1634567423],
+            ['01', 'test1@example.com', 'iceland-bonus-card-mock', 'failed', 1634566335]
+        ]
+
+        result = sftp.remove_duplicates(data)
+        self.assertEqual(result, expected_result)
+
+    @mock.patch('paramiko.RSAKey.from_private_key')
     def test_retry_raise_exception(self, mock_rsa_key):
         mock_rsa_key.return_value = RSAKey.generate(1024)
         mock_host_keys = {

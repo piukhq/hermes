@@ -235,11 +235,10 @@ NO_AZURE_STORAGE = env_var("NO_AZURE_STORAGE", True)
 if not NO_AZURE_STORAGE:
     DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
     AZURE_CONTAINER = env_var("HERMES_BLOB_STORAGE_CONTAINER", "media/hermes")
-    HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
     AZURE_CONNECTION_STRING = env_var("HERMES_BLOB_STORAGE_DSN", "")
     # For generating image urls with a custom domain
+    HERMES_CUSTOM_DOMAIN = env_var("HERMES_CUSTOM_DOMAIN", "https://api.dev.gb.bink.com")
     CONTENT_URL = f"{HERMES_CUSTOM_DOMAIN}/content"
-    AZURE_CUSTOM_CONNECTION_STRING = f"{AZURE_CONNECTION_STRING};BlobEndpoint={CONTENT_URL}"
     MAGIC_LINK_TEMPLATE = 'email/magic_link_email.txt'
 
 
