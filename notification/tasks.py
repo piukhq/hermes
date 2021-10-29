@@ -1,6 +1,7 @@
 import csv
 import datetime
 import logging
+import operator
 import os
 from io import StringIO
 from time import time, sleep
@@ -44,7 +45,7 @@ class SftpManager:
     @staticmethod
     def remove_duplicates(data):
         # Removed matching duplicates using set and then sort the list by latest
-        removed_duplicates = sorted(set(map(tuple, data)), reverse=True)
+        removed_duplicates = sorted(set(map(tuple, data)), key=operator.itemgetter(1, 2, 4), reverse=True)
         cleansed_data = []
 
         # Remove duplicates that resulted from looking at the HistoricalSchemeAccount and
@@ -200,7 +201,6 @@ class NotificationProcessor:
         return data
 
     def get_scheme_account_entry_history(self):
-        # Get removed users from scheme accounts
         data = []
         deleted_user_id_assocations = []
 
@@ -235,7 +235,7 @@ class NotificationProcessor:
                     data.append([
                         user[0].external_id,
                         scheme_account[0].scheme.slug,
-                        scheme_account[0].status,
+                        self.get_status_translation(scheme_account[0], scheme_account[0].status),
                         association.created
                     ])
 
@@ -272,7 +272,6 @@ def notification_file(initiation=True):
     if settings.NOTIFICATION_RUN:
         notification = NotificationProcessor(initiation=initiation)
         data_to_write = notification.get_data()
-
         sftp = SftpManager(rows=data_to_write)
 
         while True:
