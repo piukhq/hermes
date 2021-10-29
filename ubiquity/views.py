@@ -801,13 +801,10 @@ class MembershipCardView(
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
-        if scheme_account.status in SchemeAccount.JOIN_PENDING:
+        if scheme_account.status in (SchemeAccount.JOIN_PENDING, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS):
+            # Ideally we would create a different message for pending registrations as this is a little misleading, but
+            # avoiding non-agreed changes to the API for Barclays so will keep this the same for now.
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
-            return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-
-        elif scheme_account.status in SchemeAccount.REGISTER_PENDING:
-            error = {"register_pending": "Membership card cannot be deleted until the Registration process has "
-                                         "completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         SchemeAccountEntry.objects.filter(scheme_account=scheme_account, user=request.user).delete()
