@@ -358,7 +358,7 @@ class TestNotificationTask(GlobalMockAPITestCase):
             data = test_notification.get_scheme_account_entry_history()
 
             expected_data = [
-                self.user_three.external_id, self.scheme_account.scheme.slug, SchemeAccount.ACTIVE, self.mocked_datetime
+                self.user_three.external_id, self.scheme_account.scheme.slug, AUTHORISED, self.mocked_datetime
             ]
 
             self.assertEqual(len(data), 1)
