@@ -242,6 +242,7 @@ class Scheme(models.Model):
     colour = RGBColorField(blank=True)
     secondary_colour = models.CharField(max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"',
                                         validators=[validate_hex_colour])
+    text_colour = RGBColorField(blank=True, default="#000000")
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
