@@ -30,6 +30,7 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
+from scheme.vouchers import VoucherStateStr, VoucherType
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD, \
     POSTCODE, CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS
 from scheme.encryption import AESCipher
@@ -1599,30 +1600,30 @@ class VoucherScheme(models.Model):
         type_name = dict(self.EARN_TYPES)[self.earn_type]
         return "{} {} - id: {}".format(self.scheme.name, type_name, self.id)
 
-    def get_headline(self, state: vouchers.VoucherState):
+    def get_headline(self, state: VoucherStateStr):
         return {
-            vouchers.ISSUED: self.headline_issued,
-            vouchers.IN_PROGRESS: self.headline_inprogress,
-            vouchers.EXPIRED: self.headline_expired,
-            vouchers.REDEEMED: self.headline_redeemed,
-            vouchers.CANCELLED: self.headline_cancelled
+            VoucherStateStr.ISSUED: self.headline_issued,
+            VoucherStateStr.IN_PROGRESS: self.headline_inprogress,
+            VoucherStateStr.EXPIRED: self.headline_expired,
+            VoucherStateStr.REDEEMED: self.headline_redeemed,
+            VoucherStateStr.CANCELLED: self.headline_cancelled
         }[state]
 
-    def get_body_text(self, state: vouchers.VoucherState):
+    def get_body_text(self, state: VoucherStateStr):
         return {
-            vouchers.ISSUED: self.body_text_issued,
-            vouchers.IN_PROGRESS: self.body_text_inprogress,
-            vouchers.EXPIRED: self.body_text_expired,
-            vouchers.REDEEMED: self.body_text_redeemed,
-            vouchers.CANCELLED: self.body_text_cancelled,
+            VoucherStateStr.ISSUED: self.body_text_issued,
+            VoucherStateStr.IN_PROGRESS: self.body_text_inprogress,
+            VoucherStateStr.EXPIRED: self.body_text_expired,
+            VoucherStateStr.REDEEMED: self.body_text_redeemed,
+            VoucherStateStr.CANCELLED: self.body_text_cancelled,
         }[state]
 
     @staticmethod
-    def earn_type_from_voucher_type(voucher_type: vouchers.VoucherType):
+    def earn_type_from_voucher_type(voucher_type: VoucherType):
         return {
-            vouchers.VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
-            vouchers.VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
-            vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
+            VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
+            VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
+            VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]
 
     def get_earn_target_value(self, voucher_fields: Dict) -> float:

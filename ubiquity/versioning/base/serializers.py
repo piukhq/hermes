@@ -27,7 +27,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme, SchemeBundleAssociation, SchemeAccount)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
-from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
+from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument, SchemeAccountEntry
 from ubiquity.tasks import async_balance
@@ -822,7 +822,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
             if voucher.get('code'):
-                if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
+                if voucher['state'] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher['code'] = ""
         card_repr = {
             'id': instance.id,
