@@ -672,6 +672,7 @@ class TestResources(GlobalMockAPITestCase):
 
         sa = SchemeAccount.objects.get(pk=create_data["id"])
         self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
         # replay and check same data with 200 response
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
@@ -708,6 +709,7 @@ class TestResources(GlobalMockAPITestCase):
 
         sa = SchemeAccount.objects.get(pk=create_data["id"])
         self.assertEqual(sa.main_answer, payload["account"]["add_fields"][0]["value"])
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
 
         # replay and check same data with 200 response
         resp = self.client.post(reverse('membership-cards'), data=json.dumps(payload), content_type='application/json',
@@ -1204,6 +1206,7 @@ class TestResources(GlobalMockAPITestCase):
         scheme_account = SchemeAccount.objects.get(pk=response.json()["id"])
         self.assertEqual(scheme_account.main_answer, main_answer)
         self.assertIn(scheme_account.status, SchemeAccount.JOIN_PENDING)
+        self.assertEqual(scheme_account.originating_journey, JourneyTypes.JOIN)
 
     @patch('ubiquity.influx_audit.InfluxDBClient')
     @patch('analytics.api')
@@ -1855,6 +1858,7 @@ class TestResources(GlobalMockAPITestCase):
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
         self.assertIn(sa.status, SchemeAccount.REGISTER_PENDING)
+        self.assertEqual(sa.originating_journey, JourneyTypes.REGISTER)
 
     @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):
