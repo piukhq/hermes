@@ -615,6 +615,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             'card': {
                 'barcode_type': instance.barcode_type,
                 'colour': instance.colour,
+                'text_colour': instance.text_colour,
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
@@ -834,7 +835,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
                 'barcode_type': scheme.barcode_type,
-                'colour': scheme.colour
+                'colour': scheme.colour,
+                'text_colour': scheme.text_colour,
             },
             'images': self.image_serializer_class(images, many=True).data,
             'account': {
