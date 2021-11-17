@@ -307,7 +307,8 @@ class PaymentCardSerializer:
                 "currency_code": instance.currency_code,
                 "name_on_card": instance.name_on_card,
                 "provider": instance.payment_card.system_name,
-                "type": instance.payment_card.type
+                "type": instance.payment_card.type,
+                "issuer_name": instance.issuer_name,
             },
             "images": self._get_images(instance),
             "account": {
@@ -337,6 +338,7 @@ class PaymentCardTranslationSerializer:
             'pan_start': data['first_six_digits'],
             'pan_end': data['last_four_digits'],
             'issuer': self.get_issuer(data),
+            'issuer_name': data.get('issuer_name', ''),
             'payment_card': self.get_payment_card(data),
             'name_on_card': data['name_on_card'],
             'token': data['token'],
