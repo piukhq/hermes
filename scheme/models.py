@@ -688,7 +688,7 @@ class SchemeAccount(models.Model):
     # Journey types
     JOURNEYS = (
         (JourneyTypes.UNKNOWN, 'Unknown'),
-        (JourneyTypes.JOIN, 'Join'),
+        (JourneyTypes.JOIN, 'Enrol'),
         (JourneyTypes.ADD, 'Add'),
         (JourneyTypes.REGISTER, 'Register'),
     )

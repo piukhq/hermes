@@ -14,6 +14,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='schemeaccount',
             name='originating_journey',
-            field=models.IntegerField(choices=[(scheme.models.JourneyTypes(5), 'Unknown'), (scheme.models.JourneyTypes(0), 'Join'), (scheme.models.JourneyTypes(2), 'Add'), (scheme.models.JourneyTypes(4), 'Register')], default=scheme.models.JourneyTypes(5)),
+            field=models.IntegerField(choices=[(scheme.models.JourneyTypes(5), 'Unknown'), (scheme.models.JourneyTypes(0), 'Enrol'), (scheme.models.JourneyTypes(2), 'Add'), (scheme.models.JourneyTypes(4), 'Register')], default=scheme.models.JourneyTypes(5)),
         ),
     ]
