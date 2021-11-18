@@ -385,6 +385,8 @@ class JourneyTypes(IntEnum):
     LINK = 1
     ADD = 2
     UPDATE = 3
+    REGISTER = 4
+    UNKNOWN = 5
 
 
 class Control(models.Model):
@@ -685,6 +687,14 @@ class SchemeAccount(models.Model):
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
     REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
 
+    # Journey types
+    JOURNEYS = (
+        (JourneyTypes.UNKNOWN, 'Unknown'),
+        (JourneyTypes.JOIN, 'Enrol'),
+        (JourneyTypes.ADD, 'Add'),
+        (JourneyTypes.REGISTER, 'Register'),
+    )
+
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
     scheme = models.ForeignKey('scheme.Scheme', on_delete=models.PROTECT)
@@ -707,6 +717,7 @@ class SchemeAccount(models.Model):
     main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
+    originating_journey = models.IntegerField(choices=JOURNEYS, default=JourneyTypes.UNKNOWN)
 
     @property
     def status_name(self):
@@ -1206,6 +1217,16 @@ class SchemeAccount(models.Model):
         self.status = SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
         if commit_change:
             self.save(update_fields=['status'])
+
+    def set_register_originating_journey(self, *, commit_change=True) -> None:
+        self.originating_journey = JourneyTypes.REGISTER
+        if commit_change:
+            self.save(update_fields=['originating_journey'])
+
+    def set_add_originating_journey(self, *, commit_change=True) -> None:
+        self.originating_journey = JourneyTypes.ADD
+        if commit_change:
+            self.save(update_fields=['originating_journey'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
