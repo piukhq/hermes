@@ -7,7 +7,7 @@ import scheme.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0097_auto_20211022_1227'),
+        ('scheme', '0098_scheme_text_colour'),
     ]
 
     operations = [
