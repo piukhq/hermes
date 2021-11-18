@@ -549,7 +549,6 @@ class MembershipCardView(
                 scheme_questions
             )
             metrics_route = MembershipCardAddRoute.REGISTER
-            account.set_register_originating_journey()
         else:
             if not sch_acc_entry.auth_provided:
                 raise CardAuthError(
@@ -640,6 +639,7 @@ class MembershipCardView(
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         account.set_async_registration_status()
+        account.set_register_originating_journey()
         async_registration.delay(
             user.id,
             serializer,
