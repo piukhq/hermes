@@ -1,11 +1,13 @@
 import json
 import logging
 from enum import Enum
+from typing import Optional
 
 import requests
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 from requests.adapters import HTTPAdapter
 from rest_framework import exceptions
-from shared_config_storage.vault.secrets import VaultError, read_vault
 from urllib3 import Retry
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,16 @@ _bundle_secrets = {}
 _secret_keys = {}
 _aes_keys = {}
 _barclays_hermes_sftp = {}
+
+
+class VaultError(Exception):
+    """Exception raised for errors in the input."""
+
+    def __init__(self, message: Optional[str] = None) -> None:
+        self.message = message
+
+    def __str__(self) -> str:
+        return f"Vault Error: {self.message}"
 
 
 def retry_session(backoff_factor: float = 0.3) -> requests.Session:
@@ -83,56 +95,57 @@ def load_secrets(config):
         logger.info("Tried to load the vault secrets more than once, ignoring the request.")
 
     elif config.get('LOCAL_SECRETS'):
-        logger.info(f"JWT bundle secrets - from local file {config['LOCAL_SECRETS_PATH']}")
+        logger.info(f"Fetching secrets from local file: {config['LOCAL_SECRETS_PATH']}")
         with open(config['LOCAL_SECRETS_PATH']) as fp:
-            all_secrets = json.load(fp)
+            local_secrets = json.load(fp)
 
-        _bundle_secrets = all_secrets['bundle_secrets']
-        _secret_keys = all_secrets['secret_keys']
-        _aes_keys = all_secrets['aes_keys']
-        _barclays_hermes_sftp = all_secrets['barclays_hermes_sftp']
+        _bundle_secrets = local_secrets['channels']
+        _secret_keys = local_secrets['secret-keys']
+        _aes_keys = local_secrets['aes-keys']
+        _barclays_hermes_sftp = local_secrets['barclays-hermes-sftp']
         loaded = True
 
     else:
-        try:
-            logger.info(
-                f"JWT bundle secrets - from vault at {config['VAULT_URL']}  secrets: {config['CHANNEL_VAULT_PATH']}"
-            )
-            _bundle_secrets = read_vault(config['CHANNEL_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
-            logger.info(f"JWT bundle secrets - Found secrets for {[bundle_id for bundle_id in _bundle_secrets]}")
 
-        except requests.RequestException as e:
-            err_msg = f"JWT bundle secrets - Vault Exception {e}"
-            logger.exception(err_msg)
-            raise VaultError(err_msg) from e
+        secrets_to_load = [(config['BUNDLE_SECRETS_NAME'], _bundle_secrets),
+                           (config['SECRET_KEYS_NAME'], _secret_keys),
+                           (config['AES_KEYS_NAME'], _aes_keys),
+                           (config['BARCLAYS_SFTP_SECRETS_NAME'], _barclays_hermes_sftp)]
 
-        try:
-            logger.info(f"Loading secret keys from vault at {config['VAULT_URL']}")
-            _secret_keys = read_vault(config['SECRET_KEYS_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
-        except requests.RequestException as e:
-            err_msg = f"Secret keys - Vault Exception {e}"
-            logger.exception(err_msg)
-            raise VaultError(err_msg) from e
+        client = get_azure_client(config)
 
-        try:
-            logger.info(f"Loading AES keys from vault at {config['VAULT_URL']}")
-            _aes_keys = read_vault(config['AES_KEYS_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN'])
-        except requests.RequestException as e:
-            err_msg = f"AES keys - Vault Exception {e}"
-            logger.exception(err_msg)
-            raise VaultError(err_msg) from e
+        for secret_name, secret_dict in secrets_to_load:
 
-        try:
-            logger.info(f"Loading Barclays SFTP keys from vault at {config['VAULT_URL']}")
-            _barclays_hermes_sftp = read_vault(
-                config['BARCLAYS_SFTP_VAULT_PATH'], config['VAULT_URL'], config['VAULT_TOKEN']
-            )
-        except requests.RequestException as e:
-            err_msg = f"Barclays SFTP keys - Vault Exception {e}"
-            logger.exception(err_msg)
-            raise VaultError(err_msg) from e
+            try:
+                logger.info(
+                    f"Loading {secret_name} from vault at {config['VAULT_URL']}"
+                )
+                secret_dict.update(json.loads(client.get_secret(secret_name).value))
+                logger.info(f"Success: Loaded {secret_name}")
+
+            except Exception as e:
+                err_msg = f"Failed to load {secret_name}. Exception {e}"
+                logger.exception(err_msg)
+                raise VaultError(err_msg) from e
 
         loaded = True
+
+
+def get_azure_client(config: dict) -> SecretClient:
+
+    credential = DefaultAzureCredential(
+        exclude_environment_credential=True,
+        exclude_shared_token_cache_credential=True,
+        exclude_visual_studio_code_credential=True,
+        exclude_interactive_browser_credential=True,
+                                        )
+
+    client = SecretClient(
+        vault_url=config['VAULT_URL'],
+        credential=credential
+    )
+
+    return client
 
 
 def get_jwt_secret(bundle_id):
