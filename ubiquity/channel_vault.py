@@ -126,9 +126,7 @@ def load_secrets(config):
                 logger.info(f"Success: Loaded {secret_name}")
 
             except Exception as e:
-                err_msg = f"Failed to load {secret_name}. Exception {e}"
-                logger.exception(err_msg)
-                errors.append(err_msg)
+                errors.append(f"Failed to load {secret_name}. Exception {e}")
 
         if errors:
             err_msg = ""
