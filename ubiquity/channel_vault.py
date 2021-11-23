@@ -115,7 +115,7 @@ def load_secrets(config):
         client = get_azure_client(config)
 
         errors = []
-
+        failed_secrets = []
         for secret_name, secret_dict in secrets_to_load:
 
             try:
@@ -126,13 +126,15 @@ def load_secrets(config):
                 logger.info(f"Success: Loaded {secret_name}")
 
             except Exception as e:
-                errors.append(f"Failed to load {secret_name}. Exception {e}")
+                failed_secrets.append(secret_name)
+                errors.append(f"Exception {e}")
 
         if errors:
-            err_msg = ""
-            for i in errors:
-                err_msg = err_msg + "\n" + i
-            raise VaultError(err_msg)
+            err_msg = "Failed to load secrets: "
+            logger.exception(
+                "{}\n{}".format(err_msg, "\n".join([str(obj) for obj in zip(failed_secrets, errors)]))
+            )
+            raise VaultError(f"{failed_secrets}")
 
         loaded = True
 
