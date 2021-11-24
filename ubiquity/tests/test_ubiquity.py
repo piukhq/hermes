@@ -1860,6 +1860,57 @@ class TestResources(GlobalMockAPITestCase):
         self.assertIn(sa.status, SchemeAccount.REGISTER_PENDING)
         self.assertEqual(sa.originating_journey, JourneyTypes.REGISTER)
 
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
+                       CELERY_TASK_ALWAYS_EAGER=True,
+                       BROKER_BACKEND='memory')
+    @patch('scheme.mixins.analytics', autospec=True)
+    @patch.object(SchemeAccount, 'update_cached_balance', autospec=True, return_value=(10, ""))
+    @patch('ubiquity.tasks.async_balance', autospec=True)
+    @patch('ubiquity.views.async_registration', autospec=True)
+    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
+    def test_check_patch_does_not_override_originating_journey(self, *_):
+        external_id = 'test patch user 1'
+        user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
+        auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
+        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
+        SchemeAccountEntryFactory(user=user, scheme_account=sa)
+        SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer='12345')
+        SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
+        expected_value = {'last_name': 'changed name'}
+        payload_update = {
+            "account": {
+                "authorise_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "changed name"
+                    }
+                ]
+            }
+        }
+        resp_update = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_update),
+                                        content_type='application/json', **auth_headers)
+        self.assertEqual(resp_update.status_code, 200)
+        sa.status = SchemeAccount.PRE_REGISTERED_CARD
+        sa.save()
+        sa.refresh_from_db()
+        self.assertEqual(expected_value['last_name'], sa._collect_credentials()['last_name'])
+
+        payload_register = {
+            "account": {
+                "registration_fields": [
+                    {
+                        "column": "last_name",
+                        "value": "new changed name"
+                    }
+                ]
+            }
+        }
+        resp_register = self.client.patch(reverse('membership-card', args=[sa.id]), data=json.dumps(payload_register),
+                                          content_type='application/json', **auth_headers)
+        self.assertEqual(resp_register.status_code, 200)
+        sa.refresh_from_db()
+        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
+
     @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):
         MockApiCache.available_called = False
