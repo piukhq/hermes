@@ -283,6 +283,7 @@ class SchemeAccountAdmin(HistoryAdmin):
     list_display = ('scheme', 'user_email', 'status', 'is_deleted', 'created', 'updated')
     list_per_page = 25
     actions = ['refresh_scheme_account_information']
+    exclude = ['originating_journey']
     ordering = ['-updated']
 
     def refresh_scheme_account_information(self, request, queryset):
