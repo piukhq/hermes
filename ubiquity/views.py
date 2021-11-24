@@ -43,7 +43,7 @@ from scheme.mixins import (
     SchemeAccountJoinMixin,
     UpdateCredentialsMixin,
 )
-from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion, ThirdPartyConsentLink, JourneyTypes
 from scheme.views import RetrieveDeleteAccount
 from ubiquity.authentication import PropertyAuthentication, PropertyOrServiceAuthentication
 from ubiquity.cache_decorators import CacheApiRequest, membership_plan_key
@@ -638,7 +638,8 @@ class MembershipCardView(
         scheme_acc_entry.auth_provided = True
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
-        account.set_async_join_status()
+        account.set_async_registration_status()
+        account.set_register_originating_journey()
         async_registration.delay(
             user.id,
             serializer,
@@ -663,7 +664,9 @@ class MembershipCardView(
         else:
             payment_cards_to_link = []
 
-        if account.status in [SchemeAccount.PENDING, SchemeAccount.JOIN_ASYNC_IN_PROGRESS]:
+        if account.status in [SchemeAccount.PENDING,
+                              SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+                              SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]:
             raise ParseError("requested card is still in a pending state, please wait for current journey to finish")
 
         scheme, auth_fields, enrol_fields, add_fields = self._collect_fields_and_determine_route()
@@ -799,7 +802,9 @@ class MembershipCardView(
     @censor_and_decorate
     def destroy(self, request, *args, **kwargs):
         scheme_account = self.get_object()
-        if scheme_account.status in SchemeAccount.JOIN_PENDING:
+        if scheme_account.status in (SchemeAccount.JOIN_PENDING + SchemeAccount.REGISTER_PENDING):
+            # Ideally we would create a different error message for pending registrations as this is a little misleading
+            # , but this would mean non-agreed changes to the API for Barclays so will keep this the same for now.
             error = {"join_pending": "Membership card cannot be deleted until the Join process has completed."}
             return Response(error, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
@@ -1042,7 +1047,11 @@ class MembershipCardView(
                 return scheme_account, sch_acc_entry, status.HTTP_201_CREATED
 
         scheme_account = SchemeAccount(
-            order=0, scheme_id=scheme.id, status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS, main_answer=main_answer
+            order=0,
+            scheme_id=scheme.id,
+            status=SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            main_answer=main_answer,
+            originating_journey=JourneyTypes.JOIN
         )
 
         validated_data, serializer, _ = SchemeAccountJoinMixin.validate(
@@ -1274,6 +1283,9 @@ class ListMembershipCardView(MembershipCardView):
             account, sch_acc_entry, status_code, metrics_route = self._handle_create_link_route(
                 request.user, scheme, auth_fields, add_fields, payment_cards_to_link
             )
+
+            # Update originating journey type
+            account.set_add_originating_journey()
 
         if scheme.slug in settings.SCHEMES_COLLECTING_METRICS:
             send_merchant_metrics_for_new_account.delay(request.user.id, account.id, account.scheme.slug)

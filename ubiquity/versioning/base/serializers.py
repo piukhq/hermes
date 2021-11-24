@@ -27,7 +27,7 @@ from scheme.credentials import credential_types_set
 from scheme.models import (Scheme, SchemeBalanceDetails, SchemeCredentialQuestion, SchemeDetail, ThirdPartyConsentLink,
                            VoucherScheme, SchemeBundleAssociation, SchemeAccount)
 from scheme.serializers import JoinSerializer, UserConsentSerializer, SchemeAnswerSerializer
-from scheme.vouchers import EXPIRED, REDEEMED, CANCELLED
+from scheme.vouchers import VoucherStateStr
 from ubiquity.channel_vault import retry_session
 from ubiquity.models import PaymentCardSchemeEntry, ServiceConsent, MembershipPlanDocument, SchemeAccountEntry
 from ubiquity.tasks import async_balance
@@ -307,7 +307,8 @@ class PaymentCardSerializer:
                 "currency_code": instance.currency_code,
                 "name_on_card": instance.name_on_card,
                 "provider": instance.payment_card.system_name,
-                "type": instance.payment_card.type
+                "type": instance.payment_card.type,
+                "issuer_name": instance.issuer_name,
             },
             "images": self._get_images(instance),
             "account": {
@@ -337,6 +338,7 @@ class PaymentCardTranslationSerializer:
             'pan_start': data['first_six_digits'],
             'pan_end': data['last_four_digits'],
             'issuer': self.get_issuer(data),
+            'issuer_name': data.get('issuer_name', ''),
             'payment_card': self.get_payment_card(data),
             'name_on_card': data['name_on_card'],
             'token': data['token'],
@@ -615,6 +617,7 @@ class MembershipPlanSerializer(serializers.ModelSerializer):
             'card': {
                 'barcode_type': instance.barcode_type,
                 'colour': instance.colour,
+                'text_colour': instance.text_colour,
                 'base64_image': '',
                 'scan_message': instance.scan_message
             },
@@ -822,7 +825,7 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
         balances = self._strip_reward_tier(balances)
         for voucher in vouchers:
             if voucher.get('code'):
-                if voucher['state'] in [EXPIRED, REDEEMED, CANCELLED]:
+                if voucher['state'] in [VoucherStateStr.EXPIRED, VoucherStateStr.REDEEMED, VoucherStateStr.CANCELLED]:
                     voucher['code'] = ""
         card_repr = {
             'id': instance.id,
@@ -834,7 +837,8 @@ class MembershipCardSerializer(serializers.Serializer, MembershipTransactionsMix
                 'barcode': instance.barcode,
                 'membership_id': instance.card_number,
                 'barcode_type': scheme.barcode_type,
-                'colour': scheme.colour
+                'colour': scheme.colour,
+                'text_colour': scheme.text_colour,
             },
             'images': self.image_serializer_class(images, many=True).data,
             'account': {

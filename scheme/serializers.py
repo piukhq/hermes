@@ -542,7 +542,9 @@ class JoinSerializer(SchemeAnswerSerializer):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
-        exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [SchemeAccount.JOIN_ASYNC_IN_PROGRESS]
+        exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
+        ]
         scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme) \
             .exclude(status__in=exclude_status_list)
 

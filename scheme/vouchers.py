@@ -21,11 +21,13 @@ class VoucherState(enum.Enum):
     CANCELLED = 4
 
 
-ISSUED = "issued"
-IN_PROGRESS = "inprogress"
-EXPIRED = "expired"
-REDEEMED = "redeemed"
-CANCELLED = "cancelled"
+class VoucherStateStr(str, enum.Enum):
+    ISSUED = "issued"
+    IN_PROGRESS = "inprogress"
+    EXPIRED = "expired"
+    REDEEMED = "redeemed"
+    CANCELLED = "cancelled"
+
 
 voucher_type_names = {VoucherType.JOIN: "join", VoucherType.ACCUMULATOR: "accumulator", VoucherType.STAMPS: "stamps"}
 

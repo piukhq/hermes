@@ -514,19 +514,18 @@ JWT_EXPIRY_TIME = env_var("JWT_EXPIRY_TIME", 600)
 
 VAULT_CONFIG = dict(
     # Hashicorp vault settings for secrets retrieval
-    VAULT_URL=env_var("VAULT_URL", "http://localhost:8200"),
-    VAULT_TOKEN=env_var("VAULT_TOKEN", "myroot"),
+    VAULT_URL=env_var("VAULT_URL", ""),
     # SET Signing secrets for JWT authentication
     # For deployment set LOCAL_SECRETS to False and set up Vault envs
-    # For local use without Vault Set LOCAL_CHANNEL_SECRETS to False to True
+    # For local use without Vault, set LOCAL_SECRETS to True
     # and set LOCAL_SECRETS_PATH to your json file. See example_local_secrets.json for format
     # (Do not commit your local_secrets json which might contain real secrets or edit example_local_secrets.json)
     LOCAL_SECRETS=env_var("LOCAL_SECRETS", False),
     LOCAL_SECRETS_PATH=env_var("LOCAL_SECRETS_PATH", "example_local_secrets.json"),
-    CHANNEL_VAULT_PATH=env_var("CHANNEL_VAULT_PATH", "/channels"),
-    SECRET_KEYS_VAULT_PATH=env_var("SECRET_KEYS_VAULT_PATH", "/secret-keys"),
-    AES_KEYS_VAULT_PATH=env_var("AES_KEYS_VAULT_PATH", "/aes-keys"),
-    BARCLAYS_SFTP_VAULT_PATH=env_var("BARCLAYS_SFTP_VAULT_PATH", "/barclays-hermes-sftp")
+    BUNDLE_SECRETS_NAME=env_var("BUNDLE_SECRETS_NAME", "channels"),
+    SECRET_KEYS_NAME=env_var("SECRET_KEYS_NAME", "secret-keys"),
+    AES_KEYS_NAME=env_var("AES_KEYS_NAME", "aes-keys"),
+    BARCLAYS_SFTP_SECRETS_NAME=env_var("BARCLAYS_SFTP_SECRETS_NAME", "barclays-hermes-sftp")
 )
 
 CSRF_COOKIE_HTTPONLY = env_var("SECURE_COOKIES", "False")

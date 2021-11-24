@@ -30,6 +30,7 @@ from analytics.api import update_scheme_account_attribute, update_scheme_account
 from common.models import Image
 from prometheus.utils import capture_membership_card_status_change_metric
 from scheme import vouchers
+from scheme.vouchers import VoucherStateStr, VoucherType
 from scheme.credentials import BARCODE, CARD_NUMBER, CREDENTIAL_TYPES, ENCRYPTED_CREDENTIALS, PASSWORD_2, PASSWORD, \
     POSTCODE, CASE_SENSITIVE_CREDENTIALS, DATE_TYPE_CREDENTIALS
 from scheme.encryption import AESCipher
@@ -242,6 +243,7 @@ class Scheme(models.Model):
     colour = RGBColorField(blank=True)
     secondary_colour = models.CharField(max_length=7, blank=True, default="", help_text='Hex string e.g "#112233"',
                                         validators=[validate_hex_colour])
+    text_colour = RGBColorField(blank=True, default="#000000")
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
 
     card_number_regex = models.CharField(max_length=100, blank=True,
@@ -383,6 +385,8 @@ class JourneyTypes(IntEnum):
     LINK = 1
     ADD = 2
     UPDATE = 3
+    REGISTER = 4
+    UNKNOWN = 5
 
 
 class Control(models.Model):
@@ -623,6 +627,7 @@ class SchemeAccount(models.Model):
     JOIN_IN_PROGRESS = 441
     JOIN_ERROR = 538
     JOIN_ASYNC_IN_PROGRESS = 442
+    REGISTRATION_ASYNC_IN_PROGRESS = 443
     ENROL_FAILED = 901
     REGISTRATION_FAILED = 902
 
@@ -661,6 +666,7 @@ class SchemeAccount(models.Model):
         (JOIN_ERROR, 'A system error occurred during join', 'JOIN_ERROR'),
         (SCHEME_REQUESTED_DELETE, 'The scheme has requested this account should be deleted', 'SCHEME_REQUESTED_DELETE'),
         (JOIN_ASYNC_IN_PROGRESS, 'Asynchronous join in progress', 'JOIN_ASYNC_IN_PROGRESS'),
+        (REGISTRATION_ASYNC_IN_PROGRESS, 'Asynchronous registration in progress', 'REGISTRATION_ASYNC_IN_PROGRESS'),
         (ENROL_FAILED, 'Enrol Failed', 'ENROL_FAILED'),
         (REGISTRATION_FAILED, 'Ghost Card Registration Failed', 'REGISTRATION_FAILED'),
     )
@@ -675,9 +681,19 @@ class SchemeAccount(models.Model):
                               CONFIGURATION_ERROR, NOT_SENT, SERVICE_CONNECTION_ERROR, JOIN_ERROR, AGENT_NOT_FOUND]
     EXCLUDE_BALANCE_STATUSES = JOIN_ACTION_REQUIRED + USER_ACTION_REQUIRED + [PENDING, PENDING_MANUAL_CHECK,
                                                                               WALLET_ONLY]
-    JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, ENROL_FAILED]
+    JOIN_EXCLUDE_BALANCE_STATUSES = [PENDING_MANUAL_CHECK, JOIN, JOIN_ASYNC_IN_PROGRESS, REGISTRATION_ASYNC_IN_PROGRESS,
+                                     ENROL_FAILED]
     # below is for all the join in progress statuses, its planned to split these for enrol and registration
     JOIN_PENDING = [JOIN_ASYNC_IN_PROGRESS]
+    REGISTER_PENDING = [REGISTRATION_ASYNC_IN_PROGRESS]
+
+    # Journey types
+    JOURNEYS = (
+        (JourneyTypes.UNKNOWN, 'Unknown'),
+        (JourneyTypes.JOIN, 'Enrol'),
+        (JourneyTypes.ADD, 'Add'),
+        (JourneyTypes.REGISTER, 'Register'),
+    )
 
     user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.SchemeAccountEntry',
                                       related_name='scheme_account_set')
@@ -701,6 +717,7 @@ class SchemeAccount(models.Model):
     main_answer = models.CharField(max_length=250, blank=True, db_index=True, default='')
     pll_links = JSONField(default=list, null=True, blank=True)
     formatted_images = JSONField(default=dict, null=True, blank=True)
+    originating_journey = models.IntegerField(choices=JOURNEYS, default=JourneyTypes.UNKNOWN)
 
     @property
     def status_name(self):
@@ -1196,6 +1213,21 @@ class SchemeAccount(models.Model):
         if commit_change:
             self.save(update_fields=['status'])
 
+    def set_async_registration_status(self, *, commit_change=True) -> None:
+        self.status = SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
+        if commit_change:
+            self.save(update_fields=['status'])
+
+    def set_register_originating_journey(self, *, commit_change=True) -> None:
+        self.originating_journey = JourneyTypes.REGISTER
+        if commit_change:
+            self.save(update_fields=['originating_journey'])
+
+    def set_add_originating_journey(self, *, commit_change=True) -> None:
+        self.originating_journey = JourneyTypes.ADD
+        if commit_change:
+            self.save(update_fields=['originating_journey'])
+
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
         cache.delete(cache_key)
@@ -1590,30 +1622,30 @@ class VoucherScheme(models.Model):
         type_name = dict(self.EARN_TYPES)[self.earn_type]
         return "{} {} - id: {}".format(self.scheme.name, type_name, self.id)
 
-    def get_headline(self, state: vouchers.VoucherState):
+    def get_headline(self, state: VoucherStateStr):
         return {
-            vouchers.ISSUED: self.headline_issued,
-            vouchers.IN_PROGRESS: self.headline_inprogress,
-            vouchers.EXPIRED: self.headline_expired,
-            vouchers.REDEEMED: self.headline_redeemed,
-            vouchers.CANCELLED: self.headline_cancelled
+            VoucherStateStr.ISSUED: self.headline_issued,
+            VoucherStateStr.IN_PROGRESS: self.headline_inprogress,
+            VoucherStateStr.EXPIRED: self.headline_expired,
+            VoucherStateStr.REDEEMED: self.headline_redeemed,
+            VoucherStateStr.CANCELLED: self.headline_cancelled
         }[state]
 
-    def get_body_text(self, state: vouchers.VoucherState):
+    def get_body_text(self, state: VoucherStateStr):
         return {
-            vouchers.ISSUED: self.body_text_issued,
-            vouchers.IN_PROGRESS: self.body_text_inprogress,
-            vouchers.EXPIRED: self.body_text_expired,
-            vouchers.REDEEMED: self.body_text_redeemed,
-            vouchers.CANCELLED: self.body_text_cancelled,
+            VoucherStateStr.ISSUED: self.body_text_issued,
+            VoucherStateStr.IN_PROGRESS: self.body_text_inprogress,
+            VoucherStateStr.EXPIRED: self.body_text_expired,
+            VoucherStateStr.REDEEMED: self.body_text_redeemed,
+            VoucherStateStr.CANCELLED: self.body_text_cancelled,
         }[state]
 
     @staticmethod
-    def earn_type_from_voucher_type(voucher_type: vouchers.VoucherType):
+    def earn_type_from_voucher_type(voucher_type: VoucherType):
         return {
-            vouchers.VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
-            vouchers.VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
-            vouchers.VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
+            VoucherType.JOIN: VoucherScheme.EARNTYPE_JOIN,
+            VoucherType.ACCUMULATOR: VoucherScheme.EARNTYPE_ACCUMULATOR,
+            VoucherType.STAMPS: VoucherScheme.EARNTYPE_STAMPS,
         }[voucher_type]
 
     def get_earn_target_value(self, voucher_fields: Dict) -> float:
