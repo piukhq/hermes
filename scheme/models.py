@@ -1219,14 +1219,16 @@ class SchemeAccount(models.Model):
             self.save(update_fields=['status'])
 
     def set_register_originating_journey(self, *, commit_change=True) -> None:
-        self.originating_journey = JourneyTypes.REGISTER
-        if commit_change:
-            self.save(update_fields=['originating_journey'])
+        if self.originating_journey == JourneyTypes.UNKNOWN:
+            self.originating_journey = JourneyTypes.REGISTER
+            if commit_change:
+                self.save(update_fields=['originating_journey'])
 
     def set_add_originating_journey(self, *, commit_change=True) -> None:
-        self.originating_journey = JourneyTypes.ADD
-        if commit_change:
-            self.save(update_fields=['originating_journey'])
+        if self.originating_journey == JourneyTypes.UNKNOWN:
+            self.originating_journey = JourneyTypes.ADD
+            if commit_change:
+                self.save(update_fields=['originating_journey'])
 
     def delete_cached_balance(self):
         cache_key = 'scheme_{}'.format(self.pk)
