@@ -8,18 +8,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0038_auto_20171128_1040'),
+        ("scheme", "0038_auto_20171128_1040"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='reward_tier',
+            model_name="schemeaccountimage",
+            name="reward_tier",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='schemeimage',
-            name='reward_tier',
+            model_name="schemeimage",
+            name="reward_tier",
             field=models.IntegerField(default=0),
         ),
     ]

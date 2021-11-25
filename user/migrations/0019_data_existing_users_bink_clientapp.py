@@ -4,21 +4,20 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
-
-BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+BINK_APP_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
 
 
 def set_bink_client_on_users(apps, schema_editor):
-    CustomUser = apps.get_model('user', 'CustomUser')
-    ClientApplication = apps.get_model('user', 'ClientApplication')
+    CustomUser = apps.get_model("user", "CustomUser")
+    ClientApplication = apps.get_model("user", "ClientApplication")
     get_users = lambda: CustomUser.objects.filter(client_id__isnull=True)
     get_users().update(client_id=BINK_APP_ID)
     assert get_users().count() == 0
 
 
 def unset_bink_client_on_users(apps, schema_editor):
-    CustomUser = apps.get_model('user', 'CustomUser')
-    ClientApplication = apps.get_model('user', 'ClientApplication')
+    CustomUser = apps.get_model("user", "CustomUser")
+    ClientApplication = apps.get_model("user", "ClientApplication")
     get_users = lambda: CustomUser.objects.filter(client_id=BINK_APP_ID)
     get_users().update(client_id=None)
     assert get_users().count() == 0
@@ -27,7 +26,7 @@ def unset_bink_client_on_users(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0018_customuser_client'),
+        ("user", "0018_customuser_client"),
     ]
 
     operations = [

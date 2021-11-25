@@ -5,9 +5,9 @@ from django.db.models.functions import Lower
 
 
 def lowercase_email_main_answers(apps, schema_editor):
-    SchemeCredentialQuestion = apps.get_model('scheme', 'SchemeCredentialQuestion')
-    SchemeAccountCredentialAnswer = apps.get_model('scheme', 'SchemeAccountCredentialAnswer')
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+    SchemeCredentialQuestion = apps.get_model("scheme", "SchemeCredentialQuestion")
+    SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
 
     questions = SchemeCredentialQuestion.objects.filter(type="email", manual_question=True)
     # Update SchemeAccountCredentialAnswer objects
@@ -15,11 +15,11 @@ def lowercase_email_main_answers(apps, schema_editor):
         question__in=questions,
         scheme_account__is_deleted=False,
     )
-    all_answers.update(answer=Lower('answer'))
+    all_answers.update(answer=Lower("answer"))
 
     # Update main_answer field on SchemeAccounts
     all_scheme_accounts = SchemeAccount.objects.filter(id__in=all_answers.values_list("scheme_account_id", flat=True))
-    all_scheme_accounts.update(main_answer=Lower('main_answer'))
+    all_scheme_accounts.update(main_answer=Lower("main_answer"))
 
 
 def reverse_lowercase_email_main_answers(apps, schema_editor):
@@ -29,9 +29,7 @@ def reverse_lowercase_email_main_answers(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0086_auto_20201005_1408'),
+        ("scheme", "0086_auto_20201005_1408"),
     ]
 
-    operations = [
-        migrations.RunPython(lowercase_email_main_answers, reverse_code=reverse_lowercase_email_main_answers)
-    ]
+    operations = [migrations.RunPython(lowercase_email_main_answers, reverse_code=reverse_lowercase_email_main_answers)]

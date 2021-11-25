@@ -8,28 +8,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0011_auto_20160511_1435'),
+        ("scheme", "0011_auto_20160511_1435"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='android_app_id',
+            model_name="scheme",
+            name="android_app_id",
             field=models.CharField(max_length=255, null=True),
         ),
         migrations.AddField(
-            model_name='scheme',
-            name='ios_scheme',
+            model_name="scheme",
+            name="ios_scheme",
             field=models.CharField(max_length=255, null=True),
         ),
         migrations.AddField(
-            model_name='scheme',
-            name='itunes_url',
+            model_name="scheme",
+            name="itunes_url",
             field=models.URLField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='scheme',
-            name='playstore_url',
+            model_name="scheme",
+            name="playstore_url",
             field=models.URLField(blank=True, null=True),
         ),
     ]

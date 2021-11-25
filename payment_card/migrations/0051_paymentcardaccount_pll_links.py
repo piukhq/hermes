@@ -5,12 +5,12 @@ from django.db import migrations
 
 
 def populate_pll_links(apps, schema_editor):
-    PaymentCardAccount = apps.get_model('payment_card', 'PaymentCardAccount')
-    PaymentCardSchemeEntry = apps.get_model('ubiquity', 'PaymentCardSchemeEntry')
+    PaymentCardAccount = apps.get_model("payment_card", "PaymentCardAccount")
+    PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
 
     accounts = {}
     for link in PaymentCardSchemeEntry.objects.filter(active_link=True).all():
-        formatted_link = {'id': link.scheme_account_id, 'active_link': True}
+        formatted_link = {"id": link.scheme_account_id, "active_link": True}
 
         if link.payment_card_account_id in accounts:
             account = accounts[link.payment_card_account_id]
@@ -18,7 +18,9 @@ def populate_pll_links(apps, schema_editor):
 
         else:
             account = link.payment_card_account
-            account.pll_links = [formatted_link, ]
+            account.pll_links = [
+                formatted_link,
+            ]
             accounts[account.id] = account
 
     PaymentCardAccount.all_objects.bulk_update(list(accounts.values()), ["pll_links"], batch_size=1000)
@@ -30,14 +32,14 @@ def revert_populate_pll_links(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('payment_card', '0050_payment_images'),
+        ("payment_card", "0050_payment_images"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paymentcardaccount',
-            name='pll_links',
+            model_name="paymentcardaccount",
+            name="pll_links",
             field=django.contrib.postgres.fields.jsonb.JSONField(default=list),
         ),
-        migrations.RunPython(populate_pll_links, revert_populate_pll_links)
+        migrations.RunPython(populate_pll_links, revert_populate_pll_links),
     ]

@@ -8,17 +8,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0002_userdetail_reset_link'),
+        ("user", "0002_userdetail_reset_link"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='userdetail',
-            name='reset_link',
+            model_name="userdetail",
+            name="reset_link",
         ),
         migrations.AddField(
-            model_name='customuser',
-            name='reset_token',
+            model_name="customuser",
+            name="reset_token",
             field=models.CharField(blank=True, max_length=255, null=True),
         ),
     ]

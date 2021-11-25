@@ -1,12 +1,13 @@
 import base64
-import factory
 import os
+
+import factory
 from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
 from faker import Factory
 
 from user import models
-from user.models import ClientApplicationBundle, ClientApplication, Organisation
+from user.models import ClientApplication, ClientApplicationBundle, Organisation
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -18,11 +19,11 @@ class UserFactory(factory.django.DjangoModelFactory):
         model = models.CustomUser
 
     email = FuzzyAttribute(fake.email)
-    external_id = ''
-    password = factory.PostGenerationMethodCall('set_password', 'defaultpassword')
+    external_id = ""
+    password = factory.PostGenerationMethodCall("set_password", "defaultpassword")
     is_active = True
     is_staff = False
-    salt = base64.b64encode(os.urandom(16))[:8].decode('utf-8')
+    salt = base64.b64encode(os.urandom(16))[:8].decode("utf-8")
 
 
 class UserProfileFactory(factory.Factory):
@@ -39,21 +40,21 @@ class UserProfileFactory(factory.Factory):
     city = fake.city()
     region = fake.state()
     postcode = fake.postcode()
-    country = 'United Kingdom'
-    notifications = '0'
-    pass_code = '1234'
-    currency = 'GBP'
-    gender = 'male'
+    country = "United Kingdom"
+    notifications = "0"
+    pass_code = "1234"
+    currency = "GBP"
+    gender = "male"
 
 
 class SettingFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Setting
-        django_get_or_create = ('slug',)
+        django_get_or_create = ("slug",)
 
     slug = FuzzyAttribute(fake.slug)
     value_type = 2
-    default_value = '0'
+    default_value = "0"
 
 
 class UserSettingFactory(factory.django.DjangoModelFactory):
@@ -96,4 +97,4 @@ class ClientApplicationBundleFactory(factory.django.DjangoModelFactory):
         model = ClientApplicationBundle
 
     client = factory.SubFactory(ClientApplicationFactory)
-    bundle_id = 'com.test.fake'
+    bundle_id = "com.test.fake"

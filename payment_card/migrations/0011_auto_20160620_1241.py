@@ -6,19 +6,17 @@ from django.db import migrations
 
 
 def generate_dummy_fingerprints(apps, schema_editor):
-    accounts = apps.get_model('payment_card', 'PaymentCardAccount').objects.all()
+    accounts = apps.get_model("payment_card", "PaymentCardAccount").objects.all()
     for account in accounts:
         if not account.fingerprint:
-            account.fingerprint = 'dummy-fingerprint-{}'.format(account.id)
+            account.fingerprint = "dummy-fingerprint-{}".format(account.id)
             account.save()
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0010_paymentcardaccount_fingerprint'),
+        ("payment_card", "0010_paymentcardaccount_fingerprint"),
     ]
 
-    operations = [
-        migrations.RunPython(generate_dummy_fingerprints)
-    ]
+    operations = [migrations.RunPython(generate_dummy_fingerprints)]

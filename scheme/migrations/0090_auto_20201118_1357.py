@@ -6,17 +6,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0089_auto_20201022_1504'),
+        ("scheme", "0089_auto_20201022_1504"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='scheme',
-            name='test_scheme',
+            model_name="scheme",
+            name="test_scheme",
         ),
         migrations.AddField(
-            model_name='schemebundleassociation',
-            name='test_scheme',
+            model_name="schemebundleassociation",
+            name="test_scheme",
             field=models.BooleanField(default=False),
         ),
     ]

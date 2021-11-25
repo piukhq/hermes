@@ -7,13 +7,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0053_auto_20201224_0854'),
+        ("payment_card", "0053_auto_20201224_0854"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paymentcardaccount',
-            name='agent_data',
+            model_name="paymentcardaccount",
+            name="agent_data",
             field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, default=dict, null=True),
         ),
     ]

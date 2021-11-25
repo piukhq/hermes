@@ -12,8 +12,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from hermes.currencies import CURRENCIES
 from scheme.models import SchemeAccount, SchemeBundleAssociation
 from ubiquity.channel_vault import get_jwt_secret
-from user.models import (ClientApplicationBundle, CustomUser, GENDERS, Setting,
-                         UserDetail, UserSetting, valid_promo_code)
+from user.models import GENDERS, ClientApplicationBundle, CustomUser, Setting, UserDetail, UserSetting, valid_promo_code
 
 
 class ClientAppSerializerMixin(serializers.Serializer):
@@ -21,22 +20,22 @@ class ClientAppSerializerMixin(serializers.Serializer):
     Mixin for the register and login serializer.
     Field values must match that of a known ClientApplication and one of its Bundles.
     """
+
     client_id = serializers.CharField()
     bundle_id = serializers.CharField()
 
     def validate(self, data):
         data = super().validate(data)
-        client_id = data.get('client_id')
-        bundle_id = data.get('bundle_id')
+        client_id = data.get("client_id")
+        bundle_id = data.get("bundle_id")
         self._check_client_app_bundle(client_id, bundle_id)
         return data
 
     def _check_client_app_bundle(self, client_id, bundle_id):
-        if not ClientApplicationBundle.objects.filter(
-                bundle_id=bundle_id,
-                client_id=client_id).exists():
+        if not ClientApplicationBundle.objects.filter(bundle_id=bundle_id, client_id=client_id).exists():
             raise serializers.ValidationError(
-                'ClientApplicationBundle not found ({} for {})'.format(bundle_id, client_id))
+                "ClientApplicationBundle not found ({} for {})".format(bundle_id, client_id)
+            )
 
 
 class ApplicationKitSerializer(serializers.Serializer):
@@ -53,10 +52,10 @@ class RegisterSerializer(serializers.Serializer):
 
     def create(self, validated_data):
 
-        email = validated_data['email']
-        password = validated_data.get('password', None)
-        external_id = validated_data.get('external_id')
-        client_id = validated_data.get('client_id')
+        email = validated_data["email"]
+        password = validated_data.get("password", None)
+        external_id = validated_data.get("external_id")
+        client_id = validated_data.get("client_id")
 
         if client_id and external_id:
             user = CustomUser.objects.create_user(email, password, client_id=client_id, external_id=external_id)
@@ -80,17 +79,17 @@ class RegisterSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         ret = OrderedDict()
-        ret['email'] = instance.email
-        ret['api_key'] = instance.create_token(self.validated_data.get('bundle_id'))
-        ret['uid'] = instance.uid
+        ret["email"] = instance.email
+        ret["api_key"] = instance.create_token(self.validated_data.get("bundle_id"))
+        ret["uid"] = instance.uid
         return ret
 
 
 class NewRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
     def validate(self, data):
         data = super().validate(data)
-        email = CustomUser.objects.normalize_email(data['email'])
-        if CustomUser.objects.filter(client_id=data['client_id'], email__iexact=email).exists():
+        email = CustomUser.objects.normalize_email(data["email"])
+        if CustomUser.objects.filter(client_id=data["client_id"], email__iexact=email).exists():
             raise serializers.ValidationError("That user already exists")
         return data
 
@@ -102,7 +101,7 @@ class UbiquityRegisterSerializer(ClientAppSerializerMixin, RegisterSerializer):
     password = serializers.CharField(write_only=True, required=False)
 
     def validate_password(self, value):
-        if self.context.get('passwordless', False):
+        if self.context.get("passwordless", False):
             return None
 
         validate_pass(value)
@@ -117,7 +116,7 @@ class ApplyPromoCodeSerializer(serializers.Serializer):
 
     def validate_promo_code(self, promo_code):
         if not valid_promo_code(promo_code):
-            raise serializers.ValidationError('Invalid promo code: {}'.format(promo_code))
+            raise serializers.ValidationError("Invalid promo code: {}".format(promo_code))
         return promo_code
 
 
@@ -142,7 +141,7 @@ class ResetPasswordSerializer(serializers.Serializer):
         return value
 
     def update(self, instance, validated_data):
-        instance.set_password(validated_data['password'])
+        instance.set_password(validated_data["password"])
         instance.save()
         return instance
 
@@ -158,7 +157,7 @@ class TokenResetPasswordSerializer(serializers.Serializer):
         if instance.reset_token is None:
             raise ValueError
         else:
-            instance.set_password(validated_data['password'])
+            instance.set_password(validated_data["password"])
             instance.reset_token = None
             instance.save()
             return instance
@@ -168,63 +167,92 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDetail
         date_of_birth = serializers.DateField(required=False, allow_null=True)
-        fields = ('first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1', 'address_line_2', 'city',
-                  'region', 'postcode', 'country', 'notifications', 'pass_code', 'currency', 'gender')
+        fields = (
+            "first_name",
+            "last_name",
+            "date_of_birth",
+            "phone",
+            "address_line_1",
+            "address_line_2",
+            "city",
+            "region",
+            "postcode",
+            "country",
+            "notifications",
+            "pass_code",
+            "currency",
+            "gender",
+        )
 
 
 class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         user_detail_instance = UserDetail.objects.get(user=instance)
-        email = validated_data.pop('email', None)
-        if 'profile' in validated_data:
-            if 'currency' in validated_data['profile']:
-                currency_code = CURRENCIES.index(validated_data['profile']['currency'])
-                validated_data['profile']['currency'] = currency_code
-            user_detail_serializer = UserProfileSerializer(user_detail_instance,
-                                                           data=validated_data['profile'],
-                                                           partial=True)
+        email = validated_data.pop("email", None)
+        if "profile" in validated_data:
+            if "currency" in validated_data["profile"]:
+                currency_code = CURRENCIES.index(validated_data["profile"]["currency"])
+                validated_data["profile"]["currency"] = currency_code
+            user_detail_serializer = UserProfileSerializer(
+                user_detail_instance, data=validated_data["profile"], partial=True
+            )
             user_detail_serializer.is_valid(raise_exception=True)
             user_detail_serializer.save()
 
         if email and not instance.__class__.objects.filter(email=email, client_id=instance.client_id).exists():
             instance.email = email
-            instance.save(update_fields=['email'])
+            instance.save(update_fields=["email"])
 
         return instance
 
     uid = serializers.CharField(read_only=True, required=False)
     email = serializers.EmailField(required=False)
-    first_name = serializers.CharField(source='profile.first_name', required=False, allow_blank=True)
-    last_name = serializers.CharField(source='profile.last_name', required=False, allow_blank=True)
-    date_of_birth = serializers.DateField(source='profile.date_of_birth', required=False, allow_null=True)
-    phone = serializers.CharField(source='profile.phone', required=False, allow_blank=True)
-    address_line_1 = serializers.CharField(source='profile.address_line_1', required=False, allow_blank=True)
-    address_line_2 = serializers.CharField(source='profile.address_line_2', required=False, allow_blank=True)
-    gender = serializers.ChoiceField(source='profile.gender', required=False, allow_blank=True, choices=GENDERS)
-    city = serializers.CharField(source='profile.city', required=False, allow_blank=True)
-    region = serializers.CharField(source='profile.region', required=False, allow_blank=True)
-    postcode = serializers.CharField(source='profile.postcode', required=False, allow_blank=True)
-    country = serializers.CharField(source='profile.country', required=False, allow_blank=True)
-    notifications = serializers.IntegerField(source='profile.notifications', required=False, allow_null=True)
-    pass_code = serializers.CharField(source='profile.pass_code', required=False, allow_blank=True)
+    first_name = serializers.CharField(source="profile.first_name", required=False, allow_blank=True)
+    last_name = serializers.CharField(source="profile.last_name", required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(source="profile.date_of_birth", required=False, allow_null=True)
+    phone = serializers.CharField(source="profile.phone", required=False, allow_blank=True)
+    address_line_1 = serializers.CharField(source="profile.address_line_1", required=False, allow_blank=True)
+    address_line_2 = serializers.CharField(source="profile.address_line_2", required=False, allow_blank=True)
+    gender = serializers.ChoiceField(source="profile.gender", required=False, allow_blank=True, choices=GENDERS)
+    city = serializers.CharField(source="profile.city", required=False, allow_blank=True)
+    region = serializers.CharField(source="profile.region", required=False, allow_blank=True)
+    postcode = serializers.CharField(source="profile.postcode", required=False, allow_blank=True)
+    country = serializers.CharField(source="profile.country", required=False, allow_blank=True)
+    notifications = serializers.IntegerField(source="profile.notifications", required=False, allow_null=True)
+    pass_code = serializers.CharField(source="profile.pass_code", required=False, allow_blank=True)
     referral_code = serializers.ReadOnlyField()
 
     class Meta:
         model = CustomUser
-        fields = ('uid', 'email', 'first_name', 'last_name', 'date_of_birth', 'phone', 'address_line_1',
-                  'address_line_2', 'city', 'region', 'postcode', 'country', 'notifications', 'pass_code', 'gender',
-                  'referral_code')
+        fields = (
+            "uid",
+            "email",
+            "first_name",
+            "last_name",
+            "date_of_birth",
+            "phone",
+            "address_line_1",
+            "address_line_2",
+            "city",
+            "region",
+            "postcode",
+            "country",
+            "notifications",
+            "pass_code",
+            "gender",
+            "referral_code",
+        )
 
 
 class SchemeAccountsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
-        fields = ('scheme', 'pk')
+        fields = ("scheme", "pk")
 
     def to_representation(self, instance):
         ret = OrderedDict()
-        ret['scheme_id'] = instance.scheme.pk
-        ret['scheme_account_id'] = instance.pk
+        ret["scheme_id"] = instance.scheme.pk
+        ret["scheme_account_id"] = instance.pk
         return ret
 
 
@@ -268,7 +296,7 @@ class ResetTokenSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     def update(self, instance, validated_data):
-        instance.set_password(validated_data['password'])
+        instance.set_password(validated_data["password"])
         instance.save()
         return instance
 
@@ -279,7 +307,7 @@ class SettingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Setting
-        fields = ('slug', 'default_value', 'value_type', 'scheme', 'label', 'category')
+        fields = ("slug", "default_value", "value_type", "scheme", "label", "category")
 
     @staticmethod
     def get_value_type(setting):
@@ -293,7 +321,7 @@ class SettingSerializer(serializers.ModelSerializer):
 class UserSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserSetting
-        fields = ('user', 'value')
+        fields = ("user", "value")
 
 
 class UpdateUserSettingSerializer(serializers.Serializer):
@@ -319,13 +347,8 @@ class MakeMagicLinkSerializer(serializers.Serializer):
         secret = get_jwt_secret(data["bundle_id"])
         now = int(time())
         expiry = int(now + lifetime * 60)
-        payload = {
-            "email": data["email"],
-            "bundle_id": data["bundle_id"],
-            "iat": now,
-            "exp": expiry
-        }
-        data["token"] = jwt.encode(payload, secret, algorithm='HS512')
+        payload = {"email": data["email"], "bundle_id": data["bundle_id"], "iat": now, "exp": expiry}
+        data["token"] = jwt.encode(payload, secret, algorithm="HS512")
         # note sensitive to settings.USE_TZ == True
         data["expiry_date"] = make_aware(datetime.fromtimestamp(expiry))
 
@@ -334,26 +357,34 @@ class MakeMagicLinkSerializer(serializers.Serializer):
         if data.get("bundle_id") and data.get("slug"):
             try:
                 bundle = ClientApplicationBundle.objects.get(
-                    bundle_id=data["bundle_id"], scheme__slug=data["slug"],
-                    schemebundleassociation__status=SchemeBundleAssociation.ACTIVE)
+                    bundle_id=data["bundle_id"],
+                    scheme__slug=data["slug"],
+                    schemebundleassociation__status=SchemeBundleAssociation.ACTIVE,
+                )
 
                 if not bundle.magic_link_url:
                     raise serializers.ValidationError(
-                        f'Config: Magic links not permitted for bundle id {data["bundle_id"]}')
+                        f'Config: Magic links not permitted for bundle id {data["bundle_id"]}'
+                    )
 
                 if not bundle.template:
                     raise serializers.ValidationError(
-                        f'Config: Missing email template for bundle id {data["bundle_id"]}')
+                        f'Config: Missing email template for bundle id {data["bundle_id"]}'
+                    )
 
                 self._set_magic_link_fields(data, bundle)
 
             except AuthenticationFailed as e:
-                raise serializers.ValidationError(f'Config: check secrets for error bundle id {data["bundle_id"]}'
-                                                  f' Exception: {e}')
+                raise serializers.ValidationError(
+                    f'Config: check secrets for error bundle id {data["bundle_id"]}' f" Exception: {e}"
+                )
             except MultipleObjectsReturned:
-                raise serializers.ValidationError(f'Config: error multiple bundle ids {data["bundle_id"]}'
-                                                  f' for slug {data["slug"]}')
+                raise serializers.ValidationError(
+                    f'Config: error multiple bundle ids {data["bundle_id"]}' f' for slug {data["slug"]}'
+                )
             except ObjectDoesNotExist:
-                raise serializers.ValidationError(f'Config: invalid bundle id {data["bundle_id"]} was not found or '
-                                                  f'did not have an active slug {data["slug"]}')
+                raise serializers.ValidationError(
+                    f'Config: invalid bundle id {data["bundle_id"]} was not found or '
+                    f'did not have an active slug {data["slug"]}'
+                )
         return data

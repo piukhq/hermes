@@ -4,27 +4,31 @@ import sre_constants
 
 from django.db import migrations
 
-from scheme.credentials import CARD_NUMBER, BARCODE
+from scheme.credentials import BARCODE, CARD_NUMBER
 
 
 def _update_card_number(account, questions_ids, SchemeAccountCredentialAnswer):
     save_card_number = False
 
-    card_number = SchemeAccountCredentialAnswer.objects.filter(
-        scheme_account_id=account.id,
-        question__id__in=questions_ids.values()
-    ).values('question__type', 'answer').order_by('-question__type').first()
+    card_number = (
+        SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_id=account.id, question__id__in=questions_ids.values()
+        )
+        .values("question__type", "answer")
+        .order_by("-question__type")
+        .first()
+    )
 
     if not card_number:
         return save_card_number
 
-    if card_number['question__type'] == CARD_NUMBER:
-        account.card_number = card_number['answer']
+    if card_number["question__type"] == CARD_NUMBER:
+        account.card_number = card_number["answer"]
         save_card_number = True
 
-    elif card_number['question__type'] == BARCODE and account.scheme.card_number_regex:
+    elif card_number["question__type"] == BARCODE and account.scheme.card_number_regex:
         try:
-            regex_match = re.search(account.scheme.card_number_regex, card_number['answer'])
+            regex_match = re.search(account.scheme.card_number_regex, card_number["answer"])
         except sre_constants.error:
             return save_card_number
         if regex_match:
@@ -39,21 +43,25 @@ def _update_card_number(account, questions_ids, SchemeAccountCredentialAnswer):
 
 def _update_barcode(account, questions_ids, SchemeAccountCredentialAnswer):
     save_barcode = False
-    barcode = SchemeAccountCredentialAnswer.objects.filter(
-        scheme_account_id=account.id,
-        question__id__in=questions_ids.values()
-    ).values('question__type', 'answer').order_by('question__type').first()
+    barcode = (
+        SchemeAccountCredentialAnswer.objects.filter(
+            scheme_account_id=account.id, question__id__in=questions_ids.values()
+        )
+        .values("question__type", "answer")
+        .order_by("question__type")
+        .first()
+    )
 
     if not barcode:
         return save_barcode
 
-    if barcode['question__type'] == BARCODE:
-        account.barcode = barcode['answer']
+    if barcode["question__type"] == BARCODE:
+        account.barcode = barcode["answer"]
         save_barcode = True
 
-    elif barcode['question__type'] == CARD_NUMBER and account.scheme.barcode_regex:
+    elif barcode["question__type"] == CARD_NUMBER and account.scheme.barcode_regex:
         try:
-            regex_match = re.search(account.scheme.barcode_regex, barcode['answer'])
+            regex_match = re.search(account.scheme.barcode_regex, barcode["answer"])
         except sre_constants.error:
             return save_barcode
         if regex_match:
@@ -68,10 +76,10 @@ def _update_barcode(account, questions_ids, SchemeAccountCredentialAnswer):
 
 def update_barcode_and_card_number(account, SchemeCredentialQuestion, SchemeAccountCredentialAnswer):
     questions_ids = {
-        question['type']: question['id']
+        question["type"]: question["id"]
         for question in SchemeCredentialQuestion.objects.filter(
-            scheme_id=account.scheme_id,
-            type__in=[CARD_NUMBER, BARCODE]).values('type', 'id')
+            scheme_id=account.scheme_id, type__in=[CARD_NUMBER, BARCODE]
+        ).values("type", "id")
     }
 
     update_fields = []
@@ -85,9 +93,9 @@ def update_barcode_and_card_number(account, SchemeCredentialQuestion, SchemeAcco
 
 
 def populate_card_number_and_barcode(apps, schema_editor):
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
-    SchemeCredentialQuestion = apps.get_model('scheme', 'SchemeCredentialQuestion')
-    SchemeAccountCredentialAnswer = apps.get_model('scheme', 'SchemeAccountCredentialAnswer')
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
+    SchemeCredentialQuestion = apps.get_model("scheme", "SchemeCredentialQuestion")
+    SchemeAccountCredentialAnswer = apps.get_model("scheme", "SchemeAccountCredentialAnswer")
 
     for account in SchemeAccount.objects.filter(is_deleted=False).all():
         if not account.card_number:
@@ -96,7 +104,7 @@ def populate_card_number_and_barcode(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0073_auto_20200513_1511'),
+        ("scheme", "0073_auto_20200513_1511"),
     ]
 
     operations = [

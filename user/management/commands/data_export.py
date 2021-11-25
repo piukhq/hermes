@@ -9,34 +9,34 @@ from user.models import CustomUser
 # model: model to query the objects from.
 # fields: field tree used to traverse the model's fields and generate the report. null value signifies a leaf node.
 exports = {
-    'scheme-accounts': {
-        'model': SchemeAccount,
-        'fields': {
-            'scheme': {
-                'name': None,
+    "scheme-accounts": {
+        "model": SchemeAccount,
+        "fields": {
+            "scheme": {
+                "name": None,
             },
-            'status_name': None,
-            'order': None,
-            'card_number': None,
-            'barcode': None,
-            'display_status': None,
-            'manual_answer': None,
-            'third_party_identifier': None,
+            "status_name": None,
+            "order": None,
+            "card_number": None,
+            "barcode": None,
+            "display_status": None,
+            "manual_answer": None,
+            "third_party_identifier": None,
         },
     },
-    'users': {
-        'model': CustomUser,
-        'fields': {
-            'email': None,
-            'profile': {
-                'gender': None,
-                'date_of_birth': None,
-                'city': None,
-                'region': None,
-                'postcode': None,
-                'country': None,
+    "users": {
+        "model": CustomUser,
+        "fields": {
+            "email": None,
+            "profile": {
+                "gender": None,
+                "date_of_birth": None,
+                "city": None,
+                "region": None,
+                "postcode": None,
+                "country": None,
             },
-            'date_joined': None,
+            "date_joined": None,
         },
     },
 }
@@ -60,7 +60,7 @@ def get_field_values(obj, field_spec):
     return field_values
 
 
-def flatten_field_values(field_values, parent_key=''):
+def flatten_field_values(field_values, parent_key=""):
     """
     flattens a given a tree of nested dicts into a dictionary with compound key names.
 
@@ -76,7 +76,7 @@ def flatten_field_values(field_values, parent_key=''):
     """
     items = []
     for k, v in field_values.items():
-        new_key = '{}.{}'.format(parent_key, k) if parent_key else k
+        new_key = "{}.{}".format(parent_key, k) if parent_key else k
         if isinstance(v, dict):
             items.extend(flatten_field_values(v, new_key).items())
         else:
@@ -90,8 +90,8 @@ def create_export(spec):
     :param spec: the config to use for the data export.
     :return: a list of dictionaries containing export data.
     """
-    model_instances = spec['model'].objects.all()
-    field_spec = spec['fields']
+    model_instances = spec["model"].objects.all()
+    field_spec = spec["fields"]
 
     rows = []
 
@@ -111,18 +111,18 @@ def write_csv(rows, filename):
     """
     fieldnames = rows[0].keys()
 
-    with open('{}.csv'.format(filename), 'w') as f:
+    with open("{}.csv".format(filename), "w") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
 
 class Command(BaseCommand):
-    help = 'Creates a CSV data export for issue mitigation and reporting purposes.'
+    help = "Creates a CSV data export for issue mitigation and reporting purposes."
 
     def handle(self, *args, **options):
         for filename, spec in exports.items():
-            self.stdout.write(self.style.MIGRATE_LABEL('processing {}.csv'.format(filename)))
+            self.stdout.write(self.style.MIGRATE_LABEL("processing {}.csv".format(filename)))
             rows = create_export(spec)
             write_csv(rows, filename)
-        self.stdout.write(self.style.SUCCESS('data export successful.'))
+        self.stdout.write(self.style.SUCCESS("data export successful."))

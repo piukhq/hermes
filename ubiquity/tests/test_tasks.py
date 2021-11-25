@@ -5,23 +5,31 @@ from rest_framework import serializers
 
 from hermes.channels import Permit
 from history.utils import GlobalMockAPITestCase
-from scheme.credentials import EMAIL, PASSWORD, POSTCODE, CARD_NUMBER
-from scheme.models import SchemeCredentialQuestion, SchemeAccount, SchemeBundleAssociation
+from scheme.credentials import CARD_NUMBER, EMAIL, PASSWORD, POSTCODE
+from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.serializers import JoinSerializer
-from scheme.tests.factories import SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory, SchemeAccountFactory
-from ubiquity.tasks import async_balance, async_all_balance, async_link, async_registration, \
-    deleted_membership_card_cleanup
+from scheme.tests.factories import SchemeAccountFactory, SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory
+from ubiquity.tasks import (
+    async_all_balance,
+    async_balance,
+    async_link,
+    async_registration,
+    deleted_membership_card_cleanup,
+)
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.tests.factories import UserFactory, ClientApplicationBundleFactory, ClientApplicationFactory, \
-    OrganisationFactory
+from user.tests.factories import (
+    ClientApplicationBundleFactory,
+    ClientApplicationFactory,
+    OrganisationFactory,
+    UserFactory,
+)
 
 
 class TestTasks(GlobalMockAPITestCase):
-
     @classmethod
     def setUpTestData(cls):
-        external_id = 'tasks@testbink.com'
-        cls.org = OrganisationFactory(name='Barclays')
+        external_id = "tasks@testbink.com"
+        cls.org = OrganisationFactory(name="Barclays")
         cls.client = ClientApplicationFactory(organisation=cls.org, name="Barclays-client")
         cls.bundle = ClientApplicationBundleFactory(client=cls.client)
         cls.user = UserFactory(external_id=external_id, email=external_id)
@@ -48,8 +56,8 @@ class TestTasks(GlobalMockAPITestCase):
             auth_field=True,
         )
 
-    @patch('scheme.models.SchemeAccount.call_analytics')
-    @patch('requests.get')
+    @patch("scheme.models.SchemeAccount.call_analytics")
+    @patch("requests.get")
     def test_async_balance(self, mock_midas_balance, mock_analytics):
         mock_midas_balance.return_value.status_code = SchemeAccount.TRIPPED_CAPTCHA
         scheme_account_id = self.entry.scheme_account.id
@@ -59,9 +67,9 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(mock_analytics.called)
         self.assertTrue(mock_midas_balance.called)
         self.assertTrue(scheme_slug in mock_midas_balance.call_args[0][0])
-        self.assertTrue(scheme_account_id in mock_midas_balance.call_args[1]['params'].values())
+        self.assertTrue(scheme_account_id in mock_midas_balance.call_args[1]["params"].values())
 
-    @patch('ubiquity.tasks.async_balance.delay')
+    @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance(self, mock_async_balance):
         user_id = self.user.id
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry.scheme_account.scheme)
@@ -79,7 +87,7 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
         self.assertFalse(deleted_entry.scheme_account.id in async_balance_call_args)
 
-    @patch('ubiquity.tasks.async_balance.delay')
+    @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_filtering(self, mock_async_balance):
         scheme_account_1 = SchemeAccountFactory()
         scheme_account_2 = SchemeAccountFactory(scheme=scheme_account_1.scheme)
@@ -110,7 +118,7 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertNotIn(entry_invalid_credentials.scheme_account.id, refreshed_scheme_accounts)
         self.assertNotIn(entry_pending.scheme_account.id, refreshed_scheme_accounts)
 
-    @patch('ubiquity.tasks.async_balance.delay')
+    @patch("ubiquity.tasks.async_balance.delay")
     def test_async_all_balance_with_allowed_schemes(self, mock_async_balance):
         user_id = self.user.id
         SchemeBundleAssociation.objects.create(bundle=self.bundle, scheme=self.entry2.scheme_account.scheme)
@@ -121,14 +129,14 @@ class TestTasks(GlobalMockAPITestCase):
         self.assertFalse(self.entry.scheme_account.id in async_balance_call_args)
         self.assertTrue(self.entry2.scheme_account.id in async_balance_call_args)
 
-    @patch('scheme.models.SchemeAccount.call_analytics')
-    @patch('requests.get')
+    @patch("scheme.models.SchemeAccount.call_analytics")
+    @patch("requests.get")
     def test_async_link_validation_error(self, mock_midas_balance, mock_analytics):
         scheme_account = self.link_entry.scheme_account
         user_id = self.link_entry.user_id
         SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.manual_question)
 
-        auth_fields = {'password': 'test123'}
+        auth_fields = {"password": "test123"}
         self.assertEqual(scheme_account.status, scheme_account.ACTIVE)
         with self.assertRaises(serializers.ValidationError):
             async_link(auth_fields, scheme_account.id, user_id, False)
@@ -147,13 +155,11 @@ class TestTasks(GlobalMockAPITestCase):
             scheme=self.link_scheme,
             type=CARD_NUMBER,
             options=SchemeCredentialQuestion.LINK_AND_JOIN,
-            manual_question=True
+            manual_question=True,
         )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=self.link_entry.scheme_account,
-            question=card_number,
-            answer="1234567"
+            scheme_account=self.link_entry.scheme_account, question=card_number, answer="1234567"
         )
 
         scheme_account_id = self.link_entry.scheme_account.id
@@ -181,12 +187,8 @@ class TestTasks(GlobalMockAPITestCase):
         SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_1)
         SchemeCredentialAnswerFactory(scheme_account=scheme_account, question=self.auth_question_2)
 
-        SchemeAccountEntryFactory(
-            scheme_account=scheme_account, user=user2, auth_provided=False
-        )
-        SchemeAccountEntryFactory(
-            scheme_account=scheme_account, user=user3, auth_provided=False
-        )
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user2, auth_provided=False)
+        SchemeAccountEntryFactory(scheme_account=scheme_account, user=user3, auth_provided=False)
 
         answers = scheme_account.schemeaccountcredentialanswer_set
         self.assertEqual(3, answers.count())

@@ -1,5 +1,7 @@
 from collections import defaultdict
+
 from django.db import connection
+
 from scheme.models import SchemeAccount
 
 
@@ -15,11 +17,13 @@ def scheme_account_status_data():
 def status_summary_from_db():
     cursor = connection.cursor()
 
-    sql = "SELECT sa.scheme_id, ss.name, sa.status, COUNT (sa.status) " \
-          "FROM scheme_schemeaccount AS sa " \
-          "JOIN scheme_scheme AS ss ON sa.scheme_id = ss.id " \
-          "GROUP BY sa.status, ss.name,sa.scheme_id " \
-          "ORDER BY sa.scheme_id,sa.status"
+    sql = (
+        "SELECT sa.scheme_id, ss.name, sa.status, COUNT (sa.status) "
+        "FROM scheme_schemeaccount AS sa "
+        "JOIN scheme_scheme AS ss ON sa.scheme_id = ss.id "
+        "GROUP BY sa.status, ss.name,sa.scheme_id "
+        "ORDER BY sa.scheme_id,sa.status"
+    )
 
     cursor.execute(sql)
     return convert_to_dictionary(cursor)
@@ -35,25 +39,19 @@ def scheme_summary_list(db_data):
     schemes = defaultdict(dict)
     # Put the schemes into a dict format
     for scheme_status in db_data:
-        schemes[scheme_status['scheme_id']][scheme_status['status']] = scheme_status
+        schemes[scheme_status["scheme_id"]][scheme_status["status"]] = scheme_status
 
     output = []
     for scheme_id, present_statuses in schemes.items():
-        output.append({
-            "scheme_id": scheme_id,
-            "statuses": generate_all_statuses(present_statuses)
-        })
+        output.append({"scheme_id": scheme_id, "statuses": generate_all_statuses(present_statuses)})
     return output
 
 
 def generate_all_statuses(statuses):
-    name = list(statuses.values())[0]['name']  # We just need the first name
+    name = list(statuses.values())[0]["name"]  # We just need the first name
     all_statuses = []
     for code, description in SchemeAccount.STATUSES:
-        all_statuses.append({
-            'name': name,
-            'count': statuses.get(code, {}).get('count', 0),
-            'status': code,
-            'description': description
-        })
+        all_statuses.append(
+            {"name": name, "count": statuses.get(code, {}).get("count", 0), "status": code, "description": description}
+        )
     return all_statuses

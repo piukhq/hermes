@@ -1,4 +1,4 @@
-from enum import IntEnum, Enum
+from enum import Enum, IntEnum
 
 from django.contrib.postgres.fields import JSONField
 from django.db import models
@@ -11,21 +11,19 @@ class RetryTaskList(str, Enum):
 
 
 class PeriodicRetryStatus(IntEnum):
-    REQUIRED = 0      # Retry is required
-    PENDING = 1       # Retry has been queued but is pending
-    SUCCESSFUL = 2    # Retry was successful
-    FAILED = 3        # Retry attempt failed
+    REQUIRED = 0  # Retry is required
+    PENDING = 1  # Retry has been queued but is pending
+    SUCCESSFUL = 2  # Retry was successful
+    FAILED = 3  # Retry attempt failed
 
 
 class PeriodicRetry(models.Model):
     # for identifying a group of tasks
     task_group = models.CharField(
-        max_length=255,
-        choices=[(task_list.value, task_list.name) for task_list in RetryTaskList]
+        max_length=255, choices=[(task_list.value, task_list.name) for task_list in RetryTaskList]
     )
     status = models.IntegerField(
-        choices=[(status.value, status.name) for status in PeriodicRetryStatus],
-        default=PeriodicRetryStatus.REQUIRED
+        choices=[(status.value, status.name) for status in PeriodicRetryStatus], default=PeriodicRetryStatus.REQUIRED
     )
     module = models.CharField(max_length=64)
     function = models.CharField(max_length=64)

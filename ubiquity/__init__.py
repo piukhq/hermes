@@ -1,2 +1,1 @@
-
-default_app_config = 'ubiquity.apps.UbiquityConfig'
+default_app_config = "ubiquity.apps.UbiquityConfig"

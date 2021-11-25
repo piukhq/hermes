@@ -5,8 +5,8 @@ import arrow
 import fakeredis
 from django.test import TestCase
 
+from periodic_retry.models import PeriodicRetry, PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler, retry_metis_request_tasks
-from periodic_retry.models import PeriodicRetryStatus, PeriodicRetry, RetryTaskList
 
 test_generic_func_call_count = 0
 test_retry_func_call_count = 0
@@ -29,8 +29,12 @@ def test_retry_func(data):
 
     disable_max_test = data["context"].get("disable_max_test")
 
-    if (test_retry_func_call_count > 1 and not disable_max_test or
-            disable_max_test and test_retry_func_call_count >= handler.default_max_retry_count + 2):
+    if (
+        test_retry_func_call_count > 1
+        and not disable_max_test
+        or disable_max_test
+        and test_retry_func_call_count >= handler.default_max_retry_count + 2
+    ):
         retry_obj.status = PeriodicRetryStatus.SUCCESSFUL
 
     retry_obj.results += ["Retry results"]
@@ -42,10 +46,7 @@ def test_retry_func(data):
 def mock_retry_task(task_list: str) -> None:
     periodic_retry_handler = PeriodicRetryHandler(task_list=task_list)
 
-    requests_to_retry = PeriodicRetry.objects.filter(
-        task_group=task_list,
-        status=PeriodicRetryStatus.REQUIRED
-    )
+    requests_to_retry = PeriodicRetry.objects.filter(task_group=task_list, status=PeriodicRetryStatus.REQUIRED)
 
     for retry_info in requests_to_retry:
         periodic_retry_handler.retry(retry_info)
@@ -54,7 +55,6 @@ def mock_retry_task(task_list: str) -> None:
 
 
 class TestPeriodicRetry(TestCase):
-
     @patch("periodic_retry.tasks.get_redis_connection")
     def setUp(self, mock_redis_connection) -> None:
         global test_generic_func_call_count
@@ -132,7 +132,7 @@ class TestPeriodicRetry(TestCase):
             "periodic_retry.tests.test_periodic_retry",
             "test_generic_func",
             "some arg",
-            retry_kwargs={"max_retry_attempts": max_retry_attempts}
+            retry_kwargs={"max_retry_attempts": max_retry_attempts},
         )
 
         for _ in range(5):
@@ -153,7 +153,7 @@ class TestPeriodicRetry(TestCase):
             "periodic_retry.tests.test_periodic_retry",
             "test_generic_func",
             "some arg",
-            retry_kwargs={"max_retry_attempts": 2}
+            retry_kwargs={"max_retry_attempts": 2},
         )
         self.assertEqual(len(self.handler.get_tasks_in_queue()), 1)
 
@@ -191,7 +191,7 @@ class TestPeriodicRetry(TestCase):
             "periodic_retry.tests.test_periodic_retry",
             "test_retry_func",
             context={"disable_max_test": True},
-            retry_kwargs={"max_retry_attempts": None}
+            retry_kwargs={"max_retry_attempts": None},
         )
 
         # need to retry greater than 10 times since 10 is the default max
@@ -211,9 +211,7 @@ class TestPeriodicRetry(TestCase):
         retry_obj = self.handler.new(
             "periodic_retry.tests.test_periodic_retry",
             "test_retry_func",
-            retry_kwargs={
-                "next_retry_after": arrow.utcnow().shift(seconds=retry_after_seconds).datetime
-            }
+            retry_kwargs={"next_retry_after": arrow.utcnow().shift(seconds=retry_after_seconds).datetime},
         )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.PENDING)
 
@@ -234,7 +232,7 @@ class TestPeriodicRetry(TestCase):
             task_group=RetryTaskList.METIS_REQUESTS,
             module="periodic_retry.tests.test_periodic_retry",
             function="test_generic_func",
-            next_retry_after=arrow.utcnow().shift(seconds=retry_after_seconds).datetime
+            next_retry_after=arrow.utcnow().shift(seconds=retry_after_seconds).datetime,
         )
         self.assertEqual(retry_obj.status, PeriodicRetryStatus.REQUIRED)
 

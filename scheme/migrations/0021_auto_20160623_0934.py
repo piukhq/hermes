@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0020_auto_20160610_1458'),
+        ("scheme", "0020_auto_20160610_1458"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='order',
+            model_name="schemeaccount",
+            name="order",
             field=models.IntegerField(),
         ),
     ]

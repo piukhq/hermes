@@ -1,12 +1,12 @@
 from urllib.parse import urlencode
 
-from mozilla_django_oidc.auth import OIDCAuthenticationBackend, LOGGER
-from mozilla_django_oidc.views import OIDCAuthenticationRequestView, get_next_url
-from django.core.exceptions import SuspiciousOperation
 from django.contrib.auth.models import Group
-from django.utils.crypto import get_random_string
+from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponseRedirect
+from django.utils.crypto import get_random_string
+from mozilla_django_oidc.auth import LOGGER, OIDCAuthenticationBackend
 from mozilla_django_oidc.utils import add_state_and_nonce_to_session
+from mozilla_django_oidc.views import OIDCAuthenticationRequestView, get_next_url
 
 from user.models import ClientApplication, CustomUser
 
@@ -43,8 +43,7 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             user = self.create_user(user_info, payload)
             return user
         else:
-            LOGGER.debug("Login failed: No user with email %s found, and "
-                         "OIDC_CREATE_USER is False", email)
+            LOGGER.debug("Login failed: No user with email %s found, and " "OIDC_CREATE_USER is False", email)
             return None
 
     def create_user(self, claims, payload):
@@ -108,7 +107,7 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
             "client_secret": self.OIDC_RP_CLIENT_SECRET,
             "grant_type": "authorization_code",
             "code": code,
-            "redirect_uri": reply_url
+            "redirect_uri": reply_url,
         }
 
         # Get the token
@@ -149,9 +148,7 @@ class CustomOIDCAuthenticationRequestView(OIDCAuthenticationRequestView):
 
         if self.get_settings("OIDC_USE_NONCE", True):
             nonce = get_random_string(self.get_settings("OIDC_NONCE_SIZE", 32))
-            params.update({
-                "nonce": nonce
-            })
+            params.update({"nonce": nonce})
 
         add_state_and_nonce_to_session(request, state, params)
 

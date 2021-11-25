@@ -19,17 +19,11 @@ def vop_deactivation_dict_by_payment_card_id(payment_card_account_id, status=Vop
     """Find activations matching account id and return a serializable object"""
     activation_dict = {}
 
-    activations = VopActivation.objects.filter(
-        payment_card_account_id=payment_card_account_id,
-        status=status
-    )
+    activations = VopActivation.objects.filter(payment_card_account_id=payment_card_account_id, status=status)
 
     for activation in activations:
         activation_id = activation.activation_id
-        activation_dict[activation.id] = {
-            'scheme': activation.scheme.slug,
-            'activation_id': activation_id
-        }
+        activation_dict[activation.id] = {"scheme": activation.scheme.slug, "activation_id": activation_id}
         activation.status = VopActivation.DEACTIVATING
 
     history_bulk_update(VopActivation, activations, update_fields=["status"])

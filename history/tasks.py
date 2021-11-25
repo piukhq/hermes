@@ -18,8 +18,6 @@ def bulk_record_history(model_name: str, data_list: list) -> None:
     model = get_historical_model(model_name)
     history_entries = []
     for data in serializer.validated_data:
-        history_entries.append(
-            model(**data)
-        )
+        history_entries.append(model(**data))
 
     model.objects.bulk_create(history_entries, batch_size=100)

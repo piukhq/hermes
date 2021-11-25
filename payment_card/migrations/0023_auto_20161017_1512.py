@@ -8,38 +8,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0022_auto_20160923_1025'),
+        ("payment_card", "0022_auto_20160923_1025"),
     ]
 
     operations = [
         migrations.AlterModelManagers(
-            name='paymentcardimage',
-            managers=[
-            ],
+            name="paymentcardimage",
+            managers=[],
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='description',
+            model_name="paymentcardaccountimage",
+            name="description",
             field=models.CharField(blank=True, max_length=300, null=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='size_code',
+            model_name="paymentcardaccountimage",
+            name="size_code",
             field=models.CharField(blank=True, max_length=30, null=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='strap_line',
+            model_name="paymentcardaccountimage",
+            name="strap_line",
             field=models.CharField(blank=True, max_length=50, null=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='url',
+            model_name="paymentcardaccountimage",
+            name="url",
             field=models.URLField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='end_date',
+            model_name="paymentcardimage",
+            name="end_date",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

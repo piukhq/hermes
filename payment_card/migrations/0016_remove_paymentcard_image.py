@@ -8,12 +8,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0015_auto_20160715_1344'),
+        ("payment_card", "0015_auto_20160715_1344"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='paymentcard',
-            name='image',
+            model_name="paymentcard",
+            name="image",
         ),
     ]

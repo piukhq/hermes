@@ -20,9 +20,9 @@ class TestCSVUpload(GlobalMockAPITestCase):
         cls.issuer = cls.payment_card_account.issuer
         cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token()}
 
-    @patch.object(PaymentCardAccountImage, 'ubiquity_format')
+    @patch.object(PaymentCardAccountImage, "ubiquity_format")
     def test_CSV_upload(self, ubiquity_format):
-        ubiquity_format.return_value = ''
+        ubiquity_format.return_value = ""
         csv_file = SimpleUploadedFile("file.csv", content=bytes(self.user.email, "utf-8"), content_type="text/csv")
 
         self.client.post(

@@ -17,7 +17,7 @@ fake.seed(12345)
 class IssuerFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Issuer
-        django_get_or_create = ('name',)
+        django_get_or_create = ("name",)
 
     name = fake.word()
 
@@ -25,7 +25,7 @@ class IssuerFactory(factory.django.DjangoModelFactory):
 class PaymentCardFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.PaymentCard
-        django_get_or_create = ('slug',)
+        django_get_or_create = ("slug",)
 
     name = fake.word()
     slug = FuzzyAttribute(fake.slug)
@@ -46,8 +46,8 @@ class PaymentCardAccountFactory(factory.django.DjangoModelFactory):
     start_year = fake.month()
     expiry_month = fake.month()
     expiry_year = fake.month()
-    pan_start = '111111'
-    pan_end = '2222'
+    pan_start = "111111"
+    pan_end = "2222"
     order = 0
     issuer = factory.SubFactory(IssuerFactory)
     fingerprint = FuzzyAttribute(uuid.uuid4)

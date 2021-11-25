@@ -8,18 +8,28 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0015_auto_20160513_0845'),
+        ("scheme", "0015_auto_20160513_0845"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='max_points_value_length',
-            field=models.IntegerField(choices=[(0, '0 (no numeric points value)'), (1, '1 (0-9)'), (2, '2 (0-99)'), (3, '3 (0-999)'), (4, '4 (0+)')], default=4, help_text='The maximum number of digits the points value will reach. This cannot be higher than four, because any arbitrarily large number can be compressed down to four digits.'),
+            model_name="scheme",
+            name="max_points_value_length",
+            field=models.IntegerField(
+                choices=[
+                    (0, "0 (no numeric points value)"),
+                    (1, "1 (0-9)"),
+                    (2, "2 (0-99)"),
+                    (3, "3 (0-999)"),
+                    (4, "4 (0+)"),
+                ],
+                default=4,
+                help_text="The maximum number of digits the points value will reach. This cannot be higher than four, because any arbitrarily large number can be compressed down to four digits.",
+            ),
         ),
         migrations.AlterField(
-            model_name='scheme',
-            name='point_name',
-            field=models.CharField(blank=True, default='points', max_length=10, null=True),
+            model_name="scheme",
+            name="point_name",
+            field=models.CharField(blank=True, default="points", max_length=10, null=True),
         ),
     ]

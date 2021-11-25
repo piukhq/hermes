@@ -4,9 +4,9 @@ from django.db import migrations
 
 
 def create_service_client_app(apps, schema_editor):
-    Organisation = apps.get_model('user', 'Organisation')
-    ClientApplication = apps.get_model('user', 'ClientApplication')
-    ClientApplicationBundle = apps.get_model('user', 'ClientApplicationBundle')
+    Organisation = apps.get_model("user", "Organisation")
+    ClientApplication = apps.get_model("user", "ClientApplication")
+    ClientApplicationBundle = apps.get_model("user", "ClientApplicationBundle")
 
     bink_org = Organisation.objects.get_or_create(name="Loyalty Angels")[0]
 
@@ -17,7 +17,7 @@ def create_service_client_app(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0038_auto_20191014_1121'),
+        ("user", "0038_auto_20191014_1121"),
     ]
 
     operations = [

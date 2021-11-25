@@ -6,7 +6,7 @@ from scheme.models import UbiquityBalanceHandler
 
 
 def balance_needs_formatting(balance):
-    if not balance or len(balance) != 1 or 'is_stale' not in balance[0]:
+    if not balance or len(balance) != 1 or "is_stale" not in balance[0]:
         return False
 
     return True
@@ -16,11 +16,11 @@ def format_balance(account):
     balance = account.balances
     if balance_needs_formatting(balance):
         account.balances = UbiquityBalanceHandler(balance).data
-        account.save(update_fields=['balances'])
+        account.save(update_fields=["balances"])
 
 
 def format_balances(apps, schema_editor):
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
 
     for account in SchemeAccount.objects.exclude(balances={}).all():
         format_balance(account)
@@ -32,7 +32,7 @@ def revert_balance(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0075_schemeaccount_transactions'),
+        ("scheme", "0075_schemeaccount_transactions"),
     ]
 
     operations = [

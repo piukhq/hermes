@@ -3,38 +3,39 @@
 from __future__ import unicode_literals
 
 import datetime
+
+import django.utils.timezone
 from django.db import migrations, models
 from django.utils.timezone import utc
-import django.utils.timezone
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0005_auto_20160411_1007'),
+        ("scheme", "0005_auto_20160411_1007"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccountimagecriteria',
-            name='created',
+            model_name="schemeaccountimagecriteria",
+            name="created",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
-            model_name='schemeaccountimagecriteria',
-            name='end_date',
+            model_name="schemeaccountimagecriteria",
+            name="end_date",
             field=models.DateTimeField(default=datetime.datetime(2016, 4, 11, 13, 56, 3, 954393, tzinfo=utc)),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='schemeaccountimagecriteria',
-            name='start_date',
+            model_name="schemeaccountimagecriteria",
+            name="start_date",
             field=models.DateTimeField(default=datetime.datetime(2016, 4, 11, 13, 56, 16, 466356, tzinfo=utc)),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='schemeaccountimagecriteria',
-            name='status',
-            field=models.IntegerField(choices=[(0, 'draft'), (1, 'published')], default=0),
+            model_name="schemeaccountimagecriteria",
+            name="status",
+            field=models.IntegerField(choices=[(0, "draft"), (1, "published")], default=0),
         ),
     ]

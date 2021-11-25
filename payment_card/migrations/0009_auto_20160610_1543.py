@@ -8,13 +8,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0008_auto_20160610_1521'),
+        ("payment_card", "0008_auto_20160610_1521"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='paymentcardaccountimagecriteria',
-            old_name='payment_image',
-            new_name='payment_card_image',
+            model_name="paymentcardaccountimagecriteria",
+            old_name="payment_image",
+            new_name="payment_card_image",
         ),
     ]

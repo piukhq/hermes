@@ -8,13 +8,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0039_paymentcarduserassociation'),
+        ("payment_card", "0039_paymentcarduserassociation"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcard',
-            name='system',
-            field=models.CharField(choices=[('visa', 'Visa'), ('mastercard', 'Mastercard'), ('amex', 'American Express')], max_length=40),
+            model_name="paymentcard",
+            name="system",
+            field=models.CharField(
+                choices=[("visa", "Visa"), ("mastercard", "Mastercard"), ("amex", "American Express")], max_length=40
+            ),
         ),
     ]

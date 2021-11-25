@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0010_schemeaccountentry_auth_provided'),
+        ("ubiquity", "0010_schemeaccountentry_auth_provided"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccountentry',
-            name='auth_provided',
+            model_name="schemeaccountentry",
+            name="auth_provided",
             field=models.BooleanField(default=False),
         ),
     ]

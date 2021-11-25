@@ -4,19 +4,18 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
-
 TOKEN_SECRET = "8vA/fjVA83(n05LWh7R4'$3dWmVCU"
 
 
 def set_bink_secret(apps, schema_editor):
-    ClientApplication = apps.get_model('user', 'ClientApplication')
-    ClientApplication.objects.filter(name='Bink').update(secret=TOKEN_SECRET)
+    ClientApplication = apps.get_model("user", "ClientApplication")
+    ClientApplication.objects.filter(name="Bink").update(secret=TOKEN_SECRET)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0022_clientapplication_secret'),
+        ("user", "0022_clientapplication_secret"),
     ]
 
     operations = [

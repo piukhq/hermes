@@ -1,9 +1,9 @@
 from django.conf import settings
 from django_prometheus.middleware import PrometheusAfterMiddleware, PrometheusBeforeMiddleware
 from django_prometheus.utils import TimeSince
-from user.models import ClientApplicationBundle
 
 from prometheus.metrics import CustomMetrics
+from user.models import ClientApplicationBundle
 
 
 def _get_bundle_id(request, response=None):

@@ -8,54 +8,54 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0031_auto_20170406_1401'),
+        ("payment_card", "0031_auto_20170406_1401"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='created',
+            model_name="paymentcardaccountimage",
+            name="created",
             field=models.DateTimeField(auto_now_add=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='description',
-            field=models.CharField(default='', max_length=300),
+            model_name="paymentcardaccountimage",
+            name="description",
+            field=models.CharField(default="", max_length=300),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='size_code',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="paymentcardaccountimage",
+            name="size_code",
+            field=models.CharField(blank=True, default="", max_length=30),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='strap_line',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="paymentcardaccountimage",
+            name="strap_line",
+            field=models.CharField(blank=True, default="", max_length=50),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='created',
+            model_name="paymentcardimage",
+            name="created",
             field=models.DateTimeField(auto_now_add=True),
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='description',
-            field=models.CharField(default='', max_length=300),
+            model_name="paymentcardimage",
+            name="description",
+            field=models.CharField(default="", max_length=300),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='size_code',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="paymentcardimage",
+            name="size_code",
+            field=models.CharField(blank=True, default="", max_length=30),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='strap_line',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="paymentcardimage",
+            name="strap_line",
+            field=models.CharField(blank=True, default="", max_length=50),
             preserve_default=False,
         ),
     ]

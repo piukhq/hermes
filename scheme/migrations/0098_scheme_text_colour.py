@@ -7,13 +7,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0097_auto_20211022_1227'),
+        ("scheme", "0097_auto_20211022_1227"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='text_colour',
-            field=colorful.fields.RGBColorField(blank=True, default='#000000'),
+            model_name="scheme",
+            name="text_colour",
+            field=colorful.fields.RGBColorField(blank=True, default="#000000"),
         ),
     ]

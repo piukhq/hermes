@@ -1,11 +1,11 @@
 from threading import local
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import sentry_sdk
 from django.db.models import signals
 from django.utils import timezone
 
-from history.enums import ExcludedField, DeleteField
+from history.enums import DeleteField, ExcludedField
 from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
 from history.tasks import record_history

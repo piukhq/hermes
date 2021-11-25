@@ -8,13 +8,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0008_auto_20160603_1050'),
+        ("user", "0008_auto_20160603_1050"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='setting',
-            name='category',
-            field=models.IntegerField(blank=True, choices=[(0, 'General'), (1, 'Marketing'), (2, 'Loyalty Scheme')], null=True),
+            model_name="setting",
+            name="category",
+            field=models.IntegerField(
+                blank=True, choices=[(0, "General"), (1, "Marketing"), (2, "Loyalty Scheme")], null=True
+            ),
         ),
     ]

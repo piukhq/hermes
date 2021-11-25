@@ -3,9 +3,9 @@ from typing import TYPE_CHECKING
 
 from rest_framework import serializers
 
+from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
-from ubiquity.reason_codes import get_state_reason_code_and_text, ubiquity_status_translation
 
 if TYPE_CHECKING:
     from scheme.models import Scheme, SchemeAccount
@@ -19,12 +19,12 @@ PaymentCardTranslationSerializer = v1_2_serializers.PaymentCardTranslationSerial
 
 
 class UbiquityImageSerializer(base_serializers.UbiquityImageSerializer):
-    cta_url = serializers.CharField(source='call_to_action')
+    cta_url = serializers.CharField(source="call_to_action")
 
 
 class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
     @staticmethod
-    def get_translated_status(instance: 'SchemeAccount', status: 'SchemeAccount.STATUSES') -> dict:
+    def get_translated_status(instance: "SchemeAccount", status: "SchemeAccount.STATUSES") -> dict:
         state, reason_codes, error_text = get_state_reason_code_and_text(status)
         scheme_errors = instance.scheme.schemeoverrideerror_set.all()
 
@@ -40,11 +40,7 @@ class MembershipCardSerializer(base_serializers.MembershipCardSerializer):
             else:
                 state = ubiquity_status_translation[instance.PENDING]
 
-        return {
-            "state": state,
-            "reason_codes": reason_codes,
-            "error_text": error_text
-        }
+        return {"state": state, "reason_codes": reason_codes, "error_text": error_text}
 
 
 class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
@@ -56,7 +52,7 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
 
     image_serializer_class = ImageSerializer
 
-    def to_representation(self, instance: 'Scheme') -> dict:
+    def to_representation(self, instance: "Scheme") -> dict:
         plan = super().to_representation(instance)
         plan["card"]["secondary_colour"] = instance.secondary_colour
 

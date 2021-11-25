@@ -52,7 +52,7 @@ from scheme.serializers import (
     UpdateUserConsentSerializer,
 )
 from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry
-from ubiquity.tasks import send_merchant_metrics_for_link_delete, async_join_journey_fetch_balance_and_update_status
+from ubiquity.tasks import async_join_journey_fetch_balance_and_update_status, send_merchant_metrics_for_link_delete
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin, TransactionSerializer
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import CustomUser, UserSetting
@@ -442,8 +442,10 @@ class UpdateSchemeAccountStatus(GenericAPIView):
         PaymentCardSchemeEntry.update_active_link_status({"scheme_account": scheme_account})
 
         # delete main answer credential if an async join failed
-        if previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS] \
-                and new_status_code != SchemeAccount.ACTIVE:
+        if (
+            previous_status in [SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS]
+            and new_status_code != SchemeAccount.ACTIVE
+        ):
             scheme_account.main_answer = ""
             update_fields.append("main_answer")
 
@@ -764,10 +766,7 @@ class ReferenceImages(APIView):
         images = SchemeImage.objects.filter(image_type_code=5)
         reference_image_serializer = ReferenceImageSerializer(images, many=True)
 
-        return_data = [
-            {"file": data["image"], "scheme_id": data["scheme"]}
-            for data in reference_image_serializer.data
-        ]
+        return_data = [{"file": data["image"], "scheme_id": data["scheme"]} for data in reference_image_serializer.data]
 
         return Response(return_data, status=200)
 

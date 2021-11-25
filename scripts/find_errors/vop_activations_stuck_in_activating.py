@@ -1,5 +1,6 @@
+from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+
 from .base_script import BaseScript, Correction
-from ubiquity.models import VopActivation, PaymentCardSchemeEntry
 
 
 class FindVOPActivationsStuckInActivating(BaseScript):
@@ -14,15 +15,15 @@ class FindVOPActivationsStuckInActivating(BaseScript):
         for a in activating:
             pca = a.payment_card_account
             scheme = a.scheme
-            active_link_check = PaymentCardSchemeEntry.objects.filter(scheme_account__scheme=scheme,
-                                                                      payment_card_account=pca,
-                                                                      active_link=True)
+            active_link_check = PaymentCardSchemeEntry.objects.filter(
+                scheme_account__scheme=scheme, payment_card_account=pca, active_link=True
+            )
             if active_link_check.count() >= 1:
                 active_link = True
             else:
                 active_link = False
 
-            active_link_str = 'True' if active_link else '*NO ACTIVE LINK FOUND!*'
+            active_link_str = "True" if active_link else "*NO ACTIVE LINK FOUND!*"
             if active_link:
                 self.set_correction(Correction.ACTIVATE)
             else:
@@ -42,18 +43,15 @@ class FindVOPActivationsStuckInActivating(BaseScript):
             self.found += 1
 
             data = {
-                'activation': a.id,
-                'card_id': pca.id,
-                'payment_token': pca.psp_token,
-                'card_token': pca.token,
-                'scheme_id': scheme.id,
-                'scheme_slug': scheme.slug,
-                'partner_slug': pca.payment_card.slug,
-                'activation_id': a.activation_id,
-                'has_active_link': active_link
+                "activation": a.id,
+                "card_id": pca.id,
+                "payment_token": pca.psp_token,
+                "card_token": pca.token,
+                "scheme_id": scheme.id,
+                "scheme_slug": scheme.slug,
+                "partner_slug": pca.payment_card.slug,
+                "activation_id": a.activation_id,
+                "has_active_link": active_link,
             }
 
-            self.make_correction(
-                unique_id_string=f"{a.id}.{pca.id}",
-                data=data
-            )
+            self.make_correction(unique_id_string=f"{a.id}.{pca.id}", data=data)

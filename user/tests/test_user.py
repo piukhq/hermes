@@ -18,141 +18,165 @@ from hermes import settings
 from history.utils import GlobalMockAPITestCase
 from scheme.credentials import EMAIL
 from scheme.models import SchemeAccount
-from scheme.tests.factories import SchemeFactory, SchemeCredentialQuestionFactory, SchemeCredentialAnswerFactory
+from scheme.tests.factories import SchemeCredentialAnswerFactory, SchemeCredentialQuestionFactory, SchemeFactory
 from ubiquity.models import SchemeAccountEntry
-from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.tests.factories import SchemeAccountEntryFactory
-from user.models import (CustomUser, MarketingCode, Referral, hash_ids, valid_promo_code, UserSetting, Setting,
-                         ClientApplication, ClientApplicationBundle, ClientApplicationKit)
-from user.tests.factories import (UserFactory, UserProfileFactory, fake, SettingFactory, UserSettingFactory,
-                                  MarketingCodeFactory, ClientApplicationBundleFactory, ClientApplicationFactory)
-from user.views import facebook_login, twitter_login, social_login, apple_login, generate_apple_client_secret
+from ubiquity.tests.property_token import GenerateJWToken
+from user.models import (
+    ClientApplication,
+    ClientApplicationBundle,
+    ClientApplicationKit,
+    CustomUser,
+    MarketingCode,
+    Referral,
+    Setting,
+    UserSetting,
+    hash_ids,
+    valid_promo_code,
+)
+from user.tests.factories import (
+    ClientApplicationBundleFactory,
+    ClientApplicationFactory,
+    MarketingCodeFactory,
+    SettingFactory,
+    UserFactory,
+    UserProfileFactory,
+    UserSettingFactory,
+    fake,
+)
+from user.views import apple_login, facebook_login, generate_apple_client_secret, social_login, twitter_login
 
-BINK_CLIENT_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
-BINK_BUNDLE_ID = 'com.bink.wallet'
+BINK_CLIENT_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
+BINK_BUNDLE_ID = "com.bink.wallet"
 
 
 class TestRegisterNewUserViews(GlobalMockAPITestCase):
     def test_register(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_1@example.com', 'password': 'Password1',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_1@example.com",
+                "password": "Password1",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], 'test_1@example.com')
+        self.assertIn("email", content.keys())
+        self.assertIn("api_key", content.keys())
+        self.assertEqual(content["email"], "test_1@example.com")
 
-        user = CustomUser.objects.get(email='test_1@example.com')
+        user = CustomUser.objects.get(email="test_1@example.com")
         self.assertEqual(len(user.salt), 8)
-        self.assertNotIn(user.salt, [None, ''])
+        self.assertNotIn(user.salt, [None, ""])
 
     def test_register_bink_client_and_bundle(self):
         client = Client()
-        email = 'test_1@example.com'
+        email = "test_1@example.com"
         data = {
-            'email': email,
-            'password': 'Password1',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID,
-            'external_id': email
+            "email": email,
+            "password": "Password1",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
+            "external_id": email,
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], email)
+        self.assertIn("email", content.keys())
+        self.assertIn("api_key", content.keys())
+        self.assertEqual(content["email"], email)
         user = CustomUser.objects.get(email=email)
         self.assertEqual(user.client_id, BINK_CLIENT_ID)
 
     def test_register_new_client_and_bundle(self):
         client = Client()
-        app = ClientApplication.objects.create(name='Test', organisation_id=1)
-        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id='com.bink.test')
-        email = 'test_1@example.com'
+        app = ClientApplication.objects.create(name="Test", organisation_id=1)
+        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id="com.bink.test")
+        email = "test_1@example.com"
         data = {
-            'email': email,
-            'password': 'Password1',
-            'client_id': app.client_id,
-            'bundle_id': 'com.bink.test',
-            'external_id': email
+            "email": email,
+            "password": "Password1",
+            "client_id": app.client_id,
+            "bundle_id": "com.bink.test",
+            "external_id": email,
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 201)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], email)
+        self.assertIn("email", content.keys())
+        self.assertIn("api_key", content.keys())
+        self.assertEqual(content["email"], email)
         user = CustomUser.objects.get(email=email)
         self.assertEqual(user.client_id, app.client_id)
 
     def test_register_new_client_same_email(self):
         client = Client()
-        app = ClientApplication.objects.create(name='Test', organisation_id=1)
-        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id='com.bink.test')
-        email = 'test_1@example.com'
+        app = ClientApplication.objects.create(name="Test", organisation_id=1)
+        ClientApplicationBundle.objects.create(client_id=app.client_id, bundle_id="com.bink.test")
+        email = "test_1@example.com"
         data = {
-            'email': email,
-            'password': 'Password1',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID,
-            'external_id': email
+            "email": email,
+            "password": "Password1",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
+            "external_id": email,
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         self.assertEqual(response.status_code, 201)
 
         data = {
-            'email': email,
-            'password': 'Password1',
-            'client_id': app.client_id,
-            'bundle_id': 'com.bink.test',
-            'external_id': email
+            "email": email,
+            "password": "Password1",
+            "client_id": app.client_id,
+            "bundle_id": "com.bink.test",
+            "external_id": email,
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         self.assertEqual(response.status_code, 201)
 
     def test_register_fail_invalid_client_id(self):
         client = Client()
         data = {
-            'email': 'test_1@example.com',
-            'password': 'Password1',
-            'client_id': 'foo',
-            'bundle_id': BINK_BUNDLE_ID,
+            "email": "test_1@example.com",
+            "password": "Password1",
+            "client_id": "foo",
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         self.assertEqual(response.status_code, 403)
 
     def test_register_fail_invalid_bundle(self):
         client = Client()
         data = {
-            'email': 'test_1@example.com',
-            'password': 'Password1',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': 'foo',
+            "email": "test_1@example.com",
+            "password": "Password1",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": "foo",
         }
 
-        response = client.post(reverse('new_register_user'), data)
+        response = client.post(reverse("new_register_user"), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_register_fail_email_not_unique(self):
         client = Client()
         data = {
-            'email': 'test_1@example.com',
-            'password': 'Password1',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID
+            "email": "test_1@example.com",
+            "password": "Password1",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        register_url = reverse('register_user')
+        register_url = reverse("register_user")
         response = client.post(register_url, data)
         self.assertEqual(response.status_code, 201)
         response = client.post(register_url, data)
@@ -160,91 +184,125 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
 
     def test_uid_is_unique(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_2@example.com', 'password': 'Password2',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_2@example.com",
+                "password": "Password2",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid_1 = content['api_key']
+        uid_1 = content["api_key"]
 
-        response = client.post(reverse('register_user'), {'email': 'test_3@example.com', 'password': 'Password3',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_3@example.com",
+                "password": "Password3",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
         content = json.loads(response.content.decode())
-        uid_2 = content['api_key']
+        uid_2 = content["api_key"]
 
         self.assertNotEqual(uid_1, uid_2)
 
     def test_invalid_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_4@example', 'password': 'Password4',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_4@example",
+                "password": "Password4",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_no_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'password': 'Password5', 'promo_code': '',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {"password": "Password5", "promo_code": "", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
-        response = client.post(reverse('register_user'), {'email': '', 'password': 'Password5',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {"email": "", "password": "Password5", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_no_password(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_5@example.com',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {"email": "test_5@example.com", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
-        response = client.post(reverse('register_user'), {'email': 'test_5@example.com', 'password': '',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {"email": "test_5@example.com", "password": "", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_no_email_and_no_password(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
+        response = client.post(reverse("register_user"), {"client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID})
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_good_promo_code(self):
         client = Client()
         # Register a user
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_6@Example.com",
+                "password": "Password6",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
         # get the corresponding promo code for that user
-        u = CustomUser.objects.all().filter(email='test_6@example.com')
+        u = CustomUser.objects.all().filter(email="test_6@example.com")
         rc = u[0].referral_code
         # Apply the promo code for that user with a new user registration
         response = client.post(
-            reverse('register_user'),
-            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': rc,
-             'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
+            reverse("register_user"),
+            {
+                "email": "oe42@example.com",
+                "password": "Asdfpass10",
+                "promo_code": rc,
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
 
     def test_good_marketing_code(self):
@@ -255,59 +313,90 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         mc.code = code
         mc.date_from = timezone.now()
         mc.date_to = timezone.now() + timezone.timedelta(hours=12)
-        mc.description = ''
-        mc.partner = 'Dixons Travel'
+        mc.description = ""
+        mc.partner = "Dixons Travel"
         mc.save()
 
         # Apply the marketing code for this user with a new user registration
         response = client.post(
-            reverse('register_user'),
-            {'email': 'oe42@example.com', 'password': 'Asdfpass10', 'promo_code': code,
-             'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-             })
+            reverse("register_user"),
+            {
+                "email": "oe42@example.com",
+                "password": "Asdfpass10",
+                "promo_code": code,
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
 
     def test_existing_email(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_6@Example.com",
+                "password": "Password6",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_6@Example.com",
+                "password": "Password6",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_existing_email_switch_case(self):
         client = Client()
-        response = client.post(reverse('register_user'), {'email': 'test_6@Example.com', 'password': 'Password6',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "test_6@Example.com",
+                "password": "Password6",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         self.assertEqual(response.status_code, 201)
-        response = client.post(reverse('register_user'), {'email': 'TeSt_6@Example.com', 'password': 'Password6',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                          })
+        response = client.post(
+            reverse("register_user"),
+            {
+                "email": "TeSt_6@Example.com",
+                "password": "Password6",
+                "client_id": BINK_CLIENT_ID,
+                "bundle_id": BINK_BUNDLE_ID,
+            },
+        )
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(content['name'], 'REGISTRATION_FAILED')
-        self.assertEqual(content['message'], 'Registration failed.')
+        self.assertEqual(content["name"], "REGISTRATION_FAILED")
+        self.assertEqual(content["message"], "Registration failed.")
 
     def test_strange_email_case(self):
-        email = 'TEST_12@Example.com'
-        response = self.client.post(reverse('register_user'), {'email': email, 'password': 'Password6',
-                                                               'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                               })
+        email = "TEST_12@Example.com"
+        response = self.client.post(
+            reverse("register_user"),
+            {"email": email, "password": "Password6", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         content = json.loads(response.content.decode())
-        user = CustomUser.objects.get(email=content['email'])
+        user = CustomUser.objects.get(email=content["email"])
         # Test that django lowers the domain of the email address
-        self.assertEqual(user.email, 'TEST_12@example.com')
+        self.assertEqual(user.email, "TEST_12@example.com")
         # Test that we can login with the domain still with upper case letters
-        response = self.client.post(reverse('login'), data={"email": email, "password": 'Password6',
-                                                            'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID
-                                                            })
+        response = self.client.post(
+            reverse("login"),
+            data={"email": email, "password": "Password6", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
 
@@ -321,15 +410,17 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         mocked_vault.return_value = client.secret
 
         email = "test_ml@user.bink"
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret=client.secret,
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret=client.secret,
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
         try:
@@ -339,43 +430,49 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
 
         self.assertTrue(user.magic_link_verified)
 
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret=client.secret,
-                magic_link=True,
-                expired=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret=client.secret,
+                    magic_link=True,
+                    expired=True,
+                ).get_token()
+            }
+        )
 
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 401)
 
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret="wrong secret",
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret="wrong secret",
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 400)
 
         mocked_cache.configure_mock(get=lambda *args, **kwargs: True, set=lambda *args, **kwargs: True)
         mocked_cache.get.return_value = True
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email="test-used-token",
-                client_secret=client.secret,
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email="test-used-token",
+                    client_secret=client.secret,
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 401)
 
@@ -389,23 +486,26 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme_account_entry = SchemeAccountEntryFactory(user=user, scheme_account__scheme=scheme)
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email)
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+        )
 
         client = ClientApplicationFactory()
-        bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
+        bundle = ClientApplicationBundleFactory(client=client, bundle_id="com.wasabi.bink.web")
 
         mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
         mocked_vault.return_value = client.secret
 
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret=client.secret,
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret=client.secret,
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
 
@@ -429,26 +529,30 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account_entry = SchemeAccountEntryFactory(
-            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.REGISTRATION_FAILED)
+            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.REGISTRATION_FAILED
+        )
 
         SchemeCredentialAnswerFactory(
-            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email)
+            scheme_account=scheme_account_entry.scheme_account, question=question, answer=email
+        )
 
         client = ClientApplicationFactory()
-        bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
+        bundle = ClientApplicationBundleFactory(client=client, bundle_id="com.wasabi.bink.web")
 
         mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
         mocked_vault.return_value = client.secret
 
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret=client.secret,
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret=client.secret,
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
 
@@ -468,29 +572,32 @@ class TestRegisterNewUserViews(GlobalMockAPITestCase):
         scheme = SchemeFactory(company="Wasabi", slug="wasabi-club")
         question = SchemeCredentialQuestionFactory(scheme=scheme, type=EMAIL, auth_field=True)
         scheme_account_entry = SchemeAccountEntryFactory(
-            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.ACTIVE)
+            user=user, scheme_account__scheme=scheme, scheme_account__status=SchemeAccount.ACTIVE
+        )
 
         SchemeCredentialAnswerFactory(
             scheme_account=scheme_account_entry.scheme_account,
             question=question,
-            answer="test_different_email@bink.com"
+            answer="test_different_email@bink.com",
         )
 
         client = ClientApplicationFactory()
-        bundle = ClientApplicationBundleFactory(client=client, bundle_id='com.wasabi.bink.web')
+        bundle = ClientApplicationBundleFactory(client=client, bundle_id="com.wasabi.bink.web")
 
         mocked_cache.configure_mock(get=lambda *args, **kwargs: False, set=lambda *args, **kwargs: True)
         mocked_vault.return_value = client.secret
 
-        payload = json.dumps({
-            "token": GenerateJWToken(
-                organisation_id=client.organisation_id,
-                bundle_id=bundle.bundle_id,
-                email=email,
-                client_secret=client.secret,
-                magic_link=True
-            ).get_token()
-        })
+        payload = json.dumps(
+            {
+                "token": GenerateJWToken(
+                    organisation_id=client.organisation_id,
+                    bundle_id=bundle.bundle_id,
+                    email=email,
+                    client_secret=client.secret,
+                    magic_link=True,
+                ).get_token()
+            }
+        )
         resp = self.client.post(reverse("magic_link_auth"), data=payload, content_type="application/json")
         self.assertEqual(resp.status_code, 200)
 
@@ -507,60 +614,57 @@ class TestUserProfileViews(GlobalMockAPITestCase):
     def test_empty_profile(self):
         user = UserFactory()
         client = Client()
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user.create_token()
-        }
-        response = client.get('/users/me', content_type='application/json', **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user.create_token()}
+        response = client.get("/users/me", content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['email'], user.email)
-        self.assertEqual(content['first_name'], None)
-        self.assertEqual(content['last_name'], None)
-        self.assertEqual(content['date_of_birth'], None)
-        self.assertEqual(content['phone'], None)
-        self.assertEqual(content['address_line_1'], None)
-        self.assertEqual(content['address_line_2'], None)
-        self.assertEqual(content['city'], None)
-        self.assertEqual(content['region'], None)
-        self.assertEqual(content['postcode'], None)
-        self.assertEqual(content['country'], None)
-        self.assertEqual(content['notifications'], None)
-        self.assertEqual(content['pass_code'], None)
-        self.assertEqual(content['referral_code'], user.referral_code)
+        self.assertEqual(content["email"], user.email)
+        self.assertEqual(content["first_name"], None)
+        self.assertEqual(content["last_name"], None)
+        self.assertEqual(content["date_of_birth"], None)
+        self.assertEqual(content["phone"], None)
+        self.assertEqual(content["address_line_1"], None)
+        self.assertEqual(content["address_line_2"], None)
+        self.assertEqual(content["city"], None)
+        self.assertEqual(content["region"], None)
+        self.assertEqual(content["postcode"], None)
+        self.assertEqual(content["country"], None)
+        self.assertEqual(content["notifications"], None)
+        self.assertEqual(content["pass_code"], None)
+        self.assertEqual(content["referral_code"], user.referral_code)
 
     def test_full_update(self):
         # Create User
         client = Client()
-        email = 'user_profile@example.com'
-        response = client.post(reverse('register_user'), {'email': email, 'password': 'Password1',
-                                                          'client_id': BINK_CLIENT_ID, 'bundle_id': BINK_BUNDLE_ID})
+        email = "user_profile@example.com"
+        response = client.post(
+            reverse("register_user"),
+            {"email": email, "password": "Password1", "client_id": BINK_CLIENT_ID, "bundle_id": BINK_BUNDLE_ID},
+        )
         self.assertEqual(response.status_code, 201)
 
-        api_key = response.data['api_key']
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token {0}'.format(api_key)
-        }
+        api_key = response.data["api_key"]
+        auth_headers = {"HTTP_AUTHORIZATION": "Token {0}".format(api_key)}
         data = {
-            'email': 'user_profile2@example.com',
-            'first_name': 'Andrew',
-            'last_name': 'Kenyon',
-            'date_of_birth': '1987-12-07',
-            'phone': '123456789',
-            'address_line_1': '77 Raglan Road',
-            'address_line_2': 'Knaphill',
-            'city': 'Woking',
-            'region': 'Surrey',
-            'postcode': 'GU21 2AR',
-            'country': 'United Kingdom',
-            'notifications': '0',
-            'pass_code': '1234',
+            "email": "user_profile2@example.com",
+            "first_name": "Andrew",
+            "last_name": "Kenyon",
+            "date_of_birth": "1987-12-07",
+            "phone": "123456789",
+            "address_line_1": "77 Raglan Road",
+            "address_line_2": "Knaphill",
+            "city": "Woking",
+            "region": "Surrey",
+            "postcode": "GU21 2AR",
+            "country": "United Kingdom",
+            "notifications": "0",
+            "pass_code": "1234",
         }
-        response = client.put('/users/me', json.dumps(data),
-                              content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
-        data['uid'] = api_key
+        data["uid"] = api_key
         # TODO: SORT THESE
-        data['notifications'] = 0
+        data["notifications"] = 0
         # TODO: Check all fields in response
         pass
         # TODO: Check all fields in model
@@ -569,226 +673,213 @@ class TestUserProfileViews(GlobalMockAPITestCase):
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         data = {
-            'address_line_1': user_profile.address_line_1,
-            'address_line_2': user_profile.address_line_2,
-            'city': user_profile.city,
-            'region': user_profile.region,
-            'postcode': user_profile.postcode,
-            'country': user_profile.country,
-            'gender': user_profile.gender
+            "address_line_1": user_profile.address_line_1,
+            "address_line_2": user_profile.address_line_2,
+            "city": user_profile.city,
+            "region": user_profile.region,
+            "postcode": user_profile.postcode,
+            "country": user_profile.country,
+            "gender": user_profile.gender,
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
-        }
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token()}
         client = Client()
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], user_profile.user.email)
-        self.assertEqual(content['first_name'], None)
-        self.assertEqual(content['last_name'], None)
-        self.assertEqual(content['date_of_birth'], None)
-        self.assertEqual(content['phone'], None)
-        self.assertEqual(content['address_line_1'], user_profile.address_line_1)
-        self.assertEqual(content['address_line_2'], user_profile.address_line_2)
-        self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
-        self.assertEqual(content['postcode'], user_profile.postcode)
-        self.assertEqual(content['country'], user_profile.country)
-        self.assertEqual(content['notifications'], None)
-        self.assertEqual(content['pass_code'], None)
-        self.assertEqual(content['gender'], user_profile.gender)
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], user_profile.user.email)
+        self.assertEqual(content["first_name"], None)
+        self.assertEqual(content["last_name"], None)
+        self.assertEqual(content["date_of_birth"], None)
+        self.assertEqual(content["phone"], None)
+        self.assertEqual(content["address_line_1"], user_profile.address_line_1)
+        self.assertEqual(content["address_line_2"], user_profile.address_line_2)
+        self.assertEqual(content["city"], user_profile.city)
+        self.assertEqual(content["region"], user_profile.region)
+        self.assertEqual(content["postcode"], user_profile.postcode)
+        self.assertEqual(content["country"], user_profile.country)
+        self.assertEqual(content["notifications"], None)
+        self.assertEqual(content["pass_code"], None)
+        self.assertEqual(content["gender"], user_profile.gender)
 
         # Test that adding a new field does not blank existing fields
         data = {
-            'phone': user_profile.phone,
+            "phone": user_profile.phone,
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
-        }
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token()}
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], user_profile.user.email)
-        self.assertEqual(content['first_name'], None)
-        self.assertEqual(content['last_name'], None)
-        self.assertEqual(content['date_of_birth'], None)
-        self.assertEqual(content['phone'], user_profile.phone)
-        self.assertEqual(content['address_line_1'], user_profile.address_line_1)
-        self.assertEqual(content['address_line_2'], user_profile.address_line_2)
-        self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
-        self.assertEqual(content['postcode'], user_profile.postcode)
-        self.assertEqual(content['country'], user_profile.country)
-        self.assertEqual(content['notifications'], None)
-        self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], user_profile.user.email)
+        self.assertEqual(content["first_name"], None)
+        self.assertEqual(content["last_name"], None)
+        self.assertEqual(content["date_of_birth"], None)
+        self.assertEqual(content["phone"], user_profile.phone)
+        self.assertEqual(content["address_line_1"], user_profile.address_line_1)
+        self.assertEqual(content["address_line_2"], user_profile.address_line_2)
+        self.assertEqual(content["city"], user_profile.city)
+        self.assertEqual(content["region"], user_profile.region)
+        self.assertEqual(content["postcode"], user_profile.postcode)
+        self.assertEqual(content["country"], user_profile.country)
+        self.assertEqual(content["notifications"], None)
+        self.assertEqual(content["pass_code"], None)
 
         new_address_1 = fake.street_address()
         data = {
-            'address_line_1': new_address_1,
+            "address_line_1": new_address_1,
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
-        }
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token()}
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], user_profile.user.email)
-        self.assertEqual(content['first_name'], None)
-        self.assertEqual(content['last_name'], None)
-        self.assertEqual(content['date_of_birth'], None)
-        self.assertEqual(content['phone'], user_profile.phone)
-        self.assertEqual(content['address_line_1'], new_address_1)
-        self.assertEqual(content['address_line_2'], user_profile.address_line_2)
-        self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
-        self.assertEqual(content['postcode'], user_profile.postcode)
-        self.assertEqual(content['country'], user_profile.country)
-        self.assertEqual(content['notifications'], None)
-        self.assertEqual(content['pass_code'], None)
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], user_profile.user.email)
+        self.assertEqual(content["first_name"], None)
+        self.assertEqual(content["last_name"], None)
+        self.assertEqual(content["date_of_birth"], None)
+        self.assertEqual(content["phone"], user_profile.phone)
+        self.assertEqual(content["address_line_1"], new_address_1)
+        self.assertEqual(content["address_line_2"], user_profile.address_line_2)
+        self.assertEqual(content["city"], user_profile.city)
+        self.assertEqual(content["region"], user_profile.region)
+        self.assertEqual(content["postcode"], user_profile.postcode)
+        self.assertEqual(content["country"], user_profile.country)
+        self.assertEqual(content["notifications"], None)
+        self.assertEqual(content["pass_code"], None)
 
     def test_edit_email(self):
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         new_email = fake.email()
         data = {
-            'email': new_email,
+            "email": new_email,
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
-        }
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token()}
         client = Client()
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], new_email)
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], new_email)
 
     def test_edit_duplicate_email(self):
         user_profile1 = UserProfileFactory()
         user_profile2 = UserProfileFactory()
         data = {
-            'email': user_profile2.user.email,
+            "email": user_profile2.user.email,
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile1.user.create_token()
-        }
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile1.user.create_token()}
         client = Client()
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertNotEqual(content['email'], ['This field must be unique.'])
+        self.assertNotEqual(content["email"], ["This field must be unique."])
 
     def test_cannot_edit_uid(self):
         # You cannot edit uid, but if you try you still get a 200.
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         data = {
-            'uid': '172b7aaf-8233-4be3-a50e-67b9c03a5a91',
+            "uid": "172b7aaf-8233-4be3-a50e-67b9c03a5a91",
         }
-        auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token()
-        }
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token()}
         client = Client()
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
+        self.assertEqual(content["uid"], str(uid))
 
     def test_remove_all(self):
         user_profile = UserProfileFactory()
         uid = user_profile.user.uid
         auth_headers = {
-            'HTTP_AUTHORIZATION': 'Token ' + user_profile.user.create_token(),
+            "HTTP_AUTHORIZATION": "Token " + user_profile.user.create_token(),
         }
         client = Client()
         data = {
-            'email': user_profile.user.email,
-            'first_name': user_profile.first_name,
-            'last_name': user_profile.last_name,
-            'date_of_birth': user_profile.date_of_birth,
-            'phone': user_profile.phone,
-            'address_line_1': user_profile.address_line_1,
-            'address_line_2': user_profile.address_line_2,
-            'city': user_profile.city,
-            'region': user_profile.region,
-            'postcode': user_profile.postcode,
-            'country': user_profile.country,
-            'notifications': user_profile.notifications,
-            'pass_code': user_profile.pass_code,
-            'currency': user_profile.currency
+            "email": user_profile.user.email,
+            "first_name": user_profile.first_name,
+            "last_name": user_profile.last_name,
+            "date_of_birth": user_profile.date_of_birth,
+            "phone": user_profile.phone,
+            "address_line_1": user_profile.address_line_1,
+            "address_line_2": user_profile.address_line_2,
+            "city": user_profile.city,
+            "region": user_profile.region,
+            "postcode": user_profile.postcode,
+            "country": user_profile.country,
+            "notifications": user_profile.notifications,
+            "pass_code": user_profile.pass_code,
+            "currency": user_profile.currency,
         }
 
-        response = client.put('/users/me', json.dumps(data),
-                              content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], user_profile.user.email)
-        self.assertEqual(content['first_name'], user_profile.first_name)
-        self.assertEqual(content['last_name'], user_profile.last_name)
-        self.assertEqual(content['date_of_birth'], user_profile.date_of_birth)
-        self.assertEqual(content['phone'], user_profile.phone)
-        self.assertEqual(content['address_line_1'], user_profile.address_line_1)
-        self.assertEqual(content['address_line_2'], user_profile.address_line_2)
-        self.assertEqual(content['city'], user_profile.city)
-        self.assertEqual(content['region'], user_profile.region)
-        self.assertEqual(content['postcode'], user_profile.postcode)
-        self.assertEqual(content['country'], user_profile.country)
-        self.assertEqual(content['notifications'], 0)
-        self.assertEqual(content['pass_code'], user_profile.pass_code)
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], user_profile.user.email)
+        self.assertEqual(content["first_name"], user_profile.first_name)
+        self.assertEqual(content["last_name"], user_profile.last_name)
+        self.assertEqual(content["date_of_birth"], user_profile.date_of_birth)
+        self.assertEqual(content["phone"], user_profile.phone)
+        self.assertEqual(content["address_line_1"], user_profile.address_line_1)
+        self.assertEqual(content["address_line_2"], user_profile.address_line_2)
+        self.assertEqual(content["city"], user_profile.city)
+        self.assertEqual(content["region"], user_profile.region)
+        self.assertEqual(content["postcode"], user_profile.postcode)
+        self.assertEqual(content["country"], user_profile.country)
+        self.assertEqual(content["notifications"], 0)
+        self.assertEqual(content["pass_code"], user_profile.pass_code)
 
         data = {
-            'email': user_profile.user.email,
-            'first_name': '',
-            'last_name': '',
-            'date_of_birth': None,
-            'phone': '',
-            'address_line_1': '',
-            'address_line_2': '',
-            'city': '',
-            'region': '',
-            'postcode': '',
-            'country': '',
-            'notifications': None,
-            'pass_code': '',
+            "email": user_profile.user.email,
+            "first_name": "",
+            "last_name": "",
+            "date_of_birth": None,
+            "phone": "",
+            "address_line_1": "",
+            "address_line_2": "",
+            "city": "",
+            "region": "",
+            "postcode": "",
+            "country": "",
+            "notifications": None,
+            "pass_code": "",
         }
-        response = client.put('/users/me', json.dumps(data), content_type='application/json', **auth_headers)
+        response = client.put("/users/me", json.dumps(data), content_type="application/json", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['uid'], str(uid))
-        self.assertEqual(content['email'], user_profile.user.email)
-        self.assertEqual(content['first_name'], '')
-        self.assertEqual(content['last_name'], '')
-        self.assertEqual(content['date_of_birth'], None)
-        self.assertEqual(content['phone'], '')
-        self.assertEqual(content['address_line_1'], '')
-        self.assertEqual(content['address_line_2'], '')
-        self.assertEqual(content['city'], '')
-        self.assertEqual(content['region'], '')
-        self.assertEqual(content['postcode'], '')
-        self.assertEqual(content['country'], '')
-        self.assertEqual(content['notifications'], None)
-        self.assertEqual(content['pass_code'], '')
+        self.assertEqual(content["uid"], str(uid))
+        self.assertEqual(content["email"], user_profile.user.email)
+        self.assertEqual(content["first_name"], "")
+        self.assertEqual(content["last_name"], "")
+        self.assertEqual(content["date_of_birth"], None)
+        self.assertEqual(content["phone"], "")
+        self.assertEqual(content["address_line_1"], "")
+        self.assertEqual(content["address_line_2"], "")
+        self.assertEqual(content["city"], "")
+        self.assertEqual(content["region"], "")
+        self.assertEqual(content["postcode"], "")
+        self.assertEqual(content["country"], "")
+        self.assertEqual(content["notifications"], None)
+        self.assertEqual(content["pass_code"], "")
 
 
 class TestAuthenticationViews(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = UserFactory()
-        cls.auth_service_headers = {'HTTP_AUTHORIZATION': 'Token ' + settings.SERVICE_API_KEY}
+        cls.auth_service_headers = {"HTTP_AUTHORIZATION": "Token " + settings.SERVICE_API_KEY}
 
     def test_local_login_valid(self):
         data = {
             "email": self.user.email,
-            "password": 'defaultpassword',
+            "password": "defaultpassword",
             "client_id": BINK_CLIENT_ID,
             "bundle_id": BINK_BUNDLE_ID,
         }
-        response = self.client.post(reverse('login'), data=data)
+        response = self.client.post(reverse("login"), data=data)
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("api_key", response.data)
@@ -796,25 +887,25 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
     def test_local_login_invalid(self):
         data = {
             "email": self.user.email,
-            "password": 'badpassword',
+            "password": "badpassword",
             "client_id": BINK_CLIENT_ID,
             "bundle_id": BINK_BUNDLE_ID,
         }
-        response = self.client.post(reverse('login'), data=data)
+        response = self.client.post(reverse("login"), data=data)
 
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["message"], 'Login credentials incorrect.')
+        self.assertEqual(response.data["message"], "Login credentials incorrect.")
 
     def test_local_login_deleted_user(self):
         self.user.is_active = False
         self.user.save()
         data = {
             "email": self.user.email,
-            "password": 'defaultpassword',
+            "password": "defaultpassword",
             "client_id": BINK_CLIENT_ID,
             "bundle_id": BINK_BUNDLE_ID,
         }
-        response = self.client.post(reverse('login'), data=data)
+        response = self.client.post(reverse("login"), data=data)
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(response.data["message"], "Login credentials incorrect.")
@@ -822,164 +913,162 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
     def test_login_with_client_and_bundle(self):
         client = Client()
         data = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID,
+            "email": self.user.email,
+            "password": "defaultpassword",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        response = client.post(reverse('new_login'), data)
+        response = client.post(reverse("new_login"), data)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
-        self.assertIn('email', content.keys())
-        self.assertIn('api_key', content.keys())
-        self.assertEqual(content['email'], self.user.email)
+        self.assertIn("email", content.keys())
+        self.assertIn("api_key", content.keys())
+        self.assertEqual(content["email"], self.user.email)
 
     def test_login_duplicate_email_different_client(self):
         client = Client()
         data_1_old = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
+            "email": self.user.email,
+            "password": "defaultpassword",
             "client_id": BINK_CLIENT_ID,
             "bundle_id": BINK_BUNDLE_ID,
         }
         data_1_new = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID,
+            "email": self.user.email,
+            "password": "defaultpassword",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        app = ClientApplication.objects.create(name='Test', organisation_id=1)
-        other_user = CustomUser.objects.create_user(self.user.email, password='foo', client_id=app.client_id)
-        other_bundle = ClientApplicationBundle.objects.create(client=app, bundle_id='com.bink.test')
+        app = ClientApplication.objects.create(name="Test", organisation_id=1)
+        other_user = CustomUser.objects.create_user(self.user.email, password="foo", client_id=app.client_id)
+        other_bundle = ClientApplicationBundle.objects.create(client=app, bundle_id="com.bink.test")
         data_2 = {
-            'email': other_user.email,
-            'password': 'foo',
-            'client_id': app.client_id,
-            'bundle_id': other_bundle.bundle_id,
+            "email": other_user.email,
+            "password": "foo",
+            "client_id": app.client_id,
+            "bundle_id": other_bundle.bundle_id,
         }
 
-        response = client.post(reverse('login'), data_1_old)
+        response = client.post(reverse("login"), data_1_old)
         self.assertEqual(response.status_code, 200)
 
-        response = client.post(reverse('new_login'), data_1_new)
+        response = client.post(reverse("new_login"), data_1_new)
         self.assertEqual(response.status_code, 200)
 
-        response = client.post(reverse('new_login'), data_2)
+        response = client.post(reverse("new_login"), data_2)
         self.assertEqual(response.status_code, 200)
 
     def test_login_fail_client_invalid_for_user(self):
         client = Client()
-        app = ClientApplication.objects.create(name='Test', organisation_id=1)
-        user = CustomUser.objects.create_user('new@test.com')
+        app = ClientApplication.objects.create(name="Test", organisation_id=1)
+        user = CustomUser.objects.create_user("new@test.com")
         user.client_id = app.client_id
         user.save()
         data = {
-            'email': 'new@test.com',
-            'password': 'defaultpassword',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': BINK_BUNDLE_ID,
+            "email": "new@test.com",
+            "password": "defaultpassword",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        response = client.post(reverse('new_login'), data)
+        response = client.post(reverse("new_login"), data)
         self.assertEqual(response.status_code, 403)
 
     def test_login_fail_invalid_client_id(self):
         client = Client()
         data = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
-            'client_id': 'foo',
-            'bundle_id': BINK_BUNDLE_ID,
+            "email": self.user.email,
+            "password": "defaultpassword",
+            "client_id": "foo",
+            "bundle_id": BINK_BUNDLE_ID,
         }
 
-        response = client.post(reverse('new_login'), data)
+        response = client.post(reverse("new_login"), data)
         self.assertEqual(response.status_code, 403)
 
     def test_login_fail_invalid_bundle(self):
         client = Client()
         data = {
-            'email': self.user.email,
-            'password': 'defaultpassword',
-            'client_id': BINK_CLIENT_ID,
-            'bundle_id': 'foo',
+            "email": self.user.email,
+            "password": "defaultpassword",
+            "client_id": BINK_CLIENT_ID,
+            "bundle_id": "foo",
         }
 
-        response = client.post(reverse('new_login'), data)
+        response = client.post(reverse("new_login"), data)
         self.assertEqual(response.status_code, 403)
 
     def test_remote_authentication_valid(self):
         client = Client()
-        auth_headers = {
-            'HTTP_AUTHORIZATION': "Token " + self.user.create_token()
-        }
-        response = client.get('/users/authenticate/', **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
+        response = client.get("/users/authenticate/", **auth_headers)
         self.assertEqual(response.status_code, 200)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['id'], str(self.user.id))
+        self.assertEqual(content["id"], str(self.user.id))
 
     def test_remote_authentication_invalid(self):
         client = Client()
-        uid = '7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9'
+        uid = "7772a731-2d3a-42f2-bb4c-cc7aa7b01fd9"
         auth_headers = {
-            'HTTP_AUTHORIZATION': "Token " + str(uid),
+            "HTTP_AUTHORIZATION": "Token " + str(uid),
         }
-        response = client.get('/users/authenticate/', **auth_headers)
+        response = client.get("/users/authenticate/", **auth_headers)
         self.assertEqual(response.status_code, 401)
         content = json.loads(response.content.decode())
-        self.assertEqual(content['detail'], 'Authentication credentials were not provided.')
+        self.assertEqual(content["detail"], "Authentication credentials were not provided.")
 
     def test_change_password(self):
-        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
+        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='Test1234')
+        user = authenticate(username=user.email, password="Test1234")
         self.assertTrue(user.password)
 
     def test_change_password_once(self):
-        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
+        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='Test1234')
+        user = authenticate(username=user.email, password="Test1234")
         self.assertTrue(user.password)
 
         token = user.generate_reset_token()
 
         response = self.client.post(
-            '/users/reset_password', {'password': '1stPassword', "token": token}, **self.auth_service_headers
+            "/users/reset_password", {"password": "1stPassword", "token": token}, **self.auth_service_headers
         )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='1stPassword')
+        user = authenticate(username=user.email, password="1stPassword")
 
         self.assertTrue(user.password)
 
         # Now try again to ensure we can't do it twice
         response = self.client.post(
-            '/users/reset_password', {'password': '2ndPassword', 'token': token}, **self.auth_service_headers
+            "/users/reset_password", {"password": "2ndPassword", "token": token}, **self.auth_service_headers
         )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertGreaterEqual(response.status_code, 400)
-        user = authenticate(username=user.email, password='2ndPassword')
+        user = authenticate(username=user.email, password="2ndPassword")
         self.assertFalse(user)
 
-    @mock.patch('user.models.CustomUser.get_expiry_date')
+    @mock.patch("user.models.CustomUser.get_expiry_date")
     def test_change_password_once_timeout(self, mock_get_expiry_date):
         mock_get_expiry_date.return_value = arrow.utcnow().shift(seconds=+2)
 
-        auth_headers = {'HTTP_AUTHORIZATION': "Token " + self.user.create_token()}
-        response = self.client.put('/users/me/password', {'password': 'Test1234'}, **auth_headers)
+        auth_headers = {"HTTP_AUTHORIZATION": "Token " + self.user.create_token()}
+        response = self.client.put("/users/me/password", {"password": "Test1234"}, **auth_headers)
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertEqual(response.status_code, 200)
-        user = authenticate(username=user.email, password='Test1234')
+        user = authenticate(username=user.email, password="Test1234")
         self.assertTrue(user.password)
 
         token = user.generate_reset_token()
@@ -987,111 +1076,137 @@ class TestAuthenticationViews(GlobalMockAPITestCase):
         time.sleep(3)
 
         response = self.client.post(
-            '/users/reset_password', {'password': '1stPassword', "token": token}, **self.auth_service_headers
+            "/users/reset_password", {"password": "1stPassword", "token": token}, **self.auth_service_headers
         )
         user = CustomUser.objects.get(id=self.user.id)
 
         self.assertGreaterEqual(response.status_code, 400)
-        user = authenticate(username=user.email, password='1stPassword')
+        user = authenticate(username=user.email, password="1stPassword")
         self.assertFalse(user)
 
 
 class TestTwitterLogin(GlobalMockAPITestCase):
-    @mock.patch('user.views.twitter_login', autospec=True)
+    @mock.patch("user.views.twitter_login", autospec=True)
     def test_twitter_login_app(self, twitter_login_mock):
         twitter_login_mock.return_value = HttpResponse()
-        self.client.post('/users/auth/twitter', {'access_token': '23452345', 'access_token_secret': '235489234'})
-        self.assertEqual(twitter_login_mock.call_args[0], ('23452345', '235489234'))
+        self.client.post("/users/auth/twitter", {"access_token": "23452345", "access_token_secret": "235489234"})
+        self.assertEqual(twitter_login_mock.call_args[0], ("23452345", "235489234"))
 
-    @mock.patch('user.views.social_login', autospec=True)
+    @mock.patch("user.views.social_login", autospec=True)
     @httpretty.activate
     def test_twitter_login(self, mock_social_login):
-        twitter_id = 'omsr4k7yta'
+        twitter_id = "omsr4k7yta"
         user = UserFactory(twitter=twitter_id)
         mock_social_login.return_value = (201, user)
-        httpretty.register_uri(httpretty.GET, 'https://api.twitter.com/1.1/account/verify_credentials.json',
-                               body=json.dumps({'id_str': twitter_id}), content_type="application/json")
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://api.twitter.com/1.1/account/verify_credentials.json",
+            body=json.dumps({"id_str": twitter_id}),
+            content_type="application/json",
+        )
         response = twitter_login("V7UoKuG529N3L92386ZdF0TE2kUGnzAp", "2ghMHZux2o02Xd47X7hsP6UH897fDmBb")
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['email'], user.email)
+        self.assertEqual(response.data["email"], user.email)
 
 
 class TestFacebookLogin(GlobalMockAPITestCase):
-    @mock.patch('user.views.facebook_login', autospec=True)
+    @mock.patch("user.views.facebook_login", autospec=True)
     @httpretty.activate
     def test_facebook_login_view(self, mock_facebook_login):
         mock_facebook_login.return_value = HttpResponse()
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({'id': '12'}), content_type="application/json")
-        response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"id": "12"}),
+            content_type="application/json",
+        )
+        response = self.client.post("/users/auth/facebook", data={"access_token": "25232345", "user_id": "12"})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(mock_facebook_login.call_args[0][0], '25232345')
+        self.assertEqual(mock_facebook_login.call_args[0][0], "25232345")
 
     @httpretty.activate
     def test_facebook_login_view_bad_id(self):
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({'id': '1122'}), content_type="application/json")
-        response = self.client.post('/users/auth/facebook', data={'access_token': '25232345', 'user_id': '12'})
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"id": "1122"}),
+            content_type="application/json",
+        )
+        response = self.client.post("/users/auth/facebook", data={"access_token": "25232345", "user_id": "12"})
         self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data['message'], 'user_id is invalid for given access token')
-        self.assertEqual(response.data['name'], 'FACEBOOK_INVALID_USER')
-        self.assertEqual(response.data['code'], 403)
+        self.assertEqual(response.data["message"], "user_id is invalid for given access token")
+        self.assertEqual(response.data["name"], "FACEBOOK_INVALID_USER")
+        self.assertEqual(response.data["code"], 403)
 
-    @mock.patch('user.views.social_login', autospec=True)
+    @mock.patch("user.views.social_login", autospec=True)
     @httpretty.activate
     def test_facebook_login(self, mock_social_login):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         user = UserFactory(facebook=facebook_id)
         mock_social_login.return_value = (200, user)
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
-        response = facebook_login('Ju76xER1A5')
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"email": "", "id": facebook_id}),
+            content_type="application/json",
+        )
+        response = facebook_login("Ju76xER1A5")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], user.email)
+        self.assertEqual(response.data["email"], user.email)
 
     @httpretty.activate
     def test_facebook_login_no_email_available(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         UserFactory(facebook=facebook_id, email=None)
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({"email": "", "id": facebook_id}), content_type="application/json")
-        response = facebook_login('Ju76xER1A5')
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"email": "", "id": facebook_id}),
+            content_type="application/json",
+        )
+        response = facebook_login("Ju76xER1A5")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], None)
+        self.assertEqual(response.data["email"], None)
 
     @httpretty.activate
     def test_facebook_login_no_email_twitter_email(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         UserFactory(facebook=facebook_id, email=None)
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
-                               content_type="application/json")
-        response = facebook_login('Ju76xER1A5')
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+            content_type="application/json",
+        )
+        response = facebook_login("Ju76xER1A5")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], "twitter_email")
+        self.assertEqual(response.data["email"], "twitter_email")
 
     @httpretty.activate
     def test_facebook_login_no_email_app_email_priority(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         UserFactory(facebook=facebook_id, email=None)
-        httpretty.register_uri(httpretty.GET, 'https://graph.facebook.com/me',
-                               body=json.dumps({"email": "twitter_email", "id": facebook_id}),
-                               content_type="application/json")
-        response = facebook_login('Ju76xER1A5', "app_email")
+        httpretty.register_uri(
+            httpretty.GET,
+            "https://graph.facebook.com/me",
+            body=json.dumps({"email": "twitter_email", "id": facebook_id}),
+            content_type="application/json",
+        )
+        response = facebook_login("Ju76xER1A5", "app_email")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data['email'], "app_email")
+        self.assertEqual(response.data["email"], "app_email")
 
 
 class TestAppleLogin(GlobalMockAPITestCase):
-    @mock.patch('user.views.apple_login', autospec=True)
+    @mock.patch("user.views.apple_login", autospec=True)
     def test_apple_login_view(self, apple_login_mock):
         apple_login_mock.return_value = HttpResponse()
 
         params = {
             "authorization_code": "abcde1234",
         }
-        self.client.post('/users/auth/apple', params)
-        self.assertEqual(apple_login_mock.call_args[1]['code'], "abcde1234")
+        self.client.post("/users/auth/apple", params)
+        self.assertEqual(apple_login_mock.call_args[1]["code"], "abcde1234")
 
     @mock.patch("user.views.generate_apple_client_secret")
     @httpretty.activate
@@ -1111,14 +1226,14 @@ class TestAppleLogin(GlobalMockAPITestCase):
             httpretty.POST,
             "https://appleid.apple.com/auth/token",
             body=json.dumps(response),
-            content_type="application/json"
+            content_type="application/json",
         )
 
         response = apple_login(code)
 
         self.assertTrue(mock_gen_secret.called)
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['email'], email)
+        self.assertEqual(response.data["email"], email)
 
     def test_generate_apple_client_secret(self):
         pub_key = (
@@ -1132,18 +1247,13 @@ class TestAppleLogin(GlobalMockAPITestCase):
             b"VI8Tp9kCgsLUeGtsjUC39MeyPEE/ZOyOAR2S\neMQsYSI9A8Tcsf6xIYgai3i2X"
             b"go/EYXaDg==\n-----END EC PRIVATE KEY-----\n"
         )
-        aud = 'https://appleid.apple.com'
+        aud = "https://appleid.apple.com"
         encoded_key = base64.b64encode(priv_key).decode("utf-8")
 
         with self.settings(APPLE_CLIENT_SECRET=encoded_key):
             client_secret = generate_apple_client_secret()
 
-        jwt_data = jwt.decode(
-            client_secret,
-            pub_key,
-            algorithms=["ES256"],
-            audience=aud
-        )
+        jwt_data = jwt.decode(client_secret, pub_key, algorithms=["ES256"], audience=aud)
 
         for claim in ["iss", "aud", "sub", "iat", "exp"]:
             self.assertIn(claim, jwt_data)
@@ -1155,44 +1265,44 @@ class TestAppleLogin(GlobalMockAPITestCase):
 
 class TestSocialLogin(GlobalMockAPITestCase):
     def test_social_login_exists(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         created_user = UserFactory(facebook=facebook_id)
-        status, user = social_login(facebook_id, None, 'facebook')
+        status, user = social_login(facebook_id, None, "facebook")
         self.assertEqual(status, 200)
         self.assertEqual(created_user, user)
 
     def test_social_login_exists_no_email(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         UserFactory(facebook=facebook_id, email=None)
-        status, user = social_login(facebook_id, 'frank@sea.com', 'facebook')
+        status, user = social_login(facebook_id, "frank@sea.com", "facebook")
         self.assertEqual(status, 200)
-        self.assertEqual(user.email, 'frank@sea.com')
+        self.assertEqual(user.email, "frank@sea.com")
 
     def test_social_login_exists_no_email_twitter(self):
-        facebook_id = 'O7bz6vG60Y'
+        facebook_id = "O7bz6vG60Y"
         UserFactory(facebook=facebook_id, email=None)
-        status, user = social_login(facebook_id, '', 'facebook')
+        status, user = social_login(facebook_id, "", "facebook")
         self.assertEqual(status, 200)
         self.assertEqual(user.email, None)
 
     def test_social_login_not_linked(self):
         user = UserFactory()
-        twitter_id = '3456bz23466vG'
-        status, user = social_login(twitter_id, user.email, 'twitter')
+        twitter_id = "3456bz23466vG"
+        status, user = social_login(twitter_id, user.email, "twitter")
         self.assertEqual(status, 200)
         self.assertEqual(user.twitter, twitter_id)
 
     def test_social_login_no_user(self):
-        twitter_id = '6u111bzUNL'
-        twitter_email = 'bob@sea.com'
-        status, user = social_login(twitter_id, twitter_email, 'twitter')
+        twitter_id = "6u111bzUNL"
+        twitter_email = "bob@sea.com"
+        status, user = social_login(twitter_id, twitter_email, "twitter")
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, twitter_email)
 
     def test_social_login_no_user_no_email(self):
-        twitter_id = 'twitter_email'
-        status, user = social_login(twitter_id, None, 'twitter')
+        twitter_id = "twitter_email"
+        status, user = social_login(twitter_id, None, "twitter")
         self.assertEqual(status, 201)
         self.assertEqual(user.twitter, twitter_id)
         self.assertEqual(user.email, None)
@@ -1204,10 +1314,10 @@ class TestLogout(GlobalMockAPITestCase):
         token = user.create_token()
         first_salt = user.salt
         self.assertEqual(len(first_salt), 8)
-        self.assertNotIn(first_salt, [None, ''])
-        response = self.client.post(reverse('logout'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.assertNotIn(first_salt, [None, ""])
+        response = self.client.post(reverse("logout"), HTTP_AUTHORIZATION="token {}".format(token))
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.json()['logged_out'])
+        self.assertTrue(response.json()["logged_out"])
         user = CustomUser.objects.get(id=user.id)
         self.assertNotEqual(user.salt, first_salt)
 
@@ -1215,16 +1325,16 @@ class TestLogout(GlobalMockAPITestCase):
         user = UserFactory()
         token = user.create_token()
 
-        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
         self.assertEqual(200, response.status_code)
 
-        self.client.post(reverse('logout'), HTTP_AUTHORIZATION='token {}'.format(token))
-        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        self.client.post(reverse("logout"), HTTP_AUTHORIZATION="token {}".format(token))
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
         self.assertEqual(401, response.status_code)
 
         user = CustomUser.objects.get(id=user.id)
         token = user.create_token()
-        response = self.client.get(reverse('user_detail'), HTTP_AUTHORIZATION='token {}'.format(token))
+        response = self.client.get(reverse("user_detail"), HTTP_AUTHORIZATION="token {}".format(token))
         self.assertEqual(200, response.status_code)
 
 
@@ -1240,7 +1350,7 @@ class TestUserModel(GlobalMockAPITestCase):
         self.assertTrue(valid_promo_code(hash_ids.encode(user.id)))
 
     def test_valid_promo_code_bad(self):
-        self.assertFalse(valid_promo_code(''))
+        self.assertFalse(valid_promo_code(""))
         self.assertFalse(valid_promo_code(None))
         self.assertFalse(valid_promo_code(3457987))
 
@@ -1249,13 +1359,13 @@ class TestUserModel(GlobalMockAPITestCase):
         user.generate_salt()
         user.save()
         self.assertEqual(len(user.salt), 8)
-        self.assertNotIn(user.salt, [None, ''])
+        self.assertNotIn(user.salt, [None, ""])
 
 
 class TestCustomUserManager(GlobalMockAPITestCase):
     def test_create_user(self):
-        password = '234'
-        user = CustomUser.objects._create_user('test@sdf.com', password, is_staff=False, is_superuser=False)
+        password = "234"
+        user = CustomUser.objects._create_user("test@sdf.com", password, is_staff=False, is_superuser=False)
         self.assertNotEqual(user.password, password)
 
 
@@ -1263,25 +1373,28 @@ class TestSettings(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + user.create_token()}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + user.create_token()}
 
     def test_list_settings(self):
         SettingFactory()
         SettingFactory()
-        resp = self.client.get('/users/settings/', **self.auth_headers)
+        resp = self.client.get("/users/settings/", **self.auth_headers)
 
-        self.assertEqual(resp.status_code, 200, )
+        self.assertEqual(
+            resp.status_code,
+            200,
+        )
         self.assertEqual(type(resp.data), ReturnList)
         self.assertEqual(len(resp.data), 2)
-        self.assertIn('slug', resp.data[0])
-        self.assertIn('value_type', resp.data[0])
-        self.assertIn('default_value', resp.data[0])
-        self.assertIn('scheme', resp.data[0])
-        self.assertIn('label', resp.data[0])
-        self.assertIn('category', resp.data[0])
+        self.assertIn("slug", resp.data[0])
+        self.assertIn("value_type", resp.data[0])
+        self.assertIn("default_value", resp.data[0])
+        self.assertIn("scheme", resp.data[0])
+        self.assertIn("label", resp.data[0])
+        self.assertIn("category", resp.data[0])
 
     def test_validate_setting(self):
-        s = Setting(slug='test-setting', value_type=Setting.BOOLEAN, default_value='true')
+        s = Setting(slug="test-setting", value_type=Setting.BOOLEAN, default_value="true")
         with self.assertRaises(ValidationError) as e:
             s.full_clean()
 
@@ -1292,40 +1405,40 @@ class TestUserSettings(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = UserFactory()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token ' + cls.user.create_token()}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token " + cls.user.create_token()}
 
     def test_list_user_settings(self):
         setting = SettingFactory(category=Setting.MARKETING)
-        UserSettingFactory(user=self.user, value='1', setting=setting)
+        UserSettingFactory(user=self.user, value="1", setting=setting)
 
         SettingFactory()
 
-        resp = self.client.get('/users/me/settings', **self.auth_headers)
+        resp = self.client.get("/users/me/settings", **self.auth_headers)
         data = resp.json()
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(len(data), 2)
-        self.assertEqual(data[0]['category'], 'Marketing')
-        self.assertEqual(data[0]['default_value'], '0')
-        self.assertEqual(data[0]['is_user_defined'], True)
-        self.assertEqual(data[0]['label'], None)
-        self.assertEqual(data[0]['scheme'], None)
-        self.assertEqual(data[0]['slug'], setting.slug)
-        self.assertEqual(data[0]['user'], self.user.id)
-        self.assertEqual(data[0]['value'], '1')
-        self.assertEqual(data[0]['value_type'], setting.value_type_name)
+        self.assertEqual(data[0]["category"], "Marketing")
+        self.assertEqual(data[0]["default_value"], "0")
+        self.assertEqual(data[0]["is_user_defined"], True)
+        self.assertEqual(data[0]["label"], None)
+        self.assertEqual(data[0]["scheme"], None)
+        self.assertEqual(data[0]["slug"], setting.slug)
+        self.assertEqual(data[0]["user"], self.user.id)
+        self.assertEqual(data[0]["value"], "1")
+        self.assertEqual(data[0]["value_type"], setting.value_type_name)
 
-    @mock.patch('analytics.api._send_to_mnemosyne')
-    @mock.patch('analytics.reset_user_settings')
+    @mock.patch("analytics.api._send_to_mnemosyne")
+    @mock.patch("analytics.reset_user_settings")
     def test_delete_user_settings(self, mock_reset_user_settings, mock_send_to_mnemosyne):
-        settings = [SettingFactory(slug='marketing-bink'), SettingFactory()]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        settings = [SettingFactory(slug="marketing-bink"), SettingFactory()]
+        UserSettingFactory(user=self.user, value="1", setting=settings[0])
+        UserSettingFactory(user=self.user, value="0", setting=settings[1])
 
         user_settings = UserSetting.objects.filter(user=self.user)
         self.assertEqual(len(user_settings), 2)
 
-        resp = self.client.delete('/users/me/settings', **self.auth_headers)
+        resp = self.client.delete("/users/me/settings", **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
@@ -1335,182 +1448,179 @@ class TestUserSettings(GlobalMockAPITestCase):
         self.assertEqual(mock_reset_user_settings.call_count, 1)
         self.assertEqual(mock_send_to_mnemosyne.call_count, 0)
 
-    @mock.patch('analytics.update_attributes')
+    @mock.patch("analytics.update_attributes")
     def test_update_analytic_user_settings(self, mock_update_attributes):
-        settings = [SettingFactory(slug='marketing-bink'), SettingFactory(slug='marketing-external')]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        settings = [SettingFactory(slug="marketing-bink"), SettingFactory(slug="marketing-external")]
+        UserSettingFactory(user=self.user, value="1", setting=settings[0])
+        UserSettingFactory(user=self.user, value="0", setting=settings[1])
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, '0')
+        self.assertEqual(user_setting.value, "0")
 
         data = {
-            settings[0].slug: '0',  # False
-            settings[1].slug: '1',  # True
+            settings[0].slug: "0",  # False
+            settings[1].slug: "1",  # True
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, '0')
+        self.assertEqual(user_setting.value, "0")
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         self.assertEqual(mock_update_attributes.call_count, 2)
-        analytic_data = [
-            mock_update_attributes.call_args_list[0][0][1],
-            mock_update_attributes.call_args_list[1][0][1]
-        ]
+        analytic_data = [mock_update_attributes.call_args_list[0][0][1], mock_update_attributes.call_args_list[1][0][1]]
 
         # marketing-bink updated to False in analytics
-        self.assertFalse(analytic_data[0]['marketing-bink'])
+        self.assertFalse(analytic_data[0]["marketing-bink"])
 
         # marketing-external updated to True in analytics
-        self.assertTrue(analytic_data[1]['marketing-external'])
+        self.assertTrue(analytic_data[1]["marketing-external"])
 
         self.assertEqual(mock_update_attributes.call_count, len(settings))
 
-    @mock.patch('analytics.update_attributes')
+    @mock.patch("analytics.update_attributes")
     def test_update_non_analytic_user_settings(self, mock_update_attribute):
         settings = [SettingFactory(), SettingFactory()]
-        UserSettingFactory(user=self.user, value='1', setting=settings[0])
-        UserSettingFactory(user=self.user, value='0', setting=settings[1])
+        UserSettingFactory(user=self.user, value="1", setting=settings[0])
+        UserSettingFactory(user=self.user, value="0", setting=settings[1])
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, '0')
+        self.assertEqual(user_setting.value, "0")
 
         data = {
-            settings[0].slug: '0',
-            settings[1].slug: '1',
+            settings[0].slug: "0",
+            settings[1].slug: "1",
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[0].slug).first()
-        self.assertEqual(user_setting.value, '0')
+        self.assertEqual(user_setting.value, "0")
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=settings[1].slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         self.assertFalse(mock_update_attribute.called)
 
     def test_update_incorrect_user_settings(self):
         setting = SettingFactory()
         data = {
-            'bad-slug-1': '5',
-            setting.slug: '1',
-            'bad-slug-2': 'bad@bad.com',
+            "bad-slug-1": "5",
+            setting.slug: "1",
+            "bad-slug-2": "bad@bad.com",
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
         data = resp.json()
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('error', data)
-        self.assertIn('messages', data)
-        self.assertEqual(data['error'], 'Some of the given settings are invalid.')
-        self.assertIn('bad-slug-1', data['messages'])
-        self.assertIn('bad-slug-2', data['messages'])
-        self.assertNotIn(setting.slug, data['messages'])
+        self.assertIn("error", data)
+        self.assertIn("messages", data)
+        self.assertEqual(data["error"], "Some of the given settings are invalid.")
+        self.assertIn("bad-slug-1", data["messages"])
+        self.assertIn("bad-slug-2", data["messages"])
+        self.assertNotIn(setting.slug, data["messages"])
 
     def test_update_user_setting_with_bad_value(self):
         bool_setting = SettingFactory()
         num_setting = SettingFactory(value_type=0)
 
         data = {
-            bool_setting.slug: 'kitten',
-            num_setting.slug: 'not even a number',
+            bool_setting.slug: "kitten",
+            num_setting.slug: "not even a number",
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
         data = resp.json()
 
         self.assertEqual(resp.status_code, 400)
-        self.assertIn('error', data)
-        self.assertIn('messages', data)
-        self.assertEqual(data['error'], 'Some of the given settings are invalid.')
-        self.assertEqual(len(data['messages']), 2)
-        self.assertIn("'kitten' is not a valid value for type boolean.", data['messages'])
-        self.assertIn("'not even a number' is not a valid value for type number.", data['messages'])
+        self.assertIn("error", data)
+        self.assertIn("messages", data)
+        self.assertEqual(data["error"], "Some of the given settings are invalid.")
+        self.assertEqual(len(data["messages"]), 2)
+        self.assertIn("'kitten' is not a valid value for type boolean.", data["messages"])
+        self.assertIn("'not even a number' is not a valid value for type number.", data["messages"])
 
-    @mock.patch('analytics.update_attributes')
+    @mock.patch("analytics.update_attributes")
     def test_create_non_analytics_settings(self, mock_update_attribute):
         setting = SettingFactory()
 
         data = {
-            setting.slug: '1',
+            setting.slug: "1",
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         self.assertFalse(mock_update_attribute.called)
 
-    @mock.patch('analytics.update_attributes')
+    @mock.patch("analytics.update_attributes")
     def test_create_analytics_setting(self, mock_update_attribute):
-        setting = SettingFactory(slug='marketing-bink')
-        UserSettingFactory(user=self.user, value='1', setting=setting)
+        setting = SettingFactory(slug="marketing-bink")
+        UserSettingFactory(user=self.user, value="1", setting=setting)
 
         data = {
-            setting.slug: '1',
+            setting.slug: "1",
         }
-        resp = self.client.put('/users/me/settings', data=data, **self.auth_headers)
+        resp = self.client.put("/users/me/settings", data=data, **self.auth_headers)
 
         self.assertEqual(resp.status_code, 204)
 
         user_setting = UserSetting.objects.filter(user=self.user, setting__slug=setting.slug).first()
-        self.assertEqual(user_setting.value, '1')
+        self.assertEqual(user_setting.value, "1")
 
         self.assertEqual(mock_update_attribute.call_count, 1)
         # marketing-bink updated to True in analytics
-        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], {'marketing-bink': True})
+        self.assertEqual(mock_update_attribute.call_args_list[0][0][1], {"marketing-bink": True})
 
 
 class TestAppKitIdentification(GlobalMockAPITestCase):
     def test_app_kit_known(self):
         data = {
-            'client_id': BINK_CLIENT_ID,
-            'kit_name': 'core',
+            "client_id": BINK_CLIENT_ID,
+            "kit_name": "core",
         }
-        response = self.client.post(reverse('app_kit'), data=data)
+        response = self.client.post(reverse("app_kit"), data=data)
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data, {})
 
     def test_app_kit_known_case_insensitive(self):
         data = {
-            'client_id': BINK_CLIENT_ID,
-            'kit_name': 'Core',
+            "client_id": BINK_CLIENT_ID,
+            "kit_name": "Core",
         }
-        response = self.client.post(reverse('app_kit'), data=data)
+        response = self.client.post(reverse("app_kit"), data=data)
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data, {})
 
     def test_app_kit_invalid(self):
         data = {
-            'client_id': BINK_CLIENT_ID,
-            'kit_name': 'randomkit',
+            "client_id": BINK_CLIENT_ID,
+            "kit_name": "randomkit",
         }
-        response = self.client.post(reverse('app_kit'), data=data)
+        response = self.client.post(reverse("app_kit"), data=data)
         self.assertTrue(ClientApplicationKit.objects.filter(**data).exists())
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data, {})
 
     def test_app_kit_invalid_client_id(self):
         data = {
-            'client_id': 'foo',
-            'kit_name': 'core',
+            "client_id": "foo",
+            "kit_name": "core",
         }
-        response = self.client.post(reverse('app_kit'), data=data)
+        response = self.client.post(reverse("app_kit"), data=data)
         self.assertFalse(ClientApplicationKit.objects.filter(**data).exists())
         self.assertEquals(response.status_code, 200)
         self.assertEquals(response.data, {})
@@ -1520,19 +1630,21 @@ class TestVerifyToken(GlobalMockAPITestCase):
     def test_valid_token(self):
         user = UserFactory()
         token = user.create_token()
-        headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(token)}
+        headers = {"HTTP_AUTHORIZATION": "Token {}".format(token)}
 
-        response = self.client.get(reverse('verify_token'), **headers)
+        response = self.client.get(reverse("verify_token"), **headers)
         self.assertEqual(response.status_code, 200)
         self.assertIsNone(response.data)
 
     def test_invalid_token(self):
         # sub 30, secret 'foo'
-        token = ('eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMwLCJpYXQiOjE0OTE1NTU0ODl9.'
-                 'xXa36rs6keNVo9YVbFGgWe3EiXnNvS7yJ65fXgYnSLg')
-        headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(token)}
+        token = (
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOjMwLCJpYXQiOjE0OTE1NTU0ODl9."
+            "xXa36rs6keNVo9YVbFGgWe3EiXnNvS7yJ65fXgYnSLg"
+        )
+        headers = {"HTTP_AUTHORIZATION": "Token {}".format(token)}
 
-        response = self.client.get(reverse('verify_token'), **headers)
+        response = self.client.get(reverse("verify_token"), **headers)
         self.assertEqual(response.status_code, 401)
 
 
@@ -1544,15 +1656,15 @@ class TestApplyPromoCode(GlobalMockAPITestCase):
 
         cls.marketing_code = MarketingCodeFactory()
 
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(cls.user1.create_token())}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(cls.user1.create_token())}
 
     def test_valid_marketing_code(self):
         """
         Request to apply `self.marketing_code` to `self.user` and assert that it has been applied correctly.
         """
-        resp = self.client.post(reverse('promo_code'),
-                                data={'promo_code': self.marketing_code.code},
-                                **self.auth_headers)
+        resp = self.client.post(
+            reverse("promo_code"), data={"promo_code": self.marketing_code.code}, **self.auth_headers
+        )
         self.assertEqual(200, resp.status_code)
 
         updated_user = CustomUser.objects.get(pk=self.user1.id)
@@ -1562,9 +1674,9 @@ class TestApplyPromoCode(GlobalMockAPITestCase):
         """
         Request to apply the referral code of `self.user2` to `self.user` and assert that the referral has been created.
         """
-        resp = self.client.post(reverse('promo_code'),
-                                data={'promo_code': self.user2.referral_code},
-                                **self.auth_headers)
+        resp = self.client.post(
+            reverse("promo_code"), data={"promo_code": self.user2.referral_code}, **self.auth_headers
+        )
         self.assertEqual(200, resp.status_code)
         referral = Referral.objects.filter(referrer=self.user2, recipient=self.user1)
         self.assertTrue(referral.exists())
@@ -1574,9 +1686,9 @@ class TestApplyPromoCode(GlobalMockAPITestCase):
         Request to apply a made-up code to `self.user1` and assert that no referral or marketing codes have been applied
         to `self.user1`.
         """
-        resp = self.client.post(reverse('promo_code'),
-                                data={'promo_code': 'm209b87w3bjh0sz7q3vat90agj'},
-                                **self.auth_headers)
+        resp = self.client.post(
+            reverse("promo_code"), data={"promo_code": "m209b87w3bjh0sz7q3vat90agj"}, **self.auth_headers
+        )
         self.assertEqual(200, resp.status_code)
 
         updated_user = CustomUser.objects.get(pk=self.user1.id)
@@ -1593,16 +1705,14 @@ class TestApplyPromoCode(GlobalMockAPITestCase):
         """
         user3 = UserFactory()
 
-        resp = self.client.post(reverse('promo_code'),
-                                data={'promo_code': self.user2.referral_code},
-                                **self.auth_headers)
+        resp = self.client.post(
+            reverse("promo_code"), data={"promo_code": self.user2.referral_code}, **self.auth_headers
+        )
         self.assertEqual(200, resp.status_code)
         referral = Referral.objects.filter(referrer=self.user2, recipient=self.user1)
         self.assertTrue(referral.exists())
 
-        resp = self.client.post(reverse('promo_code'),
-                                data={'promo_code': user3.referral_code},
-                                **self.auth_headers)
+        resp = self.client.post(reverse("promo_code"), data={"promo_code": user3.referral_code}, **self.auth_headers)
         self.assertEqual(200, resp.status_code)
         referral = Referral.objects.filter(referrer=user3, recipient=self.user1)
         self.assertFalse(referral.exists())
@@ -1613,14 +1723,13 @@ class TestTermsAndConditions(GlobalMockAPITestCase):
     def setUpTestData(cls):
         cls.user1 = UserFactory()
 
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Token {}'.format(cls.user1.create_token())}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "Token {}".format(cls.user1.create_token())}
 
     def test_terms_and_conditions(self):
         client = Client()
         self.user1.client.organisation.terms_and_conditions = "<p>This is a test</p>"
         self.user1.client.organisation.save()
-        response = client.get(reverse('terms_and_conditions'), **self.auth_headers)
+        response = client.get(reverse("terms_and_conditions"), **self.auth_headers)
         content = json.loads(response.content.decode())
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(content['terms_and_conditions'],
-                         "<p>This is a test</p>")
+        self.assertEqual(content["terms_and_conditions"], "<p>This is a test</p>")

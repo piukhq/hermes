@@ -1,7 +1,7 @@
-from django.template import Template, Context
-import arrow
-
 import enum
+
+import arrow
+from django.template import Context, Template
 
 
 # must match the enum in Midas - good candidate for moving into a shared library

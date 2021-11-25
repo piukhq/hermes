@@ -1,14 +1,14 @@
 import atexit
-import socket
 import logging
+import socket
 from time import sleep
-from kombu import Connection, Exchange, Producer, Queue, Consumer
+
+from kombu import Connection, Consumer, Exchange, Producer, Queue
 
 logger = logging.getLogger(__name__)
 
 
 class BaseMessaging:
-
     def __init__(self, dsn: str):
         self.conn = None
         self.producer = {}
@@ -40,7 +40,6 @@ class BaseMessaging:
 
 
 class SendingService(BaseMessaging):
-
     def __init__(self, dsn: str, log_to: logging = None):
         super().__init__(dsn)
         self.conn = None
@@ -59,27 +58,27 @@ class SendingService(BaseMessaging):
         if producer is None:
             exchange = self.exchange.get(queue_name, None)
             if exchange is None:
-                self.exchange[queue_name] = Exchange(f'{queue_name}_exchange', type='direct', durable=True)
+                self.exchange[queue_name] = Exchange(f"{queue_name}_exchange", type="direct", durable=True)
             self.queue[queue_name] = Queue(queue_name, exchange=self.exchange[queue_name], routing_key=queue_name)
             self.queue[queue_name].maybe_bind(self.conn)
             self.queue[queue_name].declare()
 
-            self.producer[queue_name] = producer = Producer(exchange=self.exchange[queue_name],
-                                                            channel=self.conn.channel(),
-                                                            routing_key=queue_name, serializer='json')
+            self.producer[queue_name] = producer = Producer(
+                exchange=self.exchange[queue_name],
+                channel=self.conn.channel(),
+                routing_key=queue_name,
+                serializer="json",
+            )
         producer.publish(**kwargs)
 
     def send(self, message: dict, headers: dict, queue_name: str):
-        headers['destination-type'] = 'ANYCAST'
-        message = {
-            'body': message,
-            'headers': headers
-        }
+        headers["destination-type"] = "ANYCAST"
+        message = {"body": message, "headers": headers}
 
         try:
             self._pub(queue_name, message)
         except Exception as e:
-            self.logger.warning(f'Exception on connecting to Message Broker - time out? {e} retry send')
+            self.logger.warning(f"Exception on connecting to Message Broker - time out? {e} retry send")
             self.close()
             self.connect()
             self._pub(queue_name, message)
@@ -95,15 +94,23 @@ class SendingService(BaseMessaging):
 
 
 class ReceivingService(BaseMessaging):
-
-    def __init__(self, dsn: str, queue_name: str, callbacks: list, on_time_out=None, heartbeat: int = 10,
-                 timeout: int = 2, continue_exceptions=None, log_to: logging = None):
+    def __init__(
+        self,
+        dsn: str,
+        queue_name: str,
+        callbacks: list,
+        on_time_out=None,
+        heartbeat: int = 10,
+        timeout: int = 2,
+        continue_exceptions=None,
+        log_to: logging = None,
+    ):
         super().__init__(dsn)
 
         self.queue_name = queue_name
         self.connect()
         self.exchange = None
-        self.exchange = Exchange(f'{self.queue_name}_exchange', type='direct', durable=True)
+        self.exchange = Exchange(f"{self.queue_name}_exchange", type="direct", durable=True)
         self.queue = Queue(self.queue_name, exchange=self.exchange, routing_key=queue_name)
         self.consumer = None
         self.heartbeat = heartbeat
@@ -114,7 +121,7 @@ class ReceivingService(BaseMessaging):
             self.logger = logging.getLogger("messaging")
         else:
             self.logger = log_to
-        logging.getLogger('amqp').setLevel(logging.WARNING)
+        logging.getLogger("amqp").setLevel(logging.WARNING)
         if continue_exceptions is not None:
             self.continue_exceptions = continue_exceptions
         else:
@@ -140,6 +147,6 @@ class ReceivingService(BaseMessaging):
                         if self.on_time_out is not None:
                             self.on_time_out()
             except self.continue_exceptions as e:
-                self.logger.debug(f'Message Queue Reading Loop Error: {e}')
+                self.logger.debug(f"Message Queue Reading Loop Error: {e}")
                 sleep(1)
                 self.close()

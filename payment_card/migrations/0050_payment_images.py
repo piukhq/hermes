@@ -8,32 +8,28 @@ from common.models import Image
 
 def _format_image_for_ubiquity(img):
     try:
-        encoding = img.encoding or img.image.name.split('.')[-1].replace('/', '')
+        encoding = img.encoding or img.image.name.split(".")[-1].replace("/", "")
     except (IndexError, AttributeError):
         encoding = None
 
     return {
-        'payload': {
-            'id': img.id,
-            'type': img.image_type_code,
-            'url': img.image.name,
-            'description': img.description,
-            'encoding': encoding,
-
+        "payload": {
+            "id": img.id,
+            "type": img.image_type_code,
+            "url": img.image.name,
+            "description": img.description,
+            "encoding": encoding,
         },
-        'validity': {
-            'start_date': img.start_date.timestamp() if img.start_date else None,
-            'end_date': img.end_date.timestamp() if img.end_date else None
-        }
+        "validity": {
+            "start_date": img.start_date.timestamp() if img.start_date else None,
+            "end_date": img.end_date.timestamp() if img.end_date else None,
+        },
     }
 
 
 def format_base_images(apps, schema_editor):
-    PaymentCard = apps.get_model('payment_card', 'PaymentCard')
-    query = {
-        'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
-    }
+    PaymentCard = apps.get_model("payment_card", "PaymentCard")
+    query = {"status": Image.PUBLISHED, "image_type_code__in": [Image.HERO, Image.ICON, Image.ALT_HERO]}
 
     payment_cards = []
     for payment_card in PaymentCard.objects.all():
@@ -47,16 +43,13 @@ def format_base_images(apps, schema_editor):
         payment_card.formatted_images = formatted_images
         payment_cards.append(payment_card)
 
-    PaymentCard.objects.bulk_update(payment_cards, ['formatted_images'])
+    PaymentCard.objects.bulk_update(payment_cards, ["formatted_images"])
 
 
 def format_account_images(apps, schema_editor):
-    PaymentCardAccount = apps.get_model('payment_card', 'PaymentCardAccount')
-    PaymentCardAccountImage = apps.get_model('payment_card', 'PaymentCardAccountImage')
-    query = {
-        'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
-    }
+    PaymentCardAccount = apps.get_model("payment_card", "PaymentCardAccount")
+    PaymentCardAccountImage = apps.get_model("payment_card", "PaymentCardAccountImage")
+    query = {"status": Image.PUBLISHED, "image_type_code__in": [Image.HERO, Image.ICON, Image.ALT_HERO]}
 
     accounts = {}
     for img in PaymentCardAccountImage.objects.filter(**query).all():
@@ -70,7 +63,7 @@ def format_account_images(apps, schema_editor):
                 account.formatted_images[img.image_type_code] = {img.id: formatted_image}
                 accounts[account.id] = account
 
-    PaymentCardAccount.all_objects.bulk_update(list(accounts.values()), ['formatted_images'], batch_size=1000)
+    PaymentCardAccount.all_objects.bulk_update(list(accounts.values()), ["formatted_images"], batch_size=1000)
 
 
 def revert_format_images(apps, schema_editor):
@@ -79,24 +72,24 @@ def revert_format_images(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('payment_card', '0049_auto_20200501_0929'),
+        ("payment_card", "0049_auto_20200501_0929"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='payment_card_accounts',
-            field=models.ManyToManyField(blank=True, related_name='images', to='payment_card.PaymentCardAccount'),
+            model_name="paymentcardaccountimage",
+            name="payment_card_accounts",
+            field=models.ManyToManyField(blank=True, related_name="images", to="payment_card.PaymentCardAccount"),
         ),
         migrations.AddField(
-            model_name='paymentcard',
-            name='formatted_images',
+            model_name="paymentcard",
+            name="formatted_images",
             field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, default=dict),
         ),
         migrations.RunPython(format_base_images, revert_format_images),
         migrations.AddField(
-            model_name='paymentcardaccount',
-            name='formatted_images',
+            model_name="paymentcardaccount",
+            name="formatted_images",
             field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, default=dict),
         ),
         migrations.RunPython(format_account_images, revert_format_images),

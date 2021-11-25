@@ -9,8 +9,14 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hermes.settings")
 app = Celery("async_tasks")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks(
-    ["ubiquity.tasks", "payment_card.tasks", "periodic_retry.tasks", "hermes.vop_tasks.tasks", "history.tasks",
-     "notification.tasks"]
+    [
+        "ubiquity.tasks",
+        "payment_card.tasks",
+        "periodic_retry.tasks",
+        "hermes.vop_tasks.tasks",
+        "history.tasks",
+        "notification.tasks",
+    ]
 )
 
 app.conf.beat_schedule = {
@@ -32,7 +38,7 @@ app.conf.beat_schedule = {
     "generate_notification_file": {
         "task": "notification.tasks.notification_file",
         "schedule": crontab(minute=0, hour=settings.NOTIFICATION_RUN_TIME),
-        "args": (False,)
+        "args": (False,),
     },
 }
 

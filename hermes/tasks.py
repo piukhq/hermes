@@ -4,6 +4,7 @@ import logging
 
 from celery import shared_task
 from django_redis import get_redis_connection
+
 from periodic_retry.models import RetryTaskList
 
 logger = logging.getLogger(__name__)
@@ -18,13 +19,12 @@ def retry_tasks():
 
 
 class RetryTaskStore:
-
     def __init__(self, task_list=RetryTaskList.DEFAULT, retry_name="retries", retry_results="errors"):
 
         self.task_list = task_list
         self.retry_name = retry_name
         self.retry_results = retry_results
-        self.storage = get_redis_connection('retry_tasks')
+        self.storage = get_redis_connection("retry_tasks")
 
     @property
     def length(self):
@@ -34,7 +34,7 @@ class RetryTaskStore:
         if data[self.retry_name] > 0:
             self.storage.lpush(self.task_list, json.dumps(data))
 
-    def set_task(self, module_name, function_name,  data):
+    def set_task(self, module_name, function_name, data):
         """
         Sets a task to retry from a module and function name. The task function must return
         a tuple: (done: Boolean, message: String)
@@ -44,7 +44,7 @@ class RetryTaskStore:
         :return:
         """
         if not data.get(self.retry_name, False):
-            data[self.retry_name] = 10              # default to 10 retries
+            data[self.retry_name] = 10  # default to 10 retries
         data["_module"] = module_name
         data["_function"] = function_name
         self.save_to_redis(data)

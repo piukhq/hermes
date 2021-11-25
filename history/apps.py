@@ -13,8 +13,8 @@ class HistoryConfig(AppConfig):
     def ready(self):
         if settings.INIT_RUNTIME_APPS or settings.TESTING:
             from history.enums import HistoryModel
-            from history.signals import signal_record_history
             from history.serializers import load_body_serializers
+            from history.signals import signal_record_history
 
             logger.info("Connecting History signals.")
             load_body_serializers()

@@ -8,23 +8,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0001_squashed_0009_paymentcardaccount_is_deleted'),
+        ("payment_card", "0001_squashed_0009_paymentcardaccount_is_deleted"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='country',
+            model_name="paymentcardaccount",
+            name="country",
             field=models.CharField(max_length=40),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='currency_code',
+            model_name="paymentcardaccount",
+            name="currency_code",
             field=models.CharField(max_length=3),
         ),
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='token',
+            model_name="paymentcardaccount",
+            name="token",
             field=models.CharField(max_length=255),
         ),
     ]

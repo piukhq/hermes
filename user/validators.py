@@ -1,5 +1,5 @@
 def validate_boolean(value):
-    return value in ['0', '1']
+    return value in ["0", "1"]
 
 
 def validate_number(value):

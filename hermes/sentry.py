@@ -1,23 +1,23 @@
+from typing import TYPE_CHECKING
+
 from billiard.exceptions import SoftTimeLimitExceeded
 from sentry_sdk.hub import _should_send_default_pii
 from sentry_sdk.integrations.django import DjangoIntegration, DjangoRequestExtractor, _set_user_info
 from sentry_sdk.utils import capture_internal_exceptions
 
-from typing import TYPE_CHECKING
-
 from scheme.credentials import PASSWORD, PIN
 
 if TYPE_CHECKING:
-    from typing import Any
-    from typing import Optional
-    from typing import Callable
-    from typing import Dict
+    from typing import Any, Callable, Dict, Optional
 
-    from sentry_sdk._types import EventProcessor, Event, Hint
     from django.core.handlers.wsgi import WSGIRequest
+    from sentry_sdk._types import Event, EventProcessor, Hint
 
 
-SENSITIVE_FIELDS = {PASSWORD, PIN, }
+SENSITIVE_FIELDS = {
+    PASSWORD,
+    PIN,
+}
 
 
 def strip_sensitive_data(event, hint):
@@ -51,9 +51,7 @@ def _make_celery_event_processor(task, uuid, args, kwargs, request=None):
             tags["celery_task_id"] = uuid
             extra = event.setdefault("extra", {})
             if event.get("type") == "transaction":
-                extra["celery-job"] = {
-                    "task_name": task.name
-                }
+                extra["celery-job"] = {"task_name": task.name}
             else:
                 extra["celery-job"] = {
                     "task_name": task.name,

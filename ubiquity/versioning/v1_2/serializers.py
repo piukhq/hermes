@@ -6,7 +6,7 @@ from rustyjeff import rsa_decrypt_base64
 from shared_config_storage.credentials.encryption import BLAKE2sHash
 
 from scheme.models import SchemeContent, SchemeFee
-from ubiquity.channel_vault import KeyType, get_secret_key, SecretKeyName, get_bundle_key
+from ubiquity.channel_vault import KeyType, SecretKeyName, get_bundle_key, get_secret_key
 from ubiquity.utils import needs_decryption
 from ubiquity.versioning.base import serializers as base_serializers
 
@@ -57,9 +57,7 @@ class PaymentCardTranslationSerializer(base_serializers.PaymentCardTranslationSe
         )
 
     def to_representation(self, data: dict) -> dict:
-        fields_to_decrypt = [
-            field for field in self.OPTIONAL_FIELDS if field in data
-        ] + self.FIELDS_TO_DECRYPT
+        fields_to_decrypt = [field for field in self.OPTIONAL_FIELDS if field in data] + self.FIELDS_TO_DECRYPT
         values_to_decrypt = [data[key] for key in fields_to_decrypt]
         if needs_decryption(values_to_decrypt):
             rsa_key_pem = get_bundle_key(bundle_id=self.context["bundle_id"], key_type=KeyType.PRIVATE_KEY)
