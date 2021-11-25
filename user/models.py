@@ -23,9 +23,9 @@ from user.forms import MagicLinkTemplateFileField
 from user.managers import CustomUserManager, IgnoreDeletedUserManager
 from user.validators import validate_boolean, validate_number
 
-hash_ids = Hashids(alphabet='abcdefghijklmnopqrstuvwxyz1234567890', min_length=4, salt=settings.HASH_ID_SALT)
+hash_ids = Hashids(alphabet="abcdefghijklmnopqrstuvwxyz1234567890", min_length=4, salt=settings.HASH_ID_SALT)
 
-BINK_APP_ID = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+BINK_APP_ID = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
 
 
 def valid_promo_code(promo_code):
@@ -54,14 +54,14 @@ def valid_marketing_code(marketing_code):
 
 
 class ModifyingFieldDescriptor(object):
-    """ Modifies a field when set using the field's (overriden) .to_python() method. """
+    """Modifies a field when set using the field's (overriden) .to_python() method."""
 
     def __init__(self, field):
         self.field = field
 
     def __get__(self, instance, owner=None):
         if instance is None:
-            raise AttributeError('Can only be accessed via an instance.')
+            raise AttributeError("Can only be accessed via an instance.")
         return instance.__dict__[self.field.name]
 
     def __set__(self, instance, value):
@@ -92,8 +92,8 @@ class MarketingCode(models.Model):
 
 
 class Organisation(models.Model):
-    """A partner organisation wishing to access the Bink API.
-    """
+    """A partner organisation wishing to access the Bink API."""
+
     name = models.CharField(max_length=100, unique=True)
     terms_and_conditions = models.TextField(blank=True)
 
@@ -103,12 +103,12 @@ class Organisation(models.Model):
 
 def _get_random_string(length=50, chars=(ascii_letters + digits)):
     rand = random.SystemRandom()
-    return ''.join(rand.choice(chars) for x in range(length))
+    return "".join(rand.choice(chars) for x in range(length))
 
 
 class ClientApplication(models.Model):
-    """A registered API app consumer. Randomly generated client_id and secret fields.
-    """
+    """A registered API app consumer. Randomly generated client_id and secret fields."""
+
     client_id = models.CharField(max_length=128, primary_key=True, default=_get_random_string, db_index=True)
     secret = models.CharField(max_length=128, unique=False, default=_get_random_string, db_index=True)
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT)
@@ -116,7 +116,7 @@ class ClientApplication(models.Model):
     bink_app = None
 
     def __str__(self):
-        return '{} by {}'.format(self.name, self.organisation.name)
+        return "{} by {}".format(self.name, self.organisation.name)
 
     @classmethod
     def get_bink_app(cls):
@@ -130,17 +130,19 @@ def magic_link_file_path(instance, filename):
 
 
 class ClientApplicationBundle(models.Model):
-    """Links a ClientApplication to one or more native app 'bundles'.
-    """
-    external_name = models.CharField(max_length=100, blank=True, default='')
+    """Links a ClientApplication to one or more native app 'bundles'."""
+
+    external_name = models.CharField(max_length=100, blank=True, default="")
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     bundle_id = models.CharField(max_length=200)
-    issuer = models.ManyToManyField('payment_card.Issuer', blank=True)
-    scheme = models.ManyToManyField('scheme.Scheme', blank=True, through='scheme.SchemeBundleAssociation',
-                                    related_name='related_bundle')
-    magic_link_url = models.CharField(max_length=200, default='', blank=True)
-    magic_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(5)], blank=True, null=True, default=60,
-                                                 verbose_name='magic link life(mins)')
+    issuer = models.ManyToManyField("payment_card.Issuer", blank=True)
+    scheme = models.ManyToManyField(
+        "scheme.Scheme", blank=True, through="scheme.SchemeBundleAssociation", related_name="related_bundle"
+    )
+    magic_link_url = models.CharField(max_length=200, default="", blank=True)
+    magic_lifetime = models.PositiveIntegerField(
+        validators=[MinValueValidator(5)], blank=True, null=True, default=60, verbose_name="magic link life(mins)"
+    )
     email_from = models.EmailField(max_length=100, blank=True, null=True)
     subject = models.CharField(max_length=100, blank=True, default="Magic Link Request")
     template = MagicLinkTemplateFileField(
@@ -148,15 +150,20 @@ class ClientApplicationBundle(models.Model):
         content_types=["text/html", "text/plain"],
         max_upload_size="5MB",
         blank=True,
-        null=True
+        null=True,
     )
-    access_token_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(1)], blank=True, null=True,
-                                                        default=10, verbose_name='access token life (mins)')
-    refresh_token_lifetime = models.PositiveIntegerField(validators=[MinValueValidator(2)], blank=True, null=True,
-                                                         default=15, verbose_name='refresh token life (mins)')
+    access_token_lifetime = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)], blank=True, null=True, default=10, verbose_name="access token life (mins)"
+    )
+    refresh_token_lifetime = models.PositiveIntegerField(
+        validators=[MinValueValidator(2)], blank=True, null=True, default=15, verbose_name="refresh token life (mins)"
+    )
 
     class Meta:
-        unique_together = ('client', 'bundle_id',)
+        unique_together = (
+            "client",
+            "bundle_id",
+        )
 
     @classmethod
     def get_bink_bundles(cls):
@@ -168,13 +175,13 @@ class ClientApplicationBundle(models.Model):
 
     @classmethod
     @lru_cache(maxsize=32)
-    def get_bundle_by_bundle_id_and_org_name(cls, bundle_id: str, organisation_name: str) -> 'ClientApplicationBundle':
-        return cls.objects.select_related('client').get(
+    def get_bundle_by_bundle_id_and_org_name(cls, bundle_id: str, organisation_name: str) -> "ClientApplicationBundle":
+        return cls.objects.select_related("client").get(
             bundle_id=bundle_id, client__organisation__name=organisation_name
         )
 
     def __str__(self):
-        return '{} ({})'.format(self.bundle_id, self.client)
+        return "{} ({})".format(self.bundle_id, self.client)
 
 
 def clear_bundle_lru_cache(sender, **kwargs):
@@ -186,43 +193,43 @@ signals.post_delete.connect(clear_bundle_lru_cache, sender=ClientApplicationBund
 
 
 class ClientApplicationKit(models.Model):
-    """Link a ClientApplication to known SDK kit names for usage tracking.
-    """
+    """Link a ClientApplication to known SDK kit names for usage tracking."""
+
     client = models.ForeignKey(ClientApplication, on_delete=models.PROTECT)
     kit_name = models.CharField(max_length=50)
     is_valid = models.BooleanField(default=True)
 
     def __str__(self):
-        return 'ClientApplication: {} - kit: {}'.format(self.client, self.kit_name)
+        return "ClientApplication: {} - kit: {}".format(self.client, self.kit_name)
 
 
 class CustomUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(verbose_name='email address', max_length=255, null=True, blank=True)
-    client = models.ForeignKey('user.ClientApplication', default=BINK_APP_ID, on_delete=models.PROTECT, db_index=True)
+    email = models.EmailField(verbose_name="email address", max_length=255, null=True, blank=True)
+    client = models.ForeignKey("user.ClientApplication", default=BINK_APP_ID, on_delete=models.PROTECT, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_tester = models.BooleanField(default=False)
     uid = models.CharField(max_length=50, unique=True, default=uuid.uuid4, db_index=True)
-    date_joined = models.DateTimeField(_('date joined'), auto_now_add=True)
+    date_joined = models.DateTimeField(_("date joined"), auto_now_add=True)
     facebook = models.CharField(max_length=120, blank=True, null=True)
     twitter = models.CharField(max_length=120, blank=True, null=True)
     apple = models.CharField(max_length=120, blank=True, null=True)
     reset_token = models.CharField(max_length=255, null=True, blank=True)
     marketing_code = models.ForeignKey(MarketingCode, blank=True, null=True, on_delete=models.SET_NULL)
     salt = models.CharField(max_length=8)
-    external_id = models.CharField(max_length=255, db_index=True, default='', blank=True)
-    delete_token = models.CharField(max_length=255, blank=True, default='')
+    external_id = models.CharField(max_length=255, db_index=True, default="", blank=True)
+    delete_token = models.CharField(max_length=255, blank=True, default="")
     magic_link_verified = models.DateTimeField(null=True, blank=True)
 
-    USERNAME_FIELD = 'uid'
+    USERNAME_FIELD = "uid"
 
-    REQUIRED_FIELDS = ['email']
+    REQUIRED_FIELDS = ["email"]
     all_objects = CustomUserManager()
     objects = IgnoreDeletedUserManager()
 
     class Meta:
-        db_table = 'user'
-        unique_together = [['email', 'client', 'external_id', 'delete_token']]
+        db_table = "user"
+        unique_together = [["email", "client", "external_id", "delete_token"]]
 
     def get_full_name(self):
         return self.email
@@ -239,17 +246,14 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
     def generate_reset_token(self):
         expiry_date = self.get_expiry_date()
-        payload = {
-            'email': self.email,
-            'expiry_date': expiry_date.timestamp
-        }
+        payload = {"email": self.email, "expiry_date": expiry_date.timestamp}
         reset_token = jwt.encode(payload, self.client.secret)
         self.reset_token = reset_token
         self.save()
         return reset_token
 
     def generate_salt(self):
-        self.salt = base64.b64encode(os.urandom(16))[:8].decode('utf-8')
+        self.salt = base64.b64encode(os.urandom(16))[:8].decode("utf-8")
 
     def create_referral(self, referral_code):
         if Referral.objects.filter(recipient=self).exists():
@@ -284,25 +288,25 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.email or str(self.uid)
 
     def __str__(self):
-        return 'id: {} - {}'.format(self.id, self.email) or str(self.uid)
+        return "id: {} - {}".format(self.id, self.email) or str(self.uid)
 
-    def create_token(self, bundle_id=''):
+    def create_token(self, bundle_id=""):
         if not bundle_id:
             # This will raise an exception if more than one bundle has the same client_Id
             # if bundles are properly defined only one associate with the user should be found.
-            bundle_id = ClientApplicationBundle.objects.values_list('bundle_id', flat=True).get(client=self.client_id)
+            bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(client=self.client_id)
         payload = {
-            'bundle_id': bundle_id,
-            'user_id': self.email,
-            'sub': self.id,
-            'iat': arrow.utcnow().datetime,
+            "bundle_id": bundle_id,
+            "user_id": self.email,
+            "sub": self.id,
+            "iat": arrow.utcnow().datetime,
         }
         return jwt.encode(payload, self.client.secret + self.salt)
 
     def soft_delete(self):
         self.is_active = False
         self.delete_token = uuid.uuid4()
-        self.save(update_fields=['is_active', 'delete_token'])
+        self.save(update_fields=["is_active", "delete_token"])
 
     # Admin required fields
     # @property
@@ -316,14 +320,14 @@ NOTIFICATIONS_SETTING = (
 )
 
 GENDERS = (
-    ('female', 'Female'),
-    ('male', 'Male'),
-    ('other', 'Other'),
+    ("female", "Female"),
+    ("male", "Male"),
+    ("other", "Other"),
 )
 
 
 class UserDetail(models.Model):
-    user = models.OneToOneField(CustomUser, related_name='profile', on_delete=models.CASCADE)
+    user = models.OneToOneField(CustomUser, related_name="profile", on_delete=models.CASCADE)
     first_name = models.CharField(max_length=255, null=True, blank=True)
     last_name = models.CharField(max_length=255, null=True, blank=True)
     gender = models.CharField(max_length=6, null=True, blank=True, choices=GENDERS)
@@ -338,7 +342,7 @@ class UserDetail(models.Model):
     country = models.CharField(max_length=100, null=True, blank=True)
     notifications = models.IntegerField(null=True, blank=True, choices=NOTIFICATIONS_SETTING)
     pass_code = models.CharField(max_length=20, null=True, blank=True)
-    currency = models.CharField(max_length=3, default='GBP', null=True, blank=True)
+    currency = models.CharField(max_length=3, default="GBP", null=True, blank=True)
 
     def __str__(self):
         return str(self.user_id)
@@ -347,21 +351,17 @@ class UserDetail(models.Model):
         if hasattr(self, field):
             return setattr(self, field, value)
 
-        field_mapping = {
-            'address_line_1': ['address_1'],
-            'address_line_2': ['address_2'],
-            'city': ['town_city']
-        }
+        field_mapping = {"address_line_1": ["address_1"], "address_line_2": ["address_2"], "city": ["town_city"]}
         for user_field in field_mapping.keys():
             if field in field_mapping[user_field]:
                 return setattr(self, user_field, value)
         else:
-            raise AttributeError('cant set {} field in user profile'.format(field))
+            raise AttributeError("cant set {} field in user profile".format(field))
 
 
 class Referral(models.Model):
-    referrer = models.ForeignKey(CustomUser, related_name='referrer', on_delete=models.CASCADE)
-    recipient = models.OneToOneField(CustomUser, related_name='recipient', on_delete=models.CASCADE)
+    referrer = models.ForeignKey(CustomUser, related_name="referrer", on_delete=models.CASCADE)
+    recipient = models.OneToOneField(CustomUser, related_name="recipient", on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -382,8 +382,8 @@ def valid_reset_code(reset_token):
     except CustomUser.MultipleObjectsReturned:
         return False
 
-    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=['HS512', 'HS256'])
-    expiry_date = arrow.get(token_payload['expiry_date'])
+    token_payload = jwt.decode(reset_token, user.client.secret, algorithms=["HS512", "HS256"])
+    expiry_date = arrow.get(token_payload["expiry_date"])
     return expiry_date > arrow.utcnow()
 
 
@@ -393,9 +393,9 @@ class Setting(models.Model):
     BOOLEAN = 2
 
     VALUE_TYPES = (
-        (NUMBER, 'number'),
-        (STRING, 'string'),
-        (BOOLEAN, 'boolean'),
+        (NUMBER, "number"),
+        (STRING, "string"),
+        (BOOLEAN, "boolean"),
     )
 
     GENERAL = 0
@@ -403,9 +403,9 @@ class Setting(models.Model):
     SCHEME = 2
 
     CATEGORIES = (
-        (GENERAL, 'General'),
-        (MARKETING, 'Marketing'),
-        (SCHEME, 'Loyalty Scheme'),
+        (GENERAL, "General"),
+        (MARKETING, "Marketing"),
+        (SCHEME, "Loyalty Scheme"),
     )
 
     slug = models.SlugField(unique=True)
@@ -424,7 +424,7 @@ class Setting(models.Model):
         return dict(self.CATEGORIES).get(self.category)
 
     def __str__(self):
-        return '({}) {}: {}'.format(self.value_type_name, self.slug, self.default_value)
+        return "({}) {}: {}".format(self.value_type_name, self.slug, self.default_value)
 
     def clean(self):
         validate_setting_value(self.default_value, self)
@@ -439,12 +439,12 @@ setting_value_type_validators = {
 class UserSetting(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(CustomUser, related_name='user', on_delete=models.CASCADE)
-    setting = models.ForeignKey(Setting, related_name='setting', on_delete=models.CASCADE)
+    user = models.ForeignKey(CustomUser, related_name="user", on_delete=models.CASCADE)
+    setting = models.ForeignKey(Setting, related_name="setting", on_delete=models.CASCADE)
     value = models.CharField(max_length=255)
 
     def __str__(self):
-        return '{} - {}: {}'.format(self.user.email, self.setting.slug, self.value)
+        return "{} - {}: {}".format(self.user.email, self.setting.slug, self.value)
 
     def clean(self):
         validate_setting_value(self.value, self.setting)
@@ -461,9 +461,11 @@ def validate_setting_value(value, setting):
     if setting.value_type in setting_value_type_validators:
         validate = setting_value_type_validators[setting.value_type]
         if not validate(value):
-            raise ValidationError(_("'%(value)s' is not a valid value for type %(value_type)s."),
-                                  code='invalid_value',
-                                  params={
-                                      'value': value,
-                                      'value_type': setting.value_type_name,
-                                  })
+            raise ValidationError(
+                _("'%(value)s' is not a valid value for type %(value_type)s."),
+                code="invalid_value",
+                params={
+                    "value": value,
+                    "value_type": setting.value_type_name,
+                },
+            )

@@ -22,10 +22,14 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AlterField(
-            model_name="schemeaccountimage", name="call_to_action", field=models.CharField(blank=True, max_length=150),
+            model_name="schemeaccountimage",
+            name="call_to_action",
+            field=models.CharField(blank=True, max_length=150),
         ),
         migrations.AlterField(
-            model_name="schemeimage", name="call_to_action", field=models.CharField(blank=True, max_length=150),
+            model_name="schemeimage",
+            name="call_to_action",
+            field=models.CharField(blank=True, max_length=150),
         ),
         migrations.RunPython(remove_cta_placeholders, reverse_code=add_cta_placeholders),
     ]

@@ -5,8 +5,9 @@ from django.utils.translation import ugettext_lazy as _
 from rest_framework import exceptions
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.permissions import BasePermission
-from user.models import CustomUser
+
 from hermes.channels import Permit
+from user.models import CustomUser
 
 
 class JwtAuthentication(BaseAuthentication):
@@ -31,7 +32,7 @@ class JwtAuthentication(BaseAuthentication):
         auth = get_authorization_header(request).split()
         return self.check_token(auth), auth[0].lower()
 
-    def get_token(self, request, token_name=b'token'):
+    def get_token(self, request, token_name=b"token"):
         auth = get_authorization_header(request).split()
         if not auth or auth[0].lower() != token_name:
             return None
@@ -40,16 +41,16 @@ class JwtAuthentication(BaseAuthentication):
     @staticmethod
     def check_token(auth):
         if len(auth) <= 1:
-            msg = _('Invalid token header. No credentials provided.')
+            msg = _("Invalid token header. No credentials provided.")
             raise exceptions.AuthenticationFailed(msg)
         elif len(auth) > 2:
-            msg = _('Invalid token header. Token string should not contain spaces.')
+            msg = _("Invalid token header. Token string should not contain spaces.")
             raise exceptions.AuthenticationFailed(msg)
 
         try:
             token = auth[1].decode()
         except UnicodeError:
-            msg = _('Invalid token header. Token string should not contain invalid characters.')
+            msg = _("Invalid token header. Token string should not contain invalid characters.")
             raise exceptions.AuthenticationFailed(msg)
         return token
 
@@ -64,10 +65,10 @@ class JwtAuthentication(BaseAuthentication):
         # otherwise 'com.bink.wallet' will be used for the the users application client
         # this will fail if no 'com.bink.wallet' exists or if multiple matches are found
         # Note bundle_id may be set to '' in token
-        bundle_id = credentials.get('bundle_id', '')
+        bundle_id = credentials.get("bundle_id", "")
         if not bundle_id:
-            bundle_id = 'com.bink.wallet'
-        setattr(request, 'channels_permit', Permit(bundle_id, user.client, user=user))
+            bundle_id = "com.bink.wallet"
+        setattr(request, "channels_permit", Permit(bundle_id, user.client, user=user))
         return user, None
 
     def authenticate_credentials(self, key):
@@ -82,37 +83,34 @@ class JwtAuthentication(BaseAuthentication):
                 key,
                 options={"verify_signature": False},
                 leeway=settings.CLOCK_SKEW_LEEWAY,
-                algorithms=['HS512', 'HS256']
+                algorithms=["HS512", "HS256"],
             )
         except jwt.DecodeError:
-            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+            raise exceptions.AuthenticationFailed(_("Invalid token."))
 
         try:
-            user = self.model.objects.get(id=token_contents['sub'])
+            user = self.model.objects.get(id=token_contents["sub"])
 
         except self.model.DoesNotExist:
-            raise exceptions.AuthenticationFailed(_('User does not exist.'))
+            raise exceptions.AuthenticationFailed(_("User does not exist."))
 
         try:
             jwt.decode(
-                key,
-                user.client.secret + user.salt,
-                algorithms=['HS512', 'HS256'],
-                leeway=settings.CLOCK_SKEW_LEEWAY
+                key, user.client.secret + user.salt, algorithms=["HS512", "HS256"], leeway=settings.CLOCK_SKEW_LEEWAY
             )
         except jwt.DecodeError:
-            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+            raise exceptions.AuthenticationFailed(_("Invalid token."))
         return user, token_contents
 
     def authenticate_header(self, request):
-        return 'Token'
+        return "Token"
 
 
 class ServiceUser(AnonymousUser):
     def is_authenticated(self):
         return True
 
-    uid = 'api_user'
+    uid = "api_user"
 
 
 class ServiceAuthentication(JwtAuthentication):
@@ -122,14 +120,14 @@ class ServiceAuthentication(JwtAuthentication):
 
     def authenticate_credentials(self, key):
         if key != settings.SERVICE_API_KEY:
-            raise exceptions.AuthenticationFailed(_('Invalid token.'))
+            raise exceptions.AuthenticationFailed(_("Invalid token."))
         return ServiceUser(), None
 
     def authenticate(self, request):
-        setattr(request, 'channels_permit', Permit(service_allow_all=True))
+        setattr(request, "channels_permit", Permit(service_allow_all=True))
         return self.authenticate_credentials(self.get_token(request))
 
 
 class AllowService(BasePermission):
     def has_permission(self, request, view):
-        return request.user.uid == 'api_user'
+        return request.user.uid == "api_user"

@@ -6,13 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0045_paymentcardaccount_hash'),
+        ("payment_card", "0045_paymentcardaccount_hash"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='paymentaudit',
-            old_name='payment_card_id',
-            new_name='payment_card_hash',
+            model_name="paymentaudit",
+            old_name="payment_card_id",
+            new_name="payment_card_hash",
         ),
     ]

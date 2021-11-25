@@ -1,10 +1,10 @@
-from .base_script import BaseScript, Correction
 from payment_card.models import PaymentCardAccount
 from ubiquity.models import VopActivation
 
+from .base_script import BaseScript, Correction
+
 
 class FindDeletedVopCardsWithActivations(BaseScript):
-
     def script(self):
         activations = VopActivation.objects.filter(status=VopActivation.ACTIVATED)
         status_names = dict(VopActivation.VOP_STATUS)
@@ -20,8 +20,8 @@ class FindDeletedVopCardsWithActivations(BaseScript):
                 # instead just mark the card with this activation as deactivated
 
                 duplicated_card_tokens = PaymentCardAccount.objects.filter(
-                    psp_token=a.payment_card_account.psp_token,
-                    status=PaymentCardAccount.ACTIVE)
+                    psp_token=a.payment_card_account.psp_token, status=PaymentCardAccount.ACTIVE
+                )
                 duplicate_activations = False
 
                 dup_card_id = None
@@ -32,9 +32,9 @@ class FindDeletedVopCardsWithActivations(BaseScript):
                         # we can't correct by re-enrolling because VOP should be enrolled still
                         # best try just activating
                         self.set_correction(Correction.DEACTIVATE)
-                    dup_active = VopActivation.objects.filter(payment_card_account=dup,
-                                                              scheme=a.scheme,
-                                                              status=VopActivation.ACTIVATED)
+                    dup_active = VopActivation.objects.filter(
+                        payment_card_account=dup, scheme=a.scheme, status=VopActivation.ACTIVATED
+                    )
                     if dup_active:
                         # This token and merchant are already activated on another card
                         # so safe to mark this deleted card as having been deactivated
@@ -56,13 +56,13 @@ class FindDeletedVopCardsWithActivations(BaseScript):
                 self.make_correction(
                     f"{a.id}.{a.payment_card_account.id}",
                     {
-                        'activation': a.id,
-                        'card_id': a.payment_card_account.id,
-                        'payment_token': a.payment_card_account.psp_token,
-                        'card_token': a.payment_card_account.token,
-                        'partner_slug': a.payment_card_account.payment_card.slug,
-                        'scheme_id': a.scheme.id,
-                        'scheme_slug': a.scheme.slug,
-                        'activation_id': a.activation_id,
-                    }
+                        "activation": a.id,
+                        "card_id": a.payment_card_account.id,
+                        "payment_token": a.payment_card_account.psp_token,
+                        "card_token": a.payment_card_account.token,
+                        "partner_slug": a.payment_card_account.payment_card.slug,
+                        "scheme_id": a.scheme.id,
+                        "scheme_slug": a.scheme.slug,
+                        "activation_id": a.activation_id,
+                    },
                 )

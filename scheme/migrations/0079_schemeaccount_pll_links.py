@@ -5,12 +5,12 @@ from django.db import migrations
 
 
 def populate_pll_links(apps, schema_editor):
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
-    PaymentCardSchemeEntry = apps.get_model('ubiquity', 'PaymentCardSchemeEntry')
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
+    PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
 
     accounts = {}
     for link in PaymentCardSchemeEntry.objects.filter(active_link=True).all():
-        formatted_link = {'id': link.payment_card_account_id, 'active_link': True}
+        formatted_link = {"id": link.payment_card_account_id, "active_link": True}
 
         if link.scheme_account_id in accounts:
             account = accounts[link.scheme_account_id]
@@ -18,7 +18,9 @@ def populate_pll_links(apps, schema_editor):
 
         else:
             account = link.scheme_account
-            account.pll_links = [formatted_link, ]
+            account.pll_links = [
+                formatted_link,
+            ]
             accounts[account.id] = account
 
     SchemeAccount.objects.bulk_update(list(accounts.values()), ["pll_links"], batch_size=1000)
@@ -30,14 +32,14 @@ def revert_populate_pll_links(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0078_schemeaccount_main_answer'),
+        ("scheme", "0078_schemeaccount_main_answer"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccount',
-            name='pll_links',
+            model_name="schemeaccount",
+            name="pll_links",
             field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, default=list, null=True),
         ),
-        migrations.RunPython(populate_pll_links, revert_populate_pll_links)
+        migrations.RunPython(populate_pll_links, revert_populate_pll_links),
     ]

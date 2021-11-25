@@ -3,19 +3,20 @@
 from __future__ import unicode_literals
 
 from django.db import migrations, models
+
 import user.models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0026_data_bink_clientappkit_core'),
+        ("user", "0026_data_bink_clientappkit_core"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='clientapplication',
-            name='secret',
+            model_name="clientapplication",
+            name="secret",
             field=models.CharField(db_index=True, default=user.models._get_random_string, max_length=128),
         ),
     ]

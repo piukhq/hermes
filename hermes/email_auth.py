@@ -1,10 +1,9 @@
-from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.backends import ModelBackend
 
 
 class EmailBackend(ModelBackend):
-
     def authenticate(self, request, username=None, password=None, client_id=settings.BINK_CLIENT_ID, **kwargs):
         UserModel = get_user_model()
 

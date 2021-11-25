@@ -1,6 +1,7 @@
-import threading
 import base64
-from typing import Optional, NamedTuple, List
+import threading
+from typing import List, NamedTuple, Optional
+
 import paramiko
 import paramiko.auth_handler
 
@@ -46,13 +47,13 @@ def password_and_key_sftp_client(host, port, host_keys, username, password, pkey
 
     # Assemble auth event
     pw_auth_handler.auth_event = pw_auth_event
-    pw_auth_handler.auth_method = 'password'
+    pw_auth_handler.auth_method = "password"
     pw_auth_handler.username = username
     pw_auth_handler.password = password
 
     # Sent auth message
     userauth_message = paramiko.message.Message()
-    userauth_message.add_string('ssh-userauth')
+    userauth_message.add_string("ssh-userauth")
     userauth_message.rewind()
     pw_auth_handler._parse_service_accept(userauth_message)
     transport.lock.release()
@@ -64,12 +65,13 @@ def password_and_key_sftp_client(host, port, host_keys, username, password, pkey
 
 
 def get_sftp_client(
-        host: str,
-        port: int,
-        username: str,
-        host_keys: List[HostKey],
-        password: Optional[str] = None,
-        pkey: Optional[paramiko.RSAKey] = None) -> paramiko.SFTPClient:
+    host: str,
+    port: int,
+    username: str,
+    host_keys: List[HostKey],
+    password: Optional[str] = None,
+    pkey: Optional[paramiko.RSAKey] = None,
+) -> paramiko.SFTPClient:
 
     if (pkey and not password) or (password and not pkey):
         ssh_client = paramiko.SSHClient()

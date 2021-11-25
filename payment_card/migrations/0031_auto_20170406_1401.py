@@ -8,18 +8,40 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0030_auto_20170214_1147'),
+        ("payment_card", "0030_auto_20170214_1147"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardaccountimage',
-            name='image_type_code',
-            field=models.IntegerField(choices=[(0, 'hero'), (1, 'banner'), (2, 'offers'), (3, 'icon'), (4, 'asset'), (5, 'reference'), (6, 'personal offers'), (7, 'promotions')]),
+            model_name="paymentcardaccountimage",
+            name="image_type_code",
+            field=models.IntegerField(
+                choices=[
+                    (0, "hero"),
+                    (1, "banner"),
+                    (2, "offers"),
+                    (3, "icon"),
+                    (4, "asset"),
+                    (5, "reference"),
+                    (6, "personal offers"),
+                    (7, "promotions"),
+                ]
+            ),
         ),
         migrations.AlterField(
-            model_name='paymentcardimage',
-            name='image_type_code',
-            field=models.IntegerField(choices=[(0, 'hero'), (1, 'banner'), (2, 'offers'), (3, 'icon'), (4, 'asset'), (5, 'reference'), (6, 'personal offers'), (7, 'promotions')]),
+            model_name="paymentcardimage",
+            name="image_type_code",
+            field=models.IntegerField(
+                choices=[
+                    (0, "hero"),
+                    (1, "banner"),
+                    (2, "offers"),
+                    (3, "icon"),
+                    (4, "asset"),
+                    (5, "reference"),
+                    (6, "personal offers"),
+                    (7, "promotions"),
+                ]
+            ),
         ),
     ]

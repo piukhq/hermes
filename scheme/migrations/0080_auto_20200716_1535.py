@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0079_schemeaccount_pll_links'),
+        ("scheme", "0079_schemeaccount_pll_links"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='barcode',
-            field=models.CharField(blank=True, db_index=True, default='', max_length=250),
+            model_name="schemeaccount",
+            name="barcode",
+            field=models.CharField(blank=True, db_index=True, default="", max_length=250),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='card_number',
-            field=models.CharField(blank=True, db_index=True, default='', max_length=250),
+            model_name="schemeaccount",
+            name="card_number",
+            field=models.CharField(blank=True, db_index=True, default="", max_length=250),
         ),
         migrations.AlterField(
-            model_name='schemeaccount',
-            name='main_answer',
-            field=models.CharField(blank=True, db_index=True, default='', max_length=250),
+            model_name="schemeaccount",
+            name="main_answer",
+            field=models.CharField(blank=True, db_index=True, default="", max_length=250),
         ),
     ]

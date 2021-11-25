@@ -1,3 +1,1 @@
-CURRENCIES = [
-    'GBP'
-]
+CURRENCIES = ["GBP"]

@@ -11,21 +11,21 @@ def _format_image_for_ubiquity(img):
         encoding = img.encoding
     else:
         try:
-            encoding = img.image.name.split('.')[-1].replace('/', '')
+            encoding = img.image.name.split(".")[-1].replace("/", "")
         except (IndexError, AttributeError):
             encoding = None
 
     return {
-        'id': img.id,
-        'type': img.image_type_code,
-        'url': img.image.url,
-        'description': img.description,
-        'encoding': encoding
+        "id": img.id,
+        "type": img.image_type_code,
+        "url": img.image.url,
+        "description": img.description,
+        "encoding": encoding,
     }
 
 
 def format_images(apps, schema_editor):
-    Scheme = apps.get_model('scheme', 'Scheme')
+    Scheme = apps.get_model("scheme", "Scheme")
     for scheme in Scheme.objects.all():
         formatted_images = {}
         tier_images = {}
@@ -37,7 +37,7 @@ def format_images(apps, schema_editor):
 
         formatted_images[Image.TIER] = tier_images
         scheme.formatted_images = formatted_images
-        scheme.save(update_fields=['formatted_images'])
+        scheme.save(update_fields=["formatted_images"])
 
 
 def revert_format_images(apps, schema_editor):
@@ -46,13 +46,13 @@ def revert_format_images(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0076_format_stored_balance'),
+        ("scheme", "0076_format_stored_balance"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='formatted_images',
+            model_name="scheme",
+            name="formatted_images",
             field=django.contrib.postgres.fields.jsonb.JSONField(default=dict, blank=True),
         ),
         migrations.RunPython(format_images, revert_format_images),

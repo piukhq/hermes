@@ -8,18 +8,16 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0028_auto_20160930_0954'),
+        ("scheme", "0028_auto_20160930_0954"),
     ]
 
     operations = [
         migrations.AlterModelManagers(
-            name='schemeaccountimage',
-            managers=[
-            ],
+            name="schemeaccountimage",
+            managers=[],
         ),
         migrations.AlterModelManagers(
-            name='schemeimage',
-            managers=[
-            ],
+            name="schemeimage",
+            managers=[],
         ),
     ]

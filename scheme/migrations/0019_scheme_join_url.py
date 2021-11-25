@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0018_auto_20160525_1102'),
+        ("scheme", "0018_auto_20160525_1102"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='join_url',
+            model_name="scheme",
+            name="join_url",
             field=models.URLField(blank=True, null=True),
         ),
     ]

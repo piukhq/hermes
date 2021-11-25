@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import TYPE_CHECKING, Type, Optional, Tuple, Union, List, Iterable
+from typing import TYPE_CHECKING, Iterable, List, Optional, Tuple, Type, Union
 
 if TYPE_CHECKING:
     from django.db.models import Model

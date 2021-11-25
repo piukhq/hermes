@@ -6,13 +6,16 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0070_auto_20200320_2020'),
+        ("scheme", "0070_auto_20200320_2020"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemecredentialquestion',
-            name='answer_type',
-            field=models.IntegerField(choices=[(0, 'text'), (1, 'sensitive'), (2, 'choice'), (3, 'boolean'), (4, 'payment_card_hash')], default=0),
+            model_name="schemecredentialquestion",
+            name="answer_type",
+            field=models.IntegerField(
+                choices=[(0, "text"), (1, "sensitive"), (2, "choice"), (3, "boolean"), (4, "payment_card_hash")],
+                default=0,
+            ),
         ),
     ]

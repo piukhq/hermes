@@ -1,6 +1,7 @@
-from .base_script import BaseScript
-from ubiquity.models import VopActivation
 from scripts.models import Correction
+from ubiquity.models import VopActivation
+
+from .base_script import BaseScript
 
 
 class FindVOPActivationsStuckInDeactivating(BaseScript):
@@ -29,17 +30,14 @@ class FindVOPActivationsStuckInDeactivating(BaseScript):
             self.found += 1
 
             data = {
-                'activation': d.id,
-                'card_id': pcd.id,
-                'payment_token': pcd.psp_token,
-                'card_token': pcd.token,
-                'scheme_id': scheme.id,
-                'scheme_slug': scheme.slug,
-                'partner_slug': pcd.payment_card.slug,
-                'activation_id': d.activation_id,
+                "activation": d.id,
+                "card_id": pcd.id,
+                "payment_token": pcd.psp_token,
+                "card_token": pcd.token,
+                "scheme_id": scheme.id,
+                "scheme_slug": scheme.slug,
+                "partner_slug": pcd.payment_card.slug,
+                "activation_id": d.activation_id,
             }
 
-            self.make_correction(
-                unique_id_string=f"{d.id}.{pcd.id}",
-                data=data
-            )
+            self.make_correction(unique_id_string=f"{d.id}.{pcd.id}", data=data)

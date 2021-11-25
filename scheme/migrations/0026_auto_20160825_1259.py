@@ -3,58 +3,60 @@
 from __future__ import unicode_literals
 
 import datetime
+
+import django.db.models.deletion
 from django.db import migrations, models
 from django.utils import timezone
-import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0025_scheme_join_t_and_c'),
+        ("scheme", "0025_scheme_join_t_and_c"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='schemeaccountimagecriteria',
-            name='scheme',
+            model_name="schemeaccountimagecriteria",
+            name="scheme",
         ),
         migrations.RemoveField(
-            model_name='schemeaccountimagecriteria',
-            name='scheme_accounts',
+            model_name="schemeaccountimagecriteria",
+            name="scheme_accounts",
         ),
         migrations.RemoveField(
-            model_name='schemeaccountimagecriteria',
-            name='scheme_image',
+            model_name="schemeaccountimagecriteria",
+            name="scheme_image",
         ),
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='end_date',
+            model_name="schemeaccountimage",
+            name="end_date",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='scheme',
-            field=models.ForeignKey(blank=True, null=True,
-                                    on_delete=django.db.models.deletion.CASCADE, to='scheme.Scheme'),
+            model_name="schemeaccountimage",
+            name="scheme",
+            field=models.ForeignKey(
+                blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to="scheme.Scheme"
+            ),
         ),
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='scheme_accounts',
-            field=models.ManyToManyField(related_name='scheme_accounts_set', to='scheme.SchemeAccount'),
+            model_name="schemeaccountimage",
+            name="scheme_accounts",
+            field=models.ManyToManyField(related_name="scheme_accounts_set", to="scheme.SchemeAccount"),
         ),
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='start_date',
+            model_name="schemeaccountimage",
+            name="start_date",
             field=models.DateTimeField(default=timezone.make_aware(datetime.datetime(1970, 1, 1, 0, 0))),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='schemeaccountimage',
-            name='status',
-            field=models.IntegerField(choices=[(0, 'draft'), (1, 'published')], default=0),
+            model_name="schemeaccountimage",
+            name="status",
+            field=models.IntegerField(choices=[(0, "draft"), (1, "published")], default=0),
         ),
         migrations.DeleteModel(
-            name='SchemeAccountImageCriteria',
+            name="SchemeAccountImageCriteria",
         ),
     ]

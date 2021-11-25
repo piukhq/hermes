@@ -1,12 +1,13 @@
-from api_messaging import angelia_background
-from django.http import Http404
-from django.db import close_old_connections
-from django.core.exceptions import ObjectDoesNotExist
-from urllib3.exceptions import RequestError
-from api_messaging.exceptions import MessageReject, MessageRequeue, InvalidMessagePath
-
-import logging
 import json
+import logging
+
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import close_old_connections
+from django.http import Http404
+from urllib3.exceptions import RequestError
+
+from api_messaging import angelia_background
+from api_messaging.exceptions import InvalidMessagePath, MessageReject, MessageRequeue
 
 logger = logging.getLogger("messaging")
 
@@ -52,7 +53,7 @@ def route_message(headers: dict, message: dict):
         "loyalty_card_add_and_auth": angelia_background.loyalty_card_authorise,
         "loyalty_card_authorise": angelia_background.loyalty_card_authorise,
         "loyalty_card_join": angelia_background.loyalty_card_join,
-        "delete_loyalty_card": angelia_background.delete_loyalty_card
+        "delete_loyalty_card": angelia_background.delete_loyalty_card,
     }
 
     try:

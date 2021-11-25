@@ -8,26 +8,26 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0026_auto_20160825_1259'),
+        ("scheme", "0026_auto_20160825_1259"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='size_code',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="schemeaccountimage",
+            name="size_code",
+            field=models.CharField(blank=True, default="", max_length=30),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='strap_line',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="schemeaccountimage",
+            name="strap_line",
+            field=models.CharField(blank=True, default="", max_length=50),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='url',
-            field=models.URLField(blank=True, default=''),
+            model_name="schemeaccountimage",
+            name="url",
+            field=models.URLField(blank=True, default=""),
             preserve_default=False,
         ),
     ]

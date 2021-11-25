@@ -7,6 +7,7 @@ import sentry_sdk
 from celery import shared_task
 from django.conf import settings
 from django_redis import get_redis_connection
+
 from periodic_retry.models import PeriodicRetry, PeriodicRetryStatus, RetryTaskList
 
 logger = logging.getLogger(__name__)
@@ -18,9 +19,7 @@ def retry_metis_request_tasks() -> None:
     periodic_retry_handler = PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS)
 
     requests_to_retry = PeriodicRetry.objects.filter(
-        task_group=RetryTaskList.METIS_REQUESTS,
-        status=PeriodicRetryStatus.REQUIRED,
-        next_retry_after__lte=time_now
+        task_group=RetryTaskList.METIS_REQUESTS, status=PeriodicRetryStatus.REQUIRED, next_retry_after__lte=time_now
     )
 
     for retry_info in requests_to_retry:
@@ -105,7 +104,7 @@ class PeriodicRetryHandler:
         self.task_list = task_list
         self.warning_attempt_count = 5
         self.default_max_retry_count = 10
-        self.storage = get_redis_connection('retry_tasks')
+        self.storage = get_redis_connection("retry_tasks")
 
     @staticmethod
     def now_plus_seconds(seconds):
@@ -127,8 +126,10 @@ class PeriodicRetryHandler:
             logger.debug(msg)
             raise RetryError(msg)
 
-        if (periodic_retry_obj.max_retry_attempts and
-                periodic_retry_obj.retry_count >= periodic_retry_obj.max_retry_attempts):
+        if (
+            periodic_retry_obj.max_retry_attempts
+            and periodic_retry_obj.retry_count >= periodic_retry_obj.max_retry_attempts
+        ):
             msg = f"PeriodicRetry (id={periodic_retry_obj.id}) has reached the maximum retry attempts"
             periodic_retry_obj.results = periodic_retry_obj.results + [msg]
             periodic_retry_obj.status = PeriodicRetryStatus.FAILED
@@ -136,18 +137,21 @@ class PeriodicRetryHandler:
             logger.debug(msg)
             raise RetryError(msg)
 
-        if (periodic_retry_obj.retry_count > 0 and
-                periodic_retry_obj.retry_count % self.warning_attempt_count == 0):
-            msg = f"PeriodicRetry (id={periodic_retry_obj.id}) has failed " \
-                  f"{periodic_retry_obj.retry_count} retry attempts."
+        if periodic_retry_obj.retry_count > 0 and periodic_retry_obj.retry_count % self.warning_attempt_count == 0:
+            msg = (
+                f"PeriodicRetry (id={periodic_retry_obj.id}) has failed "
+                f"{periodic_retry_obj.retry_count} retry attempts."
+            )
             sentry_sdk.capture_message(msg, level=logging.WARNING)
             logger.debug(msg)
 
     def _call_task_prechecks(self, periodic_retry_obj: PeriodicRetry) -> None:
         time_now = arrow.utcnow()
         if periodic_retry_obj.next_retry_after > time_now:
-            msg = f"PeriodicRetry (id={periodic_retry_obj.id}) cannot be retried " \
-                  f"until after {periodic_retry_obj.next_retry_after}"
+            msg = (
+                f"PeriodicRetry (id={periodic_retry_obj.id}) cannot be retried "
+                f"until after {periodic_retry_obj.next_retry_after}"
+            )
             logger.debug(msg)
             raise RetryError(msg)
 
@@ -167,8 +171,9 @@ class PeriodicRetryHandler:
 
         logger.info(f"PeriodicRetry (id={retry_info.id}) added to {self.task_list} queue")
 
-    def new(self, module_name: str, function_name: str, *args, retry_kwargs: dict = None,
-            context: dict = None, **kwargs) -> PeriodicRetry:
+    def new(
+        self, module_name: str, function_name: str, *args, retry_kwargs: dict = None, context: dict = None, **kwargs
+    ) -> PeriodicRetry:
         """Creates a new PeriodicRetry object and adds to the retry queue"""
         data = {
             "args": args,
@@ -182,11 +187,7 @@ class PeriodicRetryHandler:
             retry_kwargs = {"max_retry_attempts": self.default_max_retry_count}
 
         retry_task = PeriodicRetry.objects.create(
-            task_group=self.task_list,
-            module=module_name,
-            function=function_name,
-            data=data,
-            **retry_kwargs
+            task_group=self.task_list, module=module_name, function=function_name, data=data, **retry_kwargs
         )
 
         if retry_task.status == PeriodicRetryStatus.REQUIRED:
@@ -207,9 +208,7 @@ class PeriodicRetryHandler:
         try:
             periodic_retry_obj = PeriodicRetry.objects.get(pk=data["task_id"])
         except KeyError:
-            logger.exception(
-                "PeriodicRetry improperly set. Missing 'task_id' in data when calling task."
-            )
+            logger.exception("PeriodicRetry improperly set. Missing 'task_id' in data when calling task.")
             return
 
         logger.debug(f"Attempting to retry PeriodicRetry (id={periodic_retry_obj.id})")
@@ -258,9 +257,5 @@ class PeriodicRetryHandler:
             self.call_next_task()
 
     def get_tasks_in_queue(self) -> list:
-        tasks_in_queue = self.storage.lrange(
-            name=self.task_list,
-            start=0,
-            end=self.length
-        )
+        tasks_in_queue = self.storage.lrange(name=self.task_list, start=0, end=self.length)
         return [json.loads(task) for task in tasks_in_queue]

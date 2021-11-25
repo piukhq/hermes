@@ -69,9 +69,8 @@ class GenerateJWToken:
 
 if __name__ == "__main__":
     print(
-        "\n\n%s\n\n" %
-
-        GenerateJWToken(
+        "\n\n%s\n\n"
+        % GenerateJWToken(
             organisation_id="Loyalty Angels",
             client_secret="ADD CLIENT SECRET",
             bundle_id="com.bink.wallet",

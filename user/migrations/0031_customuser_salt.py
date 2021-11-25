@@ -8,14 +8,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0030_organisation_terms_and_conditions'),
+        ("user", "0030_organisation_terms_and_conditions"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customuser',
-            name='salt',
-            field=models.CharField(default='', max_length=8),
+            model_name="customuser",
+            name="salt",
+            field=models.CharField(default="", max_length=8),
             preserve_default=False,
         ),
     ]

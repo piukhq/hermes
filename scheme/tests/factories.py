@@ -3,13 +3,12 @@ from datetime import datetime
 import factory
 from django.utils import timezone
 from factory.fuzzy import FuzzyAttribute
+from faker import Factory
 
 from scheme import models
-from scheme.models import Control
-from faker import Factory
 from scheme.credentials import USER_NAME
-from scheme.models import Consent, ConsentStatus, JourneyTypes, UserConsent
-from user.tests.factories import UserFactory, ClientApplicationBundleFactory
+from scheme.models import Consent, ConsentStatus, Control, JourneyTypes, UserConsent
+from user.tests.factories import ClientApplicationBundleFactory, UserFactory
 
 fake = Factory.create()
 # Change seed value if we start getting duplicate data
@@ -26,7 +25,7 @@ class CategoryFactory(factory.django.DjangoModelFactory):
 class SchemeFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = models.Scheme
-        django_get_or_create = ('slug',)
+        django_get_or_create = ("slug",)
 
     name = FuzzyAttribute(fake.company)
     slug = FuzzyAttribute(fake.slug)
@@ -41,9 +40,9 @@ class SchemeFactory(factory.django.DjangoModelFactory):
     barcode_type = 1
     scan_message = fake.sentence()
     category = factory.SubFactory(CategoryFactory)
-    identifier = ''
-    card_number_regex = ''
-    barcode_prefix = ''
+    identifier = ""
+    card_number_regex = ""
+    barcode_prefix = ""
 
 
 class SchemeBalanceDetailsFactory(factory.django.DjangoModelFactory):
@@ -101,13 +100,7 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
     order = 0
     vouchers = [
         {
-            "burn": {
-                "type": "voucher",
-                "value": 2.5,
-                "prefix": "\u00a3",
-                "suffix": "Reward",
-                "currency": ""
-            },
+            "burn": {"type": "voucher", "value": 2.5, "prefix": "\u00a3", "suffix": "Reward", "currency": ""},
             "code": "WHS000052",
             "earn": {
                 "type": "stamps",
@@ -115,7 +108,7 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
                 "prefix": "",
                 "suffix": "stamps",
                 "currency": "",
-                "target_value": 5.0
+                "target_value": 5.0,
             },
             "state": "issued",
             "subtext": "",
@@ -124,24 +117,18 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
             "date_issued": 1600560000,
             "expiry_date": 1609459200,
             "barcode_type": 0,
-            "terms_and_conditions_url": ""
+            "terms_and_conditions_url": "",
         },
         {
-            "burn": {
-                "type": "voucher",
-                "value": 2.5,
-                "prefix": "\u00a3",
-                "suffix": "Reward",
-                "currency": ""
-            },
-            "code": 'WHS000053',
+            "burn": {"type": "voucher", "value": 2.5, "prefix": "\u00a3", "suffix": "Reward", "currency": ""},
+            "code": "WHS000053",
             "earn": {
                 "type": "stamps",
                 "value": 5.0,
                 "prefix": "",
                 "suffix": "stamps",
                 "currency": "",
-                "target_value": 5.0
+                "target_value": 5.0,
             },
             "state": "expired",
             "subtext": "",
@@ -150,24 +137,18 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
             "date_issued": 1600560000,
             "expiry_date": 1596240000,
             "barcode_type": 0,
-            "terms_and_conditions_url": ""
+            "terms_and_conditions_url": "",
         },
         {
-            "burn": {
-                "type": "voucher",
-                "value": 2.5,
-                "prefix": "\u00a3",
-                "suffix": "Reward",
-                "currency": ""
-            },
-            "code": 'WHS000054',
+            "burn": {"type": "voucher", "value": 2.5, "prefix": "\u00a3", "suffix": "Reward", "currency": ""},
+            "code": "WHS000054",
             "earn": {
                 "type": "stamps",
                 "value": 5.0,
                 "prefix": "",
                 "suffix": "stamps",
                 "currency": "",
-                "target_value": 5.0
+                "target_value": 5.0,
             },
             "state": "redeemed",
             "subtext": "",
@@ -177,24 +158,18 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
             "expiry_date": 1596499200,
             "barcode_type": 0,
             "date_redeemed": 1600646400,
-            "terms_and_conditions_url": ""
+            "terms_and_conditions_url": "",
         },
         {
-            "burn": {
-                "type": "voucher",
-                "value": 2.5,
-                "prefix": "\u00a3",
-                "suffix": "Reward",
-                "currency": ""
-            },
-            "code": 'WHS000055',
+            "burn": {"type": "voucher", "value": 2.5, "prefix": "\u00a3", "suffix": "Reward", "currency": ""},
+            "code": "WHS000055",
             "earn": {
                 "type": "stamps",
                 "value": 5.0,
                 "prefix": "",
                 "suffix": "stamps",
                 "currency": "",
-                "target_value": 5.0
+                "target_value": 5.0,
             },
             "state": "cancelled",
             "subtext": "",
@@ -204,7 +179,7 @@ class SchemeAccountFactory(factory.django.DjangoModelFactory):
             "expiry_date": 1596499200,
             "barcode_type": 0,
             "date_redeemed": 1600646400,
-            "terms_and_conditions_url": ""
+            "terms_and_conditions_url": "",
         },
     ]
 
@@ -218,7 +193,7 @@ class UserConsentFactory(factory.django.DjangoModelFactory):
     scheme = factory.SubFactory(SchemeFactory)
     scheme_account = factory.SubFactory(SchemeAccountFactory)
     value = True
-    metadata = ''
+    metadata = ""
     status = ConsentStatus.PENDING
 
 
@@ -228,7 +203,7 @@ class SchemeCredentialQuestionFactory(factory.django.DjangoModelFactory):
 
     scheme = factory.SubFactory(SchemeFactory)
     type = USER_NAME
-    label = 'Please enter your username.'
+    label = "Please enter your username."
     third_party_identifier = False
 
 
@@ -250,7 +225,7 @@ class SchemeImageFactory(factory.django.DjangoModelFactory):
     size_code = fake.word()
     image = factory.django.ImageField()
     dark_mode_image = factory.django.ImageField()
-    strap_line = fake.sentence(nb_words=3)[:Meta.model._meta.get_field('strap_line').max_length - 1]
+    strap_line = fake.sentence(nb_words=3)[: Meta.model._meta.get_field("strap_line").max_length - 1]
     description = fake.sentence(nb_words=3)
     url = fake.url()
     dark_mode_url = fake.url()

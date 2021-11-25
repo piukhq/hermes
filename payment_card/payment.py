@@ -6,43 +6,40 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from rest_framework.exceptions import APIException
 from shared_config_storage.credentials.encryption import BLAKE2sHash
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_message
+from tenacity import retry, retry_if_exception_message, stop_after_attempt, wait_exponential
 
-from ubiquity.channel_vault import get_secret_key, SecretKeyName
 from hermes.spreedly import Spreedly, SpreedlyError
 from hermes.tasks import RetryTaskStore
-from payment_card.models import PaymentAudit, PaymentStatus, PaymentCardAccount
+from payment_card.models import PaymentAudit, PaymentCardAccount, PaymentStatus
 from scheme.models import SchemeAccount
+from ubiquity.channel_vault import SecretKeyName, get_secret_key
 
 
 class PaymentError(APIException):
     status_code = 500
-    default_detail = 'Error in Payment processing.'
-    default_code = 'payment_error'
+    default_detail = "Error in Payment processing."
+    default_code = "payment_error"
 
 
 @receiver(post_save, sender=PaymentAudit)
 def payment_audit_log_signal_handler(sender, **kwargs):
-    payment_audit_instance = kwargs['instance']
+    payment_audit_instance = kwargs["instance"]
     if payment_audit_instance.status == PaymentStatus.VOID_REQUIRED and payment_audit_instance.void_attempts >= 10:
         sentry_sdk.capture_message(
             "Payment Audit of id: {} - Has reached a void retry count of {}".format(
-                payment_audit_instance.pk,
-                payment_audit_instance.void_attempts
+                payment_audit_instance.pk, payment_audit_instance.void_attempts
             )
         )
 
-    logging.info("Payment Audit of id: {} saved/updated: {}".format(
-        payment_audit_instance.pk,
-        PaymentStatus(payment_audit_instance.status).name
-    ))
+    logging.info(
+        "Payment Audit of id: {} saved/updated: {}".format(
+            payment_audit_instance.pk, PaymentStatus(payment_audit_instance.status).name
+        )
+    )
 
 
 def get_nominated_pcard(pcard_hash: str, user_id: int):
-    hashed_pcard_hash = BLAKE2sHash().new(
-        obj=pcard_hash,
-        key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
-    )
+    hashed_pcard_hash = BLAKE2sHash().new(obj=pcard_hash, key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET))
     try:
         return PaymentCardAccount.objects.get(hash=hashed_pcard_hash, user_set__id=user_id)
     except PaymentCardAccount.DoesNotExist:
@@ -70,8 +67,13 @@ class Payment:
     provider which, if fails, will be cached using django-redis and retried periodically with celery beat.
     """
 
-    def __init__(self, audit_obj: PaymentAudit, amount: Optional[int] = None, currency_code: str = 'GBP',
-                 payment_token: Optional[str] = None):
+    def __init__(
+        self,
+        audit_obj: PaymentAudit,
+        amount: Optional[int] = None,
+        currency_code: str = "GBP",
+        payment_token: Optional[str] = None,
+    ):
         self.audit_obj = audit_obj
         self.amount = amount
         self.currency_code = currency_code
@@ -80,7 +82,7 @@ class Payment:
         self.spreedly = Spreedly(
             get_secret_key(SecretKeyName.SPREEDLY_ENVIRONMENT_KEY),
             get_secret_key(SecretKeyName.SPREEDLY_ACCESS_SECRET),
-            currency_code=currency_code
+            currency_code=currency_code,
         )
 
     def _purchase(self, payment_token: Optional[str] = None) -> None:
@@ -90,9 +92,7 @@ class Payment:
 
         try:
             self.spreedly.purchase(
-                payment_token=self.payment_token,
-                amount=self.amount,
-                order_id=self.audit_obj.transaction_ref
+                payment_token=self.payment_token, amount=self.amount, order_id=self.audit_obj.transaction_ref
             )
         except SpreedlyError as e:
             if e.args[0] == SpreedlyError.UNSUCCESSFUL_RESPONSE:
@@ -114,20 +114,19 @@ class Payment:
     @staticmethod
     def get_payment_audit(scheme_acc: SchemeAccount) -> PaymentAudit:
         statuses_to_update = (PaymentStatus.VOID_REQUIRED, PaymentStatus.AUTHORISED)
-        payment_audit_objects = PaymentAudit.objects.filter(scheme_account=scheme_acc,
-                                                            status__in=statuses_to_update)
+        payment_audit_objects = PaymentAudit.objects.filter(scheme_account=scheme_acc, status__in=statuses_to_update)
         return payment_audit_objects.last()
 
     @staticmethod
-    def process_payment_purchase(scheme_acc: SchemeAccount, payment_card_hash: str, user_id: int,
-                                 payment_amount: int) -> None:
+    def process_payment_purchase(
+        scheme_acc: SchemeAccount, payment_card_hash: str, user_id: int, payment_amount: int
+    ) -> None:
         """
         Starts an audit trail and makes a purchase request.
         Any failure to during the purchase request will cause the join to fail.
         """
         hashed_pcard_hash = BLAKE2sHash().new(
-            obj=payment_card_hash,
-            key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
+            obj=payment_card_hash, key=get_secret_key(SecretKeyName.PCARD_HASH_SECRET)
         )
         payment_audit = PaymentAudit.objects.create(
             scheme_account=scheme_acc, payment_card_hash=hashed_pcard_hash, user_id=user_id
@@ -141,12 +140,15 @@ class Payment:
             raise
 
     @staticmethod
-    @retry(stop=stop_after_attempt(4),
-           retry=retry_if_exception_message(PaymentError.default_detail),
-           wait=wait_exponential(min=2, max=8),
-           reraise=True)
-    def attempt_purchase(payment_audit: PaymentAudit, payment_card_hash: str,
-                         user_id: int, payment_amount: int) -> None:
+    @retry(
+        stop=stop_after_attempt(4),
+        retry=retry_if_exception_message(PaymentError.default_detail),
+        wait=wait_exponential(min=2, max=8),
+        reraise=True,
+    )
+    def attempt_purchase(
+        payment_audit: PaymentAudit, payment_card_hash: str, user_id: int, payment_amount: int
+    ) -> None:
         try:
             pcard_account = get_nominated_pcard(payment_card_hash, user_id)
             payment_audit.payment_card_id = pcard_account.id
@@ -162,9 +164,7 @@ class Payment:
             payment_audit.save()
             logging.exception(
                 "Payment error for SchemeAccount id: {} - PaymentAudit id: {} - Error description: {}".format(
-                    payment_audit.scheme_account_id,
-                    payment_audit.id,
-                    e.detail
+                    payment_audit.scheme_account_id, payment_audit.id, e.detail
                 )
             )
             raise
@@ -184,8 +184,8 @@ class Payment:
             Payment.attempt_void(payment_audit)
         except PaymentError:
             task_store = RetryTaskStore()
-            transaction_data = {'scheme_acc_id': scheme_acc.id}
-            task_store.set_task('payment_card.tasks', 'retry_payment_void_task', transaction_data)
+            transaction_data = {"scheme_acc_id": scheme_acc.id}
+            task_store.set_task("payment_card.tasks", "retry_payment_void_task", transaction_data)
 
     @staticmethod
     def attempt_void(payment_audit: PaymentAudit) -> None:
@@ -194,16 +194,14 @@ class Payment:
         try:
             payment_audit.void_attempts += 1
             Payment(audit_obj=payment_audit)._void(transaction_token=payment_audit.transaction_token)
-            payment_audit.transaction_token = ''
+            payment_audit.transaction_token = ""
             payment_audit.status = PaymentStatus.VOID_SUCCESSFUL
             payment_audit.save()
         except PaymentError as e:
             payment_audit.save()
             logging.error(
                 "Payment error for SchemeAccount id: {} - PaymentAudit id: {} - Error description: {}".format(
-                    payment_audit.scheme_account_id,
-                    payment_audit.id,
-                    e.detail
+                    payment_audit.scheme_account_id, payment_audit.id, e.detail
                 )
             )
             raise
@@ -218,6 +216,6 @@ class Payment:
             return
 
         if payment_audit.status != PaymentStatus.SUCCESSFUL:
-            payment_audit.transaction_token = ''
+            payment_audit.transaction_token = ""
             payment_audit.status = PaymentStatus.SUCCESSFUL
             payment_audit.save()

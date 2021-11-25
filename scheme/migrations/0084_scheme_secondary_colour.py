@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0083_auto_20201001_1444'),
+        ("scheme", "0083_auto_20201001_1444"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='secondary_colour',
-            field=models.CharField(blank=True, default='', help_text='Hex string e.g "#112233"', max_length=7),
+            model_name="scheme",
+            name="secondary_colour",
+            field=models.CharField(blank=True, default="", help_text='Hex string e.g "#112233"', max_length=7),
         ),
     ]

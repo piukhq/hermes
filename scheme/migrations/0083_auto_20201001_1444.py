@@ -6,18 +6,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0082_voucherscheme_earn_target_value'),
+        ("scheme", "0082_voucherscheme_earn_target_value"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='voucherscheme',
-            name='body_text_cancelled',
-            field=models.TextField(blank=True, default='', verbose_name='Cancelled'),
+            model_name="voucherscheme",
+            name="body_text_cancelled",
+            field=models.TextField(blank=True, default="", verbose_name="Cancelled"),
         ),
         migrations.AddField(
-            model_name='voucherscheme',
-            name='headline_cancelled',
-            field=models.CharField(default='', max_length=250, verbose_name='Cancelled'),
+            model_name="voucherscheme",
+            name="headline_cancelled",
+            field=models.CharField(default="", max_length=250, verbose_name="Cancelled"),
         ),
     ]

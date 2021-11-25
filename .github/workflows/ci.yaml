@@ -1,0 +1,101 @@
+name: ci
+
+on:
+  push:
+    branches: [ develop, master, performance ]
+  pull_request:
+    branches: [ develop, master, performance ]
+  release:
+    types: [ published ]
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    env:
+      HERMES_DATABASE_URL: postgres://postgres@127.0.0.1:5432/postgres
+    services:
+      postgres:
+        image: postgres:latest
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - run: pip install pipenv
+      - run: pipenv install --dev --system --deploy --ignore-pipfile
+      - run: coverage run --source='.' manage.py test -v 2
+      - run: coverage report
+      - run: coverage xml
+      - run: xenon --no-assert --max-average A --max-modules B --max-absolute B .
+      - run: flake8 .
+      - run: black --line-length=120 --check .
+      - run: isort --check --line-length 120 --profile black .
+  create_dev_release:
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    name: create_dev_release
+    runs-on: ubuntu-latest
+    needs: [ tests ]
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "::set-output name=date::$(date +'%FT%H%M%SZ')"
+        id: date
+      - uses: docker/login-action@v1
+        with:
+          registry: binkcore.azurecr.io
+          username: binkcore
+          password: ${{ secrets.ACR_BINKCORE_PASSWORD }}
+      - uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            binkcore.azurecr.io/hermes:${{ steps.date.outputs.date }}
+            binkcore.azurecr.io/hermes:latest
+  create_performance_release:
+    if: github.ref == 'refs/heads/performance' && github.event_name == 'push'
+    name: create_performance_release
+    runs-on: ubuntu-latest
+    needs: [ tests ]
+    steps:
+      - uses: actions/checkout@v2
+      - run: echo "::set-output name=date::$(date +'%FT%H%M%SZ')"
+        id: date
+      - uses: docker/login-action@v1
+        with:
+          registry: binkcore.azurecr.io
+          username: binkcore
+          password: ${{ secrets.ACR_BINKCORE_PASSWORD }}
+      - uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            binkcore.azurecr.io/hermes-perf:${{ steps.date.outputs.date }}
+            binkcore.azurecr.io/hermes-perf:latest
+  create_tag_release:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    name: create_tag_release
+    runs-on: ubuntu-latest
+    needs: [ tests ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: tag_check
+        run: |
+          if ! [[ ${{ github.event.release.tag_name }} =~ [0-9]+.[0-9]+.[0-9]+ ]]; then
+            exit 1;
+          fi
+      - uses: docker/login-action@v1
+        with:
+          registry: binkcore.azurecr.io
+          username: binkcore
+          password: ${{ secrets.ACR_BINKCORE_PASSWORD }}
+      - uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |
+            binkcore.azurecr.io/hermes:${{ github.event.release.tag_name }}
+            binkcore.azurecr.io/hermes:staging-${{ github.event.release.tag_name }}
+            binkcore.azurecr.io/hermes:staging

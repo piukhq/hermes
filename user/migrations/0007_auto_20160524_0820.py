@@ -8,18 +8,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0006_auto_20160523_0942'),
+        ("user", "0006_auto_20160523_0942"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='setting',
-            name='category',
-            field=models.IntegerField(blank=True, choices=[(0, 'general'), (1, 'marketing'), (2, 'scheme')], null=True),
+            model_name="setting",
+            name="category",
+            field=models.IntegerField(blank=True, choices=[(0, "general"), (1, "marketing"), (2, "scheme")], null=True),
         ),
         migrations.AddField(
-            model_name='setting',
-            name='label',
+            model_name="setting",
+            name="label",
             field=models.CharField(blank=True, max_length=255, null=True),
         ),
     ]

@@ -8,18 +8,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0032_auto_20170601_0958'),
+        ("payment_card", "0032_auto_20170601_0958"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='paymentcardaccountimage',
-            name='reward_tier',
+            model_name="paymentcardaccountimage",
+            name="reward_tier",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='paymentcardimage',
-            name='reward_tier',
+            model_name="paymentcardimage",
+            name="reward_tier",
             field=models.IntegerField(default=0),
         ),
     ]

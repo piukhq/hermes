@@ -7,25 +7,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('history', '0003_auto_20210119_1138'),
+        ("history", "0003_auto_20210119_1138"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='HistoricalCustomUser',
+            name="HistoricalCustomUser",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('change_type', models.CharField(choices=[('create', 'create'), ('update', 'update'), ('delete', 'delete')], max_length=6)),
-                ('instance_id', models.CharField(max_length=255)),
-                ('channel', models.CharField(max_length=255)),
-                ('change_details', models.CharField(blank=True, max_length=255)),
-                ('body', django.contrib.postgres.fields.jsonb.JSONField()),
-                ('email', models.EmailField(blank=True, max_length=255, verbose_name='email address')),
-                ('external_id', models.CharField(blank=True, max_length=255)),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                (
+                    "change_type",
+                    models.CharField(
+                        choices=[("create", "create"), ("update", "update"), ("delete", "delete")], max_length=6
+                    ),
+                ),
+                ("instance_id", models.CharField(max_length=255)),
+                ("channel", models.CharField(max_length=255)),
+                ("change_details", models.CharField(blank=True, max_length=255)),
+                ("body", django.contrib.postgres.fields.jsonb.JSONField()),
+                ("email", models.EmailField(blank=True, max_length=255, verbose_name="email address")),
+                ("external_id", models.CharField(blank=True, max_length=255)),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
     ]

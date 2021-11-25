@@ -6,17 +6,17 @@ from django.db import migrations
 
 
 def define_link_questions(apps, schema_editor):
-    SchemeCredentialQuestion = apps.get_model('scheme', 'SchemeCredentialQuestion')
+    SchemeCredentialQuestion = apps.get_model("scheme", "SchemeCredentialQuestion")
     link_questions = SchemeCredentialQuestion.objects.filter(manual_question=False, scan_question=False, options=0)
     for question in link_questions:
-        question.options = (1 << 0)
+        question.options = 1 << 0
         question.save()
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0037_auto_20171128_1040'),
+        ("scheme", "0037_auto_20171128_1040"),
     ]
 
     operations = [

@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0005_paymentaccountimagecriteria'),
+        ("payment_card", "0005_paymentaccountimagecriteria"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentaccountimagecriteria',
-            name='end_date',
+            model_name="paymentaccountimagecriteria",
+            name="end_date",
             field=models.DateTimeField(blank=True, null=True),
         ),
     ]

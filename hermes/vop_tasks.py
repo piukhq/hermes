@@ -3,17 +3,17 @@ from celery import shared_task
 from django.conf import settings
 
 from history.signals import HISTORY_CONTEXT
-from history.utils import set_history_kwargs, clean_history_kwargs
-from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
+from history.utils import clean_history_kwargs, set_history_kwargs
+from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
 
 
 def vop_activate_request(activation):
     data = {
-        'payment_token': activation.payment_card_account.psp_token,
-        'partner_slug': 'visa',
-        'merchant_slug': activation.scheme.slug,
-        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
+        "payment_token": activation.payment_card_account.psp_token,
+        "partner_slug": "visa",
+        "merchant_slug": activation.scheme.slug,
+        "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }
 
     try:
@@ -31,11 +31,11 @@ def process_result(rep, activation, link_action):
 
     response_data = {
         "agent_response_code": ret_data.get("agent_response_code", ""),
-        "agent_response_message": ret_data.get("agent_response_message", "")
+        "agent_response_message": ret_data.get("agent_response_message", ""),
     }
 
     if activation_id:
-        response_data['activation_id'] = activation_id
+        response_data["activation_id"] = activation_id
 
     if rep.status_code == 201:
         if activation_id and link_action == activation.ACTIVATING:
@@ -61,10 +61,11 @@ def activate(activation, data: dict):
         activation.status = activation.ACTIVATING
         activation.save(update_fields=["status"])
 
-    rep = requests.post(settings.METIS_URL + '/visa/activate/',
-                        json=data,
-                        headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                                 'Content-Type': 'application/json'})
+    rep = requests.post(
+        settings.METIS_URL + "/visa/activate/",
+        json=data,
+        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+    )
 
     return process_result(rep, activation, activation.ACTIVATING)
 
@@ -75,15 +76,17 @@ def send_activation(activation, data: dict, history_kwargs: dict = None):
     status, result = activate(activation, data)
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'ubiquity.tasks', 'retry_activation',
+            "ubiquity.tasks",
+            "retry_activation",
             context={"activation_id": activation.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 100, "results": [result]}
+            retry_kwargs={"max_retry_attempts": 100, "results": [result]},
         )
     elif status == PeriodicRetryStatus.FAILED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'ubiquity.tasks', 'retry_activation',
+            "ubiquity.tasks",
+            "retry_activation",
             context={"activation_id": activation.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
+            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]},
         )
 
     clean_history_kwargs(history_kwargs)
@@ -93,10 +96,11 @@ def deactivate(activation, data: dict):
     activation.status = activation.DEACTIVATING
     activation.save(update_fields=["status"])
 
-    rep = requests.post(settings.METIS_URL + '/visa/deactivate/',
-                        json=data,
-                        headers={'Authorization': 'Token {}'.format(settings.SERVICE_API_KEY),
-                                 'Content-Type': 'application/json'})
+    rep = requests.post(
+        settings.METIS_URL + "/visa/deactivate/",
+        json=data,
+        headers={"Authorization": "Token {}".format(settings.SERVICE_API_KEY), "Content-Type": "application/json"},
+    )
     return process_result(rep, activation, activation.DEACTIVATING)
 
 
@@ -104,23 +108,25 @@ def deactivate(activation, data: dict):
 def send_deactivation(activation, history_kwargs: dict = None):
     set_history_kwargs(history_kwargs)
     data = {
-        'payment_token': activation.payment_card_account.psp_token,
-        'partner_slug': 'visa',
-        'activation_id': activation.activation_id,
-        'id': activation.payment_card_account.id  # improves tracking via logs esp. in Metis
+        "payment_token": activation.payment_card_account.psp_token,
+        "partner_slug": "visa",
+        "activation_id": activation.activation_id,
+        "id": activation.payment_card_account.id,  # improves tracking via logs esp. in Metis
     }
     status, result = deactivate(activation, data)
 
     if status == PeriodicRetryStatus.REQUIRED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'ubiquity.tasks', 'retry_deactivation',
+            "ubiquity.tasks",
+            "retry_deactivation",
             context={"activation_id": activation.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 100, "results": [result]}
+            retry_kwargs={"max_retry_attempts": 100, "results": [result]},
         )
     elif status == PeriodicRetryStatus.FAILED:
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'ubiquity.tasks', 'retry_deactivation',
+            "ubiquity.tasks",
+            "retry_deactivation",
             context={"activation_id": activation.id, "post_data": data},
-            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]}
+            retry_kwargs={"max_retry_attempts": 0, "status": PeriodicRetryStatus.FAILED, "results": [result]},
         )
     clean_history_kwargs(history_kwargs)

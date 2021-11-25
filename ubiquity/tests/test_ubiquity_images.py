@@ -7,21 +7,25 @@ from common.models import Image
 from history.utils import GlobalMockAPITestCase
 from payment_card.tests.factories import PaymentCardAccountImageFactory, PaymentCardImageFactory
 from scheme.models import SchemeBundleAssociation
-from scheme.tests.factories import SchemeAccountImageFactory, SchemeImageFactory, SchemeBundleAssociationFactory
+from scheme.tests.factories import SchemeAccountImageFactory, SchemeBundleAssociationFactory, SchemeImageFactory
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory, SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
-from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
-                                  UserFactory)
+from user.tests.factories import (
+    ClientApplicationBundleFactory,
+    ClientApplicationFactory,
+    OrganisationFactory,
+    UserFactory,
+)
 
 
 class TestPaymentCardAccountImages(GlobalMockAPITestCase):
     @classmethod
     def setUpTestData(cls):
-        organisation = OrganisationFactory(name='set up authentication')
-        client = ClientApplicationFactory(organisation=organisation, name='set up client application')
-        bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client)
-        external_id = 'test@user.com'
+        organisation = OrganisationFactory(name="set up authentication")
+        client = ClientApplicationFactory(organisation=organisation, name="set up client application")
+        bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=client)
+        external_id = "test@user.com"
         cls.user = UserFactory(external_id=external_id, client=client, email=external_id)
 
         # Payment cards
@@ -31,7 +35,8 @@ class TestPaymentCardAccountImages(GlobalMockAPITestCase):
             image_type_code=2,
             status=Image.PUBLISHED,
             start_date=timezone.now() - timezone.timedelta(hours=1),
-            end_date=timezone.now() + timezone.timedelta(hours=1))
+            end_date=timezone.now() + timezone.timedelta(hours=1),
+        )
         cls.payment_card_account_image.payment_card_accounts.add(cls.payment_card_account)
 
         cls.payment_card_images = [
@@ -47,7 +52,8 @@ class TestPaymentCardAccountImages(GlobalMockAPITestCase):
             image_type_code=2,
             status=Image.PUBLISHED,
             start_date=timezone.now() - timezone.timedelta(hours=1),
-            end_date=timezone.now() + timezone.timedelta(hours=1))
+            end_date=timezone.now() + timezone.timedelta(hours=1),
+        )
         cls.membership_card_account_image.scheme_accounts.add(cls.membership_card_account)
 
         cls.membership_card_images = [
@@ -56,25 +62,25 @@ class TestPaymentCardAccountImages(GlobalMockAPITestCase):
             SchemeImageFactory(image_type_code=3, scheme=cls.membership_card_account.scheme),
         ]
 
-        cls.scheme_bundle_association = SchemeBundleAssociationFactory(scheme=cls.membership_card_account.scheme,
-                                                                       bundle=bundle,
-                                                                       status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association = SchemeBundleAssociationFactory(
+            scheme=cls.membership_card_account.scheme, bundle=bundle, status=SchemeBundleAssociation.ACTIVE
+        )
 
         token = GenerateJWToken(client.organisation.name, client.secret, bundle.bundle_id, external_id).get_token()
-        cls.auth_headers = {'HTTP_AUTHORIZATION': 'Bearer {}'.format(token)}
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "Bearer {}".format(token)}
 
     def test_images_in_payment_card_response(self):
-        resp = self.client.get(reverse('payment-cards'), **self.auth_headers)
+        resp = self.client.get(reverse("payment-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         json = resp.json()
-        self.assertIn('images', json[0])
-        self.assertIsInstance(json[0]['images'], list)
+        self.assertIn("images", json[0])
+        self.assertIsInstance(json[0]["images"], list)
 
-    @patch.object(MembershipTransactionsMixin, '_get_hades_transactions')
-    @patch('ubiquity.versioning.base.serializers.async_balance', autospec=True)
+    @patch.object(MembershipTransactionsMixin, "_get_hades_transactions")
+    @patch("ubiquity.versioning.base.serializers.async_balance", autospec=True)
     def test_images_in_membership_card_response(self, mock_get_midas_balance, _):
-        resp = self.client.get(reverse('membership-cards'), **self.auth_headers)
+        resp = self.client.get(reverse("membership-cards"), **self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         json = resp.json()
-        self.assertIn('images', json[0])
-        self.assertIsInstance(json[0]['images'], list)
+        self.assertIn("images", json[0])
+        self.assertIsInstance(json[0]["images"], list)

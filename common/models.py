@@ -6,8 +6,8 @@ class Image(models.Model):
     PUBLISHED = 1
 
     STATUSES = (
-        (DRAFT, 'draft'),
-        (PUBLISHED, 'published'),
+        (DRAFT, "draft"),
+        (PUBLISHED, "published"),
     )
 
     HERO = 0
@@ -22,16 +22,16 @@ class Image(models.Model):
     ALT_HERO = 9
 
     TYPES = (
-        (HERO, 'hero'),
-        (BANNER, 'banner'),
-        (OFFER, 'offers'),
-        (ICON, 'icon'),
-        (ASSET, 'asset'),
-        (REFERENCE, 'reference'),
-        (PERSONAL_OFFERS, 'personal offers'),
-        (PROMOTIONS, 'promotions'),
-        (TIER, 'tier'),
-        (ALT_HERO, 'alternative hero')
+        (HERO, "hero"),
+        (BANNER, "banner"),
+        (OFFER, "offers"),
+        (ICON, "icon"),
+        (ASSET, "asset"),
+        (REFERENCE, "reference"),
+        (PERSONAL_OFFERS, "personal offers"),
+        (PROMOTIONS, "promotions"),
+        (TIER, "tier"),
+        (ALT_HERO, "alternative hero"),
     )
 
     image_type_code = models.IntegerField(choices=TYPES)
@@ -56,37 +56,36 @@ class Image(models.Model):
         return dict(self.TYPES)[self.image_type_code]
 
     def __str__(self):
-        return '({}) {}'.format(self.image_type_code_name(), self.description)
+        return "({}) {}".format(self.image_type_code_name(), self.description)
 
     class Meta:
         abstract = True
 
     def ubiquity_format(self) -> dict:
         try:
-            encoding = self.encoding or self.image.name.split('.')[-1].replace('/', '')
+            encoding = self.encoding or self.image.name.split(".")[-1].replace("/", "")
         except (IndexError, AttributeError):
             encoding = None
 
         return {
-            'payload': {
-                'id': self.id,
-                'type': self.image_type_code,
-                'url': self.image.name,
-                'dark_mode_url': self.dark_mode_image.name,
-                'description': self.description,
-                'encoding': encoding,
-
+            "payload": {
+                "id": self.id,
+                "type": self.image_type_code,
+                "url": self.image.name,
+                "dark_mode_url": self.dark_mode_image.name,
+                "description": self.description,
+                "encoding": encoding,
             },
-            'validity': {
-                'start_date': self.start_date.timestamp() if self.start_date else None,
-                'end_date': self.end_date.timestamp() if self.end_date else None
-            }
+            "validity": {
+                "start_date": self.start_date.timestamp() if self.start_date else None,
+                "end_date": self.end_date.timestamp() if self.end_date else None,
+            },
         }
 
 
 def check_active_image(validity: dict, date: int) -> bool:
-    start = validity.get('start_date')
-    end = validity.get('end_date')
+    start = validity.get("start_date")
+    end = validity.get("end_date")
 
     if start is not None and start <= date:
         if end is not None and date >= end:

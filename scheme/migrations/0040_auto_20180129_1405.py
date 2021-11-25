@@ -8,18 +8,42 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0039_auto_20171128_1150'),
+        ("scheme", "0039_auto_20171128_1150"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='image_type_code',
-            field=models.IntegerField(choices=[(0, 'hero'), (1, 'banner'), (2, 'offers'), (3, 'icon'), (4, 'asset'), (5, 'reference'), (6, 'personal offers'), (7, 'promotions'), (8, 'tier')]),
+            model_name="schemeaccountimage",
+            name="image_type_code",
+            field=models.IntegerField(
+                choices=[
+                    (0, "hero"),
+                    (1, "banner"),
+                    (2, "offers"),
+                    (3, "icon"),
+                    (4, "asset"),
+                    (5, "reference"),
+                    (6, "personal offers"),
+                    (7, "promotions"),
+                    (8, "tier"),
+                ]
+            ),
         ),
         migrations.AlterField(
-            model_name='schemeimage',
-            name='image_type_code',
-            field=models.IntegerField(choices=[(0, 'hero'), (1, 'banner'), (2, 'offers'), (3, 'icon'), (4, 'asset'), (5, 'reference'), (6, 'personal offers'), (7, 'promotions'), (8, 'tier')]),
+            model_name="schemeimage",
+            name="image_type_code",
+            field=models.IntegerField(
+                choices=[
+                    (0, "hero"),
+                    (1, "banner"),
+                    (2, "offers"),
+                    (3, "icon"),
+                    (4, "asset"),
+                    (5, "reference"),
+                    (6, "personal offers"),
+                    (7, "promotions"),
+                    (8, "tier"),
+                ]
+            ),
         ),
     ]

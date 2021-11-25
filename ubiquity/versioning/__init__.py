@@ -2,15 +2,14 @@ import logging
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from hermes.settings import Version, DEFAULT_API_VERSION
+from hermes.settings import DEFAULT_API_VERSION, Version
 from ubiquity.versioning.base import serializers as base_serializers
 from ubiquity.versioning.v1_2 import serializers as v1_2_serializers
 from ubiquity.versioning.v1_3 import serializers as v1_3_serializers
 
-
 if TYPE_CHECKING:
-    from rest_framework.serializers import Serializer
     from rest_framework.request import Request
+    from rest_framework.serializers import Serializer
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +22,20 @@ SERIALIZERS_CLASSES = {
 
 
 class SelectSerializer(str, Enum):
-    SERVICE = 'ServiceSerializer'
-    MEMBERSHIP_PLAN = 'MembershipPlanSerializer'
-    MEMBERSHIP_CARD = 'MembershipCardSerializer'
-    PAYMENT_CARD = 'PaymentCardSerializer'
-    MEMBERSHIP_TRANSACTION = 'TransactionSerializer'
-    PAYMENT_CARD_TRANSLATION = 'PaymentCardTranslationSerializer'
+    SERVICE = "ServiceSerializer"
+    MEMBERSHIP_PLAN = "MembershipPlanSerializer"
+    MEMBERSHIP_CARD = "MembershipCardSerializer"
+    PAYMENT_CARD = "PaymentCardSerializer"
+    MEMBERSHIP_TRANSACTION = "TransactionSerializer"
+    PAYMENT_CARD_TRANSLATION = "PaymentCardTranslationSerializer"
 
 
-def get_api_version(request: 'Request') -> Version:
-    if hasattr(request, 'api_version'):
+def get_api_version(request: "Request") -> Version:
+    if hasattr(request, "api_version"):
         return request.api_version
 
     try:
-        ver = "{}.{}".format(*request.version.split('.')[:2])
+        ver = "{}.{}".format(*request.version.split(".")[:2])
         ver = Version(ver).value
 
     except (IndexError, ValueError) as e:
@@ -48,10 +47,10 @@ def get_api_version(request: 'Request') -> Version:
         logger.warning(message + f"defaulting the max version: {DEFAULT_API_VERSION}")
         ver = DEFAULT_API_VERSION
 
-    setattr(request, 'api_version', ver)
+    setattr(request, "api_version", ver)
     return ver
 
 
-def versioned_serializer_class(version: Version, model: SelectSerializer) -> 'Serializer()':
+def versioned_serializer_class(version: Version, model: SelectSerializer) -> "Serializer()":
     serializers = SERIALIZERS_CLASSES[version]
     return getattr(serializers, model)

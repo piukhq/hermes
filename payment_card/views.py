@@ -7,7 +7,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from rest_framework import generics, serializers as rest_framework_serializers, status
+from rest_framework import generics
+from rest_framework import serializers as rest_framework_serializers
+from rest_framework import status
 from rest_framework.generics import GenericAPIView, RetrieveUpdateDestroyAPIView, get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,11 +19,11 @@ from payment_card import metis, serializers
 from payment_card.forms import CSVUploadForm
 from payment_card.models import PaymentCard, PaymentCardAccount, PaymentCardAccountImage, ProviderStatusMapping
 from payment_card.serializers import PaymentCardClientSerializer
-from periodic_retry.models import RetryTaskList, PeriodicRetryStatus
+from periodic_retry.models import PeriodicRetryStatus, RetryTaskList
 from periodic_retry.tasks import PeriodicRetryHandler
-from prometheus.metrics import payment_card_status_change_counter, payment_card_processing_seconds_histogram
+from prometheus.metrics import payment_card_processing_seconds_histogram, payment_card_status_change_counter
 from scheme.models import Scheme
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, PaymentCardSchemeEntry, VopActivation
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry, VopActivation
 from user.authentication import AllowService, JwtAuthentication, ServiceAuthentication
 from user.models import ClientApplication, Organisation
 
@@ -30,6 +32,7 @@ class ListPaymentCard(generics.ListAPIView):
     """
     List of supported payment cards.
     """
+
     queryset = PaymentCard.objects
     serializer_class = serializers.PaymentCardSerializer
 
@@ -41,10 +44,7 @@ class PaymentCardAccountQuery(APIView):
         try:
             queryset = PaymentCardAccount.objects.filter(**dict(request.query_params.items()))
         except Exception as e:
-            response = {
-                'exception_class': e.__class__.__name__,
-                'exception_args': e.args
-            }
+            response = {"exception_class": e.__class__.__name__, "exception_args": e.args}
             return Response(response, status=status.HTTP_400_BAD_REQUEST)
         serializer = serializers.QueryPaymentCardAccountSerializer(instance=queryset, many=True)
         return Response(serializer.data)
@@ -54,6 +54,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
     """
     Retrieve and update payment card information.
     """
+
     queryset = PaymentCardAccount.objects
     serializer_class = serializers.PaymentCardAccountSerializer
 
@@ -62,7 +63,7 @@ class RetrievePaymentCardAccount(RetrieveUpdateDestroyAPIView):
         return self.queryset.filter(user_set__id=user_id)
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', True)
+        partial = kwargs.pop("partial", True)
         instance = self.get_object()
         serializer = serializers.UpdatePaymentCardAccountSerializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -98,8 +99,10 @@ class ListCreatePaymentCardAccount(APIView):
         ---
         response_serializer: serializers.PaymentCardAccountSerializer
         """
-        accounts = [self.serializer_class(instance=account).data for account in
-                    PaymentCardAccount.objects.filter(user_set__id=request.user.id)]
+        accounts = [
+            self.serializer_class(instance=account).data
+            for account in PaymentCardAccount.objects.filter(user_set__id=request.user.id)
+        ]
         return Response(accounts, status=200)
 
     # TODO: this will be removed later when we remove all the legacy endpoints,
@@ -121,7 +124,7 @@ class ListCreatePaymentCardAccount(APIView):
     #     return Response(message, status=status_code)
 
     def create_payment_card_account(self, data, user, old_account=None):
-        data['psp_token'] = data.pop('token')
+        data["psp_token"] = data.pop("token")
         account = PaymentCardAccount(**data)
         result = self._create_payment_card_account(account, user, old_account)
         if not isinstance(result, PaymentCardAccount):
@@ -163,14 +166,13 @@ class ListCreatePaymentCardAccount(APIView):
     def apply_barclays_images(account):
         # if the card is a barclaycard, attach relevant placeholder images to signify that we can't auto-collect.
         if account.pan_start in settings.BARCLAYS_BINS:
-            barclays_offer_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                                       image_type_code=6)
+            barclays_offer_image = PaymentCardAccountImage.objects.get(description="barclays", image_type_code=6)
             barclays_offer_image.payment_card_accounts.add(account)
 
             try:
-                barclays_hero_image = PaymentCardAccountImage.objects.get(description='barclays',
-                                                                          image_type_code=0,
-                                                                          payment_card=account.payment_card)
+                barclays_hero_image = PaymentCardAccountImage.objects.get(
+                    description="barclays", image_type_code=0, payment_card=account.payment_card
+                )
             except PaymentCardAccountImage.DoesNotExist:
                 # not a barclays card that we have an image for, so don't add it.
                 pass
@@ -185,17 +187,11 @@ class RetrievePaymentCardSchemeAccounts(generics.ListAPIView):
     authentication_classes = (JwtAuthentication, ServiceAuthentication)
 
     def get_queryset(self):
-        token = self.kwargs.get('token')
+        token = self.kwargs.get("token")
         payment_card_account = PaymentCardAccount.objects.filter(token=token).first()
         scheme_account_set = payment_card_account.scheme_account_set.all()
 
-        return [
-            {
-                'scheme_id': scheme.scheme_id,
-                'scheme_account_id': scheme.id
-            }
-            for scheme in list(scheme_account_set)
-        ]
+        return [{"scheme_id": scheme.scheme_id, "scheme_account_id": scheme.id} for scheme in list(scheme_account_set)]
 
 
 class RetrieveLoyaltyID(APIView):
@@ -203,27 +199,31 @@ class RetrieveLoyaltyID(APIView):
 
     def post(self, request, scheme_slug):
         response_data = []
-        body_unicode = request.body.decode('utf-8')
+        body_unicode = request.body.decode("utf-8")
         body = json.loads(body_unicode)
-        payment_card_tokens = body['payment_cards']
+        payment_card_tokens = body["payment_cards"]
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
             payment_card_entry = PaymentCardAccountEntry.objects.filter(
-                payment_card_account__token=payment_card_token).first()
+                payment_card_account__token=payment_card_token
+            ).first()
             if payment_card_entry:
                 payment_card = payment_card_entry.payment_card_account
                 try:
-                    scheme_account_entry = SchemeAccountEntry.objects.get(user=payment_card_entry.user,
-                                                                          scheme_account__scheme=scheme)
+                    scheme_account_entry = SchemeAccountEntry.objects.get(
+                        user=payment_card_entry.user, scheme_account__scheme=scheme
+                    )
                 except ObjectDoesNotExist:
                     # the user was matched but is not registered in that scheme
                     response_data.append({payment_card_token: None})
                 else:
                     scheme_account = scheme_account_entry.scheme_account
-                    response_data.append({
-                        payment_card.token: scheme_account.third_party_identifier,
-                        'scheme_account_id': scheme_account.id
-                    })
+                    response_data.append(
+                        {
+                            payment_card.token: scheme_account.third_party_identifier,
+                            "scheme_account_id": scheme_account.id,
+                        }
+                    )
             else:
                 response_data.append({payment_card_token: None})
         return JsonResponse(response_data, safe=False)
@@ -235,13 +235,14 @@ class RetrievePaymentCardUserInfo(APIView):
     @staticmethod
     def post(request, scheme_slug):
         response_data = {}
-        body_unicode = request.body.decode('utf-8')
+        body_unicode = request.body.decode("utf-8")
         body = json.loads(body_unicode)
-        payment_card_tokens = body['payment_cards']
+        payment_card_tokens = body["payment_cards"]
         scheme = get_object_or_404(Scheme, slug=scheme_slug)
         for payment_card_token in payment_card_tokens:
             payment_card_entries = PaymentCardAccountEntry.objects.filter(
-                payment_card_account__token=payment_card_token)
+                payment_card_account__token=payment_card_token
+            )
 
             # if there's no payment card for this token, leave it out of the returned data.
             if not payment_card_entries.exists():
@@ -250,34 +251,35 @@ class RetrievePaymentCardUserInfo(APIView):
             active_links = PaymentCardSchemeEntry.objects.filter(
                 active_link=True,
                 scheme_account__scheme=scheme,
-                payment_card_account__id__in=(p.payment_card_account.id for p in payment_card_entries)
+                payment_card_account__id__in=(p.payment_card_account.id for p in payment_card_entries),
             )
 
             if active_links.exists():
-                scheme_account = active_links.order_by('scheme_account__created').first().scheme_account
+                scheme_account = active_links.order_by("scheme_account__created").first().scheme_account
                 user_id = scheme_account.get_transaction_matching_user_id()
 
                 response_data[payment_card_token] = {
-                    'loyalty_id': scheme_account.third_party_identifier,
-                    'scheme_account_id': scheme_account.id,
-                    'user_id': user_id,
-                    'credentials': scheme_account.credentials()
+                    "loyalty_id": scheme_account.third_party_identifier,
+                    "scheme_account_id": scheme_account.id,
+                    "user_id": user_id,
+                    "credentials": scheme_account.credentials(),
                 }
             else:
                 # the user was matched but is not registered in that scheme
                 response_data[payment_card_token] = {
-                    'loyalty_id': None,
-                    'scheme_account_id': None,
-                    'user_id': payment_card_entries.first().user.id,
-                    'credentials': '',
+                    "loyalty_id": None,
+                    "scheme_account_id": None,
+                    "user_id": payment_card_entries.first().user.id,
+                    "credentials": "",
                 }
 
             active_card = next(
-                (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None)
+                (x for x in payment_card_entries if x.payment_card_account.status == PaymentCardAccount.ACTIVE), None
+            )
             if active_card:
-                response_data[payment_card_token]['card_information'] = {
-                    'first_six': active_card.payment_card_account.pan_start,
-                    'last_four': active_card.payment_card_account.pan_end
+                response_data[payment_card_token]["card_information"] = {
+                    "first_six": active_card.payment_card_account.pan_start,
+                    "last_four": active_card.payment_card_account.pan_end,
                 }
 
         return JsonResponse(response_data, safe=False)
@@ -290,24 +292,26 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
 
     def _new_retry(self, retry_task, attempts, card_id, retry_status, response_message, response_status):
         PeriodicRetryHandler(task_list=RetryTaskList.METIS_REQUESTS).new(
-            'payment_card.metis', retry_task,
+            "payment_card.metis",
+            retry_task,
             context={"card_id": int(card_id)},
-            retry_kwargs={"max_retry_attempts": attempts,
-                          "results": [{"caused_by": response_message, "status": response_status}],
-                          "status": retry_status
-                          }
+            retry_kwargs={
+                "max_retry_attempts": attempts,
+                "results": [{"caused_by": response_message, "status": response_status}],
+                "status": retry_status,
+            },
         )
 
     def _process_retries(self, retry_task, response_state, retry_id, response_message, response_status, card_id):
         if retry_id is None or retry_id < 1:
             # First time call back
             if response_state == "Retry":
-                self._new_retry(retry_task, 100, card_id,
-                                PeriodicRetryStatus.REQUIRED, response_message, response_status)
+                self._new_retry(
+                    retry_task, 100, card_id, PeriodicRetryStatus.REQUIRED, response_message, response_status
+                )
             elif response_state == "Failed":
                 # Just save retry info for manual retry without invoking retry attempt
-                self._new_retry(retry_task, 0, card_id,
-                                PeriodicRetryStatus.FAILED, response_message, response_status)
+                self._new_retry(retry_task, 0, card_id, PeriodicRetryStatus.FAILED, response_message, response_status)
         else:
             # We are actively retrying
             task = PeriodicRetryHandler.get_task(retry_id=retry_id)
@@ -349,26 +353,26 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
                         for reference
         """
         agent_data = {}
-        card_id = request.data.get('id', None)
-        token = request.data.get('token', None)
-        response_status = request.data.get('response_status', None)
-        response_message = request.data.get('response_message', None)
-        response_state = request.data.get('response_state', None)
-        retry_id = request.data.get('retry_id', None)
-        response_action = request.data.get('response_action', "Add")
-        new_status_code = request.data.get('status', None)
+        card_id = request.data.get("id", None)
+        token = request.data.get("token", None)
+        response_status = request.data.get("response_status", None)
+        response_message = request.data.get("response_message", None)
+        response_state = request.data.get("response_state", None)
+        retry_id = request.data.get("retry_id", None)
+        response_action = request.data.get("response_action", "Add")
+        new_status_code = request.data.get("status", None)
         # deactivated_list = request.data.get('deactivated_list', [])
         # deactivate_errors = request.data.get('deactivate_errors', {})
-        agent_card_uid = request.data.get('agent_card_uid', None)
+        agent_card_uid = request.data.get("agent_card_uid", None)
 
         if agent_card_uid:
-            agent_data['card_uid'] = agent_card_uid
+            agent_data["card_uid"] = agent_card_uid
 
         if new_status_code is not None:
             new_status_code = int(new_status_code)
 
         if not (card_id or token):
-            raise rest_framework_serializers.ValidationError('No ID or token provided.')
+            raise rest_framework_serializers.ValidationError("No ID or token provided.")
 
         if card_id:
             payment_card_account = get_object_or_404(PaymentCardAccount, id=int(card_id))
@@ -381,19 +385,18 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
         if response_action == "Delete":
             retry_task, response_message = self._process_delete_response_action(request, response_message)
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
-            return Response({
-                'id': payment_card_account.id
-            })
+            return Response({"id": payment_card_account.id})
 
-        return self._add_response(payment_card_account, new_status_code, response_state, retry_id,
-                                  response_message, response_status, card_id)
+        return self._add_response(
+            payment_card_account, new_status_code, response_state, retry_id, response_message, response_status, card_id
+        )
 
     @staticmethod
     def _process_delete_response_action(request, response_message):
         # Retry with delete action is only called for providers which support it eg VOP path
         retry_task = "retry_delete_payment_card"
-        deactivated_list = request.data.get('deactivated_list', [])
-        deactivate_errors = request.data.get('deactivate_errors', {})
+        deactivated_list = request.data.get("deactivated_list", [])
+        deactivate_errors = request.data.get("deactivate_errors", {})
         if deactivate_errors:
             response_message = ";".join([response_message, "Deactivation Errors", str(deactivate_errors)])
 
@@ -407,13 +410,21 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
 
         return retry_task, response_message
 
-    def _add_response(self, payment_card_account, new_status_code, response_state, retry_id,
-                      response_message, response_status, card_id):
+    def _add_response(
+        self,
+        payment_card_account,
+        new_status_code,
+        response_state,
+        retry_id,
+        response_message,
+        response_status,
+        card_id,
+    ):
         # Normal enrol path for set status
         retry_task = "retry_enrol"
 
         if new_status_code not in [status_code[0] for status_code in PaymentCardAccount.STATUSES]:
-            raise rest_framework_serializers.ValidationError('Invalid status code sent.')
+            raise rest_framework_serializers.ValidationError("Invalid status code sent.")
 
         if new_status_code != payment_card_account.status:
             if payment_card_account.status == PaymentCardAccount.PENDING:
@@ -426,43 +437,43 @@ class UpdatePaymentCardAccountStatus(GenericAPIView):
             payment_card_account.save(update_fields=["status", "agent_data"])
 
             payment_card_status_change_counter.labels(
-                provider=payment_card_account.payment_card.system_name,
-                status=payment_card_account.status_name
+                provider=payment_card_account.payment_card.system_name, status=payment_card_account.status_name
             ).inc()
 
             # Update soft link status
             if new_status_code == payment_card_account.ACTIVE:
                 # make any soft links active for payment_card_account
-                PaymentCardSchemeEntry.update_soft_links({'payment_card_account': payment_card_account})
+                PaymentCardSchemeEntry.update_soft_links({"payment_card_account": payment_card_account})
 
         if response_state:
             # Only metis agents which send a response state will be retried
             self._process_retries(retry_task, response_state, retry_id, response_message, response_status, card_id)
 
-        return Response({
-            'id': payment_card_account.id,
-            'status': new_status_code
-        })
+        return Response({"id": payment_card_account.id, "status": new_status_code})
 
 
 class ListProviderStatusMappings(generics.ListAPIView):
     """
     List available provider-bink status mappings.
     """
+
     authentication_classes = (ServiceAuthentication,)
     serializer_class = serializers.ProviderStatusMappingSerializer
 
     def get_queryset(self):
-        slug = self.kwargs['slug']
+        slug = self.kwargs["slug"]
 
         # we need to provide callers with the UNKNOWN error code for any error not in the returned dictionary.
         # look for an UNKNOWN status card for this provider...
-        if not ProviderStatusMapping.objects.filter(provider__slug=slug,
-                                                    bink_status_code=PaymentCardAccount.UNKNOWN).exists():
+        if not ProviderStatusMapping.objects.filter(
+            provider__slug=slug, bink_status_code=PaymentCardAccount.UNKNOWN
+        ).exists():
             # there isn't one yet, so add it.
-            ProviderStatusMapping(provider=PaymentCard.objects.get(slug=slug),
-                                  provider_status_code='BINK_UNKNOWN',
-                                  bink_status_code=PaymentCardAccount.UNKNOWN).save()
+            ProviderStatusMapping(
+                provider=PaymentCard.objects.get(slug=slug),
+                provider_status_code="BINK_UNKNOWN",
+                bink_status_code=PaymentCardAccount.UNKNOWN,
+            ).save()
 
         return ProviderStatusMapping.objects.filter(provider__slug=slug)
 
@@ -470,21 +481,22 @@ class ListProviderStatusMappings(generics.ListAPIView):
 def csv_upload(request):
     # If we had a POST then get the request post values.
     form = CSVUploadForm()
-    if request.method == 'POST':
+    if request.method == "POST":
         form = CSVUploadForm(request.POST, request.FILES)
         if form.is_valid():
-            payment_card = PaymentCard.objects.get(id=int(request.POST['scheme']))
-            uploaded_file = StringIO(request.FILES['emails'].file.read().decode())
+            payment_card = PaymentCard.objects.get(id=int(request.POST["scheme"]))
+            uploaded_file = StringIO(request.FILES["emails"].file.read().decode())
             # 6 = magic number for personal offers
-            image_instance = PaymentCardAccountImage(payment_card=payment_card, start_date=timezone.now(),
-                                                     image_type_code=6, order=0)
+            image_instance = PaymentCardAccountImage(
+                payment_card=payment_card, start_date=timezone.now(), image_type_code=6, order=0
+            )
             image_instance.save()
-            csvreader = csv.reader(uploaded_file, delimiter=',', quotechar='"')
+            csvreader = csv.reader(uploaded_file, delimiter=",", quotechar='"')
             for row in csvreader:
                 for email in row:
                     payment_card_account_entry = PaymentCardAccountEntry.objects.filter(
-                        user__email=email.lstrip(),
-                        payment_card_account__payment_card=payment_card)
+                        user__email=email.lstrip(), payment_card_account__payment_card=payment_card
+                    )
                     if payment_card_account_entry:
                         image_instance.payment_card_accounts.add(
                             payment_card_account_entry.first().payment_card_account
@@ -495,10 +507,10 @@ def csv_upload(request):
 
             image_instance.save()
 
-            return redirect('/admin/payment_card/paymentaccountimage/{}'.format(image_instance.id))
+            return redirect("/admin/payment_card/paymentaccountimage/{}".format(image_instance.id))
 
-    context = {'form': form}
-    return render(request, 'admin/csv_upload_form.html', context)
+    context = {"form": form}
+    return render(request, "admin/csv_upload_form.html", context)
 
 
 class AuthTransactionView(generics.CreateAPIView):
@@ -517,7 +529,7 @@ class ListPaymentCardClientApplication(generics.ListAPIView):
         for system in PaymentCard.SYSTEMS:
             try:
                 organisation = Organisation.objects.get(name=system[1])
-                client = ClientApplication.objects.get(organisation=organisation, name__contains='Auth Transactions')
+                client = ClientApplication.objects.get(organisation=organisation, name__contains="Auth Transactions")
                 clients.append(client)
             except (Organisation.DoesNotExist, ClientApplication.DoesNotExist):
                 pass

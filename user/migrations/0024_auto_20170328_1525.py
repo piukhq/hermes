@@ -8,13 +8,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0023_data_bink_clientapplication_secret'),
+        ("user", "0023_data_bink_clientapplication_secret"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='clientapplicationbundle',
-            old_name='client_application',
-            new_name='client',
+            model_name="clientapplicationbundle",
+            old_name="client_application",
+            new_name="client",
         ),
     ]

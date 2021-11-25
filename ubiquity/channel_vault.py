@@ -30,12 +30,7 @@ class VaultError(Exception):
 
 def retry_session(backoff_factor: float = 0.3) -> requests.Session:
     session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=backoff_factor,
-        method_whitelist=False,
-        status_forcelist=[500, 502, 503, 504]
-    )
+    retry = Retry(total=3, backoff_factor=backoff_factor, method_whitelist=False, status_forcelist=[500, 502, 503, 504])
     adapter = HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -94,23 +89,25 @@ def load_secrets(config):
     if loaded:
         logger.info("Tried to load the vault secrets more than once, ignoring the request.")
 
-    elif config.get('LOCAL_SECRETS'):
+    elif config.get("LOCAL_SECRETS"):
         logger.info(f"Fetching secrets from local file: {config['LOCAL_SECRETS_PATH']}")
-        with open(config['LOCAL_SECRETS_PATH']) as fp:
+        with open(config["LOCAL_SECRETS_PATH"]) as fp:
             local_secrets = json.load(fp)
 
-        _bundle_secrets = local_secrets['channels']
-        _secret_keys = local_secrets['secret-keys']
-        _aes_keys = local_secrets['aes-keys']
-        _barclays_hermes_sftp = local_secrets['barclays-hermes-sftp']
+        _bundle_secrets = local_secrets["channels"]
+        _secret_keys = local_secrets["secret-keys"]
+        _aes_keys = local_secrets["aes-keys"]
+        _barclays_hermes_sftp = local_secrets["barclays-hermes-sftp"]
         loaded = True
 
     else:
 
-        secrets_to_load = [(config['BUNDLE_SECRETS_NAME'], _bundle_secrets),
-                           (config['SECRET_KEYS_NAME'], _secret_keys),
-                           (config['AES_KEYS_NAME'], _aes_keys),
-                           (config['BARCLAYS_SFTP_SECRETS_NAME'], _barclays_hermes_sftp)]
+        secrets_to_load = [
+            (config["BUNDLE_SECRETS_NAME"], _bundle_secrets),
+            (config["SECRET_KEYS_NAME"], _secret_keys),
+            (config["AES_KEYS_NAME"], _aes_keys),
+            (config["BARCLAYS_SFTP_SECRETS_NAME"], _barclays_hermes_sftp),
+        ]
 
         client = get_azure_client(config)
 
@@ -119,9 +116,7 @@ def load_secrets(config):
         for secret_name, secret_dict in secrets_to_load:
 
             try:
-                logger.info(
-                    f"Loading {secret_name} from vault at {config['VAULT_URL']}"
-                )
+                logger.info(f"Loading {secret_name} from vault at {config['VAULT_URL']}")
                 secret_dict.update(json.loads(client.get_secret(secret_name).value))
                 logger.info(f"Success: Loaded {secret_name}")
 
@@ -131,9 +126,7 @@ def load_secrets(config):
 
         if errors:
             err_msg = "Failed to load secrets: "
-            logger.exception(
-                "{}\n{}".format(err_msg, "\n".join([str(obj) for obj in zip(failed_secrets, errors)]))
-            )
+            logger.exception("{}\n{}".format(err_msg, "\n".join([str(obj) for obj in zip(failed_secrets, errors)])))
             raise VaultError(f"{failed_secrets}")
 
         loaded = True
@@ -146,19 +139,16 @@ def get_azure_client(config: dict) -> SecretClient:
         exclude_shared_token_cache_credential=True,
         exclude_visual_studio_code_credential=True,
         exclude_interactive_browser_credential=True,
-                                        )
-
-    client = SecretClient(
-        vault_url=config['VAULT_URL'],
-        credential=credential
     )
+
+    client = SecretClient(vault_url=config["VAULT_URL"], credential=credential)
 
     return client
 
 
 def get_jwt_secret(bundle_id):
     try:
-        return _bundle_secrets[bundle_id]['jwt_secret']
+        return _bundle_secrets[bundle_id]["jwt_secret"]
     except KeyError as e:
         raise exceptions.AuthenticationFailed(f"JWT is invalid: {e}") from e
 

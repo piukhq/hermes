@@ -2,7 +2,7 @@ import logging
 
 import sentry_sdk
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
+from django.core.exceptions import MultipleObjectsReturned, ObjectDoesNotExist
 from django.db.models import Q
 from rest_framework import exceptions
 
@@ -17,8 +17,16 @@ class Permit:
     SUSPENDED = 2
     ACTIVE = 3
 
-    def __init__(self, bundle_id=None, client=None, organisation_name=None, service_allow_all=False, ubiquity=False,
-                 user=None, auth_by='external'):
+    def __init__(
+        self,
+        bundle_id=None,
+        client=None,
+        organisation_name=None,
+        service_allow_all=False,
+        ubiquity=False,
+        user=None,
+        auth_by="external",
+    ):
         """This class is instantiated during authentication and should be passed via request object to allow query
         filtering and channel status testing
         Each group of users belongs to a client application which belongs to one organisation.
@@ -55,19 +63,22 @@ class Permit:
 
     def _authenticate_bundle(self, organisation_name, bundle_id):
         if not self.client and not organisation_name and not self.service_allow_all:
-            raise exceptions.AuthenticationFailed('Invalid Token')
+            raise exceptions.AuthenticationFailed("Invalid Token")
         elif organisation_name and not self.client:
             self._init_server_to_server(organisation_name)
         elif self.client and not bundle_id:
             # This occurs if an old client to server token without client or bundle_id is encountered.
             try:
-                self.bundle_id = ClientApplicationBundle.objects.values_list('bundle_id',
-                                                                             flat=True).get(client=self.client)
+                self.bundle_id = ClientApplicationBundle.objects.values_list("bundle_id", flat=True).get(
+                    client=self.client
+                )
             except MultipleObjectsReturned:
-                logger.error(f"There are multiple bundle ids for client '{self.client}' due to a configuration error"
-                             "Error found in channels.py when trying to "
-                             "find a bundle_id using client because it was not in the token")
-                raise exceptions.AuthenticationFailed('Invalid Token')
+                logger.error(
+                    f"There are multiple bundle ids for client '{self.client}' due to a configuration error"
+                    "Error found in channels.py when trying to "
+                    "find a bundle_id using client because it was not in the token"
+                )
+                raise exceptions.AuthenticationFailed("Invalid Token")
 
     def _init_server_to_server(self, organisation_name):
         # Ubiquity tokens supplies credentials for bundle_id and organisation_name and these need to be verified
@@ -75,7 +86,8 @@ class Permit:
         try:
             with sentry_sdk.start_span(op="first db call", description="get bundle"):
                 self.looked_up_bundle = ClientApplicationBundle.get_bundle_by_bundle_id_and_org_name(
-                    self.bundle_id, organisation_name)
+                    self.bundle_id, organisation_name
+                )
             self.client = self.looked_up_bundle.client
         except ObjectDoesNotExist:
             raise KeyError
@@ -83,10 +95,12 @@ class Permit:
             # This should not occur after release as unique together constraint has been added in a migration
             # Covers edge case of duplicate already exists which would cause the unique together migration to fail
             # then this error message will help debug
-            logger.error(f"Multiple bundles match '{self.bundle_id}' and organisation '{organisation_name}'"
-                         "Error found in channels.py when checking token. A migration added unique together constraint"
-                         "which should have prevented this error")
-            raise exceptions.AuthenticationFailed('Invalid Token')
+            logger.error(
+                f"Multiple bundles match '{self.bundle_id}' and organisation '{organisation_name}'"
+                "Error found in channels.py when checking token. A migration added unique together constraint"
+                "which should have prevented this error"
+            )
+            raise exceptions.AuthenticationFailed("Invalid Token")
 
     @staticmethod
     def is_authenticated():
@@ -105,30 +119,35 @@ class Permit:
         # Bundle will only be looked up when required and only once per request
         if not self.looked_up_bundle:
             try:
-                self.looked_up_bundle = ClientApplicationBundle.objects.get(bundle_id=self.bundle_id,
-                                                                            client=self.client)
+                self.looked_up_bundle = ClientApplicationBundle.objects.get(
+                    bundle_id=self.bundle_id, client=self.client
+                )
             except ObjectDoesNotExist:
-                logger.error(f"No ClientApplicationBundle found for '{self.bundle_id}' and client '{self.client}'"
-                             "Bundle id has not been configured to a client in Admin")
-                raise exceptions.AuthenticationFailed('Invalid Token')
+                logger.error(
+                    f"No ClientApplicationBundle found for '{self.bundle_id}' and client '{self.client}'"
+                    "Bundle id has not been configured to a client in Admin"
+                )
+                raise exceptions.AuthenticationFailed("Invalid Token")
             except MultipleObjectsReturned:
-                logger.error(f"Multiple bundles match '{self.bundle_id}' and client '{self.client}'"
-                             "Error found in channels.py when looking up bundle. This a error caused by"
-                             "configuring the same bundle to more than one client/organisation.")
-                raise exceptions.AuthenticationFailed('Invalid Token')
+                logger.error(
+                    f"Multiple bundles match '{self.bundle_id}' and client '{self.client}'"
+                    "Error found in channels.py when looking up bundle. This a error caused by"
+                    "configuring the same bundle to more than one client/organisation."
+                )
+                raise exceptions.AuthenticationFailed("Invalid Token")
         return self.looked_up_bundle
 
     @staticmethod
-    def scheme_suspended(relation=''):
-        return {f'{relation}schemebundleassociation__status': SchemeBundleAssociation.SUSPENDED}
+    def scheme_suspended(relation=""):
+        return {f"{relation}schemebundleassociation__status": SchemeBundleAssociation.SUSPENDED}
 
     def scheme_query(self, query, allow=None):
-        return self.related_model_query(query, '', allow)
+        return self.related_model_query(query, "", allow)
 
     def scheme_account_query(self, query, allow=None, user_id=None, user_filter=True):
         if user_filter and not self.service_allow_all:
             query = self._user_filter(query, user_id)
-        return self.related_model_query(query, 'scheme__', allow)
+        return self.related_model_query(query, "scheme__", allow)
 
     def _user_filter(self, query, user_id):
         if not user_id:
@@ -139,7 +158,7 @@ class Permit:
         return query.filter(user_set__id=user_id)
 
     def scheme_payment_account_query(self, query, allow=None):
-        return self.related_model_query(query, 'scheme_account_set__scheme__', allow)
+        return self.related_model_query(query, "scheme_account_set__scheme__", allow)
 
     def payment_card_account_query(self, query, user_id=None, user_filter=True):
         if user_filter and not self.service_allow_all:
@@ -151,15 +170,15 @@ class Permit:
         not_permitted = not self.user.is_tester and bundle_assoc.test_scheme
         return not not_permitted
 
-    def related_model_query(self, query, relation='', allow=None):
+    def related_model_query(self, query, relation="", allow=None):
         if self.service_allow_all:
             return query
-        bundle_root = f'{relation}schemebundleassociation__'
-        status_key = f'{bundle_root}status'
-        bundle = {f'{bundle_root}bundle': self.bundle}
+        bundle_root = f"{relation}schemebundleassociation__"
+        status_key = f"{bundle_root}status"
+        bundle = {f"{bundle_root}bundle": self.bundle}
         active = {status_key: SchemeBundleAssociation.ACTIVE}
         suspended = {status_key: SchemeBundleAssociation.SUSPENDED}
-        not_test_scheme = {f'{bundle_root}test_scheme': False}
+        not_test_scheme = {f"{bundle_root}test_scheme": False}
         q = Q(**bundle)
         if self.user and not self.user.is_tester:
             q = q & Q(**not_test_scheme)
@@ -191,7 +210,7 @@ class Permit:
         status = self.scheme_status(scheme_id)
         return status is not None and status != SchemeBundleAssociation.INACTIVE
 
-    def scheme_status_name(self, scheme_id, active='active', suspended='suspended', in_active='in_active'):
+    def scheme_status_name(self, scheme_id, active="active", suspended="suspended", in_active="in_active"):
         label = in_active
         status = self.scheme_status(scheme_id)
         if status == SchemeBundleAssociation.ACTIVE:
@@ -210,12 +229,11 @@ class Permit:
             bundle_id=self.bundle_id, scheme_id=scheme_id
         )
         if len(status_list) > 1:
-            logger.error(f"Channels id ='{self.bundle_id}' has "
-                         f"multiple entries for scheme id '{scheme_id}'")
-            raise exceptions.AuthenticationFailed('Invalid Token')
+            logger.error(f"Channels id ='{self.bundle_id}' has " f"multiple entries for scheme id '{scheme_id}'")
+            raise exceptions.AuthenticationFailed("Invalid Token")
 
         if status_list:
-            status = status_list[0]['status']
+            status = status_list[0]["status"]
         else:
             status = None
 

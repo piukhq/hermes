@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0003_membershipplandocument'),
+        ("ubiquity", "0003_membershipplandocument"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='membershipplandocument',
-            name='url',
-            field=models.URLField(verbose_name='document'),
+            model_name="membershipplandocument",
+            name="url",
+            field=models.URLField(verbose_name="document"),
         ),
     ]

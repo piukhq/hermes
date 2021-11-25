@@ -1,5 +1,5 @@
-from scripts.models import ScriptResult
 from scripts.actions.vop_actions import Correction
+from scripts.models import ScriptResult
 
 
 class BaseScript:
@@ -33,20 +33,17 @@ class BaseScript:
     def make_correction(self, unique_id_string, data):
         unique_ref = f"{unique_id_string}.{self.script_id}"
 
-        self._sequence = Correction.COMPOUND_CORRECTION_SCRIPTS.get(self.correction_function,
-                                                                    [self.correction_function])
+        self._sequence = Correction.COMPOUND_CORRECTION_SCRIPTS.get(
+            self.correction_function, [self.correction_function]
+        )
 
-        data['script_id'] = self.script_id
-        data['sequence'] = self._sequence
-        data['sequence_pos'] = 0
+        data["script_id"] = self.script_id
+        data["sequence"] = self._sequence
+        data["sequence_pos"] = 0
         sr, created = ScriptResult.objects.get_or_create(
             item_id=unique_ref,
             script_name=self.script_name,
-            defaults={
-                'data': data,
-                'apply': self._sequence[0],
-                'correction': self.correction_function
-            }
+            defaults={"data": data, "apply": self._sequence[0], "correction": self.correction_function},
         )
         self.correction_count += 1
         if created:

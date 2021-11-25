@@ -8,30 +8,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0002_auto_20181205_1640'),
-        ('scheme', '0052_auto_20181107_1158'),
+        ("ubiquity", "0002_auto_20181205_1640"),
+        ("scheme", "0052_auto_20181107_1158"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SchemeUserAssociation',
-            fields=[
-            ],
+            name="SchemeUserAssociation",
+            fields=[],
             options={
-                'verbose_name': 'Scheme Account to User Association',
-                'verbose_name_plural': 'Scheme Account to User Associations',
-                'proxy': True,
-                'indexes': [],
+                "verbose_name": "Scheme Account to User Association",
+                "verbose_name_plural": "Scheme Account to User Associations",
+                "proxy": True,
+                "indexes": [],
             },
-            bases=('ubiquity.schemeaccountentry',),
+            bases=("ubiquity.schemeaccountentry",),
         ),
         migrations.AlterModelOptions(
-            name='schemecredentialquestionchoicevalue',
-            options={'ordering': ['order', 'value']},
+            name="schemecredentialquestionchoicevalue",
+            options={"ordering": ["order", "value"]},
         ),
         migrations.AddField(
-            model_name='schemecredentialquestionchoicevalue',
-            name='order',
+            model_name="schemecredentialquestionchoicevalue",
+            name="order",
             field=models.IntegerField(default=0),
         ),
     ]

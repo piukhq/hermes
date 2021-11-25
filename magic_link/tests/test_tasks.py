@@ -5,11 +5,10 @@ from django.core import mail
 from rest_framework.test import APITestCase
 
 from common.models import Image
-from magic_link.tasks import send_magic_link, populate_template
-from scheme.tests.factories import SchemeFactory, SchemeBundleAssociationFactory, SchemeImageFactory
+from magic_link.tasks import populate_template, send_magic_link
+from scheme.tests.factories import SchemeBundleAssociationFactory, SchemeFactory, SchemeImageFactory
 from user.tests.factories import ClientApplicationBundleFactory
 from user.utils import MagicLinkData
-
 
 TEST_TEMPLATE = """
 <h1>TEST EMAIL</h1>
@@ -33,12 +32,11 @@ TEST_TEMPLATE = """
 
 
 class TestTask(APITestCase):
-
     @classmethod
     def setUpTestData(cls):
-        cls.test_email = 'test-bink@bink.com'
+        cls.test_email = "test-bink@bink.com"
 
-    @patch('magic_link.tasks.populate_template', return_value='')
+    @patch("magic_link.tasks.populate_template", return_value="")
     def test_send_magic_link(self, mock_populate_template):
         magic_link_data = MagicLinkData(
             bundle_id="com.wasabi.bink.com",
@@ -51,14 +49,14 @@ class TestTask(APITestCase):
             url="magic/link/url",
             token="Some token",
             expiry_date=datetime.datetime.now(),
-            locale="en_GB"
+            locale="en_GB",
         )
         send_magic_link(magic_link_data)
 
         self.assertEqual(len(mail.outbox), 1)
-        self.assertEqual(mail.outbox[0].subject, 'Some subject')
-        self.assertEqual(mail.outbox[0].from_email, 'test_from_email@bink.com')
-        self.assertEqual(mail.outbox[0].reply_to, ['no-reply@bink.com'])
+        self.assertEqual(mail.outbox[0].subject, "Some subject")
+        self.assertEqual(mail.outbox[0].from_email, "test_from_email@bink.com")
+        self.assertEqual(mail.outbox[0].reply_to, ["no-reply@bink.com"])
 
     def test_populate_template(self):
         bundle = ClientApplicationBundleFactory()
@@ -79,7 +77,7 @@ class TestTask(APITestCase):
             url="magic/link/url/?magic-link=",
             token="Some token",
             expiry_date=datetime.datetime.now(),
-            locale="en_GB"
+            locale="en_GB",
         )
 
         content = populate_template(magic_link_data)
