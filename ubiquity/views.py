@@ -639,7 +639,11 @@ class MembershipCardView(
         scheme_acc_entry.save(update_fields=["auth_provided"])
 
         account.set_async_registration_status()
-        account.set_register_originating_journey()
+
+        # API v1.x limitation where we can only register after adding and then patching
+        if account.originating_journey in [JourneyTypes.UNKNOWN, JourneyTypes.ADD]:
+            account.set_register_originating_journey()
+
         async_registration.delay(
             user.id,
             serializer,

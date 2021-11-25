@@ -1219,10 +1219,9 @@ class SchemeAccount(models.Model):
             self.save(update_fields=['status'])
 
     def set_register_originating_journey(self, *, commit_change=True) -> None:
-        if self.originating_journey == JourneyTypes.UNKNOWN:
-            self.originating_journey = JourneyTypes.REGISTER
-            if commit_change:
-                self.save(update_fields=['originating_journey'])
+        self.originating_journey = JourneyTypes.REGISTER
+        if commit_change:
+            self.save(update_fields=['originating_journey'])
 
     def set_add_originating_journey(self, *, commit_change=True) -> None:
         if self.originating_journey == JourneyTypes.UNKNOWN:
