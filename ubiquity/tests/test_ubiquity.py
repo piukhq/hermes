@@ -1872,7 +1872,7 @@ class TestResources(GlobalMockAPITestCase):
         external_id = 'test patch user 1'
         user = UserFactory(external_id=external_id, client=self.client_app, email=external_id)
         auth_headers = {'HTTP_AUTHORIZATION': '{}'.format(self._get_auth_header(user))}
-        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.ADD)
+        sa = SchemeAccountFactory(scheme=self.scheme, card_number="12345", originating_journey=JourneyTypes.JOIN)
         SchemeAccountEntryFactory(user=user, scheme_account=sa)
         SchemeCredentialAnswerFactory(question=self.scheme.manual_question, scheme_account=sa, answer='12345')
         SchemeCredentialAnswerFactory(question=self.secondary_question, scheme_account=sa, answer='name')
@@ -1909,7 +1909,7 @@ class TestResources(GlobalMockAPITestCase):
                                           content_type='application/json', **auth_headers)
         self.assertEqual(resp_register.status_code, 200)
         sa.refresh_from_db()
-        self.assertEqual(sa.originating_journey, JourneyTypes.ADD)
+        self.assertEqual(sa.originating_journey, JourneyTypes.JOIN)
 
     @patch('ubiquity.cache_decorators.ApiCache', new=MockApiCache)
     def test_membership_plans(self):
