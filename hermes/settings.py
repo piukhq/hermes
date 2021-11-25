@@ -28,7 +28,6 @@ from environment import env_var, read_env
 from hermes.sentry import _make_celery_event_processor, _make_django_event_processor, strip_sensitive_data
 from hermes.version import __version__
 
-
 read_env()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
