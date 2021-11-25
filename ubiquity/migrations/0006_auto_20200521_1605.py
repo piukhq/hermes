@@ -6,16 +6,18 @@ from django.db import migrations, models
 def computed_active_link(payment_card_account, scheme_account):
     # We cannot use .ACTIVE in a migration since code may change so we use 1 which is the value of ACTIVE when migration
     # was written
-    if payment_card_account.status == 1 and \
-            not payment_card_account.is_deleted and \
-            scheme_account.status == 1 and \
-            not scheme_account.is_deleted:
+    if (
+        payment_card_account.status == 1
+        and not payment_card_account.is_deleted
+        and scheme_account.status == 1
+        and not scheme_account.is_deleted
+    ):
         return True
     return False
 
 
 def update_active_status(apps, schema_editor):
-    PaymentCardSchemeEntry = apps.get_model('ubiquity', 'PaymentCardSchemeEntry')
+    PaymentCardSchemeEntry = apps.get_model("ubiquity", "PaymentCardSchemeEntry")
 
     for link in PaymentCardSchemeEntry.objects.all():
         current_status = link.active_link
@@ -29,13 +31,13 @@ def update_active_status(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0005_paymentcardschemeentry_vop_link'),
+        ("ubiquity", "0005_paymentcardschemeentry_vop_link"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardschemeentry',
-            name='active_link',
+            model_name="paymentcardschemeentry",
+            name="active_link",
             field=models.BooleanField(default=False),
         ),
         migrations.RunPython(update_active_status),

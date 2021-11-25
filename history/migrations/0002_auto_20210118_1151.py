@@ -6,70 +6,72 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('history', '0001_initial'),
+        ("history", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='historicalpaymentcardaccount',
-            name='change_reason',
+            model_name="historicalpaymentcardaccount",
+            name="change_reason",
         ),
         migrations.RemoveField(
-            model_name='historicalpaymentcardaccountentry',
-            name='change_reason',
+            model_name="historicalpaymentcardaccountentry",
+            name="change_reason",
         ),
         migrations.RemoveField(
-            model_name='historicalschemeaccount',
-            name='change_reason',
+            model_name="historicalschemeaccount",
+            name="change_reason",
         ),
         migrations.RemoveField(
-            model_name='historicalschemeaccountentry',
-            name='change_reason',
+            model_name="historicalschemeaccountentry",
+            name="change_reason",
         ),
         migrations.AddField(
-            model_name='historicalpaymentcardaccount',
-            name='change_details',
+            model_name="historicalpaymentcardaccount",
+            name="change_details",
             field=models.CharField(blank=True, max_length=255),
         ),
         migrations.AddField(
-            model_name='historicalpaymentcardaccountentry',
-            name='change_details',
+            model_name="historicalpaymentcardaccountentry",
+            name="change_details",
             field=models.CharField(blank=True, max_length=255),
         ),
         migrations.AddField(
-            model_name='historicalschemeaccount',
-            name='change_details',
+            model_name="historicalschemeaccount",
+            name="change_details",
             field=models.CharField(blank=True, max_length=255),
         ),
         migrations.AddField(
-            model_name='historicalschemeaccount',
-            name='journey',
-            field=models.CharField(choices=[('add', 'add'), ('enrol', 'enrol'), ('register', 'register')], default='add', max_length=8),
+            model_name="historicalschemeaccount",
+            name="journey",
+            field=models.CharField(
+                choices=[("add", "add"), ("enrol", "enrol"), ("register", "register")], default="add", max_length=8
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='historicalschemeaccountentry',
-            name='change_details',
+            model_name="historicalschemeaccountentry",
+            name="change_details",
             field=models.CharField(blank=True, max_length=255),
         ),
         migrations.AlterField(
-            model_name='historicalpaymentcardaccount',
-            name='user_id',
+            model_name="historicalpaymentcardaccount",
+            name="user_id",
             field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='historicalpaymentcardaccountentry',
-            name='user_id',
+            model_name="historicalpaymentcardaccountentry",
+            name="user_id",
             field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='historicalschemeaccount',
-            name='user_id',
+            model_name="historicalschemeaccount",
+            name="user_id",
             field=models.IntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='historicalschemeaccountentry',
-            name='user_id',
+            model_name="historicalschemeaccountentry",
+            name="user_id",
             field=models.IntegerField(null=True),
         ),
     ]

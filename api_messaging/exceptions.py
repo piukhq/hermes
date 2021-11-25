@@ -1,4 +1,3 @@
-
 class MessageReject(Exception):
     pass
 

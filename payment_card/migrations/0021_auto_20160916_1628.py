@@ -6,7 +6,7 @@ from django.db import migrations
 
 
 def copy_tokens(apps, schema_editor):
-    accounts = apps.get_model('payment_card', 'PaymentCardAccount').all_objects.all()
+    accounts = apps.get_model("payment_card", "PaymentCardAccount").all_objects.all()
     for account in accounts:
         account.psp_token = account.token
         account.save()
@@ -15,9 +15,7 @@ def copy_tokens(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0020_auto_20160916_1628'),
+        ("payment_card", "0020_auto_20160916_1628"),
     ]
 
-    operations = [
-        migrations.RunPython(copy_tokens)
-    ]
+    operations = [migrations.RunPython(copy_tokens)]

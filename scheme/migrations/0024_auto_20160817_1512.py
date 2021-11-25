@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0023_scheme_link_account_text'),
+        ("scheme", "0023_scheme_link_account_text"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='scheme',
-            name='forgotten_password_url',
+            model_name="scheme",
+            name="forgotten_password_url",
             field=models.URLField(blank=True, max_length=500, null=True),
         ),
     ]

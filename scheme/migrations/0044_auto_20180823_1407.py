@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0043_auto_20180820_0911'),
+        ("scheme", "0043_auto_20180820_0911"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='scheme',
-            name='tier',
-            field=models.IntegerField(choices=[(1, 'PLL'), (2, 'Basic'), (3, 'Partner')]),
+            model_name="scheme",
+            name="tier",
+            field=models.IntegerField(choices=[(1, "PLL"), (2, "Basic"), (3, "Partner")]),
         ),
     ]

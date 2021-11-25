@@ -8,17 +8,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0012_auto_20160620_1243'),
+        ("payment_card", "0012_auto_20160620_1243"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='paymentcardaccount',
-            name='order',
+            model_name="paymentcardaccount",
+            name="order",
             field=models.IntegerField(),
         ),
         migrations.AlterUniqueTogether(
-            name='paymentcardaccount',
-            unique_together=set([('fingerprint', 'expiry_month', 'expiry_year')]),
+            name="paymentcardaccount",
+            unique_together=set([("fingerprint", "expiry_month", "expiry_year")]),
         ),
     ]

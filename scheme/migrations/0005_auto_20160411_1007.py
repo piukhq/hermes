@@ -8,23 +8,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0004_auto_20160408_1351'),
+        ("scheme", "0004_auto_20160408_1351"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='schemeaccountimagecriteria',
-            old_name='payment_images',
-            new_name='payment_image',
+            model_name="schemeaccountimagecriteria",
+            old_name="payment_images",
+            new_name="payment_image",
         ),
         migrations.RenameField(
-            model_name='schemeaccountimagecriteria',
-            old_name='scheme_images',
-            new_name='scheme_image',
+            model_name="schemeaccountimagecriteria",
+            old_name="scheme_images",
+            new_name="scheme_image",
         ),
         migrations.AlterField(
-            model_name='schemeaccountimagecriteria',
-            name='scheme_accounts',
-            field=models.ManyToManyField(related_name='scheme_accounts_set', to='scheme.SchemeAccount'),
+            model_name="schemeaccountimagecriteria",
+            name="scheme_accounts",
+            field=models.ManyToManyField(related_name="scheme_accounts_set", to="scheme.SchemeAccount"),
         ),
     ]

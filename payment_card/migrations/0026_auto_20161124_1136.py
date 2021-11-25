@@ -6,7 +6,7 @@ from django.db import migrations
 
 
 def update_pan_end(apps, schema_editor):
-    accounts = apps.get_model('payment_card', 'PaymentCardAccount').all_objects.all()
+    accounts = apps.get_model("payment_card", "PaymentCardAccount").all_objects.all()
     for account in accounts:
         account.pan_end = account.pan_end[-4:]
         account.save()
@@ -15,9 +15,7 @@ def update_pan_end(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0025_auto_20161123_1628'),
+        ("payment_card", "0025_auto_20161123_1628"),
     ]
 
-    operations = [
-        migrations.RunPython(update_pan_end)
-    ]
+    operations = [migrations.RunPython(update_pan_end)]

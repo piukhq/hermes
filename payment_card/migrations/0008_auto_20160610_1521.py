@@ -8,12 +8,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0007_auto_20160610_1458'),
+        ("payment_card", "0007_auto_20160610_1458"),
     ]
 
     operations = [
         migrations.RenameModel(
-            old_name='PaymentAccountImageCriteria',
-            new_name='PaymentCardAccountImageCriteria',
+            old_name="PaymentAccountImageCriteria",
+            new_name="PaymentCardAccountImageCriteria",
         ),
     ]

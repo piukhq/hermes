@@ -8,13 +8,17 @@ from rest_framework.reverse import reverse
 from history.utils import GlobalMockAPITestCase
 from payment_card.models import PaymentCardAccount
 from payment_card.tests.factories import IssuerFactory, PaymentCardFactory
-from scheme.models import SchemeBundleAssociation, SchemeAccount
-from scheme.tests.factories import (SchemeAccountFactory, SchemeFactory, SchemeBundleAssociationFactory)
+from scheme.models import SchemeAccount, SchemeBundleAssociation
+from scheme.tests.factories import SchemeAccountFactory, SchemeBundleAssociationFactory, SchemeFactory
 from ubiquity.models import PaymentCardSchemeEntry
 from ubiquity.tests.factories import SchemeAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
-from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory,
-                                  UserFactory)
+from user.tests.factories import (
+    ClientApplicationBundleFactory,
+    ClientApplicationFactory,
+    OrganisationFactory,
+    UserFactory,
+)
 
 
 class RequestMock:
@@ -27,7 +31,6 @@ class ChannelPermitMock:
 
 
 class LinkAnalyst:
-
     def __init__(self, linked):
         self.count = len(linked)
         self.links_by_membership = {}
@@ -54,15 +57,18 @@ class LinkAnalyst:
 
 
 def set_up_payment_card():
-    organisation = OrganisationFactory(name='test_organisation')
-    client_app = ClientApplicationFactory(organisation=organisation, name='set up client application',
-                                          client_id='2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi')
-    bundle = ClientApplicationBundleFactory(bundle_id='test.auth.fake', client=client_app)
+    organisation = OrganisationFactory(name="test_organisation")
+    client_app = ClientApplicationFactory(
+        organisation=organisation,
+        name="set up client application",
+        client_id="2zXAKlzMwU5mefvs4NtWrQNDNXYrDdLwWeSCoCCrjd8N0VBHoi",
+    )
+    bundle = ClientApplicationBundleFactory(bundle_id="test.auth.fake", client=client_app)
 
-    issuer = IssuerFactory(name='Barclays')
-    payment_card = PaymentCardFactory(slug='visa', system='visa')
+    issuer = IssuerFactory(name="Barclays")
+    payment_card = PaymentCardFactory(slug="visa", system="visa")
 
-    version_header = {"HTTP_ACCEPT": 'Application/json;v=1.1'}
+    version_header = {"HTTP_ACCEPT": "Application/json;v=1.1"}
 
     payload = {
         "card": {
@@ -74,24 +80,18 @@ def set_up_payment_card():
             "fingerprint": "b5fe350d5135ab64a8f3c1097fadefd9effb",
             "year": 22,
             "month": 3,
-            "order": 1
+            "order": 1,
         },
-        "account": {
-            "consents": [
-                {
-                    "timestamp": 1517549941,
-                    "type": 0
-                }
-            ]
-        }
+        "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
     }
     return client_app, bundle, issuer, payment_card, version_header, payload
 
 
 def set_up_scheme(bundle):
     scheme = SchemeFactory()
-    scheme_bundle_association = SchemeBundleAssociationFactory(scheme=scheme, bundle=bundle,
-                                                               status=SchemeBundleAssociation.ACTIVE)
+    scheme_bundle_association = SchemeBundleAssociationFactory(
+        scheme=scheme, bundle=bundle, status=SchemeBundleAssociation.ACTIVE
+    )
     return scheme, scheme_bundle_association
 
 
@@ -103,47 +103,57 @@ def set_up_membership_card(user, scheme):
 
 class TestSoftLinking(GlobalMockAPITestCase):
     def _get_auth_token(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
-                                user.external_id).get_token()
-        return 'Bearer {}'.format(token)
+        token = GenerateJWToken(
+            self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id, user.external_id
+        ).get_token()
+        return "Bearer {}".format(token)
 
     def _get_auth_headers(self, user):
-        return {'HTTP_AUTHORIZATION': f'{self._get_auth_token(user)}'}
+        return {"HTTP_AUTHORIZATION": f"{self._get_auth_token(user)}"}
 
     def _get_service_auth_headers(self):
-        return {'HTTP_AUTHORIZATION': f'Token {settings.SERVICE_API_KEY}'}
+        return {"HTTP_AUTHORIZATION": f"Token {settings.SERVICE_API_KEY}"}
 
     @staticmethod
     def failed_midas_callback(request, uri, response_headers):
         return [SchemeAccount.AGENT_NOT_FOUND, response_headers, ""]
 
     def auto_link_post(self, payload, user):
-        resp = self.client.post(f'{reverse("payment-cards")}?autoLink=True', data=json.dumps(payload),
-                                content_type='application/json', **self._get_auth_headers(user),
-                                **self.version_header)
-        linked_info = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id']))
+        resp = self.client.post(
+            f'{reverse("payment-cards")}?autoLink=True',
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self._get_auth_headers(user),
+            **self.version_header,
+        )
+        linked_info = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data["id"]))
         return resp, linked_info
 
     def metis_callback(self, card_id=None, status_code=PaymentCardAccount.ACTIVE):
         payload = {
-            'status': status_code,
-            'id': card_id,
-
+            "status": status_code,
+            "id": card_id,
         }
         resp = self.client.put(
             f'{reverse("update_payment_card_account_status")}',
             data=json.dumps(payload),
-            content_type='application/json',
-            **self._get_service_auth_headers()
+            content_type="application/json",
+            **self._get_service_auth_headers(),
         )
         linked_info = LinkAnalyst(PaymentCardSchemeEntry.objects.filter(payment_card_account_id=card_id))
         return resp, linked_info
 
     @classmethod
     def setUpTestData(cls):
-        cls.client_app, cls.bundle, cls.issuer, cls.payment_card, cls.version_header, cls.payload = \
-            set_up_payment_card()
-        external_id = 'test@user.com'
+        (
+            cls.client_app,
+            cls.bundle,
+            cls.issuer,
+            cls.payment_card,
+            cls.version_header,
+            cls.payload,
+        ) = set_up_payment_card()
+        external_id = "test@user.com"
         cls.user = UserFactory(external_id=external_id, client=cls.client_app, email=external_id)
         cls.scheme1, cls.scheme_bundle_association1 = set_up_scheme(cls.bundle)
         cls.scheme_account_c1_s1 = set_up_membership_card(cls.user, cls.scheme1)
@@ -212,19 +222,25 @@ class TestSoftLinking(GlobalMockAPITestCase):
 
 
 class TestPaymentAutoLink(GlobalMockAPITestCase):
-
     def _get_auth_token(self, user):
-        token = GenerateJWToken(self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id,
-                                user.external_id).get_token()
-        return 'Bearer {}'.format(token)
+        token = GenerateJWToken(
+            self.client_app.organisation.name, self.client_app.secret, self.bundle.bundle_id, user.external_id
+        ).get_token()
+        return "Bearer {}".format(token)
 
     def _get_auth_headers(self, user):
-        return {'HTTP_AUTHORIZATION': f'{self._get_auth_token(user)}'}
+        return {"HTTP_AUTHORIZATION": f"{self._get_auth_token(user)}"}
 
     @classmethod
     def setUpTestData(cls):
-        cls.client_app, cls.bundle, cls.issuer, cls.payment_card, cls.version_header, cls.payload = \
-            set_up_payment_card()
+        (
+            cls.client_app,
+            cls.bundle,
+            cls.issuer,
+            cls.payment_card,
+            cls.version_header,
+            cls.payload,
+        ) = set_up_payment_card()
         cls.payload2 = {
             "card": {
                 "last_four_digits": 5288,
@@ -235,114 +251,112 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
                 "fingerprint": "b5fe350d5135ab64a8f3c1097fadefdabcde",
                 "year": 23,
                 "month": 1,
-                "order": 2
+                "order": 2,
             },
-            "account": {
-                "consents": [
-                    {
-                        "timestamp": 1517549941,
-                        "type": 0
-                    }
-                ]
-            }
+            "account": {"consents": [{"timestamp": 1517549941, "type": 0}]},
         }
 
         # senario 1 mcards 1 cards 1 mplan
 
-        external_id1 = 'test@user.com'
+        external_id1 = "test@user.com"
         cls.user1 = UserFactory(external_id=external_id1, client=cls.client_app, email=external_id1)
 
         cls.scheme1 = SchemeFactory()
         cls.scheme_account_c1_p1 = SchemeAccountFactory(scheme=cls.scheme1)
-        cls.scheme_account_entry1 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p1,
-                                                              user=cls.user1)
-        cls.scheme_bundle_association_p1 = SchemeBundleAssociationFactory(scheme=cls.scheme1, bundle=cls.bundle,
-                                                                          status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_account_entry1 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p1, user=cls.user1)
+        cls.scheme_bundle_association_p1 = SchemeBundleAssociationFactory(
+            scheme=cls.scheme1, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
 
         # senario 2 mcards 2 cards different mplan
 
-        external_id2 = 'test2@user.com'
+        external_id2 = "test2@user.com"
         cls.user2 = UserFactory(external_id=external_id2, client=cls.client_app, email=external_id2)
         cls.scheme2 = SchemeFactory()
         cls.scheme_account_c1_p2 = SchemeAccountFactory(scheme=cls.scheme2)
-        cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p2,
-                                                              user=cls.user2)
-        cls.scheme_bundle_association_p2 = SchemeBundleAssociationFactory(scheme=cls.scheme2, bundle=cls.bundle,
-                                                                          status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_account_entry2 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p2, user=cls.user2)
+        cls.scheme_bundle_association_p2 = SchemeBundleAssociationFactory(
+            scheme=cls.scheme2, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
 
         cls.scheme3 = SchemeFactory()
-        cls.scheme_bundle_association_p3 = SchemeBundleAssociationFactory(scheme=cls.scheme3, bundle=cls.bundle,
-                                                                          status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association_p3 = SchemeBundleAssociationFactory(
+            scheme=cls.scheme3, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
         cls.scheme_account_c2_p3 = SchemeAccountFactory(scheme=cls.scheme3)
-        cls.scheme_account_entry3 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p3,
-                                                              user=cls.user2)
+        cls.scheme_account_entry3 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p3, user=cls.user2)
 
         # senario 3 mcards of same mplan
 
-        external_id3 = 'test3@user.com'
+        external_id3 = "test3@user.com"
         cls.user3 = UserFactory(external_id=external_id3, client=cls.client_app, email=external_id3)
         cls.scheme4 = SchemeFactory()
-        cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(scheme=cls.scheme4, bundle=cls.bundle,
-                                                                          status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(
+            scheme=cls.scheme4, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
         cls.scheme_account_c1_p4 = SchemeAccountFactory(scheme=cls.scheme4)
-        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p4,
-                                                              user=cls.user3)
+        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p4, user=cls.user3)
         cls.scheme_account_c2_p4 = SchemeAccountFactory(scheme=cls.scheme4)
-        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p4,
-                                                              user=cls.user3)
+        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p4, user=cls.user3)
         cls.scheme_account_c3_p4 = SchemeAccountFactory(scheme=cls.scheme4)
-        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c3_p4,
-                                                              user=cls.user3)
+        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c3_p4, user=cls.user3)
         cls.scheme_account_c4_p4 = SchemeAccountFactory(scheme=cls.scheme4)
-        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c4_p4,
-                                                              user=cls.user3)
+        cls.scheme_account_entry4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c4_p4, user=cls.user3)
 
         # senario 4 2 users 4 mcards of same mplan
 
-        external_id4 = 'test4@user.com'
-        external_id5 = 'test5@user.com'
+        external_id4 = "test4@user.com"
+        external_id5 = "test5@user.com"
         cls.user4 = UserFactory(external_id=external_id4, client=cls.client_app, email=external_id4)
         cls.user5 = UserFactory(external_id=external_id5, client=cls.client_app, email=external_id5)
         cls.scheme5 = SchemeFactory()
-        cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(scheme=cls.scheme5, bundle=cls.bundle,
-                                                                          status=SchemeBundleAssociation.ACTIVE)
+        cls.scheme_bundle_association_p4 = SchemeBundleAssociationFactory(
+            scheme=cls.scheme5, bundle=cls.bundle, status=SchemeBundleAssociation.ACTIVE
+        )
 
         cls.scheme_account_c1_p5_u4 = SchemeAccountFactory(scheme=cls.scheme5)
-        cls.scheme_account_entry_c1_p5_u4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c1_p5_u4,
-                                                                      user=cls.user4)
+        cls.scheme_account_entry_c1_p5_u4 = SchemeAccountEntryFactory(
+            scheme_account=cls.scheme_account_c1_p5_u4, user=cls.user4
+        )
         cls.scheme_account_c2_p5_u4 = SchemeAccountFactory(scheme=cls.scheme5)
-        cls.scheme_account_entry_c2_p5_u4 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c2_p5_u4,
-                                                                      user=cls.user4)
+        cls.scheme_account_entry_c2_p5_u4 = SchemeAccountEntryFactory(
+            scheme_account=cls.scheme_account_c2_p5_u4, user=cls.user4
+        )
         cls.scheme_account_c3_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
-        cls.scheme_account_entry_c3_p5_u5 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c3_p5_u5,
-                                                                      user=cls.user5)
+        cls.scheme_account_entry_c3_p5_u5 = SchemeAccountEntryFactory(
+            scheme_account=cls.scheme_account_c3_p5_u5, user=cls.user5
+        )
         cls.scheme_account_c4_p5_u5 = SchemeAccountFactory(scheme=cls.scheme5)
-        cls.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(scheme_account=cls.scheme_account_c4_p5_u5,
-                                                                      user=cls.user5)
+        cls.scheme_account_entry_c4_p5_u5 = SchemeAccountEntryFactory(
+            scheme_account=cls.scheme_account_c4_p5_u5, user=cls.user5
+        )
 
     def auto_link_post(self, payload, user, query_string="?autoLink=True"):
-        resp = self.client.post(f'{reverse("payment-cards")}{query_string}', data=json.dumps(payload),
-                                content_type='application/json', **self._get_auth_headers(user), **self.version_header)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        resp = self.client.post(
+            f'{reverse("payment-cards")}{query_string}',
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self._get_auth_headers(user),
+            **self.version_header,
+        )
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data["id"])
         return resp, linked
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_creation_auto_link(self, *_):
         # scenario 1 1 membership cards 1 plans - user 1
         resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         self.assertEqual(len(linked), 1)
 
         # Repeat auto link to ensure nothing extra is added and 200 returned
         resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
-        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data['id'])
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
+        linked = PaymentCardSchemeEntry.objects.filter(payment_card_account_id=resp.data["id"])
         self.assertEqual(len(linked), 1)
 
         # Add another membership card
@@ -354,7 +368,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         # Try to add again and see if auto links
         resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         self.assertEqual(len(linked), 2)
 
         # Make the links active
@@ -365,64 +379,56 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         # Try to add again and see if auto links = True
         resp, linked = self.auto_link_post(self.payload, self.user1)
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(len(resp.data['membership_cards']), 2)
+        self.assertEqual(len(resp.data["membership_cards"]), 2)
         self.assertEqual(len(linked), 2)
-        for item in resp.data['membership_cards']:
-            self.assertEqual(item['active_link'], True)
-            self.assertIn('id', item)
+        for item in resp.data["membership_cards"]:
+            self.assertEqual(item["active_link"], True)
+            self.assertIn("id", item)
             self.assertEqual(len(item), 2)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_2_cards_different_plans(self, *_):
         # senario 2 2 membership cards 2 plans - user 2
         resp, linked = self.auto_link_post(self.payload, self.user2)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         self.assertEqual(len(linked), 2)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4_cards_same_plan(self, *_):
         # senario 3 4 membership cards 1 plans - user 3
         resp, linked = self.auto_link_post(self.payload, self.user3)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p4.id)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4cards_2users_same_plan(self, *_):
         # senario 4 4 membership cards 1 plans - user 4
         resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c1_p5_u4.id)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_4cards_2users_same_plan_other_user_linked(self, *_):
         # senario 4 4 membership cards 1 plans - user 5
         # now with user 5 instead of 4 auto link
         resp, linked = self.auto_link_post(self.payload, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
@@ -430,24 +436,22 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         # now repeat user 4 auto link
         resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_2_payment_cards(self, *_):
         # senario 4 4 membership cards 1 plans - user 5 but with an additional linked payment
         # now with user 5 instead of 4 auto link but with payment card 2
         resp, linked = self.auto_link_post(self.payload2, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
@@ -457,7 +461,7 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
 
         resp, linked = self.auto_link_post(self.payload, self.user5)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         # Test only card linked to payment card has lowest id in users wallet
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
@@ -465,18 +469,16 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
         # now repeat user 4 auto link
         resp, linked = self.auto_link_post(self.payload, self.user4)
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
 
         # Now the list should have the card linked in plan above (the other users plan) even though not the oldest
         # Test only card linked to payment card is the card already linked
         self.assertEqual(len(linked), 1)
         self.assertEqual(linked[0].scheme_account.id, self.scheme_account_c3_p5_u5.id)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_links_with_no_auto_link_param(self, *_):
         email = "testnoautolinkparam@bink.com"
         test_user = UserFactory(external_id=email, client=self.client_app, email=email)
@@ -487,14 +489,12 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
 
         resp, linked = self.auto_link_post(self.payload, test_user, query_string="")
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         self.assertEqual(len(linked), 2)
 
-    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True,
-                       CELERY_TASK_ALWAYS_EAGER=True,
-                       BROKER_BACKEND='memory')
-    @patch('analytics.api')
-    @patch('payment_card.metis.enrol_new_payment_card')
+    @override_settings(CELERY_EAGER_PROPAGATES_EXCEPTIONS=True, CELERY_TASK_ALWAYS_EAGER=True, BROKER_BACKEND="memory")
+    @patch("analytics.api")
+    @patch("payment_card.metis.enrol_new_payment_card")
     def test_payment_card_auto_link_set_as_false(self, *_):
         email = "testfalseautolinkparam@bink.com"
         test_user = UserFactory(external_id=email, client=self.client_app, email=email)
@@ -505,5 +505,5 @@ class TestPaymentAutoLink(GlobalMockAPITestCase):
 
         resp, linked = self.auto_link_post(self.payload, test_user, query_string="?autoLink=False")
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(len(resp.data['membership_cards']), 0)
+        self.assertEqual(len(resp.data["membership_cards"]), 0)
         self.assertEqual(len(linked), 0)

@@ -8,7 +8,6 @@ TEST_SLUG = "fatface"
 
 
 class TestVouchers(GlobalMockAPITestCase):
-
     @classmethod
     def setUpTestData(cls):
         category = Category.objects.create()
@@ -171,7 +170,7 @@ class TestVouchers(GlobalMockAPITestCase):
             "type": vouchers.VoucherType.ACCUMULATOR.value,
             "value": 300,
             "target_value": 400,
-            "state": "redeemed"
+            "state": "redeemed",
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
@@ -216,7 +215,7 @@ class TestVouchers(GlobalMockAPITestCase):
             "type": vouchers.VoucherType.ACCUMULATOR.value,
             "value": 300,
             "target_value": 0,
-            "state": "issued"
+            "state": "issued",
         }
         scheme = Scheme.objects.get(slug=TEST_SLUG)
         vs: VoucherScheme = VoucherScheme.objects.get(scheme=scheme, earn_type=VoucherScheme.EARNTYPE_ACCUMULATOR)
@@ -258,9 +257,7 @@ class TestVouchers(GlobalMockAPITestCase):
         """
         # GIVEN
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG, earn_type=VoucherScheme.EARNTYPE_STAMPS)
-        voucher_fields = {
-            "target_value": 10
-        }
+        voucher_fields = {"target_value": 10}
 
         # WHEN
         earn_target_value = vs.get_earn_target_value(voucher_fields=voucher_fields)
@@ -305,9 +302,7 @@ class TestVouchers(GlobalMockAPITestCase):
         # GIVEN
         vs = VoucherScheme.objects.get(scheme__slug=TEST_SLUG, earn_type=VoucherScheme.EARNTYPE_STAMPS)
         expected_value = 8
-        voucher_fields = {
-            "value": expected_value
-        }
+        voucher_fields = {"value": expected_value}
 
         # WHEN
         earn_value = vs.get_earn_value(voucher_fields=voucher_fields, earn_target_value=12)

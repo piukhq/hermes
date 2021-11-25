@@ -5,9 +5,19 @@ from rest_framework import serializers
 
 from common.models import Image
 from scheme.credentials import credential_types_set
-from scheme.models import (Consent, ConsentStatus, Control, Exchange, Scheme, SchemeAccount,
-                           SchemeAccountCredentialAnswer, SchemeAccountImage, SchemeCredentialQuestion, SchemeImage,
-                           UserConsent)
+from scheme.models import (
+    Consent,
+    ConsentStatus,
+    Control,
+    Exchange,
+    Scheme,
+    SchemeAccount,
+    SchemeAccountCredentialAnswer,
+    SchemeAccountImage,
+    SchemeCredentialQuestion,
+    SchemeImage,
+    UserConsent,
+)
 from ubiquity.models import PaymentCardAccountEntry
 from user.models import CustomUser
 
@@ -15,13 +25,13 @@ from user.models import CustomUser
 class SchemeImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeImage
-        exclude = ('scheme',)
+        exclude = ("scheme",)
 
 
 class SchemeAccountImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccountImage
-        fields = '__all__'
+        fields = "__all__"
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -30,23 +40,23 @@ class QuestionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeCredentialQuestion
-        exclude = ('scheme', 'manual_question', 'scan_question', 'one_question_link', 'options')
+        exclude = ("scheme", "manual_question", "scan_question", "one_question_link", "options")
 
 
 class ConsentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Consent
-        exclude = ('is_enabled', 'scheme', 'created_on', 'modified_on')
+        exclude = ("is_enabled", "scheme", "created_on", "modified_on")
 
 
 class ControlSerializer(serializers.ModelSerializer):
     class Meta:
         model = Control
-        exclude = ('id', 'scheme')
+        exclude = ("id", "scheme")
 
 
 class TransactionHeaderSerializer(serializers.Serializer):
-    """ This serializer is required to convert a list of header titles into a
+    """This serializer is required to convert a list of header titles into a
     form which the front end requires ie a list of key pairs where the key is
     a keyword "name" and the value is the header title.
     This is a departure from rest mapping to the model and was agreed with Paul Batty.
@@ -73,16 +83,16 @@ class SchemeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Scheme
-        exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+        exclude = ("card_number_prefix", "card_number_regex", "barcode_regex", "barcode_prefix")
 
     def get_is_active(self, obj):
-        if self.context and self.context.get('request'):
-            return self.context['request'].channels_permit.is_scheme_available(obj.id)
+        if self.context and self.context.get("request"):
+            return self.context["request"].channels_permit.is_scheme_available(obj.id)
         # If no context return true as default case is that the SchemeBundleAssociation Status is not INACTIVE
         return True
 
     def get_status(self, obj):
-        return self.context['request'].channels_permit.scheme_status(obj.id)
+        return self.context["request"].channels_permit.scheme_status(obj.id)
 
     @staticmethod
     def get_link_questions(obj):
@@ -101,10 +111,10 @@ class SchemeSerializerNoQuestions(serializers.ModelSerializer):
 
     class Meta:
         model = Scheme
-        exclude = ('card_number_prefix', 'card_number_regex', 'barcode_regex', 'barcode_prefix')
+        exclude = ("card_number_prefix", "card_number_regex", "barcode_regex", "barcode_prefix")
 
     def get_is_active(self, obj):
-        return self.context['request'].channels_permit.is_scheme_active(obj.id)
+        return self.context["request"].channels_permit.is_scheme_active(obj.id)
 
 
 class UserConsentSerializer(serializers.Serializer):
@@ -124,26 +134,25 @@ class UserConsentSerializer(serializers.Serializer):
         for data in consent_data:
             for consent in scheme_consents:
                 if data["id"] == consent.id:
-                    consent_info = {
-                        "value": data["value"],
-                        "consent": consent
-                    }
+                    consent_info = {"value": data["value"], "consent": consent}
                     provided_consents.append(consent_info)
 
         user_consents = []
         for consent_info in provided_consents:
-            value = consent_info['value']
+            value = consent_info["value"]
 
-            user_consent = UserConsent(scheme_account=scheme_account, value=value, slug=consent_info["consent"].slug,
-                                       user=user, created_on=timezone.now(),
-                                       scheme=scheme)
+            user_consent = UserConsent(
+                scheme_account=scheme_account,
+                value=value,
+                slug=consent_info["consent"].slug,
+                user=user,
+                created_on=timezone.now(),
+                scheme=scheme,
+            )
 
             serializer = ConsentsSerializer(consent_info["consent"])
             user_consent.metadata = serializer.data
-            user_consent.metadata.update({
-                'user_email': user.email,
-                'scheme_slug': scheme.slug
-            })
+            user_consent.metadata.update({"user_email": user.email, "scheme_slug": scheme.slug})
 
             user_consents.append(user_consent)
 
@@ -155,33 +164,40 @@ class UserConsentSerializer(serializers.Serializer):
         expected_consents_set = {consent.slug for consent in scheme_consents}
 
         if len(expected_consents_set) != len(user_consents):
-            raise serializers.ValidationError({
-                "message": "Incorrect number of consents provided for this scheme and journey type.",
-                "code": serializers.ValidationError.status_code
-            })
+            raise serializers.ValidationError(
+                {
+                    "message": "Incorrect number of consents provided for this scheme and journey type.",
+                    "code": serializers.ValidationError.status_code,
+                }
+            )
 
         # Validate slugs match those expected for slug + journey
         actual_consents_set = {user_consent.slug for user_consent in user_consents}
 
         if expected_consents_set.symmetric_difference(actual_consents_set):
-            raise serializers.ValidationError({
-                "message": "Unexpected or missing user consents for '{0}' request - scheme id '{1}'".format(
-                    Consent.journeys[journey_type][1],
-                    scheme
-                ),
-                "code": serializers.ValidationError.status_code
-            })
+            raise serializers.ValidationError(
+                {
+                    "message": "Unexpected or missing user consents for '{0}' request - scheme id '{1}'".format(
+                        Consent.journeys[journey_type][1], scheme
+                    ),
+                    "code": serializers.ValidationError.status_code,
+                }
+            )
 
         # Validate that the user consents for all required consents have a value of True
-        invalid_consents = [{'consent_id': consent.metadata['id'], 'slug': consent.slug} for consent in user_consents
-                            if consent.metadata['required'] is True
-                            and consent.value is False]
+        invalid_consents = [
+            {"consent_id": consent.metadata["id"], "slug": consent.slug}
+            for consent in user_consents
+            if consent.metadata["required"] is True and consent.value is False
+        ]
 
         if invalid_consents:
-            raise serializers.ValidationError({
-                "message": "The following consents require a value of True: {}".format(invalid_consents),
-                "code": serializers.ValidationError.status_code
-            })
+            raise serializers.ValidationError(
+                {
+                    "message": "The following consents require a value of True: {}".format(invalid_consents),
+                    "code": serializers.ValidationError.status_code,
+                }
+            )
 
         return user_consents
 
@@ -222,21 +238,24 @@ class LinkSchemeSerializer(SchemeAnswerSerializer):
 
     def validate(self, data):
         # Validate no manual answer
-        manual_question_type = self.context['scheme_account'].scheme.manual_question.type
+        manual_question_type = self.context["scheme_account"].scheme.manual_question.type
         if manual_question_type in data:
             raise serializers.ValidationError("Manual answer cannot be submitted to this endpoint")
 
         # Validate credentials existence
-        question_types = [answer_type for answer_type, value in data.items()] + [manual_question_type, ]
+        question_types = [answer_type for answer_type, value in data.items()] + [
+            manual_question_type,
+        ]
 
         # temporary fix to iceland
-        if self.context['scheme_account'].scheme.slug == 'iceland-bonus-card':
+        if self.context["scheme_account"].scheme.slug == "iceland-bonus-card":
             return data
 
-        missing_credentials = self.context['scheme_account'].missing_credentials(question_types)
+        missing_credentials = self.context["scheme_account"].missing_credentials(question_types)
         if missing_credentials:
             raise serializers.ValidationError(
-                "All the required credentials have not been submitted: {0}".format(missing_credentials))
+                "All the required credentials have not been submitted: {0}".format(missing_credentials)
+            )
         return data
 
 
@@ -248,7 +267,7 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
     verify_account_exists = True
 
     def validate(self, data):
-        scheme_query = {'pk': data['scheme']}
+        scheme_query = {"pk": data["scheme"]}
 
         # Have removed the is user tester check as serializer is no longer used
         # Seems that test cases do not fully set up bundle permissions and that must be fixed to comment in next lines
@@ -260,20 +279,20 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
         try:
             scheme = Scheme.objects.get(**scheme_query)
         except Scheme.DoesNotExist:
-            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data['scheme']))
+            raise serializers.ValidationError("Scheme '{0}' does not exist".format(data["scheme"]))
 
         answer_types = set(data).intersection(credential_types_set)
         if len(answer_types) != 1:
             raise serializers.ValidationError("You must submit one scan or manual question answer")
 
         answer_type = answer_types.pop()
-        self.context['answer_type'] = answer_type
+        self.context["answer_type"] = answer_type
         # only allow one credential
         if answer_type not in self.allowed_answers(scheme):
             raise serializers.ValidationError("Your answer type '{0}' is not allowed".format(answer_type))
 
         if self.verify_account_exists:
-            user_id = self.context['request'].user.id
+            user_id = self.context["request"].user.id
             self.check_scheme_linked_to_same_payment_card(user_id=user_id, scheme_id=scheme.id)
             scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme)
             non_join_accounts = scheme_accounts.exclude(status__in=SchemeAccount.JOIN_ACTION_REQUIRED)
@@ -286,16 +305,17 @@ class CreateSchemeAccountSerializer(SchemeAnswerSerializer):
 
     @staticmethod
     def check_scheme_linked_to_same_payment_card(user_id, scheme_id):
-        pca_ids = PaymentCardAccountEntry.objects.values('payment_card_account_id').filter(user_id=user_id).all()
+        pca_ids = PaymentCardAccountEntry.objects.values("payment_card_account_id").filter(user_id=user_id).all()
         # todo when the linking of cards is implemented in bink, change this to use PaymentCardSchemeEntry table
         for pca_id in pca_ids:
             filter_query = {
-                'payment_card_account_set__id': pca_id['payment_card_account_id'],
-                'scheme_account_set__scheme_id': scheme_id
+                "payment_card_account_set__id": pca_id["payment_card_account_id"],
+                "scheme_account_set__scheme_id": scheme_id,
             }
-            if CustomUser.objects.values('scheme_account_set__id').filter(**filter_query).count() >= 1:
-                raise serializers.ValidationError("An account for this scheme is already associated "
-                                                  "with one of the payment cards in your wallet.")
+            if CustomUser.objects.values("scheme_account_set__id").filter(**filter_query).count() >= 1:
+                raise serializers.ValidationError(
+                    "An account for this scheme is already associated " "with one of the payment cards in your wallet."
+                )
 
     @staticmethod
     def allowed_answers(scheme):
@@ -327,7 +347,7 @@ class ResponseLinkSerializer(serializers.Serializer):
 
 
 class ReadSchemeAccountAnswerSerializer(serializers.ModelSerializer):
-    answer = serializers.CharField(source='clean_answer', read_only=True)
+    answer = serializers.CharField(source="clean_answer", read_only=True)
 
     class Meta:
         model = SchemeAccountCredentialAnswer
@@ -346,8 +366,8 @@ class GetSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        exclude = ('updated', 'is_deleted', 'balances', 'user_set')
-        read_only_fields = ('status',)
+        exclude = ("updated", "is_deleted", "balances", "user_set")
+        read_only_fields = ("status",)
 
 
 class ListSchemeAccountSerializer(serializers.ModelSerializer):
@@ -363,16 +383,18 @@ class ListSchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = ('id',
-                  'scheme',
-                  'status',
-                  'order',
-                  'created',
-                  'display_status',
-                  'status_name',
-                  'barcode',
-                  'card_label',
-                  'images')
+        fields = (
+            "id",
+            "scheme",
+            "status",
+            "order",
+            "created",
+            "display_status",
+            "status_name",
+            "barcode",
+            "card_label",
+            "images",
+        )
 
 
 class QuerySchemeAccountSerializer(serializers.ModelSerializer):
@@ -388,15 +410,15 @@ class QuerySchemeAccountSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SchemeAccount
-        fields = '__all__'
+        fields = "__all__"
 
 
 class ReferenceImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeImage
         fields = (
-            'image',
-            'scheme',
+            "image",
+            "scheme",
         )
 
 
@@ -408,18 +430,18 @@ class StatusSerializer(serializers.Serializer):
 class SchemeAccountIdsSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchemeAccount
-        fields = ('id',)
+        fields = ("id",)
 
 
 class SchemeAccountCredentialsSerializer(serializers.ModelSerializer):
     credentials = serializers.ReadOnlyField()
     status_name = serializers.ReadOnlyField()
     display_status = serializers.ReadOnlyField()
-    scheme = serializers.SlugRelatedField(read_only=True, slug_field='slug')
+    scheme = serializers.SlugRelatedField(read_only=True, slug_field="slug")
 
     class Meta:
         model = SchemeAccount
-        fields = ('id', 'scheme', 'credentials', 'status', 'status_name', 'display_status')
+        fields = ("id", "scheme", "credentials", "status", "status_name", "display_status")
 
 
 class SchemeAccountStatusSerializer(serializers.Serializer):
@@ -440,14 +462,14 @@ class ResponseSchemeAccountAndBalanceSerializer(LinkSchemeSerializer, ResponseLi
 
 def add_object_type_to_image_response(data, obj_type):
     new_data = copy(data)
-    new_data['object_type'] = obj_type
+    new_data["object_type"] = obj_type
     return new_data
 
 
 def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccountImageSerializer, add_type=True):
-    account_images = SchemeAccountImage.objects.filter(
-        scheme_accounts__id=scheme_account.id
-    ).exclude(image_type_code=Image.TIER)
+    account_images = SchemeAccountImage.objects.filter(scheme_accounts__id=scheme_account.id).exclude(
+        image_type_code=Image.TIER
+    )
     scheme_images = SchemeImage.objects.filter(scheme=scheme_account.scheme)
 
     images = []
@@ -456,7 +478,7 @@ def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccount
         serializer = serializer_class(image)
 
         if add_type:
-            images.append(add_object_type_to_image_response(serializer.data, 'scheme_account_image'))
+            images.append(add_object_type_to_image_response(serializer.data, "scheme_account_image"))
         else:
             images.append(serializer.data)
 
@@ -476,12 +498,12 @@ def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccount
                 call_to_action=image.call_to_action,
                 order=image.order,
                 created=image.created,
-                reward_tier=image.reward_tier
+                reward_tier=image.reward_tier,
             )
             serializer = serializer_class(account_image)
 
             if add_type:
-                images.append(add_object_type_to_image_response(serializer.data, 'scheme_image'))
+                images.append(add_object_type_to_image_response(serializer.data, "scheme_image"))
             else:
                 images.append(serializer.data)
 
@@ -491,13 +513,13 @@ def get_images_for_scheme_account(scheme_account, serializer_class=SchemeAccount
 class DonorSchemeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
-        fields = ('name', 'point_name', 'id')
+        fields = ("name", "point_name", "id")
 
 
 class HostSchemeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scheme
-        fields = ('name', 'point_name', 'id')
+        fields = ("name", "point_name", "id")
 
 
 class DonorSchemeSerializer(serializers.ModelSerializer):
@@ -506,8 +528,17 @@ class DonorSchemeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exchange
-        fields = ('donor_scheme', 'host_scheme', 'exchange_rate_donor', 'exchange_rate_host',
-                  'transfer_min', 'transfer_max', 'transfer_multiple', 'tip_in_url', 'info_url',)
+        fields = (
+            "donor_scheme",
+            "host_scheme",
+            "exchange_rate_donor",
+            "exchange_rate_host",
+            "transfer_min",
+            "transfer_max",
+            "transfer_multiple",
+            "tip_in_url",
+            "info_url",
+        )
 
 
 class DonorSchemeAccountSerializer(serializers.Serializer):
@@ -536,26 +567,24 @@ class JoinSerializer(SchemeAnswerSerializer):
     consents = UserConsentSerializer(many=True, write_only=True, required=False)
 
     def validate(self, data):
-        scheme = self.context['scheme']
-        user_id = self.context['user']
+        scheme = self.context["scheme"]
+        user_id = self.context["user"]
         if isinstance(user_id, CustomUser):
             user_id = user_id.id
 
         # Validate scheme account for this doesn't already exist
         exclude_status_list = SchemeAccount.JOIN_ACTION_REQUIRED + [
-            SchemeAccount.JOIN_ASYNC_IN_PROGRESS, SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS
+            SchemeAccount.JOIN_ASYNC_IN_PROGRESS,
+            SchemeAccount.REGISTRATION_ASYNC_IN_PROGRESS,
         ]
-        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme) \
-            .exclude(status__in=exclude_status_list)
+        scheme_accounts = SchemeAccount.objects.filter(user_set__id=user_id, scheme=scheme).exclude(
+            status__in=exclude_status_list
+        )
 
         if scheme_accounts.exists():
             raise serializers.ValidationError("You already have an account for this scheme: '{0}'".format(scheme))
 
-        required_question_types = [
-            question.type
-            for question in scheme.join_questions
-            if question.required
-        ]
+        required_question_types = [question.type for question in scheme.join_questions if question.required]
 
         # Validate scheme join questions
         if not required_question_types:
@@ -564,19 +593,20 @@ class JoinSerializer(SchemeAnswerSerializer):
         # Validate all link questions are included in the required join questions
         scheme_link_question_types = [question.type for question in scheme.link_questions]
         if not set(scheme_link_question_types).issubset(required_question_types):
-            raise serializers.ValidationError("Please convert all \"Link\" only credential questions "
-                                              "to \"Join & Link\" for scheme: {}".format(scheme))
+            raise serializers.ValidationError(
+                'Please convert all "Link" only credential questions ' 'to "Join & Link" for scheme: {}'.format(scheme)
+            )
 
         return self._validate_join_questions(scheme, data)
 
     def _validate_join_questions(self, scheme, data):
         request_join_question_types = data.keys()
-        data['credentials'] = {}
+        data["credentials"] = {}
 
         for question in scheme.join_questions:
             question_type = question.type
             if question_type in request_join_question_types:
-                data['credentials'][question_type] = str(data[question_type])
+                data["credentials"][question_type] = str(data[question_type])
             else:
                 if question.required:
                     self.raise_missing_field_error(question_type)
@@ -593,7 +623,7 @@ class UbiquityJoinSerializer(JoinSerializer):
     order = serializers.IntegerField(required=False)
 
     def validate(self, data):
-        scheme = self.context['scheme']
+        scheme = self.context["scheme"]
         return self._validate_join_questions(scheme, data)
 
 
@@ -605,7 +635,6 @@ class DeleteCredentialSerializer(serializers.Serializer):
 
 
 class UpdateCredentialSerializer(SchemeAnswerSerializer):
-
     def validate(self, credentials):
         # Validate all credential types
         scheme_fields = [question.type for question in self.context["questions"]]
@@ -613,9 +642,7 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
         if "consents" in unknown:
             unknown.remove("consents")
         if unknown:
-            raise serializers.ValidationError(
-                "field(s) not found for scheme: {}".format(", ".join(unknown))
-            )
+            raise serializers.ValidationError("field(s) not found for scheme: {}".format(", ".join(unknown)))
 
         return credentials
 
@@ -623,10 +650,10 @@ class UpdateCredentialSerializer(SchemeAnswerSerializer):
 class UpdateUserConsentSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserConsent
-        fields = ('status',)
+        fields = ("status",)
 
     def validate_status(self, value):
         if self.instance and self.instance.status == ConsentStatus.SUCCESS:
-            raise serializers.ValidationError('Cannot update the consent as it is already in a Success state.')
+            raise serializers.ValidationError("Cannot update the consent as it is already in a Success state.")
 
         return ConsentStatus(int(value))

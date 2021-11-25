@@ -3,19 +3,18 @@ from scheme import credentials
 from scheme.models import (
     Category,
     Scheme,
-    SchemeCredentialQuestion,
     SchemeAccount,
     SchemeAccountCredentialAnswer,
     SchemeBundleAssociation,
+    SchemeCredentialQuestion,
 )
 from ubiquity.models import SchemeAccountEntry
 from ubiquity.tests.property_token import GenerateJWToken
 from ubiquity.views import MembershipCardView
-from user.models import CustomUser, Organisation, ClientApplication, ClientApplicationBundle
+from user.models import ClientApplication, ClientApplicationBundle, CustomUser, Organisation
 
 
 class TestJoinExisting(GlobalMockAPITestCase):
-
     @classmethod
     def setUpTestData(cls):
         cls.join_email = "new_joiner@bink.com"
@@ -58,9 +57,7 @@ class TestJoinExisting(GlobalMockAPITestCase):
 
         SchemeAccountEntry.objects.create(user=cls.old_user, scheme_account=cls.scheme_account)
 
-        cls.auth_headers = {
-            "HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))
-        }
+        cls.auth_headers = {"HTTP_AUTHORIZATION": "{}".format(cls._get_auth_header(cls.old_user, cls.bundle.bundle_id))}
 
     @staticmethod
     def _get_auth_header(user, bundle_id):
@@ -76,7 +73,7 @@ class TestJoinExisting(GlobalMockAPITestCase):
             None,
             self.scheme,
             {"email": self.join_email, "first_name": "test", "last_name": "user"},
-            False
+            False,
         )
 
         entries = SchemeAccountEntry.objects.all()
@@ -90,7 +87,7 @@ class TestJoinExisting(GlobalMockAPITestCase):
             None,
             self.scheme,
             {"email": self.join_email, "first_name": "test", "last_name": "user"},
-            False
+            False,
         )
 
         entries = SchemeAccountEntry.objects.all()

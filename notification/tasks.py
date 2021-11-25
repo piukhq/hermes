@@ -4,20 +4,20 @@ import logging
 import operator
 import os
 from io import StringIO
-from time import time, sleep
+from time import sleep, time
 
 import paramiko
 from celery import shared_task
 from django.conf import settings
 from django.utils import timezone
 
-from user.models import CustomUser
 from history.models import HistoricalBase, HistoricalSchemeAccount, HistoricalSchemeAccountEntry
 from notification import stfp_connect
 from scheme.models import SchemeAccount
-from ubiquity.channel_vault import load_secrets, get_barclays_sftp_key, BarclaysSftpKeyNames
+from ubiquity.channel_vault import BarclaysSftpKeyNames, get_barclays_sftp_key, load_secrets
 from ubiquity.models import SchemeAccountEntry
-from ubiquity.reason_codes import ubiquity_status_translation, DELETED
+from ubiquity.reason_codes import DELETED, ubiquity_status_translation
+from user.models import CustomUser
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ class SftpManager:
     @staticmethod
     def format_data(data):
         # Format data to return status that match api response and covert date to timestamp
-        return [['01', x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
+        return [["01", x[0], x[1], ubiquity_status_translation.get(x[2], x[2]), int(x[3].timestamp())] for x in data]
 
     @staticmethod
     def remove_duplicates(data):
@@ -67,43 +67,48 @@ class SftpManager:
         # custom_paramiko.HostKey, takes host, keytype, key hence **item works
         host_keys = [stfp_connect.HostKey(**item) for item in self.sftp_host_keys]
         return stfp_connect.get_sftp_client(
-            host=self.host, port=self.port, username=self.sftp_username, password=self.sftp_password,
-            pkey=self.sftp_private_key_string, host_keys=host_keys)
+            host=self.host,
+            port=self.port,
+            username=self.sftp_username,
+            password=self.sftp_password,
+            pkey=self.sftp_private_key_string,
+            host_keys=host_keys,
+        )
 
     def transfer_file(self):
-        date = timezone.now().strftime('%Y%m%d')
+        date = timezone.now().strftime("%Y%m%d")
         timestamp = int(time())
-        filename = f'Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}'
+        filename = f"Bink_lc_status_{timestamp}_{date}.csv{settings.BARCLAYS_SFTP_FILE_SUFFIX}"
         rows = self.remove_duplicates(self.format_data(self.rows))
 
-        logger.info('Establishing connection with SFTP.')
+        logger.info("Establishing connection with SFTP.")
         sftp_client = self.connect()
-        logger.info('Connection established.')
+        logger.info("Connection established.")
 
         try:
-            with sftp_client.open(os.path.join(settings.SFTP_DIRECTORY, filename), 'w', bufsize=32768) as f:
-                logger.info('Writing file.')
+            with sftp_client.open(os.path.join(settings.SFTP_DIRECTORY, filename), "w", bufsize=32768) as f:
+                logger.info("Writing file.")
                 writer = csv.writer(f)
                 writer.writerow(["00", date])
                 writer.writerows(rows)
                 writer.writerow([99, f"{len(rows):010}"])
-                logging.info(f'File: {filename}, uploaded.')
+                logging.info(f"File: {filename}, uploaded.")
         except FileNotFoundError as e:
             logger.exception("File not found.")
             raise e
 
         sftp_client.close()
-        logger.info('Connection closed')
+        logger.info("Connection closed")
         return
 
 
 class NotificationProcessor:
     def __init__(self, initiation=True):
-        self.client_application_name = 'Barclays Mobile Banking'
-        self.channel = 'com.barclays.bmb'
+        self.client_application_name = "Barclays Mobile Banking"
+        self.channel = "com.barclays.bmb"
         self.initiation = initiation
         self.to_date = timezone.now()
-        self.change_type = 'status'
+        self.change_type = "status"
 
         run_times = settings.NOTIFICATION_RUN_TIME.split(",")
 
@@ -120,7 +125,7 @@ class NotificationProcessor:
                 "instance_id": scheme_account.id,
                 "created__lt": from_date,
                 "change_details__in": self.change_type,
-                "change_type": HistoricalBase.UPDATE
+                "change_type": HistoricalBase.UPDATE,
             }
         else:
             query = {
@@ -136,7 +141,7 @@ class NotificationProcessor:
             status = DELETED
         else:
             if self.change_type in history_obj.change_details:
-                status = history_obj.body['status']
+                status = history_obj.body["status"]
 
         if status is not None:
             state = self.get_status_translation(scheme_account, status)
@@ -173,14 +178,14 @@ class NotificationProcessor:
         barclays_scheme_account_entries = SchemeAccountEntry.objects.filter(
             user__client__name=self.client_application_name,
             scheme_account__updated__gte=self.from_datetime,
-            scheme_account__updated__lte=self.to_date
+            scheme_account__updated__lte=self.to_date,
         )
 
         for scheme_association in barclays_scheme_account_entries:
             history_data = HistoricalSchemeAccount.objects.filter(
                 instance_id=scheme_association.scheme_account_id,
                 created__range=[self.from_datetime, self.to_date],
-                change_details__contains='status'
+                change_details__contains="status",
             ).last()
 
             if history_data:
@@ -191,12 +196,14 @@ class NotificationProcessor:
                 )
 
                 if state:
-                    data.append([
-                        scheme_association.user.external_id,
-                        scheme_association.scheme_account.scheme.slug,
-                        state,
-                        history_data.created
-                    ])
+                    data.append(
+                        [
+                            scheme_association.user.external_id,
+                            scheme_association.scheme_account.scheme.slug,
+                            state,
+                            history_data.created,
+                        ]
+                    )
 
         return data
 
@@ -206,9 +213,8 @@ class NotificationProcessor:
 
         # Sort queryset by user_id and created time to see if delete is the latest status
         historical_scheme_account_association = HistoricalSchemeAccountEntry.objects.filter(
-            channel=self.channel,
-            created__range=[self.from_datetime, self.to_date]
-        ).order_by('user_id', '-created')
+            channel=self.channel, created__range=[self.from_datetime, self.to_date]
+        ).order_by("user_id", "-created")
 
         for association in historical_scheme_account_association:
             # If the user association has already been removed then skip to next item
@@ -221,23 +227,20 @@ class NotificationProcessor:
             if scheme_account and user:
                 if association.change_type == HistoricalBase.DELETE:
                     # Delete row
-                    data.append([
-                        user[0].external_id,
-                        scheme_account[0].scheme.slug,
-                        DELETED,
-                        association.created
-                    ])
+                    data.append([user[0].external_id, scheme_account[0].scheme.slug, DELETED, association.created])
 
                     deleted_user_id_assocations.append([association.user_id, association.scheme_account_id])
 
                 else:
                     # Gets the current status when the loyalty card is added to another wallet
-                    data.append([
-                        user[0].external_id,
-                        scheme_account[0].scheme.slug,
-                        self.get_status_translation(scheme_account[0], scheme_account[0].status),
-                        association.created
-                    ])
+                    data.append(
+                        [
+                            user[0].external_id,
+                            scheme_account[0].scheme.slug,
+                            self.get_status_translation(scheme_account[0], scheme_account[0].status),
+                            association.created,
+                        ]
+                    )
 
         return data
 
@@ -247,14 +250,10 @@ class NotificationProcessor:
         # initiation file data
         if self.initiation:
             # Get all barclays scheme account associations
-            scheme_accounts_entries = SchemeAccountEntry.objects.filter(
-                user__client__name=self.client_application_name)
+            scheme_accounts_entries = SchemeAccountEntry.objects.filter(user__client__name=self.client_application_name)
 
             rows_to_write = scheme_accounts_entries.values_list(
-                'user__external_id',
-                'scheme_account__scheme__slug',
-                'scheme_account__status',
-                'scheme_account__created'
+                "user__external_id", "scheme_account__scheme__slug", "scheme_account__status", "scheme_account__created"
             )
 
         else:
@@ -280,8 +279,8 @@ def notification_file(initiation=True):
                 return
             except Exception as e:
                 retry_count += 1
-                logging.warning('Retrying connection to SFTP.')
+                logging.warning("Retrying connection to SFTP.")
                 sleep(settings.NOTIFICATION_RETRY_TIMER)
                 if retry_count == settings.NOTIFICATION_ERROR_THRESHOLD:
-                    logging.exception(f'Failed to connect. Error - {e}')
+                    logging.exception(f"Failed to connect. Error - {e}")
                     raise e

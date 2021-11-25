@@ -8,18 +8,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0056_auto_20190228_1356'),
+        ("scheme", "0056_auto_20190228_1356"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='barcode_redeem_instructions',
-            field=models.TextField(blank=True, default=''),
+            model_name="scheme",
+            name="barcode_redeem_instructions",
+            field=models.TextField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='scheme',
-            name='plan_register_info',
-            field=models.TextField(blank=True, default=''),
+            model_name="scheme",
+            name="plan_register_info",
+            field=models.TextField(blank=True, default=""),
         ),
     ]

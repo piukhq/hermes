@@ -16,5 +16,5 @@ class MagicLinkData:
     template: str
     url: str
     token: str
-    expiry_date: 'datetime'
+    expiry_date: "datetime"
     locale: str

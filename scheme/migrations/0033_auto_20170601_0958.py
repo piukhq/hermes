@@ -8,54 +8,54 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0032_auto_20170525_1404'),
+        ("scheme", "0032_auto_20170525_1404"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='created',
+            model_name="schemeaccountimage",
+            name="created",
             field=models.DateTimeField(auto_now_add=True),
         ),
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='description',
-            field=models.CharField(default='', max_length=300),
+            model_name="schemeaccountimage",
+            name="description",
+            field=models.CharField(default="", max_length=300),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='size_code',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="schemeaccountimage",
+            name="size_code",
+            field=models.CharField(blank=True, default="", max_length=30),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='strap_line',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="schemeaccountimage",
+            name="strap_line",
+            field=models.CharField(blank=True, default="", max_length=50),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeimage',
-            name='created',
+            model_name="schemeimage",
+            name="created",
             field=models.DateTimeField(auto_now_add=True),
         ),
         migrations.AlterField(
-            model_name='schemeimage',
-            name='description',
-            field=models.CharField(default='', max_length=300),
+            model_name="schemeimage",
+            name="description",
+            field=models.CharField(default="", max_length=300),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeimage',
-            name='size_code',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="schemeimage",
+            name="size_code",
+            field=models.CharField(blank=True, default="", max_length=30),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='schemeimage',
-            name='strap_line',
-            field=models.CharField(blank=True, default='', max_length=50),
+            model_name="schemeimage",
+            name="strap_line",
+            field=models.CharField(blank=True, default="", max_length=50),
             preserve_default=False,
         ),
     ]

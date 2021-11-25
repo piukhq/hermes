@@ -1,9 +1,9 @@
-from hermes.settings import BINK_CLIENT_ID, BINK_BUNDLE_ID
+from hermes.settings import BINK_BUNDLE_ID, BINK_CLIENT_ID
 from payment_card.models import PaymentCardAccount
-from scheme.models import SchemeAccount, Scheme, SchemeCredentialQuestion
-from ubiquity.models import PaymentCardSchemeEntry, SchemeAccountEntry, PaymentCardAccountEntry
-from user.models import ClientApplicationBundle, ClientApplication, ClientApplicationKit, CustomUser, Organisation
-from user.tests.factories import (ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory)
+from scheme.models import Scheme, SchemeAccount, SchemeCredentialQuestion
+from ubiquity.models import PaymentCardAccountEntry, PaymentCardSchemeEntry, SchemeAccountEntry
+from user.models import ClientApplication, ClientApplicationBundle, ClientApplicationKit, CustomUser, Organisation
+from user.tests.factories import ClientApplicationBundleFactory, ClientApplicationFactory, OrganisationFactory
 
 
 def clear_db():
@@ -21,26 +21,27 @@ def clear_db():
 
 def set_up_db(cls):
     """Test cases have had issues with database of being inconsistent between test classes
-        By calling this function the users, bundles and clients are reset to the standard
-        defaults
+    By calling this function the users, bundles and clients are reset to the standard
+    defaults
     """
     clear_db()
-    cls.bink_client_id = 'MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd'
+    cls.bink_client_id = "MKd3FfDGBi1CIUQwtahmPap64lneCa2R6GvVWKg6dNg4w9Jnpd"
     cls.bink_secret = "This is the Bink Secret Bink Secret this is"
     cls.bink_bundle_id = BINK_BUNDLE_ID
-    cls.organisation = OrganisationFactory(pk=1, name='Loyalty Angels')
-    cls.bink_client_app = ClientApplicationFactory(pk=BINK_CLIENT_ID, organisation=cls.organisation,
-                                                   name='Bink', secret=cls.bink_secret,
-                                                   client_id=cls.bink_client_id)
-    cls.bink_bundle = ClientApplicationBundleFactory(pk=1, client=cls.bink_client_app,
-                                                     bundle_id=cls.bink_bundle_id)
-    cls.bink_kit = ClientApplicationKit.objects.create(client_id=cls.bink_client_id,
-                                                       kit_name='core', is_valid=True)
+    cls.organisation = OrganisationFactory(pk=1, name="Loyalty Angels")
+    cls.bink_client_app = ClientApplicationFactory(
+        pk=BINK_CLIENT_ID,
+        organisation=cls.organisation,
+        name="Bink",
+        secret=cls.bink_secret,
+        client_id=cls.bink_client_id,
+    )
+    cls.bink_bundle = ClientApplicationBundleFactory(pk=1, client=cls.bink_client_app, bundle_id=cls.bink_bundle_id)
+    cls.bink_kit = ClientApplicationKit.objects.create(client_id=cls.bink_client_id, kit_name="core", is_valid=True)
 
 
 def print_db():
-    """This is useful to examine certain frequently used tables and setups within a test class
-    """
+    """This is useful to examine certain frequently used tables and setups within a test class"""
     user_list = CustomUser.objects.all().values()
     print(f"Users  = {CustomUser.objects.count()}:")
     for user in user_list:

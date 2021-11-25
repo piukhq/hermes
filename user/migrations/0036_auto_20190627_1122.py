@@ -8,23 +8,25 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0060_auto_20190627_1122'),
-        ('user', '0035_customuserconsent'),
+        ("scheme", "0060_auto_20190627_1122"),
+        ("user", "0035_customuserconsent"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='clientapplicationbundle',
-            old_name='issuers',
-            new_name='issuer',
+            model_name="clientapplicationbundle",
+            old_name="issuers",
+            new_name="issuer",
         ),
         migrations.RemoveField(
-            model_name='clientapplicationbundle',
-            name='schemes',
+            model_name="clientapplicationbundle",
+            name="schemes",
         ),
         migrations.AddField(
-            model_name='clientapplicationbundle',
-            name='scheme',
-            field=models.ManyToManyField(blank=True, related_name='related_bundle', through='scheme.SchemeBundleAssociation', to='scheme.Scheme'),
+            model_name="clientapplicationbundle",
+            name="scheme",
+            field=models.ManyToManyField(
+                blank=True, related_name="related_bundle", through="scheme.SchemeBundleAssociation", to="scheme.Scheme"
+            ),
         ),
     ]

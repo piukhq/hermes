@@ -18,11 +18,11 @@ fakeredis = "*"
 flake8 = "*"
 coverage = "*"
 xenon = "*"
-black = "==21.9b0"
 isort = "*"
 mypy = "*"
 pytest = "*"
 ptpython = "*"
+black = "==21.11b1"
 
 [packages]
 arrow = "==0.17.0"

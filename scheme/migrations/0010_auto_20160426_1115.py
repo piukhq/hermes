@@ -8,14 +8,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0009_auto_20160426_1050'),
+        ("scheme", "0009_auto_20160426_1050"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='schemeaccountimage',
-            name='description',
-            field=models.CharField(default='desc', max_length=300),
+            model_name="schemeaccountimage",
+            name="description",
+            field=models.CharField(default="desc", max_length=300),
             preserve_default=False,
         ),
     ]

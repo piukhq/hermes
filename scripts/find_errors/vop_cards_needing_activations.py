@@ -1,5 +1,6 @@
-from .base_script import BaseScript, Correction
 from ubiquity.models import PaymentCardSchemeEntry, VopActivation
+
+from .base_script import BaseScript, Correction
 
 
 class FindVopCardsNeedingActivation(BaseScript):
@@ -12,7 +13,7 @@ class FindVopCardsNeedingActivation(BaseScript):
     def script(self):
         # All active VISA cards
         active_visa_links = PaymentCardSchemeEntry.objects.filter(
-            payment_card_account__payment_card__slug='visa', active_link=True
+            payment_card_account__payment_card__slug="visa", active_link=True
         )
 
         for link in active_visa_links:
@@ -36,12 +37,10 @@ class FindVopCardsNeedingActivation(BaseScript):
                 self.found += 1
 
                 data = {
-                    'card_id': pca.id,
-                    'scheme_id': scheme.id,
-                    'scheme_slug': scheme.slug,
-                    'payment_token': pca.psp_token
+                    "card_id": pca.id,
+                    "scheme_id": scheme.id,
+                    "scheme_slug": scheme.slug,
+                    "payment_token": pca.psp_token,
                 }
 
-                self.make_correction(
-                    unique_id_string=f"{scheme.id}.{pca.id}", data=data
-                )
+                self.make_correction(unique_id_string=f"{scheme.id}.{pca.id}", data=data)

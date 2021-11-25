@@ -3,7 +3,7 @@ import logging
 import requests
 from django.conf import settings
 
-from ubiquity.channel_vault import get_secret_key, SecretKeyName
+from ubiquity.channel_vault import SecretKeyName, get_secret_key
 
 
 class SpreedlyError(Exception):
@@ -14,8 +14,13 @@ class Spreedly:
     payment_purchase_url = "{}/v1/gateways/{gateway_token}/purchase.json"
     payment_void_url = "{}/v1/transactions/{transaction_token}/void.json"
 
-    def __init__(self, environment_key: str, access_secret: str, currency_code: str = "GBP",
-                 base_url: str = settings.SPREEDLY_BASE_URL):
+    def __init__(
+        self,
+        environment_key: str,
+        access_secret: str,
+        currency_code: str = "GBP",
+        base_url: str = settings.SPREEDLY_BASE_URL,
+    ):
 
         self.base_url = base_url
         self.environment_key = environment_key
@@ -24,10 +29,9 @@ class Spreedly:
 
         self.purchase_resp = None
         self.void_resp = None
-        self.transaction_token = ''
+        self.transaction_token = ""
 
-    def purchase(self, payment_token: str, amount: int, order_id: str,
-                 gateway_token: str = None) -> None:
+    def purchase(self, payment_token: str, amount: int, order_id: str, gateway_token: str = None) -> None:
 
         if gateway_token is None:
             gateway_token = get_secret_key(SecretKeyName.SPREEDLY_GATEWAY_TOKEN)
@@ -51,9 +55,7 @@ class Spreedly:
 
             self.purchase_resp = resp.json()
             if not self.purchase_resp["transaction"]["succeeded"]:
-                message = (
-                    f'Payment error - Spreedly response: {self.purchase_resp["transaction"]["response"]}'
-                )
+                message = f'Payment error - Spreedly response: {self.purchase_resp["transaction"]["response"]}'
                 logging.exception(message)
                 raise SpreedlyError(SpreedlyError.UNSUCCESSFUL_RESPONSE)
 

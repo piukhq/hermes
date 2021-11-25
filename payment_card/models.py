@@ -23,7 +23,7 @@ class Issuer(models.Model):
     @classmethod
     @lru_cache(maxsize=1)
     def get_barclays_issuer(cls):
-        return cls.objects.get(name='Barclays')
+        return cls.objects.get(name="Barclays")
 
 
 def clear_issuer_lru_cache(sender, **kwargs):
@@ -35,24 +35,27 @@ signals.post_delete.connect(clear_issuer_lru_cache, sender=Issuer)
 
 
 class ActivePaymentCardImageManager(models.Manager):
-
     def get_queryset(self):
-        return super().get_queryset().filter(
-            start_date__lt=timezone.now()).filter(
-            Q(end_date__isnull=True) | Q(end_date__gte=timezone.now())).exclude(status=Image.DRAFT)
+        return (
+            super()
+            .get_queryset()
+            .filter(start_date__lt=timezone.now())
+            .filter(Q(end_date__isnull=True) | Q(end_date__gte=timezone.now()))
+            .exclude(status=Image.DRAFT)
+        )
 
 
 class PaymentCardImage(Image):
     objects = ActivePaymentCardImageManager()
-    payment_card = models.ForeignKey('payment_card.PaymentCard', related_name='images', on_delete=models.CASCADE)
+    payment_card = models.ForeignKey("payment_card.PaymentCard", related_name="images", on_delete=models.CASCADE)
 
 
 def _update_payment_card_images(instance: PaymentCardImage) -> None:
     payment_card = instance.payment_card
     query = {
-        'payment_card': payment_card,
-        'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
+        "payment_card": payment_card,
+        "status": Image.PUBLISHED,
+        "image_type_code__in": [Image.HERO, Image.ICON, Image.ALT_HERO],
     }
     formatted_images = {}
     # using PaymentCardImage.all_objects instead of payment_card.images to bypass ActivePaymentCardImageManager
@@ -63,7 +66,7 @@ def _update_payment_card_images(instance: PaymentCardImage) -> None:
         formatted_images[img.image_type_code][img.id] = img.ubiquity_format()
 
     payment_card.formatted_images = formatted_images
-    payment_card.save(update_fields=['formatted_images'])
+    payment_card.save(update_fields=["formatted_images"])
 
 
 @receiver(signals.post_save, sender=PaymentCardImage)
@@ -78,10 +81,8 @@ def update_payment_card_images_on_delete(sender, instance, **kwargs):
 
 class PaymentCardAccountImage(Image):
     objects = ActivePaymentCardImageManager()
-    payment_card = models.ForeignKey('payment_card.PaymentCard', null=True, blank=True, on_delete=models.SET_NULL)
-    payment_card_accounts = models.ManyToManyField('payment_card.PaymentCardAccount',
-                                                   related_name='images',
-                                                   blank=True)
+    payment_card = models.ForeignKey("payment_card.PaymentCard", null=True, blank=True, on_delete=models.SET_NULL)
+    payment_card_accounts = models.ManyToManyField("payment_card.PaymentCardAccount", related_name="images", blank=True)
 
 
 @receiver(signals.m2m_changed, sender=PaymentCardAccountImage.payment_card_accounts.through)
@@ -98,7 +99,7 @@ def update_payment_card_account_images_on_save(sender, instance, action, **kwarg
         images_to_update = payment_card_account.formatted_images.get(instance.image_type_code, {})
         images_to_update[instance.id] = formatted_image
         payment_card_account.formatted_images[instance.image_type_code] = images_to_update
-        payment_card_account.save(update_fields=['formatted_images'])
+        payment_card_account.save(update_fields=["formatted_images"])
 
 
 @receiver(signals.pre_delete, sender=PaymentCardAccountImage)
@@ -112,24 +113,24 @@ def update_payment_card_account_images_on_delete(sender, instance, **kwargs):
         except (KeyError, TypeError):
             pass
         else:
-            payment_card_account.save(update_fields=['formatted_images'])
+            payment_card_account.save(update_fields=["formatted_images"])
 
 
 class PaymentCard(models.Model):
-    VISA = 'visa'
-    MASTERCARD = 'mastercard'
-    AMEX = 'amex'
+    VISA = "visa"
+    MASTERCARD = "mastercard"
+    AMEX = "amex"
     SYSTEMS = (
-        (VISA, 'Visa'),
-        (MASTERCARD, 'Mastercard'),
-        (AMEX, 'American Express'),
+        (VISA, "Visa"),
+        (MASTERCARD, "Mastercard"),
+        (AMEX, "American Express"),
     )
 
-    DEBIT = 'debit'
-    CREDIT = 'credit'
+    DEBIT = "debit"
+    CREDIT = "credit"
     TYPES = (
-        (DEBIT, 'Debit Card'),
-        (CREDIT, 'Credit Card'),
+        (DEBIT, "Debit Card"),
+        (CREDIT, "Credit Card"),
     )
 
     class TokenMethod(object):
@@ -138,9 +139,9 @@ class PaymentCard(models.Model):
         LEN_25 = 2
 
         CHOICES = (
-            (COPY, 'Use PSP token'),
-            (LEN_24, 'Generate length-24 token'),
-            (LEN_25, 'Generate length-25 token'),
+            (COPY, "Use PSP token"),
+            (LEN_24, "Generate length-24 token"),
+            (LEN_25, "Generate length-25 token"),
         )
 
         @classmethod
@@ -149,7 +150,7 @@ class PaymentCard(models.Model):
 
         @classmethod
         def len24(cls, psp_token):
-            return base64.b64encode(uuid.uuid4().bytes).decode('utf-8')
+            return base64.b64encode(uuid.uuid4().bytes).decode("utf-8")
 
         @classmethod
         def len25(cls, psp_token):
@@ -159,13 +160,11 @@ class PaymentCard(models.Model):
             check_digit = (odds + evens) % 10
             if check_digit != 0:
                 check_digit = 10 - check_digit
-            return '{}{}'.format(cls.len24(psp_token), check_digit)
+            return "{}{}".format(cls.len24(psp_token), check_digit)
 
         @classmethod
         def dispatch(cls, method, psp_token):
-            return {cls.COPY: cls.copy,
-                    cls.LEN_24: cls.len24,
-                    cls.LEN_25: cls.len25}[method](psp_token)
+            return {cls.COPY: cls.copy, cls.LEN_24: cls.len24, cls.LEN_25: cls.len25}[method](psp_token)
 
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True)
@@ -204,7 +203,6 @@ signals.post_delete.connect(clear_payment_card_lru_cache, sender=PaymentCard)
 
 
 class PaymentCardAccountManager(models.Manager):
-
     def get_queryset(self):
         return super(PaymentCardAccountManager, self).get_queryset().exclude(is_deleted=True)
 
@@ -224,19 +222,21 @@ class PaymentCardAccount(models.Model):
     UNKNOWN = 6
 
     STATUSES = (
-        (PENDING, 'pending'),
-        (ACTIVE, 'active'),
-        (DUPLICATE_CARD, 'duplicate card'),
-        (NOT_PROVIDER_CARD, 'not provider card'),
-        (INVALID_CARD_DETAILS, 'invalid card details'),
-        (PROVIDER_SERVER_DOWN, 'provider server down'),
-        (UNKNOWN, 'unknown')
+        (PENDING, "pending"),
+        (ACTIVE, "active"),
+        (DUPLICATE_CARD, "duplicate card"),
+        (NOT_PROVIDER_CARD, "not provider card"),
+        (INVALID_CARD_DETAILS, "invalid card details"),
+        (PROVIDER_SERVER_DOWN, "provider server down"),
+        (UNKNOWN, "unknown"),
     )
 
-    user_set = models.ManyToManyField('user.CustomUser', through='ubiquity.PaymentCardAccountEntry',
-                                      related_name='payment_card_account_set')
-    scheme_account_set = models.ManyToManyField('scheme.SchemeAccount', through='ubiquity.PaymentCardSchemeEntry',
-                                                related_name='payment_card_account_set')
+    user_set = models.ManyToManyField(
+        "user.CustomUser", through="ubiquity.PaymentCardAccountEntry", related_name="payment_card_account_set"
+    )
+    scheme_account_set = models.ManyToManyField(
+        "scheme.SchemeAccount", through="ubiquity.PaymentCardSchemeEntry", related_name="payment_card_account_set"
+    )
     payment_card = models.ForeignKey(PaymentCard, models.PROTECT)
     name_on_card = models.CharField(max_length=150, blank=True)
     card_nickname = models.CharField(max_length=255, blank=True)
@@ -247,7 +247,7 @@ class PaymentCardAccount(models.Model):
     currency_code = models.CharField(max_length=3)
     country = models.CharField(max_length=40)
     token = models.CharField(max_length=255, db_index=True)
-    psp_token = models.CharField(max_length=255, verbose_name='PSP Token')
+    psp_token = models.CharField(max_length=255, verbose_name="PSP Token")
     pan_start = models.CharField(max_length=6)
     pan_end = models.CharField(max_length=4)
     status = models.IntegerField(default=PENDING, choices=STATUSES)
@@ -255,7 +255,7 @@ class PaymentCardAccount(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
     issuer = models.ForeignKey(Issuer, null=True, blank=True, on_delete=models.PROTECT)
-    issuer_name = models.CharField(max_length=50, blank=True)    # API v2 does not user Issuer table
+    issuer_name = models.CharField(max_length=50, blank=True)  # API v2 does not user Issuer table
     fingerprint = models.CharField(max_length=100, db_index=True)
     is_deleted = models.BooleanField(default=False)
     consents = JSONField(default=list)
@@ -268,17 +268,14 @@ class PaymentCardAccount(models.Model):
     objects = PaymentCardAccountManager()
 
     def __str__(self):
-        return '{} - {}'.format(
-            self.payment_card.name,
-            self.name_on_card
-        )
+        return "{} - {}".format(self.payment_card.name, self.name_on_card)
 
     def save(self, *args, **kwargs):
         if not self.token:
             self.token = PaymentCard.TokenMethod.dispatch(self.payment_card.token_method, self.psp_token)
         # Only update updated field when performing an update
         if kwargs.get("update_fields"):
-            kwargs['update_fields'].append('updated')
+            kwargs["update_fields"].append("updated")
         super().save(*args, **kwargs)
 
     @property
@@ -287,50 +284,53 @@ class PaymentCardAccount(models.Model):
 
     @property
     def images(self):
-        qualifiers = PaymentCardAccountImage.objects.filter(payment_card=self.payment_card,
-                                                            payment_card_accounts__id=self.id,
-                                                            payment_card_image__isnull=False)
-        images = qualifiers.annotate(image_type_code=F('payment_card_image__image_type_code'),
-                                     image_size_code=F('payment_card_image__size_code'),
-                                     image=F('payment_card_image__image'),
-                                     strap_line=F('payment_card_image__strap_line'),
-                                     image_description=F('payment_card_image__description'),
-                                     url=F('payment_card_image__url'),
-                                     call_to_action=F('payment_card_image__call_to_action'),
-                                     order=F('payment_card_image__order')).values(
-            'image_type_code',
-            'image_size_code',
-            'image',
-            'strap_line',
-            'image_description',
-            'url',
-            'call_to_action',
-            'order',
-            'status',
-            'start_date',
-            'end_date',
-            'created')
+        qualifiers = PaymentCardAccountImage.objects.filter(
+            payment_card=self.payment_card, payment_card_accounts__id=self.id, payment_card_image__isnull=False
+        )
+        images = qualifiers.annotate(
+            image_type_code=F("payment_card_image__image_type_code"),
+            image_size_code=F("payment_card_image__size_code"),
+            image=F("payment_card_image__image"),
+            strap_line=F("payment_card_image__strap_line"),
+            image_description=F("payment_card_image__description"),
+            url=F("payment_card_image__url"),
+            call_to_action=F("payment_card_image__call_to_action"),
+            order=F("payment_card_image__order"),
+        ).values(
+            "image_type_code",
+            "image_size_code",
+            "image",
+            "strap_line",
+            "image_description",
+            "url",
+            "call_to_action",
+            "order",
+            "status",
+            "start_date",
+            "end_date",
+            "created",
+        )
 
         return images
 
 
 class ProviderStatusMapping(models.Model):
-    provider = models.ForeignKey('payment_card.PaymentCard', on_delete=models.CASCADE)
+    provider = models.ForeignKey("payment_card.PaymentCard", on_delete=models.CASCADE)
     provider_status_code = models.CharField(max_length=24)
     bink_status_code = models.IntegerField(choices=PaymentCardAccount.STATUSES)
 
 
 class AuthTransaction(models.Model):
-    payment_card_account = models.ForeignKey('PaymentCardAccount', on_delete=models.SET_NULL, null=True)
+    payment_card_account = models.ForeignKey("PaymentCardAccount", on_delete=models.SET_NULL, null=True)
     time = models.DateTimeField()
     amount = models.IntegerField()
     mid = models.CharField(max_length=100)
     third_party_id = models.CharField(max_length=100)
-    auth_code = models.CharField(max_length=100, blank=True, default='')
-    currency_code = models.CharField(max_length=3, default='GBP')
+    auth_code = models.CharField(max_length=100, blank=True, default="")
+    currency_code = models.CharField(max_length=3, default="GBP")
 
     def __str__(self):
-        return 'Auth transaction of {}{}'.format(self.currency_code, self.amount / 100)
+        return "Auth transaction of {}{}".format(self.currency_code, self.amount / 100)
 
 
 class PaymentStatus(IntEnum):
@@ -343,10 +343,10 @@ class PaymentStatus(IntEnum):
 
 
 def _generate_tx_ref() -> str:
-    prefix = 'BNK-'
+    prefix = "BNK-"
     identifier = uuid.uuid4()
 
-    return '{}{}'.format(prefix, identifier)
+    return "{}{}".format(prefix, identifier)
 
 
 class PaymentAudit(models.Model):
@@ -355,16 +355,15 @@ class PaymentAudit(models.Model):
     payment_card_hash = models.CharField(max_length=255)
     payment_card_id = models.IntegerField(null=True, blank=True)
     transaction_ref = models.CharField(max_length=255, default=_generate_tx_ref)
-    transaction_token = models.CharField(max_length=255, blank=True, default='')
+    transaction_token = models.CharField(max_length=255, blank=True, default="")
     status = models.IntegerField(
-        choices=[(status.value, status.name) for status in PaymentStatus],
-        default=PaymentStatus.PURCHASE_PENDING
+        choices=[(status.value, status.name) for status in PaymentStatus], default=PaymentStatus.PURCHASE_PENDING
     )
     void_attempts = models.IntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)
     modified_on = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return 'PaymentAudit id: {} - User id: {} - SchemeAccount id: {}'.format(
+        return "PaymentAudit id: {} - User id: {} - SchemeAccount id: {}".format(
             self.id, self.user_id, self.scheme_account_id
         )

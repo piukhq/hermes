@@ -7,18 +7,22 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0050_auto_20210421_1514'),
+        ("user", "0050_auto_20210421_1514"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='clientapplicationbundle',
-            name='access_token_lifetime',
-            field=models.PositiveIntegerField(blank=True, default=10, null=True, validators=[django.core.validators.MinValueValidator(1)]),
+            model_name="clientapplicationbundle",
+            name="access_token_lifetime",
+            field=models.PositiveIntegerField(
+                blank=True, default=10, null=True, validators=[django.core.validators.MinValueValidator(1)]
+            ),
         ),
         migrations.AddField(
-            model_name='clientapplicationbundle',
-            name='refresh_token_lifetime',
-            field=models.PositiveIntegerField(blank=True, default=15, null=True, validators=[django.core.validators.MinValueValidator(2)]),
+            model_name="clientapplicationbundle",
+            name="refresh_token_lifetime",
+            field=models.PositiveIntegerField(
+                blank=True, default=15, null=True, validators=[django.core.validators.MinValueValidator(2)]
+            ),
         ),
     ]

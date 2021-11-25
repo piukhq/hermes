@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0001_squashed_0013_auto_20160128_1132'),
+        ("user", "0001_squashed_0013_auto_20160128_1132"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='userdetail',
-            name='reset_link',
+            model_name="userdetail",
+            name="reset_link",
             field=models.CharField(blank=True, max_length=255, null=True),
         ),
     ]

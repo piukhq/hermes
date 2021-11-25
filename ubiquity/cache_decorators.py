@@ -1,6 +1,7 @@
 import logging
 import uuid
-from json import loads, dumps
+from json import dumps, loads
+from time import monotonic
 
 import sentry_sdk
 from django.conf import settings
@@ -10,7 +11,6 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 from rest_framework.response import Response
 
 from ubiquity.versioning import get_api_version
-from time import monotonic
 
 logger = logging.getLogger(__name__)
 r_write = Redis(connection_pool=settings.REDIS_WRITE_API_CACHE_POOL)
@@ -22,7 +22,6 @@ class CacheMissedError(Exception):
 
 
 class ApiCache:
-
     def __init__(self, key, expire):
         self.key = key
         self.data = None
@@ -51,8 +50,10 @@ class ApiCache:
                 retry_exception = e
                 remaining_retries = total_retries - retry_count - 1
                 # uuid passed into the logs to map multiple logs together with one request
-                logger.warning(f"Get plan cache from Redis failed. Retrying {remaining_retries} more times. "
-                               f"Error: {repr(e)}, Log ID: {log_id}")
+                logger.warning(
+                    f"Get plan cache from Redis failed. Retrying {remaining_retries} more times. "
+                    f"Error: {repr(e)}, Log ID: {log_id}"
+                )
         else:
             raise retry_exception
 
@@ -91,17 +92,16 @@ def membership_plan_key(req, kwargs=None):
     :param kwargs: additional parameters defined in the cache decorator for this function
     :return: key_part
     """
-    user = getattr(req, 'user')
-    user_tester = '1' if user and user.is_tester else '0'
-    pk = kwargs.get('pk', "")
+    user = getattr(req, "user")
+    user_tester = "1" if user and user.is_tester else "0"
+    pk = kwargs.get("pk", "")
     pk_part = ""
     if pk:
-        pk_part = f':{pk}'
-    return f'{pk_part}:{req.channels_permit.bundle_id}:{user_tester}'
+        pk_part = f":{pk}"
+    return f"{pk_part}:{req.channels_permit.bundle_id}:{user_tester}"
 
 
 class CacheApiRequest(object):
-
     def __init__(self, key_slug, expiry, key_func):
         """
         This decorator can be used to cache a get a versioned request which always returns 200 on success -
@@ -116,7 +116,6 @@ class CacheApiRequest(object):
         self.key_func = key_func
 
     def __call__(self, func):
-
         def wrapped_f(request, *args, **kwargs):
             request_start_time = monotonic()
             cache_hit = "HIT"
@@ -126,7 +125,7 @@ class CacheApiRequest(object):
             cache = ApiCache(key, self.expiry)
             if cache.available:
                 response = Response(cache.data)
-                response['X-API-Version'] = version
+                response["X-API-Version"] = version
             else:
                 cache_hit = "MISS"
                 response = func(request, *args, **kwargs)
@@ -135,10 +134,12 @@ class CacheApiRequest(object):
                 else:
                     logger.error(f"ApiCache: could not regenerate cache due to request error {response.status_code}")
 
-            cache.time_it_log(request_start_time,
-                              f"Request Response for {self.key_slug} key:{key} with Cache {cache_hit} ",
-                              high=450,
-                              low=350)
+            cache.time_it_log(
+                request_start_time,
+                f"Request Response for {self.key_slug} key:{key} with Cache {cache_hit} ",
+                high=450,
+                low=350,
+            )
             return response
 
         return wrapped_f

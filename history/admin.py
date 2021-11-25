@@ -1,16 +1,16 @@
 from django.contrib import admin
 from rangefilter.filter import DateTimeRangeFilter
-from history.enums import HistoryModel
 
 from common.admin import InputFilter
+from history.enums import HistoryModel
 from history.models import (
-    HistoricalPaymentCardAccount,
-    HistoricalSchemeAccount,
-    HistoricalPaymentCardAccountEntry,
-    HistoricalSchemeAccountEntry,
     HistoricalCustomUser,
-    HistoricalVopActivation,
+    HistoricalPaymentCardAccount,
+    HistoricalPaymentCardAccountEntry,
     HistoricalPaymentCardSchemeEntry,
+    HistoricalSchemeAccount,
+    HistoricalSchemeAccountEntry,
+    HistoricalVopActivation,
 )
 
 

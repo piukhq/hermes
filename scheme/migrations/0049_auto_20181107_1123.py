@@ -8,7 +8,7 @@ from django.db import migrations
 def populate_scheme_statuses(apps, schema_editor):
     ACTIVE = 0
     INACTIVE = 2
-    Scheme = apps.get_model('scheme', 'Scheme')
+    Scheme = apps.get_model("scheme", "Scheme")
     for scheme in Scheme.all_objects.all():
         scheme.status = ACTIVE if scheme.is_active else INACTIVE
         scheme.save()
@@ -17,10 +17,9 @@ def populate_scheme_statuses(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0048_auto_20181106_1149'),
+        ("scheme", "0048_auto_20181106_1149"),
     ]
 
     operations = [
-        migrations.RunPython(populate_scheme_statuses,
-                             migrations.RunPython.noop),
+        migrations.RunPython(populate_scheme_statuses, migrations.RunPython.noop),
     ]

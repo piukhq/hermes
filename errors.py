@@ -18,24 +18,17 @@ INVALID_PROMO_CODE = "INVALID_PROMO_CODE"
 REGISTRATION_FAILED = "REGISTRATION_FAILED"
 
 errors = {
-    INCORRECT_CREDENTIALS: {"code": 403,
-                            "message": "Login credentials incorrect."},
-    FACEBOOK_BAD_TOKEN: {"code": 403,
-                         "message": "Cannot get facebook user token"},
-    FACEBOOK_CANT_VALIDATE: {"code": 403,
-                             "message": "Cannot validate user_id & access_token."},
-    FACEBOOK_INVALID_USER: {"code": 403,
-                            "message": "user_id is invalid for given access token"},
-    FACEBOOK_GRAPH_ACCESS: {"code": 403,
-                            "message": "Can not access facebook social graph."},
-    INVALID_PROMO_CODE: {"code": 403,
-                         "message": "The promotion code provided is invalid."},
-    REGISTRATION_FAILED: {"code": 403,
-                          "message": "Registration failed."},
+    INCORRECT_CREDENTIALS: {"code": 403, "message": "Login credentials incorrect."},
+    FACEBOOK_BAD_TOKEN: {"code": 403, "message": "Cannot get facebook user token"},
+    FACEBOOK_CANT_VALIDATE: {"code": 403, "message": "Cannot validate user_id & access_token."},
+    FACEBOOK_INVALID_USER: {"code": 403, "message": "user_id is invalid for given access token"},
+    FACEBOOK_GRAPH_ACCESS: {"code": 403, "message": "Can not access facebook social graph."},
+    INVALID_PROMO_CODE: {"code": 403, "message": "The promotion code provided is invalid."},
+    REGISTRATION_FAILED: {"code": 403, "message": "Registration failed."},
 }
 
 
 def error_response(error_name):
     error = errors[error_name]
-    error['name'] = error_name
+    error["name"] = error_name
     return Response(error, status=error["code"])

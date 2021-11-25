@@ -3,19 +3,20 @@
 from __future__ import unicode_literals
 
 from django.db import migrations
+
 import user.models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0010_auto_20170317_0914'),
+        ("user", "0010_auto_20170317_0914"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='marketingcode',
-            name='code',
+            model_name="marketingcode",
+            name="code",
             field=user.models.LowerCaseCharField(blank=True, max_length=100, null=True),
         ),
     ]

@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 
 def populate_delete_token(apps, schema_editor):
-    CustomUser = apps.get_model('user', 'CustomUser')
+    CustomUser = apps.get_model("user", "CustomUser")
 
     for user in CustomUser.all_objects.filter(is_active=False).all():
         user.delete_token = uuid.uuid4()
@@ -18,18 +18,18 @@ def reverse_delete_token(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('user', '0041_auto_20200518_0952'),
+        ("user", "0041_auto_20200518_0952"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customuser',
-            name='delete_token',
-            field=models.CharField(blank=True, default='', max_length=255),
+            model_name="customuser",
+            name="delete_token",
+            field=models.CharField(blank=True, default="", max_length=255),
         ),
         migrations.RunPython(populate_delete_token, reverse_delete_token),
         migrations.AlterUniqueTogether(
-            name='customuser',
-            unique_together={('email', 'client', 'external_id', 'delete_token')},
+            name="customuser",
+            unique_together={("email", "client", "external_id", "delete_token")},
         ),
     ]

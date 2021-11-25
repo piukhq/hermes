@@ -8,72 +8,91 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='HistoricalPaymentCardAccount',
+            name="HistoricalPaymentCardAccount",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('change_reason', models.CharField(max_length=255)),
-                ('change_type', models.CharField(choices=[('create', 'create'), ('update', 'update'), ('delete', 'delete')], max_length=6)),
-                ('instance_id', models.CharField(max_length=255)),
-                ('channel', models.CharField(max_length=255)),
-                ('user_id', models.IntegerField()),
-                ('body', django.contrib.postgres.fields.jsonb.JSONField()),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("change_reason", models.CharField(max_length=255)),
+                (
+                    "change_type",
+                    models.CharField(
+                        choices=[("create", "create"), ("update", "update"), ("delete", "delete")], max_length=6
+                    ),
+                ),
+                ("instance_id", models.CharField(max_length=255)),
+                ("channel", models.CharField(max_length=255)),
+                ("user_id", models.IntegerField()),
+                ("body", django.contrib.postgres.fields.jsonb.JSONField()),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='HistoricalPaymentCardAccountEntry',
+            name="HistoricalPaymentCardAccountEntry",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('change_reason', models.CharField(max_length=255)),
-                ('change_type', models.CharField(choices=[('create', 'create'), ('update', 'update'), ('delete', 'delete')], max_length=6)),
-                ('instance_id', models.CharField(max_length=255)),
-                ('channel', models.CharField(max_length=255)),
-                ('user_id', models.IntegerField()),
-                ('payment_card_account_id', models.IntegerField()),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("change_reason", models.CharField(max_length=255)),
+                (
+                    "change_type",
+                    models.CharField(
+                        choices=[("create", "create"), ("update", "update"), ("delete", "delete")], max_length=6
+                    ),
+                ),
+                ("instance_id", models.CharField(max_length=255)),
+                ("channel", models.CharField(max_length=255)),
+                ("user_id", models.IntegerField()),
+                ("payment_card_account_id", models.IntegerField()),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='HistoricalSchemeAccount',
+            name="HistoricalSchemeAccount",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('change_reason', models.CharField(max_length=255)),
-                ('change_type', models.CharField(choices=[('create', 'create'), ('update', 'update'), ('delete', 'delete')], max_length=6)),
-                ('instance_id', models.CharField(max_length=255)),
-                ('channel', models.CharField(max_length=255)),
-                ('user_id', models.IntegerField()),
-                ('body', django.contrib.postgres.fields.jsonb.JSONField()),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("change_reason", models.CharField(max_length=255)),
+                (
+                    "change_type",
+                    models.CharField(
+                        choices=[("create", "create"), ("update", "update"), ("delete", "delete")], max_length=6
+                    ),
+                ),
+                ("instance_id", models.CharField(max_length=255)),
+                ("channel", models.CharField(max_length=255)),
+                ("user_id", models.IntegerField()),
+                ("body", django.contrib.postgres.fields.jsonb.JSONField()),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
         migrations.CreateModel(
-            name='HistoricalSchemeAccountEntry',
+            name="HistoricalSchemeAccountEntry",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('change_reason', models.CharField(max_length=255)),
-                ('change_type', models.CharField(choices=[('create', 'create'), ('update', 'update'), ('delete', 'delete')], max_length=6)),
-                ('instance_id', models.CharField(max_length=255)),
-                ('channel', models.CharField(max_length=255)),
-                ('user_id', models.IntegerField()),
-                ('scheme_account_id', models.IntegerField()),
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("change_reason", models.CharField(max_length=255)),
+                (
+                    "change_type",
+                    models.CharField(
+                        choices=[("create", "create"), ("update", "update"), ("delete", "delete")], max_length=6
+                    ),
+                ),
+                ("instance_id", models.CharField(max_length=255)),
+                ("channel", models.CharField(max_length=255)),
+                ("user_id", models.IntegerField()),
+                ("scheme_account_id", models.IntegerField()),
             ],
             options={
-                'abstract': False,
+                "abstract": False,
             },
         ),
     ]

@@ -9,7 +9,7 @@ def add_read_only_group(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
     Permission = apps.get_model("auth", "Permission")
     new_group = Group.objects.create(name="Read Only")
-    permissions = Permission.objects.filter(codename__startswith='view')
+    permissions = Permission.objects.filter(codename__startswith="view")
     entry_data = [{"group_id": new_group.id, "permission_id": p.pk} for p in permissions]
     ThroughModel = new_group.permissions.through
     all_entries = [ThroughModel(**entry) for entry in entry_data]
@@ -21,13 +21,11 @@ def add_read_write_group(apps, schema_editor):
     Permission = apps.get_model("auth", "Permission")
     new_group = Group.objects.create(name="Read/Write")
     permissions = Permission.objects.exclude(
-        Q(codename__startswith='add') |
-        Q(codename__startswith='change') |
-        Q(codename__startswith='delete'),
-        Q(codename__endswith='customuser') |
-        Q(codename__endswith='group') |
-        Q(codename__endswith='permission') |
-        Q(codename__endswith='customuserconsent')
+        Q(codename__startswith="add") | Q(codename__startswith="change") | Q(codename__startswith="delete"),
+        Q(codename__endswith="customuser")
+        | Q(codename__endswith="group")
+        | Q(codename__endswith="permission")
+        | Q(codename__endswith="customuserconsent"),
     )
     entry_data = [{"group_id": new_group.id, "permission_id": p.pk} for p in permissions]
     ThroughModel = new_group.permissions.through
@@ -36,27 +34,26 @@ def add_read_write_group(apps, schema_editor):
 
 
 def revert_migration_read_only(apps, schema_editor):
-    Group = apps.get_model('auth', 'Group')
+    Group = apps.get_model("auth", "Group")
     Group.objects.filter(
-        name=u'Read Only',
+        name=u"Read Only",
     ).delete()
 
 
 def revert_migration(apps, schema_editor):
-    Group = apps.get_model('auth', 'Group')
+    Group = apps.get_model("auth", "Group")
     Group.objects.filter(
-        name=u'Read/Write',
+        name=u"Read/Write",
     ).delete()
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0042_auto_20200610_0933'),
+        ("user", "0042_auto_20200610_0933"),
     ]
 
     operations = [
         migrations.RunPython(add_read_only_group, revert_migration_read_only),
         migrations.RunPython(add_read_write_group, revert_migration),
     ]
-

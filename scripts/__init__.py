@@ -1,1 +1,1 @@
-default_app_config = 'scripts.apps.ScriptsAppConfig'
+default_app_config = "scripts.apps.ScriptsAppConfig"

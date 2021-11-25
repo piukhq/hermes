@@ -23,13 +23,8 @@ class InfluxAudit(object):
         user_set = ",".join(str(u.id) for u in card_link.payment_card_account.user_set.all())
         return {
             "measurement": settings.INFLUX_DB_NAME,
-            "tags": {
-                "payment_card_account": card_link.payment_card_account.id,
-                "user_set": user_set
-            },
-            "fields": {
-                "scheme_account": card_link.scheme_account.id
-            }
+            "tags": {"payment_card_account": card_link.payment_card_account.id, "user_set": user_set},
+            "fields": {"scheme_account": card_link.scheme_account.id},
         }
 
     def write_to_db(self, link_data, many=False):
@@ -51,7 +46,7 @@ class InfluxAudit(object):
         :return: json string
         """
         if self.client:
-            return self.client.query('SELECT * FROM {}'.format(settings.INFLUX_DB_NAME)).raw
+            return self.client.query("SELECT * FROM {}".format(settings.INFLUX_DB_NAME)).raw
         return None
 
 

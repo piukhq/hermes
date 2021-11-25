@@ -8,32 +8,28 @@ from common.models import Image
 
 def _format_image_for_ubiquity(img):
     try:
-        encoding = img.encoding or img.image.name.split('.')[-1].replace('/', '')
+        encoding = img.encoding or img.image.name.split(".")[-1].replace("/", "")
     except (IndexError, AttributeError):
         encoding = None
 
     return {
-        'payload': {
-            'id': img.id,
-            'type': img.image_type_code,
-            'url': img.image.name,
-            'description': img.description,
-            'encoding': encoding,
-
+        "payload": {
+            "id": img.id,
+            "type": img.image_type_code,
+            "url": img.image.name,
+            "description": img.description,
+            "encoding": encoding,
         },
-        'validity': {
-            'start_date': img.start_date.timestamp() if img.start_date else None,
-            'end_date': img.end_date.timestamp() if img.end_date else None
-        }
+        "validity": {
+            "start_date": img.start_date.timestamp() if img.start_date else None,
+            "end_date": img.end_date.timestamp() if img.end_date else None,
+        },
     }
 
 
 def format_base_images(apps, schema_editor):
-    Scheme = apps.get_model('scheme', 'Scheme')
-    query = {
-        'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]
-    }
+    Scheme = apps.get_model("scheme", "Scheme")
+    query = {"status": Image.PUBLISHED, "image_type_code__in": [Image.HERO, Image.ICON, Image.ALT_HERO, Image.TIER]}
 
     schemes = []
     for scheme in Scheme.objects.all():
@@ -52,19 +48,16 @@ def format_base_images(apps, schema_editor):
 
                 formatted_images[img.image_type_code][img.id] = formatted_img
 
-        scheme.formatted_images = {'images': formatted_images, 'tier_images': tier_images}
+        scheme.formatted_images = {"images": formatted_images, "tier_images": tier_images}
         schemes.append(scheme)
 
-    Scheme.objects.bulk_update(schemes, ['formatted_images'])
+    Scheme.objects.bulk_update(schemes, ["formatted_images"])
 
 
 def format_account_images(apps, schema_editor):
-    SchemeAccount = apps.get_model('scheme', 'SchemeAccount')
-    SchemeAccountImage = apps.get_model('scheme', 'SchemeAccountImage')
-    query = {
-        'status': Image.PUBLISHED,
-        'image_type_code__in': [Image.HERO, Image.ICON, Image.ALT_HERO]
-    }
+    SchemeAccount = apps.get_model("scheme", "SchemeAccount")
+    SchemeAccountImage = apps.get_model("scheme", "SchemeAccountImage")
+    query = {"status": Image.PUBLISHED, "image_type_code__in": [Image.HERO, Image.ICON, Image.ALT_HERO]}
 
     accounts = {}
     for img in SchemeAccountImage.objects.filter(**query).all():
@@ -75,21 +68,21 @@ def format_account_images(apps, schema_editor):
 
             scheme_account = accounts[account.id]
             if img.image_type_code == Image.TIER:
-                account_tier_images = scheme_account.formatted_images.get('tier_images', {})
+                account_tier_images = scheme_account.formatted_images.get("tier_images", {})
                 if img.reward_tier not in account_tier_images:
                     account_tier_images[img.reward_tier] = {}
 
                 account_tier_images[img.reward_tier][img.id] = formatted_image
-                scheme_account.formatted_images.update({'tier_images': account_tier_images})
+                scheme_account.formatted_images.update({"tier_images": account_tier_images})
             else:
-                account_images = scheme_account.formatted_images.get('images', {})
+                account_images = scheme_account.formatted_images.get("images", {})
                 if img.image_type_code not in account_images:
                     account_images[img.image_type_code] = {}
 
                 account_images[img.image_type_code][img.id] = formatted_image
-                scheme_account.formatted_images.update({'images': account_images})
+                scheme_account.formatted_images.update({"images": account_images})
 
-    SchemeAccount.all_objects.bulk_update(list(accounts.values()), ['formatted_images'], batch_size=1000)
+    SchemeAccount.all_objects.bulk_update(list(accounts.values()), ["formatted_images"], batch_size=1000)
 
 
 def revert_format_images(apps, schema_editor):
@@ -98,13 +91,13 @@ def revert_format_images(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('scheme', '0080_auto_20200716_1535'),
+        ("scheme", "0080_auto_20200716_1535"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='schemeaccount',
-            name='formatted_images',
+            model_name="schemeaccount",
+            name="formatted_images",
             field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, default=dict, null=True),
         ),
         migrations.RunPython(format_base_images, revert_format_images),

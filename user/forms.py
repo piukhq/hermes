@@ -20,7 +20,7 @@ class MagicLinkTemplateFileField(FileField):
     """
 
     class FileSize(str):
-        SUFFIXES = ['KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+        SUFFIXES = ["KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
 
         def byte_size(self):
             try:
@@ -43,10 +43,12 @@ class MagicLinkTemplateFileField(FileField):
             content_type = file.content_type
             if content_type in self.content_types:
                 if file.size > self.max_upload_size:
-                    raise forms.ValidationError(_(
-                        f"Please keep filesize under {filesizeformat(self.max_upload_size)}. "
-                        f"Current filesize {filesizeformat(file.size)}"
-                    ))
+                    raise forms.ValidationError(
+                        _(
+                            f"Please keep filesize under {filesizeformat(self.max_upload_size)}. "
+                            f"Current filesize {filesizeformat(file.size)}"
+                        )
+                    )
             else:
                 raise forms.ValidationError(_("Filetype not supported."))
         except AttributeError:

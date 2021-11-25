@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('scheme', '0022_exchange'),
+        ("scheme", "0022_exchange"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='scheme',
-            name='link_account_text',
+            model_name="scheme",
+            name="link_account_text",
             field=models.CharField(blank=True, max_length=200, null=True),
         ),
     ]

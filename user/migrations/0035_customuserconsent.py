@@ -8,20 +8,19 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('user', '0034_auto_20190109_1026'),
+        ("user", "0034_auto_20190109_1026"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CustomUserConsent',
-            fields=[
-            ],
+            name="CustomUserConsent",
+            fields=[],
             options={
-                'verbose_name': 'Custom user service consent',
-                'verbose_name_plural': 'Custom user service consents',
-                'proxy': True,
-                'indexes': [],
+                "verbose_name": "Custom user service consent",
+                "verbose_name_plural": "Custom user service consents",
+                "proxy": True,
+                "indexes": [],
             },
-            bases=('user.customuser',),
+            bases=("user.customuser",),
         ),
     ]

@@ -9,17 +9,17 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0036_auto_20180629_1453'),
+        ("payment_card", "0036_auto_20180629_1453"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='paymentcardaccount',
-            name='user',
+            model_name="paymentcardaccount",
+            name="user",
         ),
         migrations.AddField(
-            model_name='paymentcardaccount',
-            name='consents',
+            model_name="paymentcardaccount",
+            name="consents",
             field=django.contrib.postgres.fields.jsonb.JSONField(default=[]),
         ),
     ]

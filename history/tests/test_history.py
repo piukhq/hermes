@@ -9,21 +9,21 @@ from rest_framework.test import APITestCase
 
 from history.models import HistoricalPaymentCardSchemeEntry, HistoricalSchemeAccount, HistoricalVopActivation
 from history.utils import mock_aes_keys
-from payment_card.tests.factories import PaymentCardFactory, IssuerFactory, PaymentCardAccountFactory
+from payment_card.tests.factories import IssuerFactory, PaymentCardAccountFactory, PaymentCardFactory
 from scheme.credentials import BARCODE, LAST_NAME
-from scheme.models import SchemeBundleAssociation, SchemeCredentialQuestion, SchemeAccount
+from scheme.models import SchemeAccount, SchemeBundleAssociation, SchemeCredentialQuestion
 from scheme.tests.factories import (
-    SchemeFactory,
-    SchemeBundleAssociationFactory,
     SchemeBalanceDetailsFactory,
+    SchemeBundleAssociationFactory,
     SchemeCredentialQuestionFactory,
+    SchemeFactory,
 )
 from ubiquity.tests.factories import PaymentCardAccountEntryFactory
 from ubiquity.tests.property_token import GenerateJWToken
 from user.tests.factories import (
-    OrganisationFactory,
-    ClientApplicationFactory,
     ClientApplicationBundleFactory,
+    ClientApplicationFactory,
+    OrganisationFactory,
     UserFactory,
 )
 

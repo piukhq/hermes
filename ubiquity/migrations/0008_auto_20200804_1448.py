@@ -6,12 +6,12 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('ubiquity', '0007_auto_20200630_1032'),
+        ("ubiquity", "0007_auto_20200630_1032"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='vopactivation',
-            constraint=models.UniqueConstraint(fields=('payment_card_account', 'scheme'), name='unique_activation'),
+            model_name="vopactivation",
+            constraint=models.UniqueConstraint(fields=("payment_card_account", "scheme"), name="unique_activation"),
         ),
     ]

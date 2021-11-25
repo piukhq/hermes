@@ -1,6 +1,6 @@
 import re
 from collections import namedtuple
-from typing import Optional, Type, TYPE_CHECKING, Tuple, Iterable
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple, Type
 from unittest.mock import patch
 
 from django.contrib import admin
@@ -12,19 +12,17 @@ from history.apps import logger
 from history.enums import DeleteField
 from history.models import HistoricalBase, get_required_extra_fields
 from history.serializers import get_body_serializer
-from history.signals import HISTORY_CONTEXT, EXCLUDED_FIELDS, get_user_and_channel
+from history.signals import EXCLUDED_FIELDS, HISTORY_CONTEXT, get_user_and_channel
 from history.tasks import bulk_record_history
 
 if TYPE_CHECKING:
-    from django.db.models import Model
     from datetime import datetime
+
+    from django.db.models import Model
 
 user_info = namedtuple("user_info", ("user_id", "channel"))
 
-mock_aes_keys = {
-  "LOCAL_AES_KEY": "FLNnJPJabsBR31UqMBp2ZibUF1Y7vQ",
-  "AES_KEY": "1oPW4THKINh4DR1uIzn12l7Mh2UH985K"
-}
+mock_aes_keys = {"LOCAL_AES_KEY": "FLNnJPJabsBR31UqMBp2ZibUF1Y7vQ", "AES_KEY": "1oPW4THKINh4DR1uIzn12l7Mh2UH985K"}
 
 
 class HistoryAdmin(admin.ModelAdmin):
@@ -145,7 +143,7 @@ def _bulk_create_with_id(model: Type["Model"], objs: Iterable, batch_size: int) 
 
 
 def _format_history_objs(
-        model_name: str, created_at: "datetime", objs: Iterable, change_type: str, change_details: str
+    model_name: str, created_at: "datetime", objs: Iterable, change_type: str, change_details: str
 ) -> list:
     user_id, channel = get_user_and_channel()
     required_extra_fields = get_required_extra_fields(model_name)
@@ -187,13 +185,13 @@ def _format_history_objs(
 
 
 def _history_bulk(
-        model: Type["Model"],
-        objs: Iterable,
-        update_fields: list = None,
-        *,
-        batch_size: int = None,
-        ignore_conflicts: bool = False,
-        update: bool = False,
+    model: Type["Model"],
+    objs: Iterable,
+    update_fields: list = None,
+    *,
+    batch_size: int = None,
+    ignore_conflicts: bool = False,
+    update: bool = False,
 ) -> list:
     created_at = timezone.now()
     model_name = model.__name__
@@ -218,25 +216,19 @@ def _history_bulk(
 
         change_type, change_details = HistoricalBase.CREATE, ""
 
-    history_objs = _format_history_objs(
-        model_name,
-        created_at,
-        objs,
-        change_type,
-        change_details
-    )
+    history_objs = _format_history_objs(model_name, created_at, objs, change_type, change_details)
 
     bulk_record_history.delay(model_name, history_objs)
     return objs
 
 
 def history_bulk_update(
-        model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
+    model: Type["Model"], objs: Iterable, update_fields: list = None, batch_size: int = None
 ) -> None:
     _history_bulk(model, objs, update_fields, batch_size=batch_size, update=True)
 
 
 def history_bulk_create(
-        model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
+    model: Type["Model"], objs: Iterable, batch_size: int = None, ignore_conflicts: bool = False
 ) -> list:
     return _history_bulk(model, objs, batch_size=batch_size, ignore_conflicts=ignore_conflicts, update=False)

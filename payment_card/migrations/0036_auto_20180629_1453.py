@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('payment_card', '0035_auto_20180629_1418'),
+        ("payment_card", "0035_auto_20180629_1418"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='authtransaction',
-            name='auth_code',
-            field=models.CharField(blank=True, default='', max_length=100),
+            model_name="authtransaction",
+            name="auth_code",
+            field=models.CharField(blank=True, default="", max_length=100),
         ),
     ]
