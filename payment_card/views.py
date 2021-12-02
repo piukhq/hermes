@@ -283,8 +283,9 @@ class RetrievePaymentCardUserInfo(APIView):
                     "last_four": active_card.payment_card_account.pan_end,
                 }
 
-            response_data[payment_card_token]["payment_card_account_id"] = (
-                payment_card_entries[0].payment_card_account.id)
+            response_data[payment_card_token]["payment_card_account_id"] = payment_card_entries[
+                0
+            ].payment_card_account.id
 
         return JsonResponse(response_data, safe=False)
 
