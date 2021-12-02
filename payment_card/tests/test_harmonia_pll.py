@@ -97,6 +97,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["1144**33"]["loyalty_id"], self.scheme_answer_1.answer)
         self.assertEqual(data["1144**33"]["card_information"]["first_six"], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data["1144**33"]["card_information"]["last_four"], str(self.payment_card_account_1.pan_end))
+        self.assertEqual(data["1144**33"]["payment_card_account_id"], self.payment_card_account_1.id)
 
         self.assertIn("3344**11", data)
         self.assertEqual(data["3344**11"]["user_id"], self.user_2.id)
@@ -104,12 +105,14 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["3344**11"]["loyalty_id"], self.scheme_answer_2.answer)
         self.assertEqual(data["3344**11"]["card_information"]["first_six"], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data["3344**11"]["card_information"]["last_four"], str(self.payment_card_account_2.pan_end))
+        self.assertEqual(data["3344**11"]["payment_card_account_id"], self.payment_card_account_2.id)
 
         self.assertIn("5544**11", data)
         self.assertEqual(data["5544**11"]["user_id"], self.user_3.id)
         self.assertEqual(data["5544**11"]["scheme_account_id"], self.scheme_account_3.id)
         self.assertEqual(data["5544**11"]["loyalty_id"], self.scheme_answer_3.answer)
         self.assertNotIn("card_information", data["5544**11"])
+        self.assertEqual(data["5544**11"]["payment_card_account_id"], self.payment_card_account_3.id)
 
     def test_404_scheme_unavailable(self):
         response = self.client.post(
@@ -169,6 +172,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["1144**33"]["loyalty_id"], None)
         self.assertEqual(data["1144**33"]["card_information"]["first_six"], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data["1144**33"]["card_information"]["last_four"], str(self.payment_card_account_1.pan_end))
+        self.assertEqual(data["1144**33"]["payment_card_account_id"], self.payment_card_account_1.id)
 
         self.assertIn("3344**11", data)
         self.assertEqual(data["3344**11"]["user_id"], self.user_2.id)
@@ -176,12 +180,14 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["3344**11"]["loyalty_id"], None)
         self.assertEqual(data["3344**11"]["card_information"]["first_six"], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data["3344**11"]["card_information"]["last_four"], str(self.payment_card_account_2.pan_end))
+        self.assertEqual(data["3344**11"]["payment_card_account_id"], self.payment_card_account_2.id)
 
         self.assertIn("5544**11", data)
         self.assertEqual(data["5544**11"]["user_id"], self.user_3.id)
         self.assertEqual(data["5544**11"]["scheme_account_id"], None)
         self.assertEqual(data["5544**11"]["loyalty_id"], None)
         self.assertNotIn("card_information", data["5544**11"])
+        self.assertEqual(data["5544**11"]["payment_card_account_id"], self.payment_card_account_3.id)
 
     def test_soft_linking_payment_card_only2_soft(self):
         self.link1_1.active_link = True
@@ -214,6 +220,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["1144**33"]["loyalty_id"], self.scheme_answer_1.answer)
         self.assertEqual(data["1144**33"]["card_information"]["first_six"], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data["1144**33"]["card_information"]["last_four"], str(self.payment_card_account_1.pan_end))
+        self.assertEqual(data["1144**33"]["payment_card_account_id"], self.payment_card_account_1.id)
 
         self.assertIn("3344**11", data)
         self.assertEqual(data["3344**11"]["user_id"], self.user_2.id)
@@ -221,12 +228,14 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["3344**11"]["loyalty_id"], None)
         self.assertEqual(data["3344**11"]["card_information"]["first_six"], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data["3344**11"]["card_information"]["last_four"], str(self.payment_card_account_2.pan_end))
+        self.assertEqual(data["3344**11"]["payment_card_account_id"], self.payment_card_account_2.id)
 
         self.assertIn("5544**11", data)
         self.assertEqual(data["5544**11"]["user_id"], self.user_3.id)
         self.assertEqual(data["5544**11"]["scheme_account_id"], self.scheme_account_3.id)
         self.assertEqual(data["5544**11"]["loyalty_id"], self.scheme_answer_3.answer)
         self.assertNotIn("card_information", data["5544**11"])
+        self.assertEqual(data["5544**11"]["payment_card_account_id"], self.payment_card_account_3.id)
 
     def test_soft_linking_payment_card_only_2active(self):
         """
@@ -262,6 +271,7 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["1144**33"]["loyalty_id"], None)
         self.assertEqual(data["1144**33"]["card_information"]["first_six"], str(self.payment_card_account_1.pan_start))
         self.assertEqual(data["1144**33"]["card_information"]["last_four"], str(self.payment_card_account_1.pan_end))
+        self.assertEqual(data["1144**33"]["payment_card_account_id"], self.payment_card_account_1.id)
 
         self.assertIn("3344**11", data)
         self.assertEqual(data["3344**11"]["user_id"], self.user_2.id)
@@ -269,9 +279,11 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertEqual(data["3344**11"]["loyalty_id"], self.scheme_answer_2.answer)
         self.assertEqual(data["3344**11"]["card_information"]["first_six"], str(self.payment_card_account_2.pan_start))
         self.assertEqual(data["3344**11"]["card_information"]["last_four"], str(self.payment_card_account_2.pan_end))
+        self.assertEqual(data["3344**11"]["payment_card_account_id"], self.payment_card_account_2.id)
 
         self.assertIn("5544**11", data)
         self.assertEqual(data["5544**11"]["user_id"], self.user_3.id)
         self.assertEqual(data["5544**11"]["scheme_account_id"], None)
         self.assertEqual(data["5544**11"]["loyalty_id"], None)
         self.assertNotIn("card_information", data["5544**11"])
+        self.assertEqual(data["5544**11"]["payment_card_account_id"], self.payment_card_account_3.id)
