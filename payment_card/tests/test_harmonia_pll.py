@@ -189,7 +189,6 @@ class TestPaymentCardUserInfo(GlobalMockAPITestCase):
         self.assertNotIn("card_information", data["5544**11"])
         self.assertEqual(data["5544**11"]["payment_card_account_id"], self.payment_card_account_3.id)
 
-
     def test_soft_linking_payment_card_only2_soft(self):
         self.link1_1.active_link = True
         self.link1_1.save()
