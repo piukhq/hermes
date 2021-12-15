@@ -57,12 +57,14 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         self._fixup_perms(user, payload)
         return user
 
-    def _fixup_perms(self, user, payload):
+    def _fixup_perms(self, user, payload):  # TODO: Make this way better
         user.is_staff = True
         user.is_superuser = False
 
         rw = Group.objects.get(name="Read/Write")
         ro = Group.objects.get(name="Read Only")
+        sc_rw = Group.objects.get(name="Scripts Run and Correct")
+        sc_ro = Group.objects.get(name="Scripts Run Only")
 
         # Get roles from AAD token
         roles = payload.get("roles", [])
@@ -75,14 +77,32 @@ class SSOAuthBackend(OIDCAuthenticationBackend):
         elif role == "readwrite":
             user.is_superuser = False
             ro.user_set.remove(user)
+            sc_rw.user_set.remove(user)
+            sc_ro.user_set.remove(user)
             user.user_permissions.clear()
             rw.user_set.add(user)
+        elif role == "script_run_and_correct":
+            user.is_superuser = False
+            rw.user_set.remove(user)
+            sc_ro.user_set.remove(user)
+            user.user_permissions.clear()
+            ro.user_set.add(user)
+            sc_rw.user_set.add(user)
+        elif role == "script_run_only":
+            user.is_superuser = False
+            rw.user_set.remove(user)
+            sc_rw.user_set.remove(user)
+            user.user_permissions.clear()
+            ro.user_set.add(user)
+            sc_ro.user_set.add(user)
 
         else:
             user.is_superuser = False
             rw.user_set.remove(user)
             user.user_permissions.clear()
             ro.user_set.add(user)
+            sc_ro.user_set.remove(user)
+            sc_rw.user_set.remove(user)
 
         user.save()
 
