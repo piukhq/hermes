@@ -276,7 +276,10 @@ class ClientApplicationBundleAdmin(CacheResetAdmin):
                 None,
                 {
                     "fields": (
-                        ("bundle_id", "client", "external_name"),
+                        "bundle_id",
+                        "client",
+                        "external_name",
+                        "email_required",
                         (
                             "magic_link_url",
                             "magic_lifetime",

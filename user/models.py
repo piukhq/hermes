@@ -158,6 +158,7 @@ class ClientApplicationBundle(models.Model):
     refresh_token_lifetime = models.PositiveIntegerField(
         validators=[MinValueValidator(2)], blank=True, null=True, default=15, verbose_name="refresh token life (mins)"
     )
+    email_required = models.BooleanField(default=True)
 
     class Meta:
         unique_together = (
