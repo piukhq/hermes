@@ -47,6 +47,9 @@
    * source  ~/.virtualenvs/hermes/bin/activate
    * cd ~/code_dir/hermes
    * pip install -r requirements.txt
+ * Install Azure-CLI for keyvault access (or alternatively you are able to use a local secrets file)
+   * `brew install azure-cli`    
+   * Then: `az login` will take you to a browser to sign into Azure.   
  * Install Docker and Postgres
  	* Download and install [Docker](https://docs.docker.com/docker-for-mac/install/)
  	* Pull Docker Postgres: `docker pull postgres:9.5`
@@ -91,3 +94,5 @@
   - String Value, text of django admin environment message
 - `ENVIRONMENT_COLOR`
   - String Value, hex value of django admin environment message background colour
+- `VAULT_URL`
+  - String Value, URL access to Azure keyvault

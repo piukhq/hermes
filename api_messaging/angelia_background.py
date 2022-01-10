@@ -10,13 +10,15 @@ from payment_card import metis
 from payment_card.models import PaymentCardAccount
 from scheme.mixins import SchemeAccountJoinMixin
 from scheme.models import Scheme, SchemeAccount
-from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry
+from ubiquity.models import PaymentCardAccountEntry, SchemeAccountEntry, ServiceConsent
+from ubiquity.versioning.base.serializers import ServiceSerializer
 from ubiquity.tasks import (
     async_join,
     async_link,
     auto_link_membership_to_payments,
     deleted_membership_card_cleanup,
     deleted_payment_card_cleanup,
+    deleted_service_cleanup
 )
 from ubiquity.views import AutoLinkOnCreationMixin, MembershipCardView
 from user.models import CustomUser
@@ -202,4 +204,29 @@ def delete_loyalty_card(message: dict) -> None:
         arrow.utcnow().format(),
         user.id,
         history_kwargs={"user_info": user_info(user_id=user.id, channel=message.get("channel"))},
+    )
+
+
+def delete_user(message: dict) -> None:
+    user_id = message.get("user_id")
+    user = CustomUser.objects.get(pk=user_id)
+    channel = message.get("channel")
+    consent_data = None
+
+    try:
+        consent = ServiceConsent.objects.get(pk=user_id)
+    except ServiceConsent.DoesNotExist:
+        logger.error(f"Service Consent data for user {user_id} cannot be found!")
+    else:
+        consent_data = {
+            "email": user.email,
+            "timestamp": consent.timestamp
+        }
+
+    user.soft_delete()
+
+    deleted_service_cleanup.delay(
+        user_id=user_id,
+        consent=consent_data,
+        history_kwargs={"user_info": user_info(user_id=user_id, channel=channel)},
     )
