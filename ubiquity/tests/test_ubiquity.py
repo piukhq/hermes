@@ -68,7 +68,6 @@ from ubiquity.versioning.base.serializers import MembershipCardSerializer as Mem
 from ubiquity.versioning.base.serializers import MembershipTransactionsMixin
 from ubiquity.versioning.v1_2.serializers import (
     MembershipCardSerializer,
-    MembershipPlanSerializer,
     PaymentCardSerializer,
 )
 from ubiquity.versioning.v1_3.serializers import MembershipCardSerializer as MembershipCardSerializer_V1_3
