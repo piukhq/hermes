@@ -72,6 +72,9 @@ from ubiquity.versioning.v1_2.serializers import (
     PaymentCardSerializer,
 )
 from ubiquity.versioning.v1_3.serializers import MembershipCardSerializer as MembershipCardSerializer_V1_3
+# override 1_2 above with this... I have a bad feeling about this
+from ubiquity.versioning.v1_3.serializers import MembershipPlanSerializer
+
 from ubiquity.views import MembershipCardView, detect_and_handle_escaped_unicode
 from user.tests.factories import (
     ClientApplicationBundleFactory,
