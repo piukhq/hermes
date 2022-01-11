@@ -55,7 +55,5 @@ class MembershipPlanSerializer(v1_2_serializers.MembershipPlanSerializer):
     def to_representation(self, instance: "Scheme") -> dict:
         plan = super().to_representation(instance)
         plan["card"]["secondary_colour"] = instance.secondary_colour
-        
-        # mf: slug added in sprint 52 - LOY-2077
         plan["slug"] = instance.slug
         return plan
